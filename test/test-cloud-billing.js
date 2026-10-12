@@ -274,6 +274,152 @@ module.exports = function (harness) {
       assert.strictEqual(billing.processWebhookEvent(input, () => 'retried').processed, true);
     });
 
+    test('evaluation starts once, grants Personal access, and expires read only without deletion', () => {
+      const workspaceId = 'wrk_evaluation';
+      assert.throws(() => billing.startEvaluation({ workspaceId, ownerUserId: 'user_eval',
+        termsVersion: 'terms-1' }), error => error.code === 'cloud_first_consent_required');
+      const evaluation = billing.startEvaluation({ workspaceId, ownerUserId: 'user_eval',
+        termsVersion: 'terms-1', cloudFirstConsentAtMs: clock, source: 'self_serve' });
+      assert.strictEqual(evaluation.status, 'active');
+      assert.strictEqual(evaluation.endsAtMs, clock + 30 * 24 * 60 * 60 * 1000);
+      assert.deepStrictEqual(billing.listUnconvertedEvaluations().map((item) => item.workspaceId),
+        [workspaceId]);
+      assert.strictEqual(billing.computeEntitlements(workspaceId).access.write, true);
+      const duplicate = billing.startEvaluation({ workspaceId, ownerUserId: 'user_eval',
+        termsVersion: 'terms-2', cloudFirstConsentAtMs: clock, source: 'other' });
+      assert.strictEqual(duplicate.startedAtMs, evaluation.startedAtMs);
+      assert.strictEqual(duplicate.termsVersion, 'terms-1');
+
+      // Stripe's incomplete checkout maps to the billing store's read_only status.
+      for (const status of ['read_only', 'canceled']) {
+        billing.upsertSubscription({ workspaceId, plan: 'personal', status, seatQuantity: 1,
+          provider: 'testpay', providerSubscriptionId: 'checkout-' + status });
+        const duringCheckout = billing.computeEntitlements(workspaceId);
+        assert.strictEqual(duringCheckout.access.write, true,
+          status + ' checkout state must not consume the active evaluation');
+        assert.strictEqual(duringCheckout.evaluation.status, 'active');
+      }
+      billing.upsertSubscription({ workspaceId, plan: 'personal', status: 'past_due', seatQuantity: 1,
+        provider: 'testpay', providerSubscriptionId: 'checkout-past-due', graceEndsAtMs: clock - 1 });
+      assert.strictEqual(billing.computeEntitlements(workspaceId).access.write, true,
+        'an expired payment grace state must not consume an active evaluation');
+      billing.recordEvaluationEvent({ workspaceId, eventType: 'first_document', eventKey: 'first_document' });
+      billing.recordEvaluationEvent({ workspaceId, eventType: 'return', eventKey: 'return:2026-10-11' });
+      billing.recordEvaluationEvent({ workspaceId, eventType: 'return', eventKey: 'return:2026-10-11' });
+      clock = evaluation.endsAtMs;
+      const expired = billing.computeEntitlements(workspaceId);
+      assert.strictEqual(expired.evaluation.status, 'expired');
+      assert.deepStrictEqual(billing.listUnconvertedEvaluations().map((item) => item.status), ['expired']);
+      assert.strictEqual(expired.access.write, false);
+      assert.strictEqual(expired.access.read, true);
+      assert.strictEqual(expired.access.write, false);
+      assert.strictEqual(expired.access.search, false);
+      assert.strictEqual(billing.checkOperation(workspaceId, { operation: 'read' }).allowed, true);
+      assert.strictEqual(billing.checkOperation(workspaceId, { operation: 'store_revision' }).reason,
+        'evaluation_expired');
+      assert.strictEqual(billing.checkOperation(workspaceId, { operation: 'manage' }).reason,
+        'evaluation_expired');
+      assert.strictEqual(billing.db.prepare('SELECT COUNT(*) AS count FROM cloud_evaluations WHERE workspace_id = ?')
+        .get(workspaceId).count, 1);
+      assert.strictEqual(billing.db.prepare('SELECT COUNT(*) AS count FROM cloud_evaluation_events WHERE workspace_id = ?')
+        .get(workspaceId).count, 3);
+
+      billing.upsertSubscription({ workspaceId, plan: 'personal', status: 'active', seatQuantity: 1,
+        provider: 'testpay', providerSubscriptionId: 'paid-after-eval' });
+      assert.strictEqual(billing.computeEntitlements(workspaceId).access.write, true,
+        'paid subscription takes precedence over the expired evaluation');
+      assert.strictEqual(billing.computeEntitlements(workspaceId).evaluation.status, 'converted');
+      assert.ok(billing.getEvaluation(workspaceId).convertedAtMs,
+        'paid access conversion is persisted even if checkout completes after evaluation expiry');
+      assert.deepStrictEqual(billing.listUnconvertedEvaluations(), []);
+      billing.recordEvaluationEvent({ workspaceId, eventType: 'paid_invoice', eventKey: 'paid_invoice',
+        amountMinor: 400, currency: 'GBP' });
+      billing.recordEvaluationEvent({ workspaceId, eventType: 'paid_invoice', eventKey: 'paid_invoice',
+        amountMinor: 700, currency: 'gbp' });
+      const paidEvent = billing.db.prepare('SELECT * FROM cloud_evaluation_events WHERE workspace_id = ? AND event_type = ?')
+        .get(workspaceId, 'paid_invoice');
+      assert.strictEqual(paidEvent.amount_minor, 400);
+      assert.strictEqual(paidEvent.currency, 'gbp');
+      assert.strictEqual(billing.getSubscriptionByProviderId('testpay', 'paid-after-eval').workspaceId,
+        workspaceId);
+
+      const convertedWorkspaceId = 'wrk_eval_converted';
+      billing.startEvaluation({ workspaceId: convertedWorkspaceId, ownerUserId: 'user_eval',
+        termsVersion: 'terms-1', cloudFirstConsentAtMs: clock });
+      billing.upsertSubscription({ workspaceId: convertedWorkspaceId, plan: 'personal', status: 'active',
+        seatQuantity: 1, provider: 'testpay', providerSubscriptionId: 'paid-then-canceled' });
+      assert.strictEqual(billing.getEvaluation(convertedWorkspaceId).status, 'converted',
+        'the subscription webhook persists conversion before any later access request');
+      billing.upsertSubscription({ workspaceId: convertedWorkspaceId, plan: 'personal', status: 'canceled',
+        seatQuantity: 1, provider: 'testpay', providerSubscriptionId: 'paid-then-canceled' });
+      const afterCancellation = billing.computeEntitlements(convertedWorkspaceId);
+      assert.strictEqual(afterCancellation.evaluation.status, 'converted');
+      assert.strictEqual(afterCancellation.access.write, false,
+        'a converted evaluation cannot restore access after paid access ends');
+
+      billing.upsertSubscription({ workspaceId, plan: 'personal', status: 'canceled', seatQuantity: 1,
+        provider: 'testpay', providerSubscriptionId: 'paid-after-eval' });
+      assert.strictEqual(billing.computeEntitlements(workspaceId).evaluation.status, 'converted');
+      assert.strictEqual(billing.computeEntitlements(workspaceId).access.write, false);
+    });
+
+    test('evaluation notice scheduling is dated and stale paid/expired notice states are rejected', () => {
+      const lifecycle = require('../lib/cloud-evaluation-lifecycle');
+      const evaluation = { workspaceId: 'wrk_notice', startedAtMs: clock,
+        endsAtMs: clock + 30 * lifecycle.DAY_MS, status: 'active' };
+      const notices = lifecycle.scheduleNotices(evaluation);
+      assert.deepStrictEqual(notices.map((notice) => [notice.type, notice.availableAtMs]), [
+        ['reminder', evaluation.startedAtMs + 23 * lifecycle.DAY_MS],
+        ['expired', evaluation.endsAtMs],
+      ]);
+      assert.strictEqual(lifecycle.noticeIsCurrent({ evaluation,
+        expected: { type: 'reminder', startedAtMs: evaluation.startedAtMs,
+          endsAtMs: evaluation.endsAtMs }, now: evaluation.startedAtMs + 23 * lifecycle.DAY_MS }), true);
+      assert.strictEqual(lifecycle.noticeIsCurrent({ evaluation: Object.assign({}, evaluation,
+        { status: 'converted' }), expected: { type: 'reminder', startedAtMs: evaluation.startedAtMs,
+          endsAtMs: evaluation.endsAtMs }, now: evaluation.startedAtMs + 23 * lifecycle.DAY_MS }), false);
+      assert.deepStrictEqual(lifecycle.scheduleNotices(Object.assign({}, evaluation,
+        { status: 'expired' })).map((notice) => notice.type), ['expired']);
+      assert.strictEqual(lifecycle.noticeIsCurrent({ evaluation: Object.assign({}, evaluation,
+        { endsAtMs: evaluation.endsAtMs + 1 }), expected: { type: 'expired',
+          startedAtMs: evaluation.startedAtMs, endsAtMs: evaluation.endsAtMs }, now: evaluation.endsAtMs }), false);
+    });
+
+    test('evaluation event schema migration preserves existing events and allows notice events', () => {
+      const Database = require('better-sqlite3');
+      const legacyPath = path.join(dir, 'legacy-evaluation.db');
+      const legacy = new Database(legacyPath);
+      legacy.exec(`
+        CREATE TABLE cloud_evaluations (
+          workspace_id TEXT PRIMARY KEY, owner_user_id TEXT NOT NULL, started_at_ms INTEGER NOT NULL,
+          ends_at_ms INTEGER NOT NULL, terms_version TEXT NOT NULL, cloud_first_consent_at_ms INTEGER NOT NULL,
+          converted_at_ms INTEGER, source TEXT NOT NULL, created_at_ms INTEGER NOT NULL
+        );
+        INSERT INTO cloud_evaluations VALUES
+          ('wrk_legacy_evaluation', 'user_legacy', 1000, 9000, 'terms-1', 1000, NULL, 'self_serve', 1000);
+        CREATE TABLE cloud_evaluation_events (
+          workspace_id TEXT NOT NULL REFERENCES cloud_evaluations(workspace_id),
+          event_key TEXT NOT NULL,
+          event_type TEXT NOT NULL CHECK(event_type IN
+            ('evaluation_started', 'first_document', 'return', 'checkout_started', 'paid_invoice')),
+          occurred_at_ms INTEGER NOT NULL, amount_minor INTEGER, currency TEXT,
+          PRIMARY KEY(workspace_id, event_key)
+        );
+        INSERT INTO cloud_evaluation_events VALUES
+          ('wrk_legacy_evaluation', 'evaluation_started', 'evaluation_started', 1000, NULL, NULL);
+      `);
+      legacy.close();
+      const migrated = createBillingStore({ dbPath: legacyPath, now: () => 2000 });
+      try {
+        assert.strictEqual(migrated.hasEvaluationEvent('wrk_legacy_evaluation', 'evaluation_started'), true);
+        assert.strictEqual(migrated.recordEvaluationEvent({ workspaceId: 'wrk_legacy_evaluation',
+          eventType: 'reminder_sent', eventKey: 'reminder:7d' }).recorded, true);
+        assert.strictEqual(migrated.hasEvaluationEvent('wrk_legacy_evaluation', 'reminder:7d'), true);
+      } finally {
+        migrated.close();
+      }
+    });
+
     billing.close();
     fs.rmSync(dir, { recursive: true, force: true });
   };

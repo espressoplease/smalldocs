@@ -157,6 +157,25 @@ module.exports = function(harness) {
         billingUrl: 'https://smalldocs.org/cloud' }), /unsupported billing email type/);
     });
 
+    test('Cloud evaluation notices show the scheduled date without promising retention', () => {
+      const input = { accountName: 'Personal Demo', endsAt: '19 October 2026 at 10:00 UTC',
+        billingUrl: 'https://cloud-staging.smalldocs.org/cloud/checkout?plan=personal&workspace_id=wrk_1',
+        libraryUrl: 'https://cloud-staging.smalldocs.org/library?scope=cloud' };
+      const reminder = templates.cloudEvaluationNotice(Object.assign({ type: 'reminder' }, input));
+      assert.ok(reminder.subject.includes(input.endsAt));
+      assert.ok(reminder.text.includes('Retention after the evaluation has not been decided'));
+      assert.ok(reminder.html.includes('plan=personal&amp;workspace_id=wrk_1'));
+      assert.ok(reminder.html.includes('test documents only'));
+
+      const expired = templates.cloudEvaluationNotice(Object.assign({ type: 'expired' }, input));
+      assert.ok(expired.subject.includes(input.endsAt));
+      assert.ok(expired.text.includes('Read and export documents'));
+      assert.ok(expired.text.includes('does not schedule document deletion'));
+      assert.ok(expired.html.includes('Open Cloud library'));
+      assert.throws(() => templates.cloudEvaluationNotice({ type: 'expired', billingUrl: 'javascript:alert(1)',
+        libraryUrl: 'https://smalldocs.org/library', endsAt: input.endsAt }), /http or https/);
+    });
+
     test('multipart messages carry plain-text and HTML alternatives', () => {
       const message = notify.buildMessage({
         from: 'notifications@smalldocs.test', to: 'person@example.test',

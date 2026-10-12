@@ -34,7 +34,8 @@ running, then sends previews for:
 - a subscription confirmation with renewal, terms, cancellation, and refund information;
 - payment failure, payment received, and payment read-only states;
 - cancellation scheduled, cancellation removed, and cancellation effective states;
-- the final deletion warning.
+- the final deletion warning;
+- Cloud evaluation reminder and expiry notices with test-only retention language.
 
 Open [http://127.0.0.1:8025](http://127.0.0.1:8025). Mailpit shows the rendered
 HTML, plain text, headers, raw MIME, link checks, and phone-sized previews.

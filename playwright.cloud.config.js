@@ -9,7 +9,7 @@ const baseURL = liveBaseUrl || 'https://127.0.0.1:3110';
 
 module.exports = defineConfig({
   testDir: './test',
-  testMatch: 'cloud-access-matrix.e2e.js',
+  testMatch: ['cloud-access-matrix.e2e.js', 'cloud-evaluation.e2e.js'],
   timeout: 30000,
   fullyParallel: false,
   workers: 1,

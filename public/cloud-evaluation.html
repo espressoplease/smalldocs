@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="cloud-terms-version" content="__CLOUD_TERMS_VERSION__">
+  <title>Evaluate SmallDocs Cloud</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/public/css/cloud-invite.css">
+  <style>
+    .evaluation-note { margin-top:16px; padding:12px; border:1px solid var(--border); border-radius:6px; font-size:12px; line-height:1.55; }
+    .evaluation-expiry-note { margin-top:10px; }
+    .evaluation-consent { display:flex; gap:9px; align-items:flex-start; margin-top:18px; color:var(--text); font-size:13px; line-height:1.5; }
+    .evaluation-consent input { width:auto; margin:3px 0 0; }
+    .evaluation-consent label { margin:0; font-size:13px; font-weight:400; }
+    .evaluation-status { margin-top:14px; overflow-wrap:anywhere; }
+    .evaluation-command { display:block; margin:9px 0; padding:9px; background:var(--bg); border-radius:5px; font:12px ui-monospace,monospace; }
+    .evaluation-link { display:inline-block; margin-top:14px; color:var(--blue); font-size:13px; }
+  </style>
+</head>
+<body>
+  <main class="invite-shell">
+    <a class="brand" href="/cloud">SmallDocs Cloud</a>
+    <section class="invite-card" aria-labelledby="evaluation-title">
+      <h1 id="evaluation-title">Evaluate Cloud</h1>
+      <p id="evaluation-copy">Use a Personal Cloud account for 30 days. This starts no paid subscription and asks for no payment method.</p>
+      <div class="evaluation-note">
+        <p>Cloud-first stays off until you enable it on a computer. After setup, running <code>sdoc FILE.md</code> creates or updates that file's Cloud copy before opening it. The CLI does not scan folders or watch files in the background.</p>
+        <p class="evaluation-expiry-note">At day 30, Cloud stops accepting changes. In this staging prototype, you can still read and export existing files. Retention after the review has not been decided. Use test documents only, and do not upload files you cannot risk losing during staging cleanup.</p>
+      </div>
+      <div class="evaluation-consent" id="evaluation-consent-wrap">
+        <input id="evaluation-consent" type="checkbox">
+        <label for="evaluation-consent">I understand that documents I send to this Cloud account are stored there. I want to start a 30-day evaluation, and I will enable Cloud-first separately on each computer. I will use test documents only while staging retention is undecided.</label>
+      </div>
+      <button id="evaluation-start" type="button" disabled>Start 30-day evaluation</button>
+      <p class="status evaluation-status" id="evaluation-status" role="status" aria-live="polite"></p>
+      <div id="evaluation-next" tabindex="-1" hidden></div>
+    </section>
+  </main>
+  <script src="/public/cloud-evaluation.js" defer></script>
+</body>
+</html>

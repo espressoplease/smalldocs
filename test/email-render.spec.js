@@ -28,6 +28,14 @@ const messages = [
   ['deletion warning', () => templates.billingState({ type: 'deletion_warning',
     accountName: 'SmallDocs Demo', deletionDate: '1 October 2026',
     billingUrl: 'https://cloud-staging.smalldocs.org/cloud/admin?panel=billing' })],
+  ['Cloud evaluation reminder', () => templates.cloudEvaluationNotice({ type: 'reminder',
+    accountName: 'SmallDocs Demo', endsAt: '19 October 2026 at 10:00 UTC',
+    billingUrl: 'https://cloud-staging.smalldocs.org/cloud/checkout?plan=personal&workspace_id=preview',
+    libraryUrl: 'https://cloud-staging.smalldocs.org/library?scope=cloud' })],
+  ['Cloud evaluation expiry', () => templates.cloudEvaluationNotice({ type: 'expired',
+    accountName: 'SmallDocs Demo', endsAt: '12 October 2026 at 10:00 UTC',
+    billingUrl: 'https://cloud-staging.smalldocs.org/cloud/checkout?plan=personal&workspace_id=preview',
+    libraryUrl: 'https://cloud-staging.smalldocs.org/library?scope=cloud' })],
 ];
 
 for (const [name, render] of messages) {
