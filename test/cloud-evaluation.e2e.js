@@ -105,6 +105,11 @@ test('no-card evaluation requires Cloud consent and starts a bounded Personal en
     .all(workspace.workspaceId));
   expect(scheduled).toHaveLength(2);
   expect(scheduled.map((job) => JSON.parse(job.payload_json).noticeType).sort()).toEqual(['expired', 'reminder']);
+  withJobsDb((db) => db.prepare(`DELETE FROM cloud_jobs WHERE type = 'cloud_evaluation_email'
+    AND json_extract(payload_json, '$.workspaceId') = ?`).run(workspace.workspaceId));
+  await expect.poll(() => withJobsDb((db) => db.prepare(`SELECT COUNT(*) AS count FROM cloud_jobs
+    WHERE type = 'cloud_evaluation_email' AND json_extract(payload_json, '$.workspaceId') = ?`)
+    .get(workspace.workspaceId).count), { timeout: 3000 }).toBe(2);
   const billing = await request.get(base + '/api/cloud/v1/workspaces/' + workspace.workspaceId + '/billing');
   expect(billing.status()).toBe(200);
   const billingBody = (await billing.json()).billing;

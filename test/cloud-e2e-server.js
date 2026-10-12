@@ -47,6 +47,7 @@ const env = Object.assign({}, process.env, {
   CLOUD_BILLING_DB: path.join(tempDir, 'billing.db'),
   CLOUD_JOBS_DB: path.join(tempDir, 'jobs.db'),
   CLOUD_EVALUATION_ENABLED: '1',
+  CLOUD_EVALUATION_NOTICE_RECONCILE_MS: '250',
   CLOUD_TEST_LOGIN_ENABLED: '1',
   CLOUD_TEST_LOGIN_EMAILS: TEST_LOGIN_EMAILS.join(','),
   CLOUD_TEST_LOGIN_SECRET_FILE: secretFile,

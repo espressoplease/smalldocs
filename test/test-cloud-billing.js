@@ -282,6 +282,8 @@ module.exports = function (harness) {
         termsVersion: 'terms-1', cloudFirstConsentAtMs: clock, source: 'self_serve' });
       assert.strictEqual(evaluation.status, 'active');
       assert.strictEqual(evaluation.endsAtMs, clock + 30 * 24 * 60 * 60 * 1000);
+      assert.deepStrictEqual(billing.listUnconvertedEvaluations().map((item) => item.workspaceId),
+        [workspaceId]);
       assert.strictEqual(billing.computeEntitlements(workspaceId).access.write, true);
       const duplicate = billing.startEvaluation({ workspaceId, ownerUserId: 'user_eval',
         termsVersion: 'terms-2', cloudFirstConsentAtMs: clock, source: 'other' });
@@ -307,6 +309,7 @@ module.exports = function (harness) {
       clock = evaluation.endsAtMs;
       const expired = billing.computeEntitlements(workspaceId);
       assert.strictEqual(expired.evaluation.status, 'expired');
+      assert.deepStrictEqual(billing.listUnconvertedEvaluations().map((item) => item.status), ['expired']);
       assert.strictEqual(expired.access.write, false);
       assert.strictEqual(expired.access.read, true);
       assert.strictEqual(expired.access.write, false);
@@ -328,6 +331,7 @@ module.exports = function (harness) {
       assert.strictEqual(billing.computeEntitlements(workspaceId).evaluation.status, 'converted');
       assert.ok(billing.getEvaluation(workspaceId).convertedAtMs,
         'paid access conversion is persisted even if checkout completes after evaluation expiry');
+      assert.deepStrictEqual(billing.listUnconvertedEvaluations(), []);
       billing.recordEvaluationEvent({ workspaceId, eventType: 'paid_invoice', eventKey: 'paid_invoice',
         amountMinor: 400, currency: 'GBP' });
       billing.recordEvaluationEvent({ workspaceId, eventType: 'paid_invoice', eventKey: 'paid_invoice',
@@ -374,6 +378,8 @@ module.exports = function (harness) {
       assert.strictEqual(lifecycle.noticeIsCurrent({ evaluation: Object.assign({}, evaluation,
         { status: 'converted' }), expected: { type: 'reminder', startedAtMs: evaluation.startedAtMs,
           endsAtMs: evaluation.endsAtMs }, now: evaluation.startedAtMs + 23 * lifecycle.DAY_MS }), false);
+      assert.deepStrictEqual(lifecycle.scheduleNotices(Object.assign({}, evaluation,
+        { status: 'expired' })).map((notice) => notice.type), ['expired']);
       assert.strictEqual(lifecycle.noticeIsCurrent({ evaluation: Object.assign({}, evaluation,
         { endsAtMs: evaluation.endsAtMs + 1 }), expected: { type: 'expired',
           startedAtMs: evaluation.startedAtMs, endsAtMs: evaluation.endsAtMs }, now: evaluation.endsAtMs }), false);

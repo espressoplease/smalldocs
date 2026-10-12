@@ -167,6 +167,8 @@ const CLOUD_TEST_LOGIN_ENABLED = CLOUD_DEPLOYMENT.mode === 'staging' &&
 const CLOUD_EVALUATION_ENABLED = CLOUD_DEPLOYMENT.mode === 'staging' &&
   process.env.CLOUD_EVALUATION_ENABLED === '1';
 const CLOUD_EVALUATION_DURATION_DAYS = 30;
+const CLOUD_EVALUATION_NOTICE_RECONCILE_MS = integerEnvironmentSetting(
+  'CLOUD_EVALUATION_NOTICE_RECONCILE_MS', 60 * 1000, 250);
 const CLOUD_TEST_LOGIN_EMAILS = new Set(String(process.env.CLOUD_TEST_LOGIN_EMAILS || '')
   .split(',').map((email) => email.trim().toLowerCase()).filter(Boolean));
 let CLOUD_TEST_LOGIN_SECRET = '';
@@ -382,7 +384,7 @@ function scheduleBillingLifecycleJobs(change) {
 }
 
 function scheduleCloudEvaluationNotices(evaluation) {
-  if (!cloudJobs || !evaluation || evaluation.status !== 'active') return;
+  if (!cloudJobs || !evaluation || !['active', 'expired'].includes(evaluation.status)) return;
   const lifecycle = require('./lib/cloud-evaluation-lifecycle');
   const ownerUserIds = cloudStore && cloudStore.listWorkspaceOwnerUserIds(evaluation.workspaceId);
   if (!ownerUserIds || !ownerUserIds.length) return;
@@ -396,6 +398,13 @@ function scheduleCloudEvaluationNotices(evaluation) {
           startedAtMs: evaluation.startedAtMs, endsAtMs: evaluation.endsAtMs,
           noticeType: notice.type, eventType: notice.eventType, eventKey: notice.eventKey } });
     }
+  }
+}
+
+function reconcileCloudEvaluationNotices() {
+  if (!CLOUD_EVALUATION_ENABLED || !cloudJobs || !cloudBilling) return;
+  for (const evaluation of cloudBilling.listUnconvertedEvaluations()) {
+    scheduleCloudEvaluationNotices(evaluation);
   }
 }
 
@@ -582,6 +591,12 @@ const cloudJobTimer = setInterval(runCloudJobWorker,
   Math.max(250, Number(process.env.CLOUD_JOB_POLL_MS) || 1000));
 if (cloudJobTimer.unref) cloudJobTimer.unref();
 setImmediate(runCloudJobWorker);
+const cloudEvaluationNoticeReconcileTimer = CLOUD_EVALUATION_ENABLED
+  ? setInterval(reconcileCloudEvaluationNotices, CLOUD_EVALUATION_NOTICE_RECONCILE_MS) : null;
+if (cloudEvaluationNoticeReconcileTimer && cloudEvaluationNoticeReconcileTimer.unref) {
+  cloudEvaluationNoticeReconcileTimer.unref();
+}
+if (CLOUD_EVALUATION_ENABLED) setImmediate(reconcileCloudEvaluationNotices);
 
 // Auto-version: hash all non-font files in public/ at startup.
 // Any file change = new hash = clients purge their SW cache.
@@ -3739,6 +3754,7 @@ function closeResources() {
   clearInterval(cloudAuthCleanupTimer);
   clearInterval(cloudCollaborationMetricsTimer);
   clearInterval(cloudJobTimer);
+  if (cloudEvaluationNoticeReconcileTimer) clearInterval(cloudEvaluationNoticeReconcileTimer);
   shortLinksRateLimit.stopCleanup();
   feedbackRateLimit.stopCleanup();
   const cleanup = [
