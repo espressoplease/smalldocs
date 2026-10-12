@@ -73,6 +73,7 @@ module.exports = function(harness) {
         ANALYTICS_FLUSH_IMMEDIATE: '1',
         SHORT_LINKS_DB: testShortLinksDbPath,
         SMALLCRM_TEAMS_FORM_ACTION: teamsFormAction,
+        SMALLCRM_INSTALL_FORM_ACTION: teamsFormAction,
         CLOUD_AUTH_DB: testCloudAuthDbPath,
         CLOUD_PUBLIC_MODE: 'enabled',
         CLOUD_AUTH_PEPPER: 'http-test-cloud-auth-pepper-32-bytes',
@@ -2517,6 +2518,29 @@ module.exports = function(harness) {
       assert.deepStrictEqual(JSON.parse(r.body), { error: 'submission_failed' });
     });
 
+    await testAsync('install requests store their email and source in SmallCRM', async () => {
+      const before = teamsFormSubmissions.length;
+      const r = await post(BASE + '/api/install-interest', { email: 'install@example.com' });
+      assert.strictEqual(r.status, 201);
+      assert.strictEqual(teamsFormSubmissions.length, before + 1);
+      const form = teamsFormSubmissions.at(-1);
+      assert.strictEqual(form.get('inbound_leads.email'), 'install@example.com');
+      assert.strictEqual(form.get('inbound_leads.source'), 'homepage_install');
+      assert.strictEqual(form.get('inbound_leads.status'), 'new');
+    });
+    await testAsync('install requests reject invalid emails without storing a lead', async () => {
+      const before = teamsFormSubmissions.length;
+      const r = await post(BASE + '/api/install-interest', { email: 'invalid' });
+      assert.strictEqual(r.status, 400);
+      assert.strictEqual(teamsFormSubmissions.length, before);
+    });
+    await testAsync('install requests report receiver failures', async () => {
+      teamsFormStatus = 503;
+      const r = await post(BASE + '/api/install-interest', { email: 'failure@example.com' });
+      teamsFormStatus = 200;
+      assert.strictEqual(r.status, 502);
+    });
+
     cloudBilling.close();
     await testAsync('SIGTERM drains and exits without reaching the hard deadline', async () => {
       const stopped = new Promise((resolve) => server.once('exit', resolve));
@@ -2542,6 +2566,7 @@ module.exports = function(harness) {
           CLOUD_PUBLIC_MODE: 'hidden',
           SHORT_LINKS_DB: testShortLinksDbPath,
           SMALLCRM_TEAMS_FORM_ACTION: teamsFormAction,
+        SMALLCRM_INSTALL_FORM_ACTION: teamsFormAction,
           FEEDBACK_DB: testDbPath,
         },
         stdio: 'pipe',

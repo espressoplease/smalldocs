@@ -1,0 +1,1232 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SmallDocs - a document format and store for coding agents</title>
+<meta name="description" content="Save your agent's thinking in documents that combine text, slides, spreadsheets, charts, code, and interactive tools." />
+<link rel="canonical" href="https://smalldocs.org/home-next" />
+
+<!-- Open Graph -->
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="SmallDocs" />
+<meta property="og:url" content="https://smalldocs.org/home-next" />
+<meta property="og:title" content="SmallDocs - a document format and store for coding agents" />
+<meta property="og:description" content="Save your agent's thinking in documents that combine text, slides, spreadsheets, charts, code, and interactive tools." />
+<meta property="og:image" content="https://smalldocs.org/public/homepage/og-preview.png" />
+<meta property="og:image:type" content="image/png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="SmallDocs - the document format as intelligent as your agents" />
+
+<!-- Twitter / X -->
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="SmallDocs - a document format and store for coding agents" />
+<meta name="twitter:description" content="Save your agent's thinking in documents that combine text, slides, spreadsheets, charts, code, and interactive tools." />
+<meta name="twitter:image" content="https://smalldocs.org/public/homepage/og-preview.png" />
+<meta name="twitter:image:alt" content="SmallDocs - the document format as intelligent as your agents" />
+
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32' fill='none'%3E%3Crect x='2' y='2' width='28' height='28' rx='7' fill='%232563EB' fill-opacity='.15'/%3E%3Crect x='2' y='2' width='28' height='28' rx='7' stroke='%232563EB' stroke-width='2'/%3E%3Cpath d='M9 11h14M9 16h11M9 21h8' stroke='%232563EB' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ───────────────────────────────────────────────────────────────
+   SmallDocs homepage. Two registers stacked: a confident hero
+   (eyebrow + display heading + lead + demo video), then a
+   document-panel install section styled to nod at how SmallDocs
+   renders its own .md files - filename chrome, hairline divider,
+   document-scale type. The page ends just below that panel.
+   ─────────────────────────────────────────────────────────────── */
+
+:root {
+  --paper:     #F6F4F1;
+  --white:     #FFFFFF;
+  --ink:       #1B1815;
+  --ink-2:     #56504A;
+  --ink-3:     #938C82;
+  --line:      #E7E2DA;
+  --line-2:    #DAD3C9;
+  --accent:    #2563EB;
+  --accent-ink:#1D4ED8;
+  --terminal:  #1C1916;
+
+  --t-h2:      clamp(1.95rem, 1.5rem + 1.7vw, 2.55rem);
+  --t-h3:      1.35rem;
+  --t-lead:    clamp(1.08rem, 1.01rem + 0.34vw, 1.25rem);
+  --t-body:    1.0625rem;
+  --t-sm:      0.9375rem;
+  --t-label:   0.75rem;
+  --t-mono:    0.8125rem;
+
+  --r-sm: 8px;
+  --r:    12px;
+  --r-lg: 18px;
+
+  --sh-card: 0 1px 2px rgba(27,24,21,.04), 0 6px 16px rgba(27,24,21,.05);
+  --sh-lift: 0 2px 4px rgba(27,24,21,.04), 0 14px 32px rgba(27,24,21,.07),
+             0 40px 64px rgba(27,24,21,.06);
+
+  --font:  'Inter', system-ui, -apple-system, sans-serif;
+  --mono:  'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--font);
+  background: var(--paper);
+  color: var(--ink);
+  font-size: var(--t-body);
+  line-height: 1.62;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+::selection { background: color-mix(in srgb, var(--accent) 18%, transparent); }
+a { color: inherit; }
+.wrap { width: 100%; max-width: 1128px; margin: 0 auto; padding: 0 36px; }
+
+.eyebrow {
+  display: inline-flex;
+  letter-spacing: 0.01em;
+  align-items: center;
+  gap: 9px;
+  font-size: var(--t-label);
+  font-weight: 400;
+  color: var(--ink-3);
+}
+.eyebrow::before {
+  content: "";
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
+
+/* ── NAV ─────────────────────────────────────────────── */
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  background: transparent;
+  border-bottom: 1px solid transparent;
+  transition: background .25s ease, border-color .25s ease;
+}
+.nav.scrolled {
+  background: color-mix(in srgb, var(--paper) 86%, transparent);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border-bottom-color: var(--line);
+}
+@media (max-width: 768px) {
+  .nav { position: sticky; top: 0; }
+}
+.nav-in {
+  height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.brand {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+  color: var(--accent);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.nav-links {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.nav-primary {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.nav-link,
+.nav-dropdown > summary {
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 9px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink-2);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  list-style: none;
+  text-decoration: none;
+  cursor: pointer;
+}
+.nav-link:hover,
+.nav-dropdown > summary:hover,
+.nav-dropdown[open] > summary {
+  background: var(--white);
+  border-color: var(--line);
+  color: var(--ink);
+}
+.nav-dropdown { position: relative; }
+.nav-dropdown > summary::-webkit-details-marker { display: none; }
+.nav-dropdown > summary svg {
+  transition: transform .18s ease;
+}
+.nav-dropdown[open] > summary svg { transform: rotate(180deg); }
+.nav-dropdown .nav-menu-panel { left: 0; right: auto; min-width: 196px; }
+/* GitHub button: the app's standard .btn translated to the homepage
+   palette - 12px label, hairline border, darken on hover. */
+.btn-gh {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 11px;
+  border-radius: 6px;
+  border: 1px solid #D4CFC9;
+  background: #EDE8E2;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  text-decoration: none;
+  transition: background .12s, border-color .12s, color .12s;
+}
+.btn-gh:hover { background: #E8E3DD; border-color: #D4CFC9; }
+.btn-gh svg, .btn-read svg, .btn-secondary svg { display: block; flex-shrink: 0; }
+.nav-links > .btn-gh {
+  height: 32px;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+.nav-cloud {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+.nav-cloud:hover { border-color: var(--accent-ink); background: var(--accent-ink); color: #fff; }
+.btn-gh:focus-visible, .nav-menu summary:focus-visible,
+.nav-link:focus-visible, .nav-dropdown > summary:focus-visible,
+.nav-menu-panel a:focus-visible, .nav-menu-panel button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.nav-menu-mobile-only { display: none; }
+.nav-menu-static-mobile { display: none !important; }
+.nav-menu-guest { display: none; }
+.nav-install-label-short { display: none; }
+.nav-menu {
+  position: relative;
+}
+.nav-menu summary {
+  width: 34px;
+  height: 32px;
+  justify-content: center;
+  padding: 0;
+  list-style: none;
+  cursor: pointer;
+}
+.nav-menu summary::-webkit-details-marker { display: none; }
+.nav-menu[open] summary { background: #E8E3DD; border-color: #C2BBB0; }
+.nav-menu-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 164px;
+  padding: 6px;
+  border: 1px solid var(--line-2);
+  border-radius: 10px;
+  background: var(--white);
+  box-shadow: var(--sh-card);
+}
+.nav-menu-panel a, .nav-menu-panel button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 34px;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.25;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+.nav-menu-panel :is(a, button) svg { display: block; flex: 0 0 auto; }
+.nav-menu-panel :is(a, button):hover { background: var(--paper); }
+.nav-menu-panel form { margin: 0; }
+.nav-menu-separator {
+  height: 1px;
+  margin: 5px 4px;
+  background: var(--line);
+}
+
+/* ── BUTTONS ─────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font);
+  font-size: var(--t-sm);
+  font-weight: 500;
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  transition: background .15s ease, border-color .15s ease, color .15s ease, transform .12s ease;
+}
+.btn-primary {
+  background: var(--accent);
+  color: var(--paper);
+  padding: 11px 18px;
+}
+.btn-primary:hover { background: #000; }
+.btn-primary:active { transform: translateY(1px); }
+
+/* Secondary CTA: hairline-bordered, sits beside the primary in the hero.
+   Quieter than .btn-primary so the page still has one clear lead action. */
+.btn-secondary {
+  background: #EDE8E2;
+  color: var(--ink);
+  border-color: #D4CFC9;
+  padding: 11px 18px;
+}
+.btn-secondary:hover { background: #E8E3DD; border-color: #C2BBB0; color: #000; }
+.btn-secondary:active { transform: translateY(1px); }
+
+/* ── HERO ────────────────────────────────────────────── */
+.hero {
+  padding: 78px 0 0 0;
+  text-align: left;
+}
+.hero .eyebrow { margin: 0; }
+.hero .eyebrow::before { display: none; }
+.hero .hero-display {
+  margin-top: 14px;
+  text-align: left;
+  max-width: 27.1ch;
+  font-size: 39px;
+  font-weight: 600;
+  line-height: 1.27;
+  letter-spacing: -0.034em;
+  color: var(--ink);
+}
+.hero .lead {
+  margin-top: 12px;
+  text-align: left;
+  max-width: 71ch;
+  font-size: var(--t-lead);
+  line-height: 1.56;
+  color: var(--ink-2);
+  font-weight: 400;
+}
+.hero-install-prompt {
+  color: var(--ink);
+  font-weight: 700;
+}
+/* "Read a SmallDoc": the quiet white pill (the GitHub button's first
+   palette), on its own line above the CTA pair. */
+.btn-read {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 20px;
+  padding: 11px 18px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--line-2);
+  background: var(--white);
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+  font-weight: 500;
+  line-height: 1;
+  text-decoration: none;
+  transition: background .12s, border-color .12s, color .12s;
+}
+/* Subtle hover: a faint background nudge plus a darker border and text, so the
+   button reads as pressable without the old hard white-to-cream jump. */
+.btn-read:hover { background: #FBF9F6; border-color: #C2BBB0; color: #000; }
+/* "Read a SmallDoc" + "Learn how to sdoc" sit on one line above the CTA pair. */
+.hero-read-row { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 20px; }
+.hero-read-row .btn-read { margin-top: 0; }
+
+.hero-cta {
+  margin-top: 14px;
+  display: flex;
+  gap: 20px;
+}
+.hero-works {
+  margin-top: 24px;
+  font-size: var(--t-label);
+  /* font-size: var(--t-mono); */
+  letter-spacing: 0.01em;
+  color: var(--ink-3);
+}
+
+/* ── LEARN ───────────────────────────────────────────── */
+#learn { padding: 64px 0 0; }
+.learn-more { margin-top: 16px; font-size: var(--t-sm); color: var(--ink-2); }
+.learn-more a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+/* Each example is a single-line button that opens a real SmallDoc in a new
+   tab. Styled to match the install-area expandable rows exactly (same cream
+   fill, padding, radius, muted text), no border - just the external-link icon
+   where the chevron would sit. */
+.learn-items { display: flex; flex-direction: column; gap: 6px; }
+.learn-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 14px;
+  border-radius: var(--r);
+  background: var(--paper);
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+  font-weight: 400;
+  text-decoration: none;
+  transition: background .12s, color .12s;
+}
+.learn-item:hover { background: #F0EBE3; color: var(--ink); }
+.learn-item-prompt { flex: 1; min-width: 0; }
+.learn-item-icon { flex-shrink: 0; margin-left: auto; color: var(--ink-3); transition: color .12s; }
+.learn-item:hover .learn-item-icon { color: var(--accent); }
+
+/* ── HERO VIDEO ──────────────────────────────────────── */
+.hero-visual { margin: 56px 0 0; }
+.videocard {
+  position: relative;
+  background: #000;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  overflow: hidden;
+}
+.videocard .vid {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+}
+.vid-loading {
+  position: absolute;
+  left: 14px;
+  bottom: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 13px 7px 11px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #fff;
+  background: rgba(20,18,16,.62);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  border-radius: 999px;
+  transition: opacity .45s ease;
+}
+.videocard.ready .vid-loading { opacity: 0; pointer-events: none; }
+.spinner {
+  width: 13px;
+  height: 13px;
+  border: 2px solid rgba(255,255,255,.32);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.vid-controls {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  display: flex;
+  gap: 8px;
+}
+.vid-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--font);
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #fff;
+  cursor: pointer;
+  border: 1px solid rgba(255,255,255,.16);
+  background: rgba(20,18,16,.62);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  border-radius: 999px;
+  padding: 8px 13px;
+  line-height: 1;
+  transition: background .14s ease, border-color .14s ease, opacity .14s ease;
+}
+.vid-btn:hover { background: rgba(20,18,16,.84); }
+.vid-btn svg { display: block; }
+.vid-btn.cc-off { opacity: .48; }
+.vid-btn .ic-sound { display: none; }
+.videocard.sound-on .vid-btn .ic-muted { display: none; }
+.videocard.sound-on .vid-btn .ic-sound { display: block; }
+.vid-btn .ic-play { display: none; }
+.videocard.paused .vid-btn .ic-pause { display: none; }
+.videocard.paused .vid-btn .ic-play { display: block; }
+/* Icon-only seek buttons (skip 10s, prev/next chapter) pack tighter. */
+.vid-btn.seek { padding: 8px 9px; }
+.vid-btn.seek svg text { stroke: none; font-weight: 600; }
+.videocard.chapters-open #chapBtn { background: rgba(20,18,16,.9); border-color: rgba(255,255,255,.32); }
+
+/* Chapters dropdown: a scrollable list floating above the control bar.
+   Populated from the chapters[] list in the player script. */
+.vid-chapmenu {
+  position: absolute;
+  right: 14px;
+  bottom: 60px;
+  z-index: 6;
+  width: 264px;
+  max-height: 264px;
+  overflow-y: auto;
+  padding: 6px;
+  background: rgba(20,18,16,.9);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,.16);
+  border-radius: 12px;
+  opacity: 0;
+  transform: translateY(6px);
+  pointer-events: none;
+  transition: opacity .16s ease, transform .16s ease;
+}
+.videocard.chapters-open .vid-chapmenu { opacity: 1; transform: none; pointer-events: auto; }
+.videocard.teaser .vid-chapmenu { opacity: 0 !important; pointer-events: none; }
+.vid-chap {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  width: 100%;
+  text-align: left;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #fff;
+  font-family: var(--font);
+  font-size: 13px;
+  line-height: 1.3;
+  cursor: pointer;
+}
+.vid-chap:hover { background: rgba(255,255,255,.12); }
+.vid-chap.active { background: rgba(255,255,255,.16); }
+.vid-chap .t {
+  min-width: 38px;
+  color: rgba(255,255,255,.55);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.vid-chap.active .t { color: #fff; }
+
+/* Teaser: a short muted loop stacked on top of the main video until
+   the visitor presses play. */
+.vid-teaser {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .35s ease;
+}
+.videocard.teaser .vid-teaser { opacity: 1; }
+.videocard.teaser .vid-controls,
+.videocard.teaser .vid-loading,
+.videocard.teaser .vid-caption { opacity: 0; pointer-events: none; }
+.videocard.teaser .vid-play { display: flex; }
+
+/* Full screen: the whole card goes fullscreen (not the bare video) so the
+   custom captions and controls stay visible. */
+.videocard:fullscreen { border: 0; border-radius: 0; }
+.videocard:fullscreen .vid {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+  object-fit: contain;
+}
+.videocard:-webkit-full-screen { border: 0; border-radius: 0; }
+.videocard:-webkit-full-screen .vid {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+  object-fit: contain;
+}
+
+@media (max-width: 560px) {
+  .vid-btn .lbl { display: none; }
+  /* The 9-button bar overflows a phone; the chapters menu already covers
+     navigation there, so drop the chapter-skip buttons and keep +/-10s. */
+  .vid-controls { gap: 6px; }
+  #prevChapBtn, #nextChapBtn { display: none; }
+  /* The inline video card is short on a phone; pin the menu between the top
+     and the control bar so it can never overhang and clip against the card. */
+  .vid-chapmenu {
+    top: 8px;
+    bottom: 50px;
+    right: 10px;
+    width: 210px;
+    max-height: none;
+  }
+  .vid-chap { padding: 5px 9px; font-size: 12px; }
+  .vid-chap .t { min-width: 32px; font-size: 11px; }
+}
+
+.vid-caption {
+  position: absolute;
+  left: 50%;
+  bottom: 62px;
+  transform: translateX(-50%);
+  max-width: 78%;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 450;
+  line-height: 1.45;
+  pointer-events: none;
+}
+.vid-caption span {
+  color: #fff;
+  background: rgba(20,18,16,.74);
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  padding: 4px 9px;
+  border-radius: 5px;
+}
+.vid-caption:empty,
+.vid-caption.cc-hidden { display: none; }
+
+.vid-play {
+  position: absolute;
+  inset: 0;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  background: rgba(20,18,16,.3);
+  cursor: pointer;
+  z-index: 2;
+}
+.videocard.needs-play .vid-play { display: flex; }
+.vid-play span {
+  width: 66px;
+  height: 66px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.95);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 6px 22px rgba(0,0,0,.28);
+  transition: transform .18s ease;
+}
+.vid-play:hover span { transform: scale(1.06); }
+.vid-play em {
+  font-style: normal;
+  font-size: 13px;
+  font-weight: 500;
+  color: #fff;
+  background: rgba(20,18,16,.62);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  border-radius: 999px;
+  padding: 7px 14px;
+}
+
+/* ── INSTALL: a calm tinted panel matching the video width ────
+   Same overall idea as Cursor's homepage info blocks - a wide
+   warm-beige section sitting inside the wrap, no drop shadow,
+   two columns inside (text + action). Width matches the video
+   so the page reads as one visual column top to bottom. */
+
+#install {
+  padding: 66px 0 0 0;
+}
+.install-panel {
+  background: var(--white);
+  border-radius: var(--r);
+  padding: 42px 42px;
+}
+.install-grid {
+  display: grid;
+  grid-template-columns: 0.95fr 1.05fr;
+  gap: 56px;
+  align-items: start;
+}
+/* Grid items default to min-width auto, which lets nowrap content
+   (the curl command) widen the track past the viewport on phones. */
+.install-grid > * { min-width: 0; }
+.install-text { max-width: 32ch; }
+.install-text h2 {
+  font-size: var(--t-lead);
+  font-weight: 600;
+  line-height: 1.16;
+  letter-spacing: -0.022em;
+  color: var(--ink);
+}
+.install-text p {
+  margin-top: 16px;
+  font-size: 1.0625rem;
+  line-height: 1.65;
+  color: var(--ink-2);
+}
+/* terminal-style command block, kept dark for strong identity */
+.install-cmd {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #EDE8E2;
+  border-radius: var(--r);
+  padding: 8px;
+}
+.install-cmd .pr { color: #6E665C; font-family: var(--mono); font-size: var(--t-mono); }
+.install-cmd .cmd {
+  flex: 1;
+  /* min-width 0 lets the nowrap command shrink with the column and
+     scroll inside the pill instead of stretching the page. */
+  min-width: 0;
+  font-family: var(--mono);
+  font-size: var(--t-mono);
+  white-space: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.install-cmd .cmd::-webkit-scrollbar { display: none; }
+/* matches the markdown-rendered code-block copy button (rendered.css):
+   transparent at rest so it blends with the cmd-block bg, faint hairline,
+   opacity 0.7 at rest, full opacity + subtle dark tint on hover. */
+.install-cmd .copy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  color: var(--ink-2);
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity .15s, background .15s, color .15s;
+}
+.install-cmd .copy:hover { opacity: 1; background: rgba(0,0,0,0.05); color: var(--ink); }
+.install-cmd .copy.done { opacity: 1; color: #2E8C46; }
+/* Two commands (install, then sdoc setup) in one gray block: the box stacks
+   its rows, each row keeps the $ / command / copy layout. */
+.install-cmd-stack { flex-direction: column; align-items: stretch; gap: 0; }
+.install-cmd-line { display: flex; align-items: center; gap: 12px; min-width: 0; }
+/* A shell-style comment between commands - muted, monospace, no copy button. */
+.install-cmd-comment {
+  font-family: var(--mono);
+  font-size: var(--t-mono);
+  color: var(--ink-3);
+  padding: 0;
+}
+
+/* expandable extras: paper-tinted, borderless, lower visual weight
+   than the install command block above them */
+.trouble {
+  background: var(--paper);
+  border-radius: var(--r);
+  transition: background .12s;
+}
+/* Subtle hover on the whole row - no border, matching the learn buttons. */
+.trouble:hover { background: #F0EBE3; }
+.trouble + .trouble { margin-top: 6px; }
+.learn-items .trouble + .trouble { margin-top: 0; }
+.install-cmd + .trouble { margin-top: 14px; }
+.trouble[open] { background: var(--paper); }
+.trouble > summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 9px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: var(--t-sm);
+  font-weight: 400;
+  color: var(--ink-2);
+}
+.trouble > summary:hover { color: var(--ink); }
+.trouble > summary::-webkit-details-marker { display: none; }
+.trouble > summary code {
+  font-family: var(--mono);
+  font-size: 0.84em;
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 1px 6px;
+  color: var(--ink);
+}
+.trouble > summary .chev {
+  margin-left: auto;
+  transition: transform .2s ease;
+  color: var(--ink-3);
+}
+.trouble[open] > summary .chev { transform: rotate(90deg); }
+.trouble-body { padding: 2px 14px 0; }
+.trouble-step {
+  padding: 14px 0;
+  border-top: 1px solid var(--line);
+}
+.trouble-step:first-child { border-top: 0; padding-top: 6px; }
+.trouble-step h4 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+.trouble-step p {
+  margin-top: 18px;
+  font-size: var(--t-sm);
+  line-height: 1.55;
+  color: var(--ink-2);
+}
+.trouble-step ul {
+  margin-top: 10px;
+  list-style: none;
+  font-size: var(--t-sm);
+  line-height: 1.55;
+  color: var(--ink-2);
+}
+/* hanging-indent bullets: round dot in the gutter, wrapped lines align
+   with the first line of text (not the bullet). */
+.trouble-step ul li {
+  position: relative;
+  padding-left: 20px;
+  margin-top: 8px;
+}
+.trouble-step ul li:first-child { margin-top: 0; }
+.trouble-step ul li::before {
+  content: "";
+  position: absolute;
+  left: 6px;
+  top: 0.62em;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--ink-3);
+}
+.trouble-step code, .trouble-step .mini {
+  font-family: var(--mono);
+  font-size: 0.84em;
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 2px 7px;
+  color: var(--ink);
+}
+.trouble-step .mini {
+  display: inline-block;
+  padding: 9px 12px;
+  margin-top: 8px;
+  font-size: 13px;
+  color: #EDE8E0;
+  background: var(--terminal);
+  border-color: #322D27;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+/* agent-prompt: copyable block of markdown the user pastes into their coding agent.
+   Styled to match .install-cmd (same cream bg, no border, dark text) so the two
+   copy blocks read as one family. */
+.agent-prompt-wrap {
+  position: relative;
+  margin-top: 10px;
+}
+.agent-prompt {
+  margin: 0;
+  padding: 16px 18px;
+  background: #EDE8E2;
+  border-radius: var(--r);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 12.5px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  max-height: 380px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.agent-prompt-copy {
+  position: absolute;
+  top: 8px;
+  right: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  color: var(--ink-2);
+  background: transparent;
+  border: 1px solid rgba(0,0,0,0.12);
+  border-radius: 4px;
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity .15s, background .15s, color .15s;
+}
+.agent-prompt-copy:hover { opacity: 1; background: rgba(0,0,0,0.05); color: var(--ink); }
+.agent-prompt-copy.done { opacity: 1; color: #2E8C46; }
+
+/* ── TEAMS ─────────────────────────────────────────────
+   Reuses the install panel and grid so both calls to action share one
+   layout and responsive rhythm. */
+#teams { padding: 66px 0 0; }
+.teams-form { display: grid; gap: 14px; }
+.tf-field label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: var(--t-label);
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: var(--ink-2);
+}
+.tf-field .tf-opt { font-weight: 400; color: var(--ink-3); }
+.tf-field input,
+.tf-field textarea {
+  width: 100%;
+  font-family: var(--font);
+  font-size: 1rem;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-sm);
+  padding: 10px 12px;
+  outline: none;
+  transition: border-color .15s ease;
+}
+.tf-field input:focus,
+.tf-field textarea:focus { border-color: var(--accent); }
+.tf-field textarea { resize: vertical; min-height: 96px; }
+.tf-hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+.tf-actions { display: flex; align-items: center; gap: 14px; }
+.tf-status { font-size: var(--t-sm); color: var(--ink-2); }
+.tf-status.err { color: #B4231F; }
+.tf-note { font-size: var(--t-label); color: var(--ink-3); }
+.teams-thanks {
+  font-size: var(--t-body);
+  line-height: 1.6;
+  color: var(--ink);
+  background: var(--paper);
+  border-radius: var(--r);
+  padding: 22px 24px;
+}
+
+/* ── FOOTER (minimal hairline) ───────────────────────── */
+footer {
+  margin-top: 66px;
+  border-top: 1px solid var(--line);
+  padding: 28px 0 36px;
+}
+.foot-fine {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  /* Matches the hero's "Works with ..." line. */
+  font-size: var(--t-label);
+  letter-spacing: 0.01em;
+  color: var(--ink-3);
+}
+.foot-fine a {
+  color: var(--ink-2);
+  text-decoration: none;
+  transition: color .14s;
+}
+.foot-fine a:hover { color: var(--ink); }
+.foot-fine .dot { color: var(--line-2); padding: 0 4px; }
+
+/* ── PRAISE (Hacker News comment wall) ────────────────
+   Reuses .install-panel for the outer shell so the page reads as
+   one family of boxes; cards echo the .learn-item surface. */
+#praise { padding: 66px 0 0 0; }
+.praise-head h2 {
+  font-size: var(--t-lead);
+  font-weight: 600;
+  line-height: 1.16;
+  letter-spacing: -0.022em;
+  color: var(--ink);
+}
+.praise-head p {
+  margin-top: 14px;
+  font-size: 1.0625rem;
+  line-height: 1.65;
+  color: var(--ink-2);
+}
+.praise-grid {
+  margin-top: 30px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+.praise-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  min-height: 180px;
+  background: var(--paper);
+  border-radius: var(--r);
+  padding: 14px;
+}
+.praise-card blockquote {
+  margin: 0;
+  font-size: 1.0625rem;
+  line-height: 1.5;
+  letter-spacing: -0.006em;
+  color: var(--ink);
+}
+/* Small Hacker News monogram: orange square, white Y. Shown once,
+   inline in the blurb, rather than repeated on every card. */
+.hn-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  background: #FF6600;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  vertical-align: 3px;
+}
+/* Per-card "context" link to the original HN comment. The card itself is
+   not a link; only this small icon reacts to a direct hover (matching the
+   external-link icon on the "Example sdocs" rows above). margin-top:auto
+   parks it at the card's bottom-right without overlapping a long quote. */
+.praise-context {
+  margin-top: auto;
+  align-self: flex-end;
+  padding-top: 16px;
+  display: inline-flex;
+  align-items: center;
+  color: var(--ink-3);
+  text-decoration: none;
+  transition: color .12s;
+}
+.praise-context:hover { color: var(--accent); }
+.praise-context svg { flex-shrink: 0; display: block; }
+
+/* ── RESPONSIVE ──────────────────────────────────────── */
+@media (max-width: 900px) {
+  .nav-primary { display: none; }
+  .nav-menu-guest { display: block; }
+  .nav-menu-static-mobile { display: flex !important; }
+  /* One 56px gap between every panel and before the footer. */
+  #learn { padding: 56px 0 0; }
+  #install { padding: 56px 0 0; }
+  #teams { padding: 56px 0 0; }
+  #praise { padding: 56px 0 0; }
+  footer { margin-top: 56px; }
+  .install-panel { padding: 44px 36px; border-radius: 18px; }
+  .install-grid { grid-template-columns: 1fr; gap: 32px; }
+  .install-text { max-width: 100%; }
+  .install-text h2 { font-size: 1.7rem; }
+  .praise-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 620px) {
+  .wrap { padding: 0 22px; }
+  .nav-library-wide { display: none; }
+  .nav-menu-mobile-only { display: flex; }
+  .nav-install-label-long { display: none; }
+  .nav-install-label-short { display: inline; }
+  /* Hero bottom padding stays 0 so the video-to-panel gap equals the
+     40px panel-to-panel rhythm below. */
+  .hero { padding: 52px 0 0; }
+  .hero .hero-display { font-size: 30px; max-width: 100%; line-height: 1.2; }
+  .hero .lead { max-width: 100%; }
+  .hero-cta { flex-wrap: wrap; gap: 12px; }
+  .hero-visual { margin-top: 40px; }
+  .vid-caption { font-size: 12.5px; bottom: 50px; max-width: 88%; }
+  .vid-btn { font-size: 11.5px; padding: 7px 10px; }
+  .vid-controls { right: 10px; bottom: 10px; gap: 6px; }
+  .vid-loading { left: 10px; bottom: 10px; }
+  #learn { padding: 40px 0 0; }
+  #install { padding: 40px 0 0; }
+  #teams { padding: 40px 0 0; }
+  #praise { padding: 40px 0 0; }
+  footer { margin-top: 40px; }
+  .install-panel { padding: 32px 22px; border-radius: 16px; }
+  .install-text h2 { font-size: 1.45rem; }
+  .install-cmd { padding: 12px 12px 12px 14px; }
+  .install-cmd .cmd { font-size: 0.84rem; }
+  .praise-grid { grid-template-columns: 1fr; }
+  /* A single column gets long fast; keep only the three strongest. */
+  .praise-extra { display: none; }
+}
+@media (max-width: 360px) {
+  .nav-in { gap: 10px; padding-left: 16px; padding-right: 16px; }
+  .nav-links { gap: 5px; }
+  .nav-links > .btn-gh { padding-left: 8px; padding-right: 8px; }
+}
+</style>
+<link rel="stylesheet" href="/public/css/homepage-next.css">
+</head>
+<body class="home-next"><nav class="nav" id="nav">
+  <div class="wrap nav-in">
+    <a class="brand" href="#top">SmallDocs</a>
+    <div class="nav-primary" aria-label="Primary navigation">
+      <details class="nav-dropdown">
+        <summary>Product
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+        </summary>
+        <div class="nav-menu-panel">
+          <a href="#samples">Capabilities</a>
+          <a href="/runnable-html">Runnable HTML</a>
+          <a href="/privacy">Private by design</a>
+        </div>
+      </details>
+      <!--__HOME_NAV_CLOUD_LINK__-->
+      <a class="nav-link" href="/developers">Renderer SDK</a>
+      <details class="nav-dropdown">
+        <summary>Resources
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+        </summary>
+        <div class="nav-menu-panel">
+          <a href="/blogs/what-is-a-smalldoc">Read a SmallDoc</a>
+          <a href="/docs">Documentation</a>
+          <a href="https://github.com/espressoplease/smalldocs" target="_blank" rel="noopener">GitHub</a>
+        </div>
+      </details>
+    </div>
+    <div class="nav-links">
+      <!--__HOME_NAV_ACTIONS__-->
+      <details class="nav-menu <!--__HOME_NAV_MENU_CLASS__-->" id="site-menu">
+        <summary class="btn-gh" aria-label="Open menu" aria-haspopup="menu" aria-expanded="false">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16"/><path d="M4 12h16"/><path d="M4 19h16"/></svg>
+        </summary>
+        <div class="nav-menu-panel" role="menu">
+          <!--__HOME_NAV_MENU_BEFORE__-->
+          <a class="nav-menu-static-mobile" href="#samples" role="menuitem">Capabilities</a>
+          <a class="nav-menu-static-mobile" href="/runnable-html" role="menuitem">Runnable HTML</a>
+          <!--__HOME_NAV_CLOUD_MOBILE_LINK__-->
+          <a class="nav-menu-static-mobile" href="/privacy" role="menuitem">Private by design</a>
+          <a class="nav-menu-static-mobile" href="/blogs/what-is-a-smalldoc" role="menuitem">Read a SmallDoc</a>
+          <a class="nav-menu-static-mobile" href="/docs" role="menuitem">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/></svg>
+            Documentation
+          </a>
+          <a class="nav-menu-static-mobile" href="/developers" role="menuitem">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m8 9-3 3 3 3"/><path d="m16 9 3 3-3 3"/><path d="m14 5-4 14"/></svg>
+            Renderer SDK
+          </a>
+          <a class="nav-menu-static-mobile" href="https://github.com/espressoplease/smalldocs" target="_blank" rel="noopener" role="menuitem">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3v12"/><path d="M18 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M15 6a9 9 0 0 0-9 9"/><path d="M18 15v6"/><path d="M21 18h-6"/></svg>
+            GitHub
+          </a>
+          <!--__HOME_NAV_MENU_AFTER__-->
+        </div>
+      </details>
+    </div>
+  </div>
+</nav>
+<main>
+<header class="next-hero wrap">
+  <div class="next-intro">
+    <p class="eyebrow">For the work beyond the chat</p>
+    <h1>SmallDocs is a document format and store for <em>coding agents.</em></h1>
+    <p class="next-lead">Give your agent’s thinking somewhere to live.</p>
+    <p>Use it when you want to go beyond your chat interface, or save your agent’s thinking at a point in time. Your agents can use it on their own: a remote agent can write a SmallDoc and notify you.</p>
+  </div>
+  <aside class="intro-video">
+    <div class="intro-video-label"><span>SmallDocs, in 30 seconds</span><span class="video-time">00:30</span></div>
+    <div class="intro-video-frame">
+      <video id="intro-video" playsinline preload="none" poster="/public/homepage/home-next-poster.png" aria-label="30-second introduction to SmallDocs"><source src="/public/homepage/home-next-demo.mp4" type="video/mp4"><track kind="captions" src="/public/homepage/home-next-demo.vtt" srclang="en" label="English" default></video>
+      <button class="intro-play" type="button" aria-label="Play 30-second introduction"><span aria-hidden="true">▶</span></button>
+    </div>
+    <div class="intro-video-footer"><span>A look inside a SmallDoc</span><a href="/home#videocard">Watch the full demo ↗</a></div>
+  </aside>
+</header>
+<section class="next-story wrap" aria-label="How SmallDocs works">
+  <div class="story-rail"><span class="rail-number">01 / FORMAT</span><h2>One document.<br>Every part of<br>the work.</h2><div class="format-list"><span>Text</span><span>Slides</span><span>Sheets</span><span>Charts</span><span>Code</span><span>HTML</span></div></div>
+  <div class="story-body">
+    <p>A single SmallDoc can include slides, a multi-tab spreadsheet, charts, code, an HTML widget, and text to link it all together. Bring the work you would put in Word, Excel, PowerPoint, Markdown, code, and HTML artefacts into one document. That flexibility reflects the range of tasks your agents face.</p>
+    <div class="prompt-line"><span>ASK YOUR AGENT</span><code>sdoc me an analysis of…</code><button type="button" data-copy="sdoc me an analysis of…" aria-label="Copy example prompt">Copy</button></div>
+    <p>Install SmallDocs and its global agent skill, then mention <code>sdoc</code>: “build me a sdoc for…”. SmallDocs render in the browser, read on mobile, and can be shared with your team and beyond. Save selected documents in your Cloud library, then return to them from any device.</p>
+    <p>They are built for human-agent feedback loops. Copy precise chunks of text, tables, charts, and code. Leave comments on a document for your agent to pick up, then carry that feedback into the next version.</p>
+  </div>
+</section>
+<section class="start-section wrap" aria-label="Start using SmallDocs">
+ <div class="start-panel"><div><p class="eyebrow">Join 4,000+ developers, financiers, and scientists</p><h2>Put your next question<br>in a SmallDoc.</h2><p>Enter your email to access the install script.</p></div><div><div class="start-block" id="start"><form class="start-form" data-install-form>
+<label class="sr-only" for="email-start">Your email</label><input id="email-start" type="email" name="email" autocomplete="email" placeholder="Your email" required>
+<button class="btn btn-primary" type="submit">Start using SmallDocs <span aria-hidden="true">↗</span></button>
+</form><p class="start-status" role="status"></p></div><p class="price-line">Free for a month. Then <strong>£4/month</strong> for individuals or <strong>£7/month/user</strong> for teams.</p><p class="email-note">We store your email with your install request. <a href="/privacy">Privacy</a></p></div></div>
+ <div class="install-reveal" id="install-instructions" hidden tabindex="-1"><span class="rail-number">YOUR INSTALL SCRIPT</span><h3>Install. Open your agent. Ask for a sdoc.</h3><div class="install-cmd"><code data-install-command></code><button type="button" data-copy-install>Copy</button></div><div class="install-cmd"><code>npx skills@latest add https://smalldocs.org/agent-skills/standard --global</code><button type="button" data-copy="npx skills@latest add https://smalldocs.org/agent-skills/standard --global">Copy skill command</button></div><p>Run these commands in your terminal, then start a fresh agent chat. <a href="/sdoc">Full installation guide ↗</a></p></div>
+</section>
+<section class="next-samples wrap" id="samples">
+ <div class="section-heading"><div><p class="rail-number">02 / IN PRACTICE</p><h2>Sample SmallDocs</h2></div><p>A few questions. Different ways to answer.</p></div>
+ <div class="sample-grid">
+ <article class="sample-card"><a class="sample-open" data-sample="architecture" href="/docs#md=GzItADwMcIeyyN_gwSusmjT4XuVST2jvlzefQdEgIySZ9X3VdNcyfbsrj2TKKKeOdczUAJ6I3Mlm0SNw1fTXev-MmmTdUTxyu0Q1PcaPrQACZjZATF_nb6ul1w-kvUzjl-6SuolLDhQw57r4QiRTutpSBqbL6n1V7QyH1LSuSrWVsHt7N8L7H4A-IFAmSCiAdEqEQ37_EQVAJ1IV5RBCUafUuetlsG19NkzCj9C1iFMPHeCpTUxSZJEVu_vcl_2w9ZkJtj_mfxG8IRpzc9votqizX_M5XAwlDWkdYaVzwHQ5xnST-GWYgpj82K5VLGEUZ7D08pGp4VkSQdt3L7rBusbhLgb6-aAZiFgQ7IIcSxu5VobyTva3mZc8abDXTasMlP6jYIjSNWbmkl9Q1He9lWVfFDJwqUrHgZQASdIcMOjSDgRYZkdHZxgb70YmDIAbmQ2OI_AsS4N-WHYxt33gk1AWnRpm0t8QywMaDC4pl2QBXsF6h088wtmcd6_dKbRPGxDDdNqasDId6k_8IjpEm-MKToMJHANwWABw6VA3Gxi3YlaVGX1TPZHYtHoYU2vFDolIGCDo08bFdukvBnYeVlaPVh-497TCq2ABzg8SRyvNumlZeHlKZFtkhq1Vp-zTo688c9AN8PHGn3O2vwm-iQ3DEgHQ6OY5EWtbwi7v7atNRFceytIZlhB1sPIa5vIHJIvp_gqucYQphljN0DQ9Z7RhoLMLUsfOFnHamlU5UsQBkQPAdWdi5jKp8M2IW9bTAKksFdLQQ6IXQeIDOQfkuFCaKQwj7DSqC2W6N8tNnraRzFQcejwvh0PFov9JGKhykV7ikoYuglzt8wa-QSSKVRx5XOWqOokgSZvj9T_vPa0K1G3LxnsFk_XDqYK_m71oQmf7yf8111gFrbHNtO9FYyAD4pTgSQvvzAe_fMUHrmi-VIrz4nWZ8YH3ENK9lfQF5DgoVLo7K9X8sxuO1QXdLFfbQGMfq3MmqVfJTq2AVLZXhioLCKj33bdbusP6Tkcw3cRi5LCrwig09K-tsu5gJuHpLCuQPNVJzYbMZlM-ZoU0iI2AHcD3x7FtaGw9HoVurn3BDtdTgQcfjyfa-af0w1dvxgV0XwoGbYgNjj3SZYpBu45lRlQ0DcDVT8Q4aLDIrq8WAEW2PMQ4VFzMrTBwG6z4PQ58CupNQlqUeyoJta2NMUZ5Sn3ZUHp-zRJI8lJHnoesaGU1nC_c4ARTYzCemFPZGEIeq-eINosjXgJ3MB5Hk8f6MaTyFj1xymPJCyXpvHdF7mWt0mmTxV5z8-iKrTkCs436kEOr9W42tYR1nwgDe6BHCa7JKMqOlsUS6AETa37AOG4xdQ8pMssdC2TEHpDJb_4CO-8pE5rGQ7KHQLkKhMiZYsUw7fZ-fngJbVa6XnfCfeFALW272XB4u-3GtXCCpW3S8CJGWaEkC78A2NK1F-uvnnfNCMp4qEmNdUHLoRXiANsZAqqy7T82y_yUKVEjBL6FeoQ_fVrPb7KrdunOTt_hag_PqkGNkSQa9uhZd8Bta-VsxCsn2v5cQHkO5Q9TiWsGXVnE4ILpMC-t9qOy79lNqyejYutj7baYq8NvVSdfLDCvwpB-OyT0zkNJSR1mLovvPoZo6qpwgBZyPU3ky7jUQ3uRx91ql01FMsHKh2NOmR0hesg3mUDiptj5zcEY9yjEih0Ll_hdOYARaXLF2qU4W7cioGCD_Lsfx0puDGGO08elu2YnKjpAwB8ZWdRS6yoii6hOYZsjvyupPswo2qK_C0NY19S9rIaMhAiSqEGLcL0Y2S3Fasu8PQjhhqJLNgvvnF0whMtXYXYIQmmfiCwb-RkMSUvyKVQ7QWTbGR2A0g1KWSVjLrzHXfjDDoScEnZBZM_KcfCjbOM69z6gnth7zIhohfwHHC4kl45z7golgX4a826R0gBl42o8Wj2CdwW5KAqVNJamwhKH8kWQYD8BydZEkZx7f7hzPYLMoYwcmhf_VOfSK8UZuXHafPvyubm4ciRAMqVnFWQaEhv1SZpqAxfgiIzYQtZufj8mrJBMkNpnJPhKGFafZTYFA3FBdfhvwqmV16kVsi7ymrpt8OhViCF97EtkLUqoiq_xekw7OSkQofPw9mxirlXIqDRBiLoZ2ubjDDVvAD-nvKSYATFwAE1ColJX3CJayDOURLAn3bvnGqT-caGymr2pmTEyZRd9h5VuGImW-Bk3YPySPetsBpcRoO6J00WOKnC5mO4LOjPTFlgJkfwSVDRAOhUlxvn12OM1iVd33mKe2DGU7skLDIQ1yNp7y6u09fSgR9uSH_R2FC0jody16HZceHIA5vbdOW6A1qWTYS-wjEncxfBvJEnmKyAOWfnud759aCgtyDGBVzxas68J4RbulfjSWWR4vhFIU1lTWTyPKtzjnodIt-FM-DOvw0UA24KA4Bd35a_hnG0BnT9LcJ7h6EBpJzBEh-UAzMTwq48guoTgHlOqckyuCurdmffj9z7t06GKNI2qdTXeHrvycnb8tqq7VMSxBmf4FSPt0g6P5I4uxLxcJG3qZDJ4Vjcr7pQqKqHsj5uikaYJaawGAn8U8uVvaJn00Qay96Op8O5Ktc2KBcfDeuAh2b4ehd9_OxKRMLadlRUivgkhaSNOsnqaMVLdbPlIlaklKktLJ-w61vxRvA9-uXYCkzTsZxV4XGNpoUgsRNwfrnMXI_iY-dJWd4MvEYeUrZZJ9gM3lyK1hM2a_SFaIlOEROXcqMclqIiwCyga3O7n2hyIQgTwt15Pw8iUQ8jvhjJllRGJEKxGMh_AGx3a30HqW6SvKiukGj_mtQ342Yi-k_wpN7ZEmMOyKS-y3fvtYtr_OheoMw4pzvc5bj33uEphdFQRzrc0CcW3yomtWRcQPFmCSSURylyCEagFxD5OiEMdH82i8ID1ciook6h8XisVp23uk3W9Amyqn9lPJWIo4Yw5v2rtwxvR-ExYOcUV-cENA6vs4BtHl61H1IqE2Y4R_tZKZVh-olWWn8JsA44bqLxlgfJ6rg20uwFc3gCzUs0dYRPbRtb27ntmhwPvNjpHm3Ovn0AFeoT6uMYMDPzXRamJjD94MVPERbK4-SFD1grxh4uUokV2orfwDSxn9eTtqJaEC09uLn_nF547z9nztDmtKyDaUoTNEIDf1bXM8NZ9Qdk21uVY5p3unbNONtbbcIGvhrZLJdGaS4byH_sdTdqww0qWtFLYPupVetiIG-OSYx6z3fc7dqWcMw6_mv_rJTQBkTJ9ZPfwA6NzrLNYYY2WwIApHvj7wvQFLyVlTWU80gsbHE1q9cCtfL-zmToQdO_pqN6jRxm7Td7mFGN8zADhyObzIvp9NEgvw5aNJZITpurUDt2Ala3vt12udRRKTiTFHmX4zE1TCuYJOr9AJr2QPOZddSeRmSWyfGcOdZsontdVcx00qm0DDRrYpm_eA9S1TXwIZKt1fMkAphlExz6Kbgsb3YAORnaDPAhipu81OQPHpf0rUZMx6bsp58I40pIPSUvaD8mmIlZYR7TNY54xke0hExcuqwBoEsenlFB9SWE4keDwA6_6wHvxo-HRFSxG13A2uatmt6iOmfZAhJL1fUxlqp5YcqOrH9sdMC0mxYs4kbKlpnUa7w8UcdVWN_WqR5XbVXiPJke21Fn_2il3G0XwHEnAssPoXP2V3rnOlbdpyUwdxcbaUidQwqAhoaMTNiTCALte-i1ZnvEGDmOFmKPEqmyNODDHtv9hhui2RlWpKQtKhwK72Fj3ToMO7O7I3hNzQ1idjD_Nst1QN1jTKk_jeO09VhlgVyZ72YejJFJjswf9TynrFl5BxEXUnSR4HzVjKoNBFY46fc6EMcKo7VjRk6_EydWzg1sgVUTvdXueGeNx_MBRKFwiqpH5Hq-pPT6Oo5e-eghjnMNfwf-Wt3a5Des4PtAn1uyTzAp0YPBghh2TZoaThLwZp1V3QkvhwtT_OEZ0jqJ8X9iNTt6lYM1k9oPtqgNqkhQv7SZmJ8U3xDbISm_IfuDWRnBjZg6eDC4BkhPQaSXRNP0KhKeioZlCWpMBJYiLHAP6ajASYdxPyZw4CK77jYWnkpmsSQ8UWG6-9Kk0wBPBXEECikKK_RrILLShSmEBxjwWqqUnt76lJCjlI-nwlHUBrB8HqhqDK_WMRDuxypnb7GbG82y3yPHO1p5FkiDAbYprJ9uqp3tX27XkWl7XU3Vw4HIAAJ2V54WqOHLUGhSXzldkyYzHF3jUpSpjpQAXRPf9oRNQW1-oEVBw9tlSUOMLdysvmMSqtokl7PwD3uiGQOan0UV0EeyVqyE2q6F1p25ZmDLEIRAxxFIsj45HtwdRMn-VsyRdnbMGqMYHaZZD5fuQrjspRLwGaQmTBoi8jzQyP3Ku_hBSJhY9V3O4EwxmSNlPn6rRhGtqUI3F8kyq4sM2gfZB4KUpQ4AZKnQ3VGD6pNcPqrAmbydVkq5adK2esYsyWNkhMhocvuKGwGEd4Jo31Tzmuh4VZv0TF5Eohw9xwFwwk9vomVL1LwZKoZsBTF3tus-p4BtrfvLKL7PU9ndqQaurPNA_g713EYyGwzEFdJxAjjRDZpc-vhxkgaCiEdP8V-1-xG6nQgId41W_clwMCecjw1TQznYMvARJ8R8h3zTjSX4kAW2gWAKO2zlSja8TiAR2fKC_2jPmobnL7L3raNNspimwhbaw7d1gqVtaWJzYSejKdTiALW4QIl9km7OJecUPtFkSaQFITiyVtkimpeKK7sJXF-FyZ4nQooXF-6GBPvaSyNxM-iVmOTGAyXbEIeADr6DWT35mWf-GGIjyJpPcws7KAjdi5Xr0m8pWHEWHcCyRs6XIMPQrW-GdXYbXd7D8yKPoy6aCXnHWhvLYVoX9H_oShnx6gxYt-NjDCqbRMu4wCe6zi22zqKdd3KvpZjJDf9G-PztGe36RP7wDeQV2nY1xMvSv1i3VlKqc8EfqaCvqXNoFYebSdGPYVdU4CANx0PjTTru5NjXICegyUTyU0qjmvwbTA5uptOF0OD8FA1ybWsabbC5pqOTYHO1xxlSy_Epllb95unpz6VuCL9ZZNHEY3pYsc5MvoulJ1IWLvJ0nKyNHB05qdk11jrf9qBlWloLkhKOTaDFHKHDJX8LnEOpl9bQ7DV2qPzdRcZVMVWeFFMBuZoY5PyQ6f_NsrFP_oi9vfBNgeVR7ZP6ZbUumyuhaC-0ic10MIFLHnCuOWFvMJLTsgugwUK2XdePcn1USa5VzZhr3kjtWujHzGwRUL8kN01jNTICeplL63fDVqvzllKfkR_banCsu" target="_blank" rel="noopener"><div class="sample-preview preview-system"><div class="mini-chrome"><span></span><span></span><span></span><small>architecture.sdoc</small></div><div class="diagram-flow"><b>Agent</b><i>↓</i><b>Browser</b><i>↓</i><div><b>Page</b><b>Actions</b></div></div><div class="mini-lines"><i></i><i></i></div></div><div class="sample-copy"><span class="sample-category">ENGINEERING / SYSTEMS</span><h3>See how the agent loop fits together.</h3><span class="sample-link">Open SmallDoc ↗</span></div></a><div class="sample-prompt"><span>THE PROMPT</span><p>“sdoc me the architecture of Browser-Use, with diagrams of the agent loop.”</p></div></article>
+ <article class="sample-card"><a class="sample-open" data-sample="code" href="/docs#md=G-gIIJwFduPTwcKHcKsx9EIzy7aVlmBjbN4Qmq2f_qc6dy3TO5FiU4tzImWqY3Yh7O_wKRKnrxQDBe78hW7Nm7cFIWRpoIwzXi0_0sTu__9w64RGavTKve8_9vgfcK-0mbM5dkhGQ_aYbVmbNoZa25_TGIQDlawR_LPPuUm74JW2Hcie7G1_ygMlZ4Zy5ygCBhWuFxwiUXXSXkEwv3RIqJsyFP1qnI60FcfnHSSRqxq1rHT2ITHMcsDaniB4opt7sGgWTdKyYMJMhGuLjkX5khiJEo8sZzwRVcPKLvxhjihY_vsP3h45hZB2gu1PlCSY1mNeueoMON0X0WMlqqX6D1UaR3fhY9O1bTBkgPPlxj_iDhrvdtfJQfqwRzNjJhRWhTe0Y9xNaV4XmulS4aZS6ukhov4QsCMvLB4WAfTwYYF9wne45c-L5hoks6XzWs0gCwcszPGRnKTI_J09U7RCZaE-BpeuQo3eqj-O9ODC7i-EQZJO1MZWAlEjUjjL5REzDl00j4ks0PYjH05UVMNa8w_bxmVrs7x0Ky8SVspMTA-7KgHO2Rd_Hf5MhtNgfhG6fjaZAWKgHevzn4UJUYybxQP3GRid_qV_gw8peC4zrgXMFvzufXpp0Dxc4BkYLmrSxvaS0S-xf4TUZKmst52vyNE90WEudRmznjPoffc-4TtYPQqgsICFduoJnqGjOwtlhyx4kun99QwxWjo8Km6NgnXVvhqvQ_IhH_7Q0RgqYtnI4vb3MHU52gFNDLEtFb09sc_UNKQbKdZJbXSuPnBapzGUunx2XT47_coY5Xpr2xCOKrRajyEDcX9X4HpDq8zojehFu8h1KVY5ueZMAkLB0IQxEbseqkWuP6GKqOelNSSveoZXp6ymRn3uv9rDkRI4oc5ppCe1J3kfpoKZI4fiO9Yqf6XXOtxNG-q6eN6NlGIz5DqAs4R7ras13FIaNHljMcNRfBT3Rqc5lw0H7plaGHFmn-OsMLhhP01EHMslm9EieiSagqeRRw9M-5RSXMP6ROethdm0tZW-s1azsdHCDGNfsvjCVMr942L4XN-rpxNF9UIB9BtU16spHSl_qiUMmJoknuWfd0zFYsbwSU91lcF-P2XfHgtBQzfSz0NDQI8bM5tLS_E5rvxCOOji4KlHodZQm-dwTazBkL5gTfqi89psNg" target="_blank" rel="noopener"><div class="sample-preview preview-code"><div class="mini-chrome"><span></span><span></span><span></span><small>rate_limiter.py</small></div><pre><span>class</span> TokenBucket:
+    <span>def</span> take(self, n=1):
+        self._refill()
+        <span>if</span> self._tokens &gt;= n:
+            self._tokens -= n
+            <span>return</span> True</pre><div class="mini-comment"><span>◎</span> Keep the decision next to the code.</div></div><div class="sample-copy"><span class="sample-category">ENGINEERING / CODE</span><h3>Read code and leave comments.</h3><span class="sample-link">Open SmallDoc ↗</span></div></a><div class="sample-prompt"><span>THE PROMPT</span><p>“sdoc me this rate limiter so I can read it and leave comments.”</p></div></article>
+ <article class="sample-card"><a class="sample-open" data-sample="science" href="/docs#md=GyUJIBwFbrOs0R6RdpOWeN5GSNLpm_501zK9JAWyC8xTUIaE7dyXy76WAki5yZn_y4ZFNm2QkplMcm2PVlv-qcWdRiEkz6OwBESHqfXGfmZ0eCiggO3QXFU57DgyARpjxGS6J5bK_8lrl51fgHhOvdBZCCrihDmISFNmgnbqxI3vRh4JaKs0ynoe6jCVhd8LxdlMFKmldXlUgSK1ssewMyu756qYLZVpAPSbGh2cmzOCePUs78zNcVNK5YAp6O4rG4ui52LRl7Onx_Xr0IGbvKjN5MP3wR63UaVysGaP4xJuqmlSEMvdmLSUJJvnGTAgEc9qlg0-qJSiBbJRRcF6RfQKlJEN2lwinvSyxrsKgFqpXHug2Mf3_84h4fQG1KTYDIq7GuWjfVfZkhZ6qZX30IyYvsiUoZTCRLXzwRXJftmSTLQdZz_KWF6bnBha28KjGTCtzxTIyPTIM87tjNXlK49urkiGuwgzJOOK9MXhzqvlOfzCesj6HL8-0eiiTzWEdLQ2HmNoe4nVXD9GkQ_bPen_2cgXI-45kkukUjfvXsRxtRVmq87pVk-qr3ktgXBSB5xcZea0atwjztOa2bOq_EsLV8-rb7DH38xF1QhIeFhx6RFvUVxWX7fhyKpWI9lEZ2wHMiRLSBBGYBsFm3FXEgIT6B7X4YXxwXb3uj9JIYcX1F0WCs9S35RfPWgM5OkMMTEvWw57dSF-zcoq1VFJv-DMgkhFtaG79DbzqgWeyapMojPpD0cGz2efHul49h8AYl7Sjnx3Px0IVANG7wdzWNJru9emRhnzLnpF69a23KJvdf2j7Tuw1X8-yw5I4ZjA7QZXKvK7RKJq8w9azd8fiAsAgDKnlXhnewlOWj1Y1rjnsTUFAqWlVFCInGTTcMEGAszxeZet6JE4CB6G4RRPo_zBqOcc_5hg_pCPID5pq3qMi9_s8FjQA1FOJb5CPE2v6TFF-qLxEQPnQoH-bSKZsEiNEo1V5bl6M0hYL4VZ0t6_JJA53zhssClwAjeQn3snDrBtBdLC4SK4GWF6Oi7ak5C4F1o1xUYEjp-pi28FfCoAdRZVUsis8h6-oxkSSxXuSXxjV6WouE2UXYSDrLt9LUhfEeZDcgtNLIeGKajOwskMtW6biaJ6iGQal6H0ewRgYNj4eWNd4108aY863UgRDnYbNDnTQvlqCtqLrExr" target="_blank" rel="noopener"><div class="sample-preview preview-science"><div class="mini-chrome"><span></span><span></span><span></span><small>field-report.sdoc</small></div><div class="mini-chart"><div><span>Shaded routes</span><i style="--bar:14%"></i><b style="--bar:48%"></b></div><div><span>Nearby seating</span><i style="--bar:31%"></i><b style="--bar:72%"></b></div><div><span>Safe crossings</span><i style="--bar:46%"></i><b style="--bar:90%"></b></div><small>Existing coverage · Proposed coverage</small></div></div><div class="sample-copy"><span class="sample-category">SCIENCE / FIELD REPORT</span><h3>Read a field report with evidence and a response plan.</h3><span class="sample-link">Open SmallDoc ↗</span></div></a><div class="sample-prompt"><span>THE PROMPT</span><p>“sdoc me a field report on urban heat, with evidence and a response plan.”</p></div></article>
+ <article class="sample-card"><a class="sample-open" data-sample="finance" href="/docs#md=G6wDIByHcSyySrX528OFIPQRksz6fnP6b1Q6wFxHLCSQMCVKy-reWmiIqAhsg83jSbTy-9ZW_yIWYtuZnUXMoohF0mUe6VInUQvOw6cnEWW22Vz793WNGOI1TmZYZfrB5OfdqyI3suRMRZTmDakbAr-wtBX1ylGTmVptccn_mfozhGR1zL-OJRRJXXhO876cZr8kQobcazaXSaZS1cIa8DcLOvAyrcbvSRiUAtponfmFN6peY6wP6RReJaA3neVy2YiwC3Up-gVR83zDMxBUIhV-M2BQBNATXv9yuWQObwqNYk7FiLuNtHcV8US8EWiby9YU5KH9G1FUsQOESoRUGK-8sM2c6tJ55KiIX9V_LqEKFT5_ugD9_tPpPNIy9EJsK5YwzjucSkaq-16b8wXC4gM6PmByjOO5i62SMXhvTLIgCntLnA0zr7R1Fa2S5ZbctNGSaMLTOWm-8lCQgD7zu7FnrN8g1AH0Ft3Us4JXx9WU3i87rk-GSilqJM9nKHkoYLrj-yNN--VQiNfVvZAgS5E2rV1WXi0TdBSl6UqzoknCN1OCe-Dq98GWNAA" target="_blank" rel="noopener"><div class="sample-preview preview-finance"><div class="mini-chrome"><span></span><span></span><span></span><small>pilot-model.sdoc</small></div><div class="mini-sheet"><table><thead><tr><th></th><th>Q1</th><th>Q2</th><th>Q3</th></tr></thead><tbody><tr><th>Partners</th><td>3</td><td>5</td><td>8</td></tr><tr><th>Revenue</th><td>36,000</td><td>60,000</td><td>108,000</td></tr><tr><th>Contribution</th><td>-10,000</td><td>7,000</td><td class="cell-selected">40,000</td></tr></tbody></table><div class="mini-formula">ƒx &nbsp; = D4 - D5 - D6</div></div></div><div class="sample-copy"><span class="sample-category">FINANCE / MODEL</span><h3>Keep the assumptions beside the answer.</h3><span class="sample-link">Open SmallDoc ↗</span></div></a><div class="sample-prompt"><span>THE PROMPT</span><p>“sdoc me a pilot model with editable assumptions and live formulas.”</p></div></article>
+ </div>
+ <div class="repeat-start"><p>Try a question from your own work.</p><div class="start-block" id="start-samples"><form class="start-form" data-install-form>
+<label class="sr-only" for="email-start-samples">Your email</label><input id="email-start-samples" type="email" name="email" autocomplete="email" placeholder="Your email" required>
+<button class="btn btn-primary" type="submit">Start using SmallDocs <span aria-hidden="true">↗</span></button>
+</form><p class="start-status" role="status"></p></div></div>
+</section>
+<section class="next-praise wrap" id="praise"><div class="section-heading"><div><p class="rail-number">03 / FROM READERS</p><h2>Praise for SmallDocs</h2></div><p>From the Hacker News discussions.</p></div><div class="praise-grid"><figure class="praise-card">
+          <blockquote>&ldquo;I think agents making Word docs and PowerPoints is going to go away. [SmallDocs] is the future.&rdquo;</blockquote>
+          <a class="praise-context" href="https://news.ycombinator.com/item?id=48809212" target="_blank" rel="noopener" title="View this comment on Hacker News" aria-label="View this comment on Hacker News"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="m10 14 11-11"/></svg></a>
+        </figure><figure class="praise-card">
+          <blockquote>&ldquo;Great job on this. I can see this being extremely useful for my teams.&rdquo;</blockquote>
+          <a class="praise-context" href="https://news.ycombinator.com/item?id=48810851" target="_blank" rel="noopener" title="View this comment on Hacker News" aria-label="View this comment on Hacker News"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="m10 14 11-11"/></svg></a>
+        </figure><figure class="praise-card ">
+          <blockquote>&ldquo;Very good and well done. I found an immediate use-case for this.&rdquo;</blockquote>
+          <a class="praise-context" href="https://news.ycombinator.com/item?id=48811944" target="_blank" rel="noopener" title="View this comment on Hacker News" aria-label="View this comment on Hacker News"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="m10 14 11-11"/></svg></a>
+        </figure></div><div class="repeat-start"><p>Your next document starts with a question.</p><div class="start-block" id="start-praise"><form class="start-form" data-install-form>
+<label class="sr-only" for="email-start-praise">Your email</label><input id="email-start-praise" type="email" name="email" autocomplete="email" placeholder="Your email" required>
+<button class="btn btn-primary" type="submit">Start using SmallDocs <span aria-hidden="true">↗</span></button>
+</form><p class="start-status" role="status"></p></div><p class="price-line">One month free. £4/month for individuals. £7/month/user for teams.</p></div></section>
+</main><footer>
+  <div class="wrap">
+    <p class="foot-fine">
+      <span>smalldocs.org</span>
+      <span>
+        <a href="/docs">Docs</a><span class="dot">&middot;</span>
+        <a href="/developers">Developers</a><span class="dot">&middot;</span>
+        <a href="/blogs/new-home">What's new</a><span class="dot">&middot;</span>
+        <a href="/privacy">Privacy</a><span class="dot">&middot;</span>
+        <a href="/trust">Trust</a><span class="dot">&middot;</span>
+        <a href="/analytics">Analytics</a><span class="dot">&middot;</span>
+        <a href="/legal">Terms</a><span class="dot">&middot;</span>
+        <a href="/acceptable-use">Acceptable use</a><span class="dot">&middot;</span>
+        <a href="/cancellation">Cancellation</a><span class="dot">&middot;</span>
+        <a href="/service-closure">Service closure</a><span class="dot">&middot;</span>
+        <a href="/subprocessors">Service providers</a><span class="dot">&middot;</span>
+        <a href="https://github.com/espressoplease/smalldocs" target="_blank" rel="noopener">Open source on GitHub</a>
+      </span>
+    </p>
+    <p class="foot-fine">Odd Solutions Ltd, registered in England and Wales, company number 16186575. Registered office: 98 Downhills Park Road, London, United Kingdom, N17 6PA.</p>
+  </div>
+</footer>
+<script src="/public/sdocs-cli-setup.js"></script>
+<script src="/public/sdocs-scroll-header.js"></script>
+<script src="/public/homepage-next.js"></script>
+</body></html>

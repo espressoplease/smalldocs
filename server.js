@@ -143,6 +143,9 @@ const SMALLCRM_TEAMS_FORM_ACTION = process.env.SMALLCRM_TEAMS_FORM_ACTION ||
   'teams-interest-bb3de684-19c7-47d2-8fd6-4a95d5be6af3';
 const SMALLCRM_TEAMS_FORM_PUBLIC_ID =
   new URL(SMALLCRM_TEAMS_FORM_ACTION).pathname.split('/').filter(Boolean).pop();
+const SMALLCRM_INSTALL_FORM_ACTION = process.env.SMALLCRM_INSTALL_FORM_ACTION ||
+  'https://smallcrm.org/w/smalldocs-ws_fc6d0a62-5f2c-4716-9487-df0801230386/f/' +
+  'install-interest-d747aa39-73c3-4d51-98be-e78ccda4aae9';
 
 // Cloud authentication is enabled only when a stable server-side pepper is
 // configured. The sign-in page remains available without it, but auth APIs
@@ -857,13 +860,19 @@ function handleFeedbackPost(req, res) {
 // relayed to SmallCRM's public write-only form receiver.
 const CONTACT_EMAIL_RE = /^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,24}$/;
 
-async function submitTeamsInterestToSmallCrm({ email, company, message }) {
+async function submitTeamsInterestToSmallCrm({ email, company, message }, installRequest = false) {
+  const action = installRequest ? SMALLCRM_INSTALL_FORM_ACTION : SMALLCRM_TEAMS_FORM_ACTION;
   const form = new URLSearchParams();
-  form.set('_scrm_form', SMALLCRM_TEAMS_FORM_PUBLIC_ID);
+  form.set('_scrm_form', installRequest
+    ? new URL(action).pathname.split('/').filter(Boolean).pop() : SMALLCRM_TEAMS_FORM_PUBLIC_ID);
   form.set('inbound_leads.email', email);
+  if (installRequest) {
+    form.set('inbound_leads.source', 'homepage_install');
+    form.set('inbound_leads.status', 'new');
+  }
   if (company) form.set('inbound_leads.company', company);
   if (message) form.set('inbound_leads.message', message);
-  const response = await fetch(SMALLCRM_TEAMS_FORM_ACTION, {
+  const response = await fetch(action, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
     body: form.toString(),
@@ -873,7 +882,7 @@ async function submitTeamsInterestToSmallCrm({ email, company, message }) {
   if (!response.ok) throw new Error('SmallCRM form returned ' + response.status);
 }
 
-function handleTeamsInterestPost(req, res) {
+function handleTeamsInterestPost(req, res, installRequest = false) {
   const ip = getClientIp(req);
   if (!feedbackRateLimit.check(ip)) {
     sendJson(res, 429, { error: 'rate_limited' });
@@ -913,13 +922,14 @@ function handleTeamsInterestPost(req, res) {
     const company = body && typeof body.company === 'string' ? body.company.trim().slice(0, 200) : '';
     const message = body && typeof body.message === 'string' ? body.message.trim().slice(0, 2000) : '';
     try {
-      await submitTeamsInterestToSmallCrm({ email, company, message });
+      await submitTeamsInterestToSmallCrm({ email, company, message }, installRequest);
     } catch (error) {
       console.error('[teams-interest] SmallCRM submission failed:', error.message);
       sendJson(res, 502, { error: 'submission_failed' });
       return;
     }
     sendJson(res, 201, { ok: true });
+    if (installRequest) return;
     teamsNotify.send(
       'SmallDocs Teams interest: ' + email,
       'New Teams-interest submission on smalldocs.org\n\n' +
@@ -2518,6 +2528,10 @@ const server = http.createServer((req, res) => {
     handleTeamsInterestPost(req, res);
     return;
   }
+  if (req.method === 'POST' && pathname === '/api/install-interest') {
+    handleTeamsInterestPost(req, res, true);
+    return;
+  }
 
   if (req.method === 'POST' && pathname === '/api/cloud/auth/email/request') {
     handleCloudEmailRequest(req, res);
@@ -2653,9 +2667,10 @@ const server = http.createServer((req, res) => {
   // cache-busted. Hash-encoded document links (#md=...) that land on the
   // root belong to the app at /docs; fragments never reach the server, so
   // an inline script in the page forwards them client-side.
-  if (pathname === '/' || pathname === '/home') {
+  if (pathname === '/' || pathname === '/home' || pathname === '/home-next') {
     const homepageNav = homepageNavigation(req);
-    serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'homepage.html'),
+    serveHtmlWithRewrite(res, path.join(__dirname, 'public',
+      pathname === '/home-next' ? 'homepage-next.html' : 'homepage.html'),
       {
         ...homepageNav.substitutions,
         '__HOME_CLOUD_AUTHENTICATED__': homepageNav.authenticated ? 'true' : 'false',
