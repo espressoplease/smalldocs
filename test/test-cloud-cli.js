@@ -545,6 +545,7 @@ module.exports = function(harness) {
       const result = await capture(() => runCloudCommand({ file: 'create', extra: accountSource,
         jsonFlag: true }, { client: fakeClient }));
       assert.strictEqual(result.account_id, 'acct-1');
+      assert.strictEqual(result.url, 'https://cloud.test/docs?cloud-document=doc-1');
       assert.strictEqual(Object.hasOwn(result, 'project_id'), false);
       assert.ok(calls.some((call) => call.endpoint === '/api/cloud/v1/account/documents'));
     });
@@ -617,6 +618,7 @@ module.exports = function(harness) {
       const result = await capture(() => runCloudCommand({ file: 'push', extra: source,
         jsonFlag: true }, { client: fakeClient }));
       assert.strictEqual(result.revision_id, 'rev-2');
+      assert.strictEqual(result.url, 'https://cloud.test/docs?cloud-document=doc-1');
       const request = JSON.parse(calls.find((call) => call.endpoint.endsWith('/revisions')).options.body);
       assert.strictEqual(request.target_revision_id, 'rev-1');
       assert.strictEqual(request.target_markdown,
@@ -646,6 +648,7 @@ module.exports = function(harness) {
       bindings.cacheBase('usr-1', 'doc-merge', 'rev-base', '# Plan\n\nBase.');
       let request;
       const mergedClient = {
+        origin: 'https://cloud.test',
         loadCredential() { return account; },
         async authenticated(endpoint, options) {
           request = JSON.parse(options.body);
@@ -674,6 +677,7 @@ module.exports = function(harness) {
         revision_id: 'rev-base', content_sha256: bindings.hash('# Plan\n\nBase.'),
         updated_at: '2026-08-14T00:00:00.000Z' });
       const changingClient = {
+        origin: 'https://cloud.test',
         loadCredential() { return account; },
         async authenticated() {
           fs.writeFileSync(changingSource, '# Plan\n\nSecond agent edit.');
@@ -711,6 +715,7 @@ module.exports = function(harness) {
         'cursor-2': { documents: [{ id: 'doc-c', title: 'C', tags: [] }], next_cursor: 'cursor-3' },
       };
       const pagingClient = {
+        origin: 'https://cloud.test',
         async authenticated(endpoint) {
           const url = new URL(endpoint, 'https://cloud.test');
           const cursor = url.searchParams.get('cursor') || '';
@@ -722,6 +727,7 @@ module.exports = function(harness) {
       const result = await capture(() => runCloudCommand({ file: 'ls', accountFlag: 'acct-docs',
         limitFlag: 3, jsonFlag: true }, { client: pagingClient }));
       assert.deepStrictEqual(result.documents.map((document) => document.id), ['doc-a', 'doc-b', 'doc-c']);
+      assert.deepStrictEqual(result.documents.map((document) => document.url), ['doc-a', 'doc-b', 'doc-c'].map(id => 'https://cloud.test/docs?cloud-document=' + id));
       assert.strictEqual(result.next_cursor, 'cursor-3');
       assert.deepStrictEqual(pageCalls, [
         { cursor: '', limit: '3', account: 'acct-docs' },
@@ -747,6 +753,7 @@ module.exports = function(harness) {
         ok: true,
         command: 'cloud.restore',
         document_id: 'doc-1',
+        url: 'https://cloud.test/docs?cloud-document=doc-1',
         base_revision_id: 'rev-2',
         restored_from_revision_id: 'rev-1',
         revision_id: 'rev-3',
@@ -798,6 +805,7 @@ module.exports = function(harness) {
     await testAsync('cloud search sends tag filters before the server limit', async () => {
       let requestBody;
       const searchClient = {
+        origin: 'https://cloud.test',
         async authenticated(endpoint, options) {
           assert.strictEqual(endpoint, '/api/cloud/v1/search');
           requestBody = JSON.parse(options.body);
@@ -811,6 +819,7 @@ module.exports = function(harness) {
       assert.strictEqual(requestBody.limit, 1);
       assert.strictEqual(requestBody.workspace_id, 'acct-platform');
       assert.strictEqual(result.documents[0].id, 'doc-tagged');
+      assert.strictEqual(result.documents[0].url, 'https://cloud.test/docs?cloud-document=doc-tagged');
     });
 
     await testAsync('local Cloud file commands report login_required before using account state', async () => {

@@ -546,6 +546,16 @@ When you run `sdoc <file>` the browser shows a small info card at the top of the
 
 The two "local" fields are passed to the browser via a separate URL parameter (`&local=...`) that JavaScript reads into memory on load and immediately strips from the address bar using `history.replaceState`. So by the time you could copy the URL, the local data is no longer in it. `sdoc share <file>` never generates that parameter to begin with — so links produced by `share` are inherently path-free. If a recipient opens your shared URL, only `file` is visible.
 
+## Linking Cloud documents in chat
+
+For Cloud-first agents, run `sdoc FILE.md --cloud --json`. The CLI saves the document before opening the exact Cloud URL returned in the JSON `url` field. Add `--no-open` to save without launching a browser. Check `ok` and the command's exit status before presenting the document as saved.
+
+Always link to that returned Cloud URL in chat, never the underlying local Markdown file or a `file://` path. The local file remains the editable working copy. Later saves keep the same document URL; unchanged files do not create another revision. If `local_changed_after_upload` is true, save again before claiming the Cloud document contains the latest edits.
+
+Cloud `create`, `pull`, `push`, and `restore` return `url` in JSON. Cloud `ls` and `search` return `documents[].url` for linking existing documents. Browser sign-in and document permissions still apply; a URL does not grant access.
+
+Feedback and bridge commands remain local live sessions. A Cloud copy does not replace the live feedback connection.
+
 ## The CLI
 
 ### Installation

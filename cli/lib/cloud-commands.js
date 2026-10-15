@@ -25,6 +25,31 @@ Cloud stores selected Markdown documents with search, revisions, member access,
 and cross-device CLI and browser access. Run \`sdoc setup --cloud --yes\` to make
 ordinary \`sdoc FILE.md\` opens create or update the Cloud document first.
 
+SAVE, OPEN, AND LINK IN CHAT
+
+  sdoc FILE.md --cloud --json
+  sdoc FILE.md --cloud --account ACCOUNT_UUID --json
+  sdoc FILE.md --cloud --no-open --json
+
+The authenticated CLI uploads first, then opens the same Cloud URL returned
+in url. The local Markdown is the editable working copy. Its binding keeps
+the document ID stable across edits; successful saves advance the revision.
+An unchanged file does not create another revision. --no-open still saves
+and returns the URL. The browser needs its own signed-in session and access.
+
+When linking a SmallDoc in chat, always use the returned Cloud url. Never
+link to the underlying local file, a file:// URL, or a local Markdown path.
+Do not invent a URL or present an upload failure as a saved document.
+With --json, check ok and the exit status before using url. If
+local_changed_after_upload is true, the latest local changes were not included
+in this save; run the command again to save them.
+
+Create, pull, push, and restore also return url in JSON. List and search
+results include documents[].url, so existing documents can be linked without
+uploading them again. The URL identifies a document; it does not grant access.
+Feedback and bridge commands still use local live sessions. A Cloud URL does
+not turn those sessions into Cloud-backed feedback.
+
 DISCOVER AND READ
 
   sdoc cloud status --json
@@ -39,7 +64,7 @@ filenames, tags, and current Markdown. It is not semantic search. Start with a
 specific phrase, then try a shorter phrase or an existing tag if needed.
 Multiple --tag values require every listed tag.
 
-With --json, search returns documents[]. Each result includes its id, title,
+With --json, search returns documents[]. Each result includes its id, url, title,
 tags, current revision metadata, and matches[]. A match reports field, line,
 and snippet. Search does not return the full Markdown. Use pull to retrieve a
 result. --no-bind makes that output a read-only reference from the CLI's point
@@ -113,6 +138,12 @@ class CloudCommandError extends Error {
 
 function origin() {
   return String(process.env.SDOCS_CLOUD_URL || constants.DEFAULT_URL).replace(/\/$/, '');
+}
+
+function documentUrl(client, documentId) {
+  const url = new URL('/docs', client.origin);
+  url.searchParams.set('cloud-document', documentId);
+  return url.toString();
 }
 
 function entitlementFailure(code, status, cloudOrigin) {
@@ -322,7 +353,8 @@ async function list(opts, client) {
     if (cursor) params.set('cursor', cursor);
     const response = await client.authenticated('/api/cloud/v1/documents?' + params.toString());
     documents.push(...filterTags(response.documents || [], opts.tagFilters)
-      .slice(0, target - documents.length));
+      .slice(0, target - documents.length)
+      .map((document) => Object.assign({}, document, { url: documentUrl(client, document.id) })));
     cursor = response.next_cursor || null;
     if (cursor && seenCursors.has(cursor)) throw new CloudCommandError('temporary_service_failure',
       'Cloud returned the same document cursor twice.');
@@ -423,7 +455,8 @@ async function search(opts, client) {
     body: JSON.stringify({ query: opts.extra, tags: opts.tagFilters, limit,
       workspace_id: opts.accountFlag || undefined }),
   });
-  const documents = response.documents || [];
+  const documents = (response.documents || []).map((document) =>
+    Object.assign({}, document, { url: documentUrl(client, document.id) }));
   emit(opts, 'cloud.search', { documents, next_cursor: null }, documents.map((document) =>
     document.id + '  ' + document.title + '\n  ' + ((document.matches && document.matches[0] && document.matches[0].snippet) || '')).join('\n') || 'No matches.');
 }
@@ -468,6 +501,7 @@ async function create(opts, client) {
   bindings.clearPending(credential.user_id, file);
   const localChanged = bindings.hash(fs.readFileSync(file)) !== digest;
   return emit(opts, 'cloud.create', { document_id: document.id, revision_id: document.current_revision_id,
+    url: documentUrl(client, document.id),
     revision_number: document.revision_number,
     account_id: response.account && response.account.id || opts.accountFlag || null, path: file,
     tags: document.tags, sha256: digest, binding_created: true,
@@ -521,6 +555,7 @@ async function pull(opts, client) {
     bindings.cacheBase(credential.user_id, document.id, document.current_revision_id, document.markdown);
   }
   emit(opts, 'cloud.pull', { document_id: document.id, revision_id: document.current_revision_id,
+    url: documentUrl(client, document.id),
     revision_number: document.revision_number, path: output, tags: document.tags,
     sha256: digest, binding_created: !opts.noBindFlag }, 'Pulled ' + document.id + ' to ' + output + '.');
 }
@@ -544,6 +579,7 @@ async function push(opts, client) {
   const digest = bindings.hash(localContent);
   if (binding.content_sha256 === digest) {
     return emit(opts, 'cloud.push', { document_id: binding.document_id,
+      url: documentUrl(client, binding.document_id),
       base_revision_id: binding.revision_id, revision_id: binding.revision_id,
       sha256: digest, no_change: true }, 'No changes to push.');
   }
@@ -596,6 +632,7 @@ async function push(opts, client) {
   bindings.cacheBase(credential.user_id, document.id, document.current_revision_id, savedContent);
   bindings.clearPending(credential.user_id, file);
   return emit(opts, 'cloud.push', { document_id: document.id, base_revision_id: binding.revision_id,
+    url: documentUrl(client, document.id),
     revision_id: document.current_revision_id, revision_number: document.revision_number,
     tags: document.tags, sha256: savedDigest, no_change: false,
     merge_classification: document.merge_classification || 'clean',
@@ -677,9 +714,7 @@ async function openCloudDocument(opts, dependencies) {
     });
     if (!saved.synced) throw new CloudCommandError('invalid_request',
       'Cloud opens require a Markdown file.');
-    const url = new URL('/docs', client.origin);
-    url.searchParams.set('cloud-document', saved.documentId);
-    const canonicalUrl = url.toString();
+    const canonicalUrl = documentUrl(client, saved.documentId);
     if (!opts.noOpenFlag) {
       (dependencies.openBrowser || io.openBrowser)(canonicalUrl,
         (message) => process.stderr.write(message + '\n'));
@@ -755,6 +790,7 @@ async function restore(opts, client) {
   bindings.clearOperationPending(credential.user_id, 'restore', pendingResource);
   const document = response.document;
   emit(opts, 'cloud.restore', { document_id: document.id,
+    url: documentUrl(client, document.id),
     base_revision_id: baseRevisionId,
     restored_from_revision_id: document.restored_from_revision_id || sourceRevisionId,
     revision_id: document.current_revision_id,
