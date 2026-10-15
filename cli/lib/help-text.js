@@ -94,6 +94,9 @@ OPTIONS
   --placement <id>      Attribute a social short link to one publishing
                         placement. Use 4-32 letters, numbers, underscores,
                         or hyphens with --source x, yt, or youtube.
+  --cloud               Save a Markdown file to Cloud, then open and print its
+                        stable document URL. Requires sdoc cloud login.
+  --standard            Open locally without uploading, even in Cloud mode.
   --json                Machine-readable output for safe and Cloud commands.
   --no-open             Do not launch the browser after a normal file open.
   --audit               Also print GitHub links to server-side source

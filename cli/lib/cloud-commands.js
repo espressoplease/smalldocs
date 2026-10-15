@@ -209,6 +209,7 @@ class CloudClient {
 }
 
 function emit(opts, command, value, human) {
+  if (opts.silent) return value;
   if (opts.jsonFlag) process.stdout.write(JSON.stringify(Object.assign({ ok: true, command }, value)) + '\n');
   else process.stdout.write((human || JSON.stringify(value, null, 2)) + '\n');
   return value;
@@ -640,7 +641,7 @@ async function addCloudTags(documentId, requestedTags, client, local) {
     bindings.cacheBase(local.credential.user_id, documentId,
       response.document.current_revision_id, response.document.markdown);
   }
-  process.stdout.write('Updated Cloud tags for ' + documentId + '.\n');
+  if (!local || !local.silent) process.stdout.write('Updated Cloud tags for ' + documentId + '.\n');
   return response.document;
 }
 
@@ -656,12 +657,42 @@ async function autoSyncOpen(opts, dependencies) {
     accountFlag: accountId,
     jsonFlag: false,
     cloudFirst: true,
+    silent: Boolean(dependencies && dependencies.silent),
   });
   const result = binding ? await push(syncOpts, client) : await create(syncOpts, client);
   const tagged = await addCloudTags(result.document_id, opts.addTags, client,
-    { credential, file });
+    { credential, file, silent: syncOpts.silent });
   return { synced: true, documentId: result.document_id,
-    revisionId: tagged && tagged.current_revision_id || result.revision_id, created: !binding };
+    revisionId: tagged && tagged.current_revision_id || result.revision_id, created: !binding,
+    localChangedAfterUpload: Boolean(result.local_changed_after_upload) };
+}
+
+async function openCloudDocument(opts, dependencies) {
+  dependencies = dependencies || {};
+  try {
+    const client = dependencies.client || new CloudClient(opts.url
+      ? { origin: new URL(opts.url).origin } : undefined);
+    const saved = await autoSyncOpen(opts, {
+      client, accountId: dependencies.accountId, silent: true,
+    });
+    if (!saved.synced) throw new CloudCommandError('invalid_request',
+      'Cloud opens require a Markdown file.');
+    const url = new URL('/docs', client.origin);
+    url.searchParams.set('cloud-document', saved.documentId);
+    const canonicalUrl = url.toString();
+    if (!opts.noOpenFlag) {
+      (dependencies.openBrowser || io.openBrowser)(canonicalUrl,
+        (message) => process.stderr.write(message + '\n'));
+    }
+    return emit(opts, 'cloud.open', {
+      document_id: saved.documentId, revision_id: saved.revisionId,
+      url: canonicalUrl, created: saved.created,
+      local_changed_after_upload: saved.localChangedAfterUpload,
+    }, canonicalUrl + (saved.localChangedAfterUpload
+      ? '\nThe local file changed during upload. Run sdoc again to save the latest changes.' : ''));
+  } catch (error) {
+    fail(opts, 'cloud.open', error);
+  }
 }
 
 async function history(opts, client) {
@@ -822,5 +853,5 @@ async function runCloudCommand(opts, dependencies) {
   }
 }
 
-module.exports = { CloudClient, CloudCommandError, runCloudCommand, autoSyncOpen, filterTags, origin,
+module.exports = { CloudClient, CloudCommandError, runCloudCommand, autoSyncOpen, openCloudDocument, filterTags, origin,
   EXIT, CLOUD_HELP, CLOUD_OVERVIEW, entitlementFailure, skillInstallCommand };

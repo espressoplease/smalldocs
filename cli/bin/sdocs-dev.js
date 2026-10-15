@@ -121,7 +121,10 @@ function buildRouter() {
 
   r.register(null,       { handler: async (opts) => {
     const cloudFirst = setup.cloudFirstSettings();
-    if (cloudFirst) {
+    if (opts.skillEdition === 'cloud') {
+      return cloudCommands.openCloudDocument(opts, { accountId: cloudFirst && cloudFirst.accountId });
+    }
+    if (cloudFirst && opts.skillEdition !== 'standard') {
       await cloudCommands.autoSyncOpen(opts, { accountId: cloudFirst.accountId });
     } else {
       // Index-on-open tap: fires before the open so any +tag CLI args land

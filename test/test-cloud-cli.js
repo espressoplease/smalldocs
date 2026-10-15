@@ -7,7 +7,7 @@ module.exports = function(harness) {
   const io = require('../cli/lib/io');
   const credentials = require('../cli/lib/cloud-credentials');
   const bindings = require('../cli/lib/cloud-bindings');
-  const { CloudClient, runCloudCommand, autoSyncOpen, filterTags, skillInstallCommand, CLOUD_HELP } =
+  const { CloudClient, runCloudCommand, autoSyncOpen, openCloudDocument, filterTags, skillInstallCommand, CLOUD_HELP } =
     require('../cli/lib/cloud-commands');
 
   test('setup parser captures Cloud-first edition and preferred account', () => {
@@ -16,6 +16,15 @@ module.exports = function(harness) {
     assert.strictEqual(parsed.skillEdition, 'cloud');
     assert.strictEqual(parsed.accountFlag, 'acct-1');
     assert.strictEqual(parsed.yesFlag, true);
+  });
+
+  test('normal file opens accept a one-command Cloud opt-in', () => {
+    const parsed = io.parseArgs(['report.md', '--cloud', '--account', 'acct-1', '--json', '--no-open']);
+    assert.strictEqual(parsed.subcommand, null);
+    assert.strictEqual(parsed.file, 'report.md');
+    assert.strictEqual(parsed.skillEdition, 'cloud');
+    assert.strictEqual(parsed.accountFlag, 'acct-1');
+    assert.strictEqual(parsed.noOpenFlag, true);
   });
 
   test('cloud CLI parser captures nested action flags', () => {
@@ -903,6 +912,89 @@ module.exports = function(harness) {
       assert.strictEqual(body.ok, false);
       assert.strictEqual(result.exitCode, 4);
       assert.strictEqual(result.stderr, '');
+    });
+
+    await testAsync('Cloud open prints and opens the same stable URL after confirmed saves', async () => {
+      const file = path.join(dir, 'canonical-cloud.md');
+      fs.writeFileSync(file, '# Canonical Cloud\nFirst version');
+      const opened = [];
+      const dependencies = { client: fakeClient, openBrowser: (url) => opened.push(url) };
+      const first = await capture(() => openCloudDocument({ file, jsonFlag: true,
+        accountFlag: 'acct-1', addTags: ['planning'] }, dependencies));
+      assert.strictEqual(first.command, 'cloud.open');
+      assert.strictEqual(first.url, 'https://cloud.test/docs?cloud-document=doc-1');
+      assert.deepStrictEqual(opened, [first.url]);
+      assert.strictEqual(first.created, true);
+      fs.writeFileSync(file, '# Canonical Cloud\nSecond version');
+      const second = await capture(() => openCloudDocument({ file, jsonFlag: true }, dependencies));
+      assert.strictEqual(second.created, false);
+      assert.strictEqual(second.url, first.url);
+      assert.strictEqual(second.revision_id, 'rev-2');
+      assert.deepStrictEqual(opened, [first.url, first.url]);
+      const callCount = calls.length;
+      const third = await capture(() => openCloudDocument({ file, jsonFlag: true,
+        noOpenFlag: true }, dependencies));
+      assert.strictEqual(third.url, first.url);
+      assert.strictEqual(calls.length, callCount);
+      assert.strictEqual(opened.length, 2);
+    });
+
+    await testAsync('Cloud open human output contains the full browser URL without create chatter', async () => {
+      const file = path.join(dir, 'canonical-human.md');
+      fs.writeFileSync(file, '# Human output');
+      let opened;
+      const result = await captureStreams(() => openCloudDocument({ file }, {
+        client: fakeClient, openBrowser: (url) => { opened = url; },
+      }));
+      assert.strictEqual(result.exitCode, 0);
+      assert.strictEqual(result.stdout.trim(), opened);
+      assert.strictEqual(result.stderr, '');
+    });
+
+    await testAsync('Cloud open upload failures preserve local work and never launch a document', async () => {
+      const file = path.join(dir, 'failed-cloud.md');
+      const content = '# Keep my local work';
+      fs.writeFileSync(file, content);
+      let opened = false;
+      const client = { origin: fakeClient.origin, loadCredential: () => account,
+        async authenticated() { throw Object.assign(new Error('Offline'), { code: 'temporary_service_failure' }); } };
+      const result = await captureStreams(() => openCloudDocument({ file, jsonFlag: true }, {
+        client, openBrowser: () => { opened = true; },
+      }));
+      assert.strictEqual(result.exitCode, 7);
+      assert.strictEqual(JSON.parse(result.stdout).ok, false);
+      assert.strictEqual(JSON.parse(result.stdout).url, undefined);
+      assert.strictEqual(opened, false);
+      assert.strictEqual(fs.readFileSync(file, 'utf8'), content);
+      assert.strictEqual(bindings.get(account.user_id, file), null);
+      assert.ok(bindings.getPending(account.user_id, file));
+    });
+
+    await testAsync('Cloud open requires sign-in and reports it as structured output', async () => {
+      const file = path.join(dir, 'unsigned-cloud.md');
+      fs.writeFileSync(file, '# Not signed in');
+      const result = await captureStreams(() => openCloudDocument({ file, jsonFlag: true }, {
+        client: { origin: fakeClient.origin, loadCredential: () => null,
+          authenticated() { throw new Error('must not upload'); } },
+        openBrowser() { throw new Error('must not open'); },
+      }));
+      assert.strictEqual(result.exitCode, 3);
+      assert.strictEqual(JSON.parse(result.stdout).error, 'login_required');
+    });
+
+    await testAsync('Cloud open warns when a file changes during upload', async () => {
+      const file = path.join(dir, 'changing-cloud.md');
+      fs.writeFileSync(file, '# Uploaded version');
+      const client = { origin: fakeClient.origin, loadCredential: () => account,
+        async authenticated(endpoint, options) {
+          const result = await fakeClient.authenticated(endpoint, options);
+          fs.writeFileSync(file, '# New local version');
+          return result;
+        } };
+      const result = await capture(() => openCloudDocument({ file, jsonFlag: true, noOpenFlag: true }, { client }));
+      assert.strictEqual(result.local_changed_after_upload, true);
+      assert.strictEqual(fs.readFileSync(file, 'utf8'), '# New local version');
+      assert.strictEqual(result.url, 'https://cloud.test/docs?cloud-document=doc-1');
     });
 
     process.exitCode = 0;
