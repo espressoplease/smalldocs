@@ -2473,13 +2473,14 @@ module.exports = function(harness) {
     // ── Teams-interest endpoint ──
     await testAsync('POST /api/teams-interest relays a valid submission to SmallCRM', async () => {
       const r = await post(BASE + '/api/teams-interest', {
-        email: 'lead@example.com', company: 'Acme', message: 'We ship reports weekly.',
+        name: ' Alex Smith ', email: 'lead@example.com', company: 'Acme', message: 'We ship reports weekly.',
       });
       assert.strictEqual(r.status, 201);
       assert.strictEqual(teamsFormSubmissions.length, 1);
       const form = teamsFormSubmissions[0];
       assert.strictEqual(form.get('_scrm_form'), 'teams-interest-test');
       assert.strictEqual(form.get('inbound_leads.email'), 'lead@example.com');
+      assert.strictEqual(form.get('inbound_leads.name'), 'Alex Smith');
       assert.strictEqual(form.get('inbound_leads.company'), 'Acme');
       assert.strictEqual(form.get('inbound_leads.message'), 'We ship reports weekly.');
     });
@@ -2507,6 +2508,7 @@ module.exports = function(harness) {
       const form = teamsFormSubmissions[1];
       assert.strictEqual(form.get('inbound_leads.email'), 'solo@example.com');
       assert.strictEqual(form.has('inbound_leads.company'), false);
+      assert.strictEqual(form.has('inbound_leads.name'), false);
       assert.strictEqual(form.has('inbound_leads.message'), false);
     });
 

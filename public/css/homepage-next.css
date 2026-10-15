@@ -1,4 +1,15 @@
 .homepage-column { max-width: 71ch; margin: 0 auto; }
+.home-next .homepage-login-nav { position: static; }
+.homepage-login-nav .wrap { max-width: none; padding: 0 8px; }
+.homepage-login-nav .nav-in { max-width: none; height: auto; min-height: 48px; align-items: flex-start; justify-content: flex-end; padding: 8px 0; }
+.homepage-login { opacity: 0; visibility: hidden; min-height: 32px; transition: opacity .3s cubic-bezier(.4,0,.2,1), visibility .3s, background .12s, border-color .12s, color .12s; }
+.homepage-login.is-visible { opacity: 1; visibility: visible; }
+@media (max-width: 600px) {
+  .homepage-login { min-height: 36px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .homepage-login { transition: none; }
+}
 .homepage-small-video { max-width: 360px; margin: 0 0 19px; }
 .homepage-small-video .vid-play { border: 0; width: 100%; font-family: var(--font); }
 .homepage-small-video .vid-play em { font-size: var(--t-sm); }
@@ -6,12 +17,22 @@
 .home-next .hero-display { max-width: 100%; font-size: 25px; }
 .home-next .lead { font-size: 16px; }
 .home-next .homepage-copy { margin-top: 9px; }
-.homepage-start { margin-top: 13px; margin-bottom: 12px; max-width: 600px; }
-.homepage-email { display: flex; align-items: stretch; gap: 12px; }
+.homepage-start { margin-top: 13px; margin-bottom: 12px; width: 100%; }
+.homepage-email { display: flex; align-items: stretch; gap: 4px; width: 100%; }
 .homepage-email .tf-field { flex: 1; min-width: 0; }
-.homepage-email input { height: 100%; background: white; }
-.homepage-email button { font-size: var(--t-sm); }
+.homepage-email input { height: 100%; background: white; border-radius: var(--r) 0 0 var(--r); }
+.homepage-email button { font-size: var(--t-sm); padding: 11px 18px; border-radius: 0 var(--r) var(--r) 0; }
+.homepage-email .btn-primary, #talk-to-sales .btn-primary { background: #000; color: #fff; }
+.homepage-email .btn-primary:hover, #talk-to-sales .btn-primary:hover { background: var(--ink); }
 .homepage-email button:disabled { opacity: .6; }
+#start-samples, #start-praise { margin: 0; padding: 40px 0; }
+.home-next #praise, .home-next #talk-to-sales { padding-top: 0; }
+.homepage-sales-link { margin-top: 8px; font-size: var(--t-sm); color: var(--ink-2); }
+.homepage-sales-link a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+#talk-to-sales { scroll-margin-top: 24px; }
+.home-next #talk-to-sales .install-grid { display: block; }
+.home-next #talk-to-sales h2 { margin: 0 0 24px; }
+.home-next #praise h2, .home-next #talk-to-sales h2 { margin-top: 0; }
 .start-status:empty { display: none; }
 .start-status { margin-top: 10px; }
 .install-reveal { margin-top: 28px; scroll-margin-top: 90px; }
@@ -21,23 +42,26 @@
 .install-reveal .cmd { overflow-wrap: anywhere; min-width: 0; }
 .home-next main { padding-bottom: 66px; }
 @media (max-width: 600px) {
+  #start-samples, #start-praise { padding: 24px 0; }
   .homepage-email { flex-direction: column; }
-  .homepage-email input { font-size: 16px; }
-  .homepage-email .btn { justify-content: center; }
+  .homepage-email input, .homepage-email button { min-height: 48px; }
+  .homepage-email input { font-size: 16px; border-radius: var(--r) var(--r) 0 0; }
+  .homepage-email .btn { justify-content: center; border-radius: 0 0 var(--r) var(--r); }
   .homepage-small-video { margin-bottom: 28px; }
 }
 
-@media (max-width: 620px) {
-  .home-next .hero-display { font-size: 30px; }
-}
-
-.home-next :is(#learn, #praise) .install-panel {
+.home-next :is(#learn, #praise, #talk-to-sales) .install-panel {
   max-width: 79ch;
   margin: 0 auto;
 }
 
 .home-next #learn .install-grid { display: block; }
 .home-next #learn .hero-display { margin-top: 0; margin-bottom: 9px; }
+.home-next .praise-head h2 { display: flex; align-items: flex-start; gap: 10px; }
+.home-next .praise-head .hn-badge { flex-shrink: 0; width: 25px; height: 25px; margin-top: 4px; font-size: 18px; }
+@media (min-width: 621px) {
+  .home-next .praise-grid { grid-auto-rows: 1fr; }
+}
 .sample-group { display: flex; flex-direction: column; gap: 6px; }
 .sample-group + .sample-group { margin-top: 14px; }
 .sample-group-heading { margin: 0 0 2px; font-size: 1.0625rem; line-height: 1.65; font-weight: 500; color: var(--ink-2); }

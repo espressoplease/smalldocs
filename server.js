@@ -860,7 +860,7 @@ function handleFeedbackPost(req, res) {
 // relayed to SmallCRM's public write-only form receiver.
 const CONTACT_EMAIL_RE = /^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,24}$/;
 
-async function submitTeamsInterestToSmallCrm({ email, company, message }, installRequest = false) {
+async function submitTeamsInterestToSmallCrm({ name, email, company, message }, installRequest = false) {
   const action = installRequest ? SMALLCRM_INSTALL_FORM_ACTION : SMALLCRM_TEAMS_FORM_ACTION;
   const form = new URLSearchParams();
   form.set('_scrm_form', installRequest
@@ -870,6 +870,7 @@ async function submitTeamsInterestToSmallCrm({ email, company, message }, instal
     form.set('inbound_leads.source', 'homepage_install');
     form.set('inbound_leads.status', 'new');
   }
+  if (name) form.set('inbound_leads.name', name);
   if (company) form.set('inbound_leads.company', company);
   if (message) form.set('inbound_leads.message', message);
   const response = await fetch(action, {
@@ -919,10 +920,11 @@ function handleTeamsInterestPost(req, res, installRequest = false) {
       sendJson(res, 400, { error: 'invalid_email' });
       return;
     }
+    const name = body && typeof body.name === 'string' ? body.name.trim().slice(0, 200) : '';
     const company = body && typeof body.company === 'string' ? body.company.trim().slice(0, 200) : '';
     const message = body && typeof body.message === 'string' ? body.message.trim().slice(0, 2000) : '';
     try {
-      await submitTeamsInterestToSmallCrm({ email, company, message }, installRequest);
+      await submitTeamsInterestToSmallCrm({ name, email, company, message }, installRequest);
     } catch (error) {
       console.error('[teams-interest] SmallCRM submission failed:', error.message);
       sendJson(res, 502, { error: 'submission_failed' });
@@ -933,6 +935,7 @@ function handleTeamsInterestPost(req, res, installRequest = false) {
     teamsNotify.send(
       'SmallDocs Teams interest: ' + email,
       'New Teams-interest submission on smalldocs.org\n\n' +
+      'Name:    ' + (name || '-') + '\n' +
       'Email:   ' + email + '\n' +
       'Company: ' + (company || '-') + '\n' +
       'Message: ' + (message || '-') + '\n\n' +

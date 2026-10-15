@@ -315,7 +315,6 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
 .hero .eyebrow { margin: 0; }
 .hero .eyebrow::before { display: none; }
 .hero .hero-display {
-  margin-top: 14px;
   text-align: left;
   max-width: 27.1ch;
   font-size: 39px;
@@ -659,7 +658,7 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
 .install-panel {
   background: var(--white);
   border-radius: var(--r);
-  padding: 42px 42px;
+  padding: 38px 42px 42px;
 }
 .install-grid {
   display: grid;
@@ -1082,64 +1081,11 @@ footer {
 </style>
 <link rel="stylesheet" href="/public/css/homepage-next.css">
 </head>
-<body class="home-next"><nav class="nav" id="nav">
-  <div class="wrap nav-in">
-    <a class="brand" href="#top">SmallDocs</a>
-    <div class="nav-primary" aria-label="Primary navigation">
-      <details class="nav-dropdown">
-        <summary>Product
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
-        </summary>
-        <div class="nav-menu-panel">
-          <a href="#samples">Capabilities</a>
-          <a href="/runnable-html">Runnable HTML</a>
-          <a href="/privacy">Private by design</a>
-        </div>
-      </details>
-      <!--__HOME_NAV_CLOUD_LINK__-->
-      <a class="nav-link" href="/developers">Renderer SDK</a>
-      <details class="nav-dropdown">
-        <summary>Resources
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
-        </summary>
-        <div class="nav-menu-panel">
-          <a href="/blogs/what-is-a-smalldoc">Read a SmallDoc</a>
-          <a href="/docs">Documentation</a>
-          <a href="https://github.com/espressoplease/smalldocs" target="_blank" rel="noopener">GitHub</a>
-        </div>
-      </details>
-    </div>
-    <div class="nav-links">
-      <!--__HOME_NAV_ACTIONS__-->
-      <details class="nav-menu <!--__HOME_NAV_MENU_CLASS__-->" id="site-menu">
-        <summary class="btn-gh" aria-label="Open menu" aria-haspopup="menu" aria-expanded="false">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16"/><path d="M4 12h16"/><path d="M4 19h16"/></svg>
-        </summary>
-        <div class="nav-menu-panel" role="menu">
-          <!--__HOME_NAV_MENU_BEFORE__-->
-          <a class="nav-menu-static-mobile" href="#samples" role="menuitem">Capabilities</a>
-          <a class="nav-menu-static-mobile" href="/runnable-html" role="menuitem">Runnable HTML</a>
-          <!--__HOME_NAV_CLOUD_MOBILE_LINK__-->
-          <a class="nav-menu-static-mobile" href="/privacy" role="menuitem">Private by design</a>
-          <a class="nav-menu-static-mobile" href="/blogs/what-is-a-smalldoc" role="menuitem">Read a SmallDoc</a>
-          <a class="nav-menu-static-mobile" href="/docs" role="menuitem">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/></svg>
-            Documentation
-          </a>
-          <a class="nav-menu-static-mobile" href="/developers" role="menuitem">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m8 9-3 3 3 3"/><path d="m16 9 3 3-3 3"/><path d="m14 5-4 14"/></svg>
-            Renderer SDK
-          </a>
-          <a class="nav-menu-static-mobile" href="https://github.com/espressoplease/smalldocs" target="_blank" rel="noopener" role="menuitem">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3v12"/><path d="M18 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M15 6a9 9 0 0 0-9 9"/><path d="M18 15v6"/><path d="M21 18h-6"/></svg>
-            GitHub
-          </a>
-          <!--__HOME_NAV_MENU_AFTER__-->
-        </div>
-      </details>
-    </div>
-  </div>
-</nav><main class="hero"><div class="wrap"><div class="homepage-column"><div class="hero-visual homepage-small-video"><div class="videocard needs-play" id="videocard"><video class="vid" id="intro-video" playsinline preload="none" poster="/public/homepage/home-next-poster.png" aria-label="30-second SmallDocs preview"><source src="/public/homepage/home-next-demo.mp4" type="video/mp4"><track kind="captions" src="/public/homepage/home-next-demo.vtt" srclang="en" label="English" default></video><button class="vid-play intro-play" type="button" aria-label="Play 30-second preview"><span><svg width="24" height="24" viewBox="0 0 16 16" aria-hidden="true"><path d="M5 3.1l8 4.9-8 4.9z" fill="#1B1815"/></svg></span><em>30s</em></button></div></div><h1 class="hero-display">SmallDocs is a document format and library for coding agents.</h1><p class="lead homepage-copy">You use it when you want to escape the limits of your chat interface or save an agent’s thinking at a given point in time. Your agents can use it on their own: a remote agent can write a SmallDoc and notify you.</p><p class="lead homepage-copy">SmallDocs are more powerful than the document formats you’re used to (Word, Excel, PowerPoint, Markdown, code and HTML artefacts). SmallDocs combine all these formats into one: a single SmallDoc can include slides, a multi-tab spreadsheet, charts, code, an HTML widget and text to link it all together. This flexibility reflects the range of tasks your agents face.</p><p class="lead homepage-copy">Despite their depth, SmallDocs are lightweight to use. To get your agent to produce a SmallDoc, simply mention “sdoc”: <em>“write me a sdoc about (topic)”</em>. They also render instantly in the browser, read beautifully on mobile and they’re seamlessly shareable within your team and beyond.</p><p class="lead homepage-copy">SmallDocs are built for human-agent feedback loops. Speed up your iteration with targeted features: easy ways to copy precise chunks of text, tables, code and charts, and the ability to leave comments on a document for your agent to pick up.</p><p class="lead homepage-copy">SmallDocs are automatically saved to an encrypted cloud library. This library is accessible to humans (on the web, including mobile) and agents (via the SmallDocs command line tool).</p><p class="lead homepage-copy">SmallDocs are agent agnostic, meaning teams using AI from a range of providers can all create and save documents in a standardized way.</p><p class="lead homepage-copy">Over 4,000 developers, financiers and scientists use SmallDocs. To join them, enter your email to receive your install link:</p><div class="homepage-start" id="start"><form class="teams-form homepage-email" data-install-form><div class="tf-field"><input name="email" type="email" aria-label="your email" autocomplete="email" placeholder="your@email.com" required></div><button class="btn btn-primary" type="submit">Get install link</button></form><p class="tf-status start-status" role="status"></p></div><p class="lead homepage-copy homepage-price">SmallDocs is free for a month, then £4/month for individuals and £7/month/user for teams.</p><div class="install-reveal install-panel" id="install-instructions" hidden tabindex="-1"><h2>Install SmallDocs</h2><div class="install-cmd"><span class="pr">$</span><code class="cmd" data-install-command></code><button class="copy" type="button" data-copy-install>Copy</button></div><div class="install-cmd"><span class="pr">$</span><code class="cmd">npx skills@latest add https://smalldocs.org/agent-skills/standard --global</code><button class="copy" type="button" data-copy="npx skills@latest add https://smalldocs.org/agent-skills/standard --global">Copy</button></div><p><a href="/sdoc">Installation guide</a></p></div></div></div><span id="samples"></span><section id="learn">
+<body class="home-next"><nav class="nav homepage-login-nav" id="nav" aria-label="Account">
+  <div class="wrap"><div class="homepage-column nav-in">
+    <a class="btn-gh homepage-login" href="/connect?return=%2Flibrary">Log in</a>
+  </div></div>
+</nav><main class="hero"><div class="wrap"><div class="homepage-column"><div class="hero-visual homepage-small-video"><div class="videocard needs-play" id="videocard"><video class="vid" id="intro-video" playsinline preload="none" poster="/public/homepage/home-next-poster.png" aria-label="30-second SmallDocs preview"><source src="/public/homepage/home-next-demo.mp4" type="video/mp4"><track kind="captions" src="/public/homepage/home-next-demo.vtt" srclang="en" label="English" default></video><button class="vid-play intro-play" type="button" aria-label="Play 30-second preview"><span><svg width="24" height="24" viewBox="0 0 16 16" aria-hidden="true"><path d="M5 3.1l8 4.9-8 4.9z" fill="#1B1815"/></svg></span><em>30s</em></button></div></div><h1 class="hero-display">SmallDocs is a document format and library for coding agents.</h1><p class="lead homepage-copy">You use it when you want to escape the limits of your chat interface or save an agent’s thinking at a given point in time. Your agents can use it on their own: a remote agent can write a SmallDoc and notify you.</p><p class="lead homepage-copy">SmallDocs are more powerful than the document formats you’re used to (Word, Excel, PowerPoint, Markdown, code and HTML artefacts). SmallDocs combine all these formats into one: a single SmallDoc can include slides, a multi-tab spreadsheet, charts, code, an HTML widget and text to link it all together. This flexibility reflects the range of tasks your agents face.</p><p class="lead homepage-copy">Despite their depth, SmallDocs are lightweight to use. To get your agent to produce a SmallDoc, simply mention “sdoc”: <em>“write me a sdoc about (topic)”</em>. They also render instantly in the browser, read beautifully on mobile and they’re seamlessly shareable within your team and beyond.</p><p class="lead homepage-copy">SmallDocs are built for human-agent feedback loops. Speed up your iteration with targeted features: easy ways to copy precise chunks of text, tables, code and charts, and the ability to leave comments on a document for your agent to pick up.</p><p class="lead homepage-copy">SmallDocs are automatically saved to an encrypted cloud library. This library is accessible to humans (on the web, including mobile) and agents (via the SmallDocs command line tool).</p><p class="lead homepage-copy">SmallDocs are agent agnostic, meaning teams using AI from a range of providers can all create and save documents in a standardized way.</p><p class="lead homepage-copy">Over 4,000 developers, financiers and scientists use SmallDocs. To join them, enter your email to receive your install prompt:</p><div class="homepage-start" id="start"><form class="teams-form homepage-email" data-install-form><div class="tf-field"><input name="email" type="email" aria-label="your email" autocomplete="email" placeholder="your@email.com" required></div><button class="btn btn-primary" type="submit">Get install prompt</button></form><p class="homepage-sales-link">or <a href="#talk-to-sales">talk to sales</a> (or <a href="/connect?return=%2Flibrary">log in</a>)</p><p class="tf-status start-status" role="status"></p></div><p class="lead homepage-copy homepage-price">SmallDocs is free for a month, then <span data-cloud-plan="personal"><span data-cloud-price-primary>£4</span>/month</span> for individuals and <span data-cloud-plan="team"><span data-cloud-price-primary>£7</span>/month/user</span> for teams. Free usage can be extended by successfully sharing a referral link.</p><div class="install-reveal install-panel" id="install-instructions" hidden tabindex="-1"><h2>Install SmallDocs</h2><div class="install-cmd"><span class="pr">$</span><code class="cmd" data-install-command></code><button class="copy" type="button" data-copy-install>Copy</button></div><div class="install-cmd"><span class="pr">$</span><code class="cmd">npx skills@latest add https://smalldocs.org/agent-skills/standard --global</code><button class="copy" type="button" data-copy="npx skills@latest add https://smalldocs.org/agent-skills/standard --global">Copy</button></div><p><a href="/sdoc">Installation guide</a></p></div></div></div><span id="samples"></span><section id="learn">
   <div class="wrap">
     <div class="install-panel">
       <div class="install-grid">
@@ -1212,19 +1158,14 @@ footer {
       </div><!-- /install-grid -->
     </div><!-- /install-panel -->
   </div>
-</section><div class="wrap"><div class="homepage-column"><div class="homepage-start" id="start-samples"><form class="teams-form homepage-email" data-install-form><div class="tf-field"><input name="email" type="email" aria-label="your email" autocomplete="email" placeholder="your@email.com" required></div><button class="btn btn-primary" type="submit">Get install link</button></form><p class="tf-status start-status" role="status"></p></div></div></div><section id="praise">
+</section><div class="wrap"><div class="homepage-column"><div class="homepage-start" id="start-samples"><form class="teams-form homepage-email" data-install-form><div class="tf-field"><input name="email" type="email" aria-label="your email" autocomplete="email" placeholder="your@email.com" required></div><button class="btn btn-primary" type="submit">Get install prompt</button></form><p class="homepage-sales-link">or <a href="#talk-to-sales">talk to sales</a> (or <a href="/connect?return=%2Flibrary">log in</a>)</p><p class="tf-status start-status" role="status"></p></div></div></div><section id="praise">
   <div class="wrap">
     <div class="install-panel">
       <div class="praise-head">
-        <h2 class="hero-display">Praise for SmallDocs</h2>
+        <h2 class="hero-display"><span class="hn-badge" aria-hidden="true">Y</span><span>Praise for SmallDocs on Hacker News</span></h2>
         <p>Comments from threads where SmallDocs has been discussed.</p>
       </div>
       <div class="praise-grid">
-
-        <figure class="praise-card">
-          <blockquote>&ldquo;I think agents making Word docs and PowerPoints is going to go away. [SmallDocs] is the future.&rdquo;</blockquote>
-          <a class="praise-context" href="https://news.ycombinator.com/item?id=48809212" target="_blank" rel="noopener" title="View this comment on Hacker News" aria-label="View this comment on Hacker News"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="m10 14 11-11"/></svg></a>
-        </figure>
 
         <figure class="praise-card">
           <blockquote>&ldquo;Great job on this. I can see this being extremely useful for my teams.&rdquo;</blockquote>
@@ -1232,44 +1173,74 @@ footer {
         </figure>
 
         <figure class="praise-card">
-          <blockquote>&ldquo;So amusing that small devs get it so right, while a trillion-dollar company still can&rsquo;t figure out what Copilot is to their ecosystem.&rdquo;</blockquote>
-          <a class="praise-context" href="https://news.ycombinator.com/item?id=48814273" target="_blank" rel="noopener" title="View this comment on Hacker News" aria-label="View this comment on Hacker News"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="m10 14 11-11"/></svg></a>
-        </figure>
-
-        <figure class="praise-card praise-extra">
           <blockquote>&ldquo;Very good and well done. I found an immediate use-case for this.&rdquo;</blockquote>
           <a class="praise-context" href="https://news.ycombinator.com/item?id=48811944" target="_blank" rel="noopener" title="View this comment on Hacker News" aria-label="View this comment on Hacker News"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="m10 14 11-11"/></svg></a>
         </figure>
 
-        <figure class="praise-card praise-extra">
+        <figure class="praise-card">
           <blockquote>&ldquo;This is super cool - so many uses.&rdquo;</blockquote>
           <a class="praise-context" href="https://news.ycombinator.com/item?id=48812725" target="_blank" rel="noopener" title="View this comment on Hacker News" aria-label="View this comment on Hacker News"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="m10 14 11-11"/></svg></a>
         </figure>
 
-        <figure class="praise-card praise-extra">
+        <figure class="praise-card">
           <blockquote>&ldquo;You&rsquo;ve clearly put a lot of thought into making it useful.&rdquo;</blockquote>
           <a class="praise-context" href="https://news.ycombinator.com/item?id=48812874" target="_blank" rel="noopener" title="View this comment on Hacker News" aria-label="View this comment on Hacker News"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="m10 14 11-11"/></svg></a>
         </figure>
 
-        <figure class="praise-card praise-extra">
-          <blockquote>&ldquo;Very smart - could open the door to lots of other privacy-friendly web apps.&rdquo;</blockquote>
-          <a class="praise-context" href="https://news.ycombinator.com/item?id=47791141" target="_blank" rel="noopener" title="View this comment on Hacker News" aria-label="View this comment on Hacker News"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="m10 14 11-11"/></svg></a>
+        <figure class="praise-card">
+          <blockquote>&ldquo;I think agents making Word docs and PowerPoints is going to go away. [SmallDocs] is the future.&rdquo;</blockquote>
+          <a class="praise-context" href="https://news.ycombinator.com/item?id=48809212" target="_blank" rel="noopener" title="View this comment on Hacker News" aria-label="View this comment on Hacker News"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="m10 14 11-11"/></svg></a>
         </figure>
 
-        <figure class="praise-card praise-extra">
-          <blockquote>&ldquo;Markdown style editing looks very easy and convenient.&rdquo;</blockquote>
-          <a class="praise-context" href="https://news.ycombinator.com/item?id=47790018" target="_blank" rel="noopener" title="View this comment on Hacker News" aria-label="View this comment on Hacker News"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="m10 14 11-11"/></svg></a>
+        <figure class="praise-card">
+          <blockquote>&ldquo;So amusing that small devs get it so right, while a trillion-dollar company still can&rsquo;t figure out what Copilot is to their ecosystem.&rdquo;</blockquote>
+          <a class="praise-context" href="https://news.ycombinator.com/item?id=48814273" target="_blank" rel="noopener" title="View this comment on Hacker News" aria-label="View this comment on Hacker News"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="m10 14 11-11"/></svg></a>
         </figure>
 
-        <figure class="praise-card praise-extra">
-          <blockquote>&ldquo;The URL fragment trick for privacy is clever.&rdquo;</blockquote>
-          <a class="praise-context" href="https://news.ycombinator.com/item?id=47814454" target="_blank" rel="noopener" title="View this comment on Hacker News" aria-label="View this comment on Hacker News"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="m10 14 11-11"/></svg></a>
-        </figure>
+
+
+
+
+
 
       </div><!-- /praise-grid -->
     </div><!-- /install-panel -->
   </div>
-</section><div class="wrap"><div class="homepage-column"><div class="homepage-start" id="start-praise"><form class="teams-form homepage-email" data-install-form><div class="tf-field"><input name="email" type="email" aria-label="your email" autocomplete="email" placeholder="your@email.com" required></div><button class="btn btn-primary" type="submit">Get install link</button></form><p class="tf-status start-status" role="status"></p></div></div></div></main><footer>
+</section><div class="wrap"><div class="homepage-column"><div class="homepage-start" id="start-praise"><form class="teams-form homepage-email" data-install-form><div class="tf-field"><input name="email" type="email" aria-label="your email" autocomplete="email" placeholder="your@email.com" required></div><button class="btn btn-primary" type="submit">Get install prompt</button></form><p class="homepage-sales-link">or <a href="#talk-to-sales">talk to sales</a> (or <a href="/connect?return=%2Flibrary">log in</a>)</p><p class="tf-status start-status" role="status"></p></div></div></div><section id="talk-to-sales">
+  <div class="wrap">
+    <div class="install-panel">
+      <div class="install-grid">
+
+        <div class="install-text"><h2 class="hero-display">Talk to Sales</h2></div>
+
+        <form class="teams-form" id="teamsForm" novalidate>
+          <div class="tf-field">
+            <label for="tf-name">Name</label>
+            <input id="tf-name" name="name" type="text" required autocomplete="name" maxlength="200" />
+          </div>
+          <div class="tf-field">
+            <label for="tf-email">Work email</label>
+            <input id="tf-email" name="email" type="email" required autocomplete="email" />
+          </div>
+          <div class="tf-field">
+            <label for="tf-message">Anything else? <span class="tf-opt">optional</span></label>
+            <textarea id="tf-message" name="message" rows="4"></textarea>
+          </div>
+          <div class="tf-hp" aria-hidden="true">
+            <label for="tf-website">Website</label>
+            <input id="tf-website" name="website" type="text" tabindex="-1" autocomplete="off" />
+          </div>
+          <div class="tf-actions">
+            <button class="btn btn-primary" type="submit" id="tf-submit">Send a request</button>
+            <span class="tf-status" id="tf-status" aria-live="polite"></span>
+          </div>
+          <p class="tf-note">We store what you submit and use it only to reply.</p>
+        </form>
+
+      </div>
+    </div>
+  </div>
+</section></main><footer>
   <div class="wrap">
     <p class="foot-fine">
       <span>smalldocs.org</span>
@@ -1290,4 +1261,4 @@ footer {
     </p>
     <p class="foot-fine">Odd Solutions Ltd, registered in England and Wales, company number 16186575. Registered office: 98 Downhills Park Road, London, United Kingdom, N17 6PA.</p>
   </div>
-</footer><script src="/public/sdocs-cli-setup.js"></script><script src="/public/sdocs-scroll-header.js"></script><script src="/public/homepage-next.js"></script></body></html>
+</footer><script src="/public/sdocs-cli-setup.js"></script><script src="/public/sdocs-scroll-header.js"></script><script src="/public/cloud-pricing.js"></script><script src="/public/homepage-next.js"></script></body></html>
