@@ -47,6 +47,13 @@
       .toUpperCase();
   }
 
+  function color(id) {
+    var palette = ['#2563eb', '#0f766e', '#9333ea', '#b45309', '#be123c', '#0369a1'];
+    var hash = 0;
+    String(id || '').split('').forEach(function (character) { hash = ((hash * 31) + character.charCodeAt(0)) >>> 0; });
+    return palette[hash % palette.length];
+  }
+  exports.color = color;
   exports.STORAGE_KEY = STORAGE_KEY;
   exports.storedId = storedId;
   exports.remember = remember;

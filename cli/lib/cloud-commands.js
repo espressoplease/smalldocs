@@ -25,6 +25,50 @@ Cloud stores selected Markdown documents with search, revisions, member access,
 and cross-device CLI and browser access. Run \`sdoc setup --cloud --yes\` to make
 ordinary \`sdoc FILE.md\` opens create or update the Cloud document first.
 
+SAVE, OPEN, AND LINK IN CHAT
+
+  sdoc FILE.md --cloud --json
+  sdoc FILE.md --cloud --account ACCOUNT_UUID --json
+  sdoc FILE.md --cloud --no-open --json
+
+The authenticated CLI uploads first, then opens the same Cloud URL returned
+in url. The local Markdown is the editable working copy. Its binding keeps
+the document ID stable across edits; successful saves advance the revision.
+An unchanged file does not create another revision. --no-open still saves
+and returns the URL. The browser needs its own signed-in session and access.
+
+When linking a SmallDoc in chat, always use the returned Cloud url. Never
+link to the underlying local file, a file:// URL, or a local Markdown path.
+Do not invent a URL or present an upload failure as a saved document.
+With --json, check ok and the exit status before using url. If
+local_changed_after_upload is true, the latest local changes were not included
+in this save; run the command again to save them.
+
+Create, pull, push, and restore also return url in JSON. List and search
+results include documents[].url, so existing documents can be linked without
+uploading them again. The URL identifies a document; it does not grant access.
+Feedback and bridge commands still use local live sessions. A Cloud URL does
+not turn those sessions into Cloud-backed feedback.
+
+LIBRARIES AND COMPUTER DEFAULTS
+
+  sdoc cloud libraries --json
+  sdoc cloud library-default --json
+  sdoc cloud library-default LIBRARY_UUID --json
+  sdoc cloud library-default clear --json
+  sdoc cloud move DOCUMENT_UUID --account LIBRARY_UUID --dry-run --json
+  sdoc cloud move DOCUMENT_UUID --account LIBRARY_UUID --json
+
+A library is the membership boundary. A paid subscription covers a person across
+libraries; payment never grants access to someone else's documents. A computer
+default applies only to new unbound documents from this authenticated CLI connection.
+An explicit --account takes priority. Existing file bindings keep their library.
+When there are several libraries and no established destination, ask the user.
+Never use the last library viewed in a browser as the CLI destination.
+Moving preserves the document URL and revision history, resets access to Only you,
+and removes access for old-library members. Only the document's creator can move it.
+Review the destination with --dry-run before moving documents on a user's behalf.
+
 DISCOVER AND READ
 
   sdoc cloud status --json
@@ -39,7 +83,7 @@ filenames, tags, and current Markdown. It is not semantic search. Start with a
 specific phrase, then try a shorter phrase or an existing tag if needed.
 Multiple --tag values require every listed tag.
 
-With --json, search returns documents[]. Each result includes its id, title,
+With --json, search returns documents[]. Each result includes its id, url, title,
 tags, current revision metadata, and matches[]. A match reports field, line,
 and snippet. Search does not return the full Markdown. Use pull to retrieve a
 result. --no-bind makes that output a read-only reference from the CLI's point
@@ -113,6 +157,12 @@ class CloudCommandError extends Error {
 
 function origin() {
   return String(process.env.SDOCS_CLOUD_URL || constants.DEFAULT_URL).replace(/\/$/, '');
+}
+
+function documentUrl(client, documentId) {
+  const url = new URL('/docs', client.origin);
+  url.searchParams.set('cloud-document', documentId);
+  return url.toString();
 }
 
 function entitlementFailure(code, status, cloudOrigin) {
@@ -209,6 +259,7 @@ class CloudClient {
 }
 
 function emit(opts, command, value, human) {
+  if (opts.silent) return value;
   if (opts.jsonFlag) process.stdout.write(JSON.stringify(Object.assign({ ok: true, command }, value)) + '\n');
   else process.stdout.write((human || JSON.stringify(value, null, 2)) + '\n');
   return value;
@@ -321,7 +372,8 @@ async function list(opts, client) {
     if (cursor) params.set('cursor', cursor);
     const response = await client.authenticated('/api/cloud/v1/documents?' + params.toString());
     documents.push(...filterTags(response.documents || [], opts.tagFilters)
-      .slice(0, target - documents.length));
+      .slice(0, target - documents.length)
+      .map((document) => Object.assign({}, document, { url: documentUrl(client, document.id) })));
     cursor = response.next_cursor || null;
     if (cursor && seenCursors.has(cursor)) throw new CloudCommandError('temporary_service_failure',
       'Cloud returned the same document cursor twice.');
@@ -422,7 +474,8 @@ async function search(opts, client) {
     body: JSON.stringify({ query: opts.extra, tags: opts.tagFilters, limit,
       workspace_id: opts.accountFlag || undefined }),
   });
-  const documents = response.documents || [];
+  const documents = (response.documents || []).map((document) =>
+    Object.assign({}, document, { url: documentUrl(client, document.id) }));
   emit(opts, 'cloud.search', { documents, next_cursor: null }, documents.map((document) =>
     document.id + '  ' + document.title + '\n  ' + ((document.matches && document.matches[0] && document.matches[0].snippet) || '')).join('\n') || 'No matches.');
 }
@@ -448,7 +501,16 @@ async function create(opts, client) {
   const digest = bindings.hash(content);
   const credential = requireCredential(client);
   let pending = bindings.getPending(credential.user_id, file);
-  const destination = opts.accountFlag || 'default-account';
+  if (!pending || pending.operation !== 'create' || pending.sha256 !== digest) {
+    pending = { operation: 'create', destination: opts.accountFlag || 'unresolved-default', sha256: digest, idempotency_key: crypto.randomUUID() };
+    bindings.setPending(credential.user_id, file, pending);
+  }
+  let destination = opts.accountFlag || null;
+  if (!destination && pending && pending.operation === 'create' && pending.sha256 === digest && !['default-account', 'unresolved-default'].includes(pending.destination)) destination = pending.destination;
+  if (!destination) {
+    const selected = await client.authenticated('/api/cloud/v1/account');
+    destination = selected.account.id;
+  }
   if (!pending || pending.operation !== 'create' || pending.destination !== destination || pending.sha256 !== digest) {
     pending = { operation: 'create', destination, sha256: digest,
       idempotency_key: crypto.randomUUID() };
@@ -456,7 +518,7 @@ async function create(opts, client) {
   }
   const response = await client.authenticated('/api/cloud/v1/account/documents', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ account_id: opts.accountFlag,
+    body: JSON.stringify({ account_id: destination,
       filename: path.basename(file), markdown: content,
       idempotency_key: pending.idempotency_key }),
   });
@@ -467,6 +529,7 @@ async function create(opts, client) {
   bindings.clearPending(credential.user_id, file);
   const localChanged = bindings.hash(fs.readFileSync(file)) !== digest;
   return emit(opts, 'cloud.create', { document_id: document.id, revision_id: document.current_revision_id,
+    url: documentUrl(client, document.id),
     revision_number: document.revision_number,
     account_id: response.account && response.account.id || opts.accountFlag || null, path: file,
     tags: document.tags, sha256: digest, binding_created: true,
@@ -520,6 +583,7 @@ async function pull(opts, client) {
     bindings.cacheBase(credential.user_id, document.id, document.current_revision_id, document.markdown);
   }
   emit(opts, 'cloud.pull', { document_id: document.id, revision_id: document.current_revision_id,
+    url: documentUrl(client, document.id),
     revision_number: document.revision_number, path: output, tags: document.tags,
     sha256: digest, binding_created: !opts.noBindFlag }, 'Pulled ' + document.id + ' to ' + output + '.');
 }
@@ -543,6 +607,7 @@ async function push(opts, client) {
   const digest = bindings.hash(localContent);
   if (binding.content_sha256 === digest) {
     return emit(opts, 'cloud.push', { document_id: binding.document_id,
+      url: documentUrl(client, binding.document_id),
       base_revision_id: binding.revision_id, revision_id: binding.revision_id,
       sha256: digest, no_change: true }, 'No changes to push.');
   }
@@ -595,6 +660,7 @@ async function push(opts, client) {
   bindings.cacheBase(credential.user_id, document.id, document.current_revision_id, savedContent);
   bindings.clearPending(credential.user_id, file);
   return emit(opts, 'cloud.push', { document_id: document.id, base_revision_id: binding.revision_id,
+    url: documentUrl(client, document.id),
     revision_id: document.current_revision_id, revision_number: document.revision_number,
     tags: document.tags, sha256: savedDigest, no_change: false,
     merge_classification: document.merge_classification || 'clean',
@@ -640,7 +706,7 @@ async function addCloudTags(documentId, requestedTags, client, local) {
     bindings.cacheBase(local.credential.user_id, documentId,
       response.document.current_revision_id, response.document.markdown);
   }
-  process.stdout.write('Updated Cloud tags for ' + documentId + '.\n');
+  if (!local || !local.silent) process.stdout.write('Updated Cloud tags for ' + documentId + '.\n');
   return response.document;
 }
 
@@ -656,12 +722,40 @@ async function autoSyncOpen(opts, dependencies) {
     accountFlag: accountId,
     jsonFlag: false,
     cloudFirst: true,
+    silent: Boolean(dependencies && dependencies.silent),
   });
   const result = binding ? await push(syncOpts, client) : await create(syncOpts, client);
   const tagged = await addCloudTags(result.document_id, opts.addTags, client,
-    { credential, file });
+    { credential, file, silent: syncOpts.silent });
   return { synced: true, documentId: result.document_id,
-    revisionId: tagged && tagged.current_revision_id || result.revision_id, created: !binding };
+    revisionId: tagged && tagged.current_revision_id || result.revision_id, created: !binding,
+    localChangedAfterUpload: Boolean(result.local_changed_after_upload) };
+}
+
+async function openCloudDocument(opts, dependencies) {
+  dependencies = dependencies || {};
+  try {
+    const client = dependencies.client || new CloudClient(opts.url
+      ? { origin: new URL(opts.url).origin } : undefined);
+    const saved = await autoSyncOpen(opts, {
+      client, accountId: dependencies.accountId, silent: true,
+    });
+    if (!saved.synced) throw new CloudCommandError('invalid_request',
+      'Cloud opens require a Markdown file.');
+    const canonicalUrl = documentUrl(client, saved.documentId);
+    if (!opts.noOpenFlag) {
+      (dependencies.openBrowser || io.openBrowser)(canonicalUrl,
+        (message) => process.stderr.write(message + '\n'));
+    }
+    return emit(opts, 'cloud.open', {
+      document_id: saved.documentId, revision_id: saved.revisionId,
+      url: canonicalUrl, created: saved.created,
+      local_changed_after_upload: saved.localChangedAfterUpload,
+    }, canonicalUrl + (saved.localChangedAfterUpload
+      ? '\nThe local file changed during upload. Run sdoc again to save the latest changes.' : ''));
+  } catch (error) {
+    fail(opts, 'cloud.open', error);
+  }
 }
 
 async function history(opts, client) {
@@ -724,6 +818,7 @@ async function restore(opts, client) {
   bindings.clearOperationPending(credential.user_id, 'restore', pendingResource);
   const document = response.document;
   emit(opts, 'cloud.restore', { document_id: document.id,
+    url: documentUrl(client, document.id),
     base_revision_id: baseRevisionId,
     restored_from_revision_id: document.restored_from_revision_id || sourceRevisionId,
     revision_id: document.current_revision_id,
@@ -769,6 +864,33 @@ async function undeleteDocument(opts, client) {
     tags: document.tags }, 'Restored ' + document.id + '.');
 }
 
+async function libraries(opts, client) {
+  const data = await client.authenticated('/api/cloud/v1/library-settings');
+  emit(opts, 'cloud.libraries', { libraries: data.libraries }, data.libraries.map(library => library.name + ' (' + library.id + ')').join('\n'));
+}
+async function libraryDefault(opts, client) {
+  const credential = requireCredential(client);
+  let data;
+  if (!opts.extra) data = await client.authenticated('/api/cloud/v1/cli/library-default');
+  else data = await client.authenticated('/api/cloud/v1/cli/credentials/' + encodeURIComponent(credential.credential_id) + '/library-default', {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ workspace_id: opts.extra === 'clear' ? null : opts.extra }) });
+  emit(opts, 'cloud.library-default', data, data.workspace_id ? 'Default library: ' + data.workspace_id : 'No default library. Ask when several libraries are available.');
+}
+async function move(opts, client) {
+  if (!opts.extra || !opts.accountFlag) throw new CloudCommandError('invalid_request', 'usage: sdoc cloud move DOCUMENT_UUID --account LIBRARY_UUID [--dry-run] --json');
+  const current = await client.authenticated('/api/cloud/v1/documents/' + encodeURIComponent(opts.extra));
+  const settings = await client.authenticated('/api/cloud/v1/library-settings');
+  const destination = settings.libraries.find(library => library.id === opts.accountFlag);
+  if (!destination) throw new CloudCommandError('resource_unavailable', 'The destination library is unavailable.');
+  if (!current.permission || !current.permission.can_manage) throw new CloudCommandError('permission_denied', 'Only the document creator can move it.');
+  if (opts.dryRunFlag) return emit(opts, 'cloud.move', { dry_run: true, document_id: opts.extra,
+    destination, access_after_move: 'only_you', url: documentUrl(client, opts.extra) }, 'Move ' + current.document.title + ' to ' + destination.name + '. Access will become Only you.');
+  const data = await client.authenticated('/api/cloud/v1/documents/' + encodeURIComponent(opts.extra) + '/library', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ workspace_id: opts.accountFlag, expected_head_revision_id: current.document.current_revision_id }) });
+  emit(opts, 'cloud.move', { document_id: data.document.id, workspace_id: data.document.workspace_id,
+    permission: data.permission, url: documentUrl(client, data.document.id) }, 'Moved to ' + destination.name + '. Access is Only you.\n' + documentUrl(client, data.document.id));
+}
+
 async function status(opts, client) {
   const query = opts.accountFlag ? '?account_id=' + encodeURIComponent(opts.accountFlag) : '';
   const me = await client.authenticated('/api/cloud/v1/account' + query);
@@ -799,6 +921,9 @@ async function runCloudCommand(opts, dependencies) {
     if (action === 'overview') return overview(opts, client);
     if (action === 'login') return await login(opts, client);
     if (action === 'logout') return await logout(opts, client);
+    if (action === 'libraries') return await libraries(opts, client);
+    if (action === 'library-default') return await libraryDefault(opts, client);
+    if (action === 'move') return await move(opts, client);
     if (action === 'status') return await status(opts, client);
     if (action === 'members') return await members(opts, client);
     if (action === 'tags') return await tags(opts, client);
@@ -822,5 +947,5 @@ async function runCloudCommand(opts, dependencies) {
   }
 }
 
-module.exports = { CloudClient, CloudCommandError, runCloudCommand, autoSyncOpen, filterTags, origin,
+module.exports = { CloudClient, CloudCommandError, runCloudCommand, autoSyncOpen, openCloudDocument, filterTags, origin,
   EXIT, CLOUD_HELP, CLOUD_OVERVIEW, entitlementFailure, skillInstallCommand };

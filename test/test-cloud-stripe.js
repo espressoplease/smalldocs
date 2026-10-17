@@ -55,6 +55,32 @@ module.exports = function(harness) {
       assert.strictEqual(params.get('tax_id_collection[enabled]'), 'true');
     });
 
+    await testAsync('previews and updates the same subscription with matching proration time', async () => {
+      responses.push({ status: 200, body: '{"currency":"gbp","amount_due":100}' });
+      await stripe.previewTeamUpgrade({ subscriptionId: 'sub_123', itemId: 'si_123', priceId: 'price_team', quantity: 3, prorationDate: 123456 });
+      let request = requests.shift(), params = new URLSearchParams(request.body);
+      assert.strictEqual(request.url, 'https://api.stripe.com/v1/invoices/create_preview');
+      assert.strictEqual(params.get('subscription_details[items][0][id]'), 'si_123');
+      assert.strictEqual(params.get('subscription_details[items][0][quantity]'), '3');
+      assert.strictEqual(params.get('subscription_details[proration_date]'), '123456');
+      responses.push({ status: 200, body: '{"id":"sub_123"}' });
+      await stripe.upgradeSubscription({ subscriptionId: 'sub_123', itemId: 'si_123', priceId: 'price_team', quantity: 3,
+        prorationDate: 123456, workspaceId: 'workspace-123', operationId: 'op-123', idempotencyKey: 'upgrade-op-123' });
+      request = requests.shift(); params = new URLSearchParams(request.body);
+      assert.strictEqual(request.url, 'https://api.stripe.com/v1/subscriptions/sub_123');
+      assert.strictEqual(request.headers['Idempotency-Key'], 'upgrade-op-123');
+      assert.strictEqual(params.get('items[0][id]'), 'si_123');
+      assert.strictEqual(params.get('items[0][price]'), 'price_team');
+      assert.strictEqual(params.get('items[0][quantity]'), '3');
+      assert.strictEqual(params.get('proration_date'), '123456');
+      assert.strictEqual(params.get('proration_behavior'), 'always_invoice');
+      assert.strictEqual(params.get('payment_behavior'), 'error_if_incomplete');
+      assert.strictEqual(params.get('metadata[plan]'), 'team');
+      assert.strictEqual(params.get('metadata[workspace_id]'), 'workspace-123');
+      assert.strictEqual(params.get('metadata[upgrade_operation_id]'), 'op-123');
+      assert.strictEqual(params.has('cancel_at_period_end'), false);
+    });
+
     await testAsync('creates a customer billing portal session', async () => {
       responses.push({ statusCode: 200, headers: {}, body: Buffer.from('{"id":"bps_123","url":"https://billing.stripe.com/session"}') });
       const result = await stripe.createBillingPortalSession({

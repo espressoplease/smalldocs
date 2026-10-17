@@ -23,6 +23,8 @@
   .settings-head { display:flex; align-items:flex-start; justify-content:space-between; gap:24px; margin-bottom:22px; }
   .account-switcher { position:relative; width:250px; flex:0 0 250px; }
   .account-switcher-button { width:100%; min-height:42px; display:flex; align-items:center; gap:9px; padding:6px; border:1px solid var(--border); border-radius:7px; background:var(--surface); color:var(--text); text-align:left; }
+  .account-switcher-button:disabled { cursor:default; }
+  .account-switcher-button:disabled > svg { visibility:hidden; }
   .account-switcher-button:hover { border-color:var(--text-3); background:var(--surface-2); }
   .account-switcher-mark { width:28px; height:28px; display:grid; flex:0 0 auto; place-items:center; border-radius:6px; background:var(--blue); color:#fff; font-size:10px; font-weight:600; }
   .account-switcher-copy { min-width:0; flex:1; }
@@ -58,6 +60,9 @@
   .stat span { color:var(--text-3); font-size:11.5px; }
   .card { border:1px solid var(--border); border-radius:8px; background:var(--surface); overflow:hidden; margin-bottom:16px; }
   .card-head { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 16px; border-bottom:1px solid var(--border-2); }
+  .install-content { padding:16px; }
+  .install-content pre { white-space:pre-wrap; overflow-wrap:anywhere; font:12px/1.7 ui-monospace,monospace; margin:0 0 14px; }
+  .install-content .description { margin-top:14px; }
   .card-head p { margin:3px 0 0; color:var(--text-3); font-size:11.5px; }
   .section-head { margin:28px 0 12px; }
   .section-head p { margin:4px 0 0; color:var(--text-2); font-size:11.5px; line-height:1.5; }
@@ -180,11 +185,34 @@
     </div>
     </header>
     <nav class="settings-nav" aria-label="Cloud settings sections">
+      <button class="nav" data-panel="libraries" hidden>Libraries</button>
+      <button class="nav" data-panel="install"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m-5-5 5 5 5-5M4 17v4h16v-4"/></svg>Install</button>
       <button class="nav active" data-panel="overview"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>Overview</button>
       <button class="nav" data-panel="people" hidden><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><path d="M16 3.128a4 4 0 0 1 0 7.744"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><circle cx="9" cy="7" r="4"/></svg>People</button>
       <button class="nav" data-panel="machines" aria-label="Connected machines"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg><span class="nav-label-full">Connected machines</span><span class="nav-label-short">Machines</span></button>
       <button class="nav" data-panel="billing"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>Billing</button>
     </nav>
+    <section class="panel" id="panel-libraries" hidden>
+      <div class="page-head"><div><h2>Libraries</h2><p class="description">Choose where you work, create a library, or request an invitation.</p></div></div>
+      <div class="card" id="all-libraries"></div>
+      <div class="card"><div class="card-head"><div><h2>Create a library</h2><p>Documents start with access for you only. Invite people from People when you want to collaborate.</p></div></div>
+      <form class="invite open" id="create-library-form"><input class="field" id="new-library-name" aria-label="Library name" placeholder="Library name" maxlength="512" required><button class="btn primary" type="submit">Create library</button><p class="form-status" id="library-create-status" role="status"></p></form></div>
+      <div class="card"><div class="card-head"><div><h2>Join a library</h2><p>Open an invitation from its administrator, or create a request link to send to them. Your existing documents stay in their libraries.</p></div></div>
+      <form class="install-content" id="library-request-form"><label>Note (optional)<textarea class="field" id="library-request-note" maxlength="1000" rows="3"></textarea></label>
+      <label><input type="checkbox" id="library-request-consent" required> Share my name, verified email and note with administrators at my email domain who open my request link.</label>
+      <button class="btn" type="submit">Create request link</button><p class="form-status" id="library-request-status" role="status"></p>
+      <input class="field" id="library-request-url" aria-label="Your request link" readonly hidden></form></div>
+    </section>
+    <section class="panel" id="panel-install" hidden>
+      <div class="page-head"><div><h2>Install SmallDocs</h2><p class="description">Connect your coding agent to SmallDocs Cloud.</p></div></div>
+      <div class="card"><div class="card-head"><div><h2>Install with your agent</h2><p>Copy this prompt into your coding agent.</p></div></div>
+        <div class="install-content"><pre id="install-prompt"></pre><button class="btn" type="button" data-install-copy="install-prompt">Copy install prompt</button></div></div>
+      <div class="card"><div class="card-head"><div><h2>Install manually</h2><p>Run these commands in your terminal.</p></div></div>
+        <div class="install-content"><pre id="install-command"></pre><button class="btn" type="button" data-install-copy="install-command">Copy commands</button>
+        <p class="description">Approve the machine in your browser when prompted. Then ask your agent to create a SmallDoc.</p><p class="description" id="install-destination-note"></p></div></div>
+      <p id="install-copy-status" role="status"></p>
+      <p><a id="install-machines-link" href="/cloud/admin?panel=machines">View connected machines</a> · <a id="install-library-link" href="/library?scope=cloud">Open library</a> · <a id="install-team-link" href="/cloud/start?choose=1">Join or create a team</a></p>
+    </section>
     <section class="panel" id="panel-overview">
       <div class="page-head"><div><h2 id="overview-name">Overview</h2><p class="description" id="overview-description">Your Cloud documents and billing.</p></div></div>
       <div class="error" id="page-error" role="alert"></div>
@@ -218,6 +246,8 @@
 <script src="/public/sdocs-scroll-header.js" defer></script>
 <script src="/public/sdocs-site-sidebar.js" defer></script>
 <script src="/public/sdocs-cloud-account-selection.js" defer></script>
+<script src="/public/sdocs-cli-setup.js" defer></script>
+<script src="/public/cloud-pricing.js" defer></script>
 <script src="/public/cloud-admin.js" defer></script>
 <script src="/public/sdocs-trust-footer.js" defer></script>
 </body>

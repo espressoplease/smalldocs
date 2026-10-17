@@ -7,7 +7,7 @@ module.exports = function(harness) {
   const io = require('../cli/lib/io');
   const credentials = require('../cli/lib/cloud-credentials');
   const bindings = require('../cli/lib/cloud-bindings');
-  const { CloudClient, runCloudCommand, autoSyncOpen, filterTags, skillInstallCommand, CLOUD_HELP } =
+  const { CloudClient, runCloudCommand, autoSyncOpen, openCloudDocument, filterTags, skillInstallCommand, CLOUD_HELP } =
     require('../cli/lib/cloud-commands');
 
   test('setup parser captures Cloud-first edition and preferred account', () => {
@@ -16,6 +16,15 @@ module.exports = function(harness) {
     assert.strictEqual(parsed.skillEdition, 'cloud');
     assert.strictEqual(parsed.accountFlag, 'acct-1');
     assert.strictEqual(parsed.yesFlag, true);
+  });
+
+  test('normal file opens accept a one-command Cloud opt-in', () => {
+    const parsed = io.parseArgs(['report.md', '--cloud', '--account', 'acct-1', '--json', '--no-open']);
+    assert.strictEqual(parsed.subcommand, null);
+    assert.strictEqual(parsed.file, 'report.md');
+    assert.strictEqual(parsed.skillEdition, 'cloud');
+    assert.strictEqual(parsed.accountFlag, 'acct-1');
+    assert.strictEqual(parsed.noOpenFlag, true);
   });
 
   test('cloud CLI parser captures nested action flags', () => {
@@ -352,6 +361,7 @@ module.exports = function(harness) {
       loadCredential() { return account; },
       async authenticated(endpoint, options) {
         calls.push({ endpoint, options });
+        if (endpoint === '/api/cloud/v1/account') return { account: { id: 'acct-1' } };
         if (endpoint === '/api/cloud/v1/account/documents') {
           return { account: { id: 'acct-1' }, document: { id: 'doc-1',
             current_revision_id: 'rev-1', revision_number: 1,
@@ -536,8 +546,33 @@ module.exports = function(harness) {
       const result = await capture(() => runCloudCommand({ file: 'create', extra: accountSource,
         jsonFlag: true }, { client: fakeClient }));
       assert.strictEqual(result.account_id, 'acct-1');
+      assert.strictEqual(result.url, 'https://cloud.test/docs?cloud-document=doc-1');
       assert.strictEqual(Object.hasOwn(result, 'project_id'), false);
       assert.ok(calls.some((call) => call.endpoint === '/api/cloud/v1/account/documents'));
+    });
+
+    await testAsync('create retry keeps the resolved library when the computer default changes after a lost response', async () => {
+      const retrySource = path.join(dir, 'retry-default.md');
+      fs.writeFileSync(retrySource, '# Retry destination');
+      let selected = 'library-original', attempts = 0;
+      const uploads = [];
+      const client = { origin: 'https://cloud.test', loadCredential: () => account,
+        authenticated: async (endpoint, options) => {
+          if (endpoint === '/api/cloud/v1/account') return { account: { id: selected } };
+          uploads.push(JSON.parse(options.body));
+          if (++attempts === 1) throw new Error('response lost after upload');
+          return { account: { id: uploads.at(-1).account_id }, document: {
+            id: 'retry-document', current_revision_id: 'retry-revision', revision_number: 1 } };
+        } };
+      const options = { file: 'create', extra: retrySource, jsonFlag: true };
+      await captureStreams(() => runCloudCommand(options, { client }));
+      assert.strictEqual(attempts, 1);
+      selected = 'library-new-default';
+      const result = await capture(() => runCloudCommand(options, { client }));
+      assert.strictEqual(result.account_id, 'library-original');
+      assert.strictEqual(uploads[0].idempotency_key, uploads[1].idempotency_key);
+      assert.strictEqual(uploads[1].account_id, 'library-original');
+      assert.strictEqual(result.url, 'https://cloud.test/docs?cloud-document=retry-document');
     });
 
     await testAsync('Cloud-first open creates once, pushes later, and keeps +tags out of the file', async () => {
@@ -608,6 +643,7 @@ module.exports = function(harness) {
       const result = await capture(() => runCloudCommand({ file: 'push', extra: source,
         jsonFlag: true }, { client: fakeClient }));
       assert.strictEqual(result.revision_id, 'rev-2');
+      assert.strictEqual(result.url, 'https://cloud.test/docs?cloud-document=doc-1');
       const request = JSON.parse(calls.find((call) => call.endpoint.endsWith('/revisions')).options.body);
       assert.strictEqual(request.target_revision_id, 'rev-1');
       assert.strictEqual(request.target_markdown,
@@ -637,6 +673,7 @@ module.exports = function(harness) {
       bindings.cacheBase('usr-1', 'doc-merge', 'rev-base', '# Plan\n\nBase.');
       let request;
       const mergedClient = {
+        origin: 'https://cloud.test',
         loadCredential() { return account; },
         async authenticated(endpoint, options) {
           request = JSON.parse(options.body);
@@ -665,6 +702,7 @@ module.exports = function(harness) {
         revision_id: 'rev-base', content_sha256: bindings.hash('# Plan\n\nBase.'),
         updated_at: '2026-08-14T00:00:00.000Z' });
       const changingClient = {
+        origin: 'https://cloud.test',
         loadCredential() { return account; },
         async authenticated() {
           fs.writeFileSync(changingSource, '# Plan\n\nSecond agent edit.');
@@ -702,6 +740,7 @@ module.exports = function(harness) {
         'cursor-2': { documents: [{ id: 'doc-c', title: 'C', tags: [] }], next_cursor: 'cursor-3' },
       };
       const pagingClient = {
+        origin: 'https://cloud.test',
         async authenticated(endpoint) {
           const url = new URL(endpoint, 'https://cloud.test');
           const cursor = url.searchParams.get('cursor') || '';
@@ -713,6 +752,7 @@ module.exports = function(harness) {
       const result = await capture(() => runCloudCommand({ file: 'ls', accountFlag: 'acct-docs',
         limitFlag: 3, jsonFlag: true }, { client: pagingClient }));
       assert.deepStrictEqual(result.documents.map((document) => document.id), ['doc-a', 'doc-b', 'doc-c']);
+      assert.deepStrictEqual(result.documents.map((document) => document.url), ['doc-a', 'doc-b', 'doc-c'].map(id => 'https://cloud.test/docs?cloud-document=' + id));
       assert.strictEqual(result.next_cursor, 'cursor-3');
       assert.deepStrictEqual(pageCalls, [
         { cursor: '', limit: '3', account: 'acct-docs' },
@@ -738,6 +778,7 @@ module.exports = function(harness) {
         ok: true,
         command: 'cloud.restore',
         document_id: 'doc-1',
+        url: 'https://cloud.test/docs?cloud-document=doc-1',
         base_revision_id: 'rev-2',
         restored_from_revision_id: 'rev-1',
         revision_id: 'rev-3',
@@ -789,6 +830,7 @@ module.exports = function(harness) {
     await testAsync('cloud search sends tag filters before the server limit', async () => {
       let requestBody;
       const searchClient = {
+        origin: 'https://cloud.test',
         async authenticated(endpoint, options) {
           assert.strictEqual(endpoint, '/api/cloud/v1/search');
           requestBody = JSON.parse(options.body);
@@ -802,6 +844,7 @@ module.exports = function(harness) {
       assert.strictEqual(requestBody.limit, 1);
       assert.strictEqual(requestBody.workspace_id, 'acct-platform');
       assert.strictEqual(result.documents[0].id, 'doc-tagged');
+      assert.strictEqual(result.documents[0].url, 'https://cloud.test/docs?cloud-document=doc-tagged');
     });
 
     await testAsync('local Cloud file commands report login_required before using account state', async () => {
@@ -903,6 +946,89 @@ module.exports = function(harness) {
       assert.strictEqual(body.ok, false);
       assert.strictEqual(result.exitCode, 4);
       assert.strictEqual(result.stderr, '');
+    });
+
+    await testAsync('Cloud open prints and opens the same stable URL after confirmed saves', async () => {
+      const file = path.join(dir, 'canonical-cloud.md');
+      fs.writeFileSync(file, '# Canonical Cloud\nFirst version');
+      const opened = [];
+      const dependencies = { client: fakeClient, openBrowser: (url) => opened.push(url) };
+      const first = await capture(() => openCloudDocument({ file, jsonFlag: true,
+        accountFlag: 'acct-1', addTags: ['planning'] }, dependencies));
+      assert.strictEqual(first.command, 'cloud.open');
+      assert.strictEqual(first.url, 'https://cloud.test/docs?cloud-document=doc-1');
+      assert.deepStrictEqual(opened, [first.url]);
+      assert.strictEqual(first.created, true);
+      fs.writeFileSync(file, '# Canonical Cloud\nSecond version');
+      const second = await capture(() => openCloudDocument({ file, jsonFlag: true }, dependencies));
+      assert.strictEqual(second.created, false);
+      assert.strictEqual(second.url, first.url);
+      assert.strictEqual(second.revision_id, 'rev-2');
+      assert.deepStrictEqual(opened, [first.url, first.url]);
+      const callCount = calls.length;
+      const third = await capture(() => openCloudDocument({ file, jsonFlag: true,
+        noOpenFlag: true }, dependencies));
+      assert.strictEqual(third.url, first.url);
+      assert.strictEqual(calls.length, callCount);
+      assert.strictEqual(opened.length, 2);
+    });
+
+    await testAsync('Cloud open human output contains the full browser URL without create chatter', async () => {
+      const file = path.join(dir, 'canonical-human.md');
+      fs.writeFileSync(file, '# Human output');
+      let opened;
+      const result = await captureStreams(() => openCloudDocument({ file }, {
+        client: fakeClient, openBrowser: (url) => { opened = url; },
+      }));
+      assert.strictEqual(result.exitCode, 0);
+      assert.strictEqual(result.stdout.trim(), opened);
+      assert.strictEqual(result.stderr, '');
+    });
+
+    await testAsync('Cloud open upload failures preserve local work and never launch a document', async () => {
+      const file = path.join(dir, 'failed-cloud.md');
+      const content = '# Keep my local work';
+      fs.writeFileSync(file, content);
+      let opened = false;
+      const client = { origin: fakeClient.origin, loadCredential: () => account,
+        async authenticated() { throw Object.assign(new Error('Offline'), { code: 'temporary_service_failure' }); } };
+      const result = await captureStreams(() => openCloudDocument({ file, jsonFlag: true }, {
+        client, openBrowser: () => { opened = true; },
+      }));
+      assert.strictEqual(result.exitCode, 7);
+      assert.strictEqual(JSON.parse(result.stdout).ok, false);
+      assert.strictEqual(JSON.parse(result.stdout).url, undefined);
+      assert.strictEqual(opened, false);
+      assert.strictEqual(fs.readFileSync(file, 'utf8'), content);
+      assert.strictEqual(bindings.get(account.user_id, file), null);
+      assert.ok(bindings.getPending(account.user_id, file));
+    });
+
+    await testAsync('Cloud open requires sign-in and reports it as structured output', async () => {
+      const file = path.join(dir, 'unsigned-cloud.md');
+      fs.writeFileSync(file, '# Not signed in');
+      const result = await captureStreams(() => openCloudDocument({ file, jsonFlag: true }, {
+        client: { origin: fakeClient.origin, loadCredential: () => null,
+          authenticated() { throw new Error('must not upload'); } },
+        openBrowser() { throw new Error('must not open'); },
+      }));
+      assert.strictEqual(result.exitCode, 3);
+      assert.strictEqual(JSON.parse(result.stdout).error, 'login_required');
+    });
+
+    await testAsync('Cloud open warns when a file changes during upload', async () => {
+      const file = path.join(dir, 'changing-cloud.md');
+      fs.writeFileSync(file, '# Uploaded version');
+      const client = { origin: fakeClient.origin, loadCredential: () => account,
+        async authenticated(endpoint, options) {
+          const result = await fakeClient.authenticated(endpoint, options);
+          fs.writeFileSync(file, '# New local version');
+          return result;
+        } };
+      const result = await capture(() => openCloudDocument({ file, jsonFlag: true, noOpenFlag: true }, { client }));
+      assert.strictEqual(result.local_changed_after_upload, true);
+      assert.strictEqual(fs.readFileSync(file, 'utf8'), '# New local version');
+      assert.strictEqual(result.url, 'https://cloud.test/docs?cloud-document=doc-1');
     });
 
     process.exitCode = 0;

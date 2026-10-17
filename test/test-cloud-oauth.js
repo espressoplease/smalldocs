@@ -101,6 +101,7 @@ module.exports = function (harness) {
             iss: 'https://accounts.google.com', aud: 'google-client',
             exp: Math.floor(clock / 1000) + 300, nonce: expectedNonce,
             email_verified: true, sub: 'google-user-123', email: 'Person@Example.com',
+            given_name: 'Alex', family_name: 'Rivera',
           };
           return { status: 200, json: { access_token: 'discard-me', id_token: signJwt(keys.privateKey, kid, claims) } };
         }
@@ -115,18 +116,33 @@ module.exports = function (harness) {
       const begun = google.begin({ returnTo: '/cloud/account' });
       const url = new URL(begun.authorizationUrl);
       assert.strictEqual(url.hostname, 'accounts.google.com');
-      assert.strictEqual(url.searchParams.get('scope'), 'openid email');
+      assert.strictEqual(url.searchParams.get('scope'), 'openid email profile');
       assert.strictEqual(url.searchParams.get('code_challenge_method'), 'S256');
       assert.ok(url.searchParams.get('nonce'));
       expectedNonce = url.searchParams.get('nonce');
       const result = await google.callback({ state: url.searchParams.get('state'), code: 'google-code' });
       assert.deepStrictEqual(result.identity, {
         provider: 'google', subject: 'google-user-123', verifiedEmail: 'person@example.com',
+        firstName: 'Alex', lastName: 'Rivera',
       });
       const exchange = Object.fromEntries(new URLSearchParams(calls[0].body));
       assert.ok(exchange.code_verifier);
       assert.strictEqual(calls[0].timeoutMs, 1234);
       assert.strictEqual(JSON.stringify(transactions.db.prepare('SELECT * FROM cloud_oauth_transactions').all()).includes('discard-me'), false);
+    });
+
+    await testAsync('Google profile names are optional and incomplete names still permit sign-in', async () => {
+      for (const profile of [{}, { given_name: 'Alex' }, { given_name: 'Alex', family_name: ' ' }]) {
+        const token = signJwt(keys.privateKey, kid, Object.assign({
+          iss: 'accounts.google.com', aud: 'google-client', exp: Math.floor(clock / 1000) + 60,
+          nonce: 'profile-nonce', email_verified: true, sub: 'subject', email: 'a@example.com',
+        }, profile));
+        const identity = await verifyGoogleIdToken(token, {
+          clientId: 'google-client', nonce: 'profile-nonce', now: () => clock, jwks: { keys: [jwk] },
+        });
+        assert.strictEqual(identity.verifiedEmail, 'a@example.com');
+        assert.strictEqual(identity.firstName, undefined);
+      }
     });
 
     await testAsync('Google verifier rejects bad audience, expiry, nonce, and unverified email', async () => {

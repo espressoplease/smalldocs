@@ -73,6 +73,7 @@ module.exports = function(harness) {
         ANALYTICS_FLUSH_IMMEDIATE: '1',
         SHORT_LINKS_DB: testShortLinksDbPath,
         SMALLCRM_TEAMS_FORM_ACTION: teamsFormAction,
+        SMALLCRM_INSTALL_FORM_ACTION: teamsFormAction,
         CLOUD_AUTH_DB: testCloudAuthDbPath,
         CLOUD_PUBLIC_MODE: 'enabled',
         CLOUD_AUTH_PEPPER: 'http-test-cloud-auth-pepper-32-bytes',
@@ -1224,7 +1225,7 @@ module.exports = function(harness) {
       assert.strictEqual(location.searchParams.get('client_id'), 'http-test-google-client');
       assert.strictEqual(location.searchParams.get('redirect_uri'),
         BASE + '/api/cloud/auth/oauth/google/callback');
-      assert.strictEqual(location.searchParams.get('scope'), 'openid email');
+      assert.strictEqual(location.searchParams.get('scope'), 'openid email profile');
       assert.strictEqual(location.searchParams.get('code_challenge_method'), 'S256');
       assert.ok(location.searchParams.get('code_challenge'));
       assert.ok(location.searchParams.get('nonce'));
@@ -1778,7 +1779,8 @@ module.exports = function(harness) {
 
       const reused = await post(BASE + '/api/cloud/v1/invitations/' + encodeURIComponent(token) + '/accept', {},
         { Origin: BASE, Cookie: cloudMemberCookie });
-      assert.strictEqual(reused.status, 404);
+      assert.strictEqual(reused.status, 200);
+      assert.strictEqual(JSON.parse(reused.body).workspace_id, cloudTeamWorkspace.workspaceId);
     });
 
     await testAsync('Cloud notifications batch documents without granting or inviting access', async () => {
@@ -2234,6 +2236,7 @@ module.exports = function(harness) {
       assert.strictEqual(head.status, 200);
       assert.deepStrictEqual(JSON.parse(head.body).document, {
         id: targetDocument.id,
+        workspace_id: cloudProject.workspaceId,
         current_revision_id: mergedDocument.current_revision_id,
         revision_number: mergedDocument.revision_number,
         updated_at: mergedDocument.updated_at,
@@ -2472,13 +2475,14 @@ module.exports = function(harness) {
     // ── Teams-interest endpoint ──
     await testAsync('POST /api/teams-interest relays a valid submission to SmallCRM', async () => {
       const r = await post(BASE + '/api/teams-interest', {
-        email: 'lead@example.com', company: 'Acme', message: 'We ship reports weekly.',
+        name: ' Alex Smith ', email: 'lead@example.com', company: 'Acme', message: 'We ship reports weekly.',
       });
       assert.strictEqual(r.status, 201);
       assert.strictEqual(teamsFormSubmissions.length, 1);
       const form = teamsFormSubmissions[0];
       assert.strictEqual(form.get('_scrm_form'), 'teams-interest-test');
       assert.strictEqual(form.get('inbound_leads.email'), 'lead@example.com');
+      assert.strictEqual(form.get('inbound_leads.name'), 'Alex Smith');
       assert.strictEqual(form.get('inbound_leads.company'), 'Acme');
       assert.strictEqual(form.get('inbound_leads.message'), 'We ship reports weekly.');
     });
@@ -2506,6 +2510,7 @@ module.exports = function(harness) {
       const form = teamsFormSubmissions[1];
       assert.strictEqual(form.get('inbound_leads.email'), 'solo@example.com');
       assert.strictEqual(form.has('inbound_leads.company'), false);
+      assert.strictEqual(form.has('inbound_leads.name'), false);
       assert.strictEqual(form.has('inbound_leads.message'), false);
     });
 
@@ -2515,6 +2520,29 @@ module.exports = function(harness) {
       teamsFormStatus = 200;
       assert.strictEqual(r.status, 502);
       assert.deepStrictEqual(JSON.parse(r.body), { error: 'submission_failed' });
+    });
+
+    await testAsync('install requests store their email and source in SmallCRM', async () => {
+      const before = teamsFormSubmissions.length;
+      const r = await post(BASE + '/api/install-interest', { email: 'install@example.com' });
+      assert.strictEqual(r.status, 201);
+      assert.strictEqual(teamsFormSubmissions.length, before + 1);
+      const form = teamsFormSubmissions.at(-1);
+      assert.strictEqual(form.get('inbound_leads.email'), 'install@example.com');
+      assert.strictEqual(form.get('inbound_leads.source'), 'homepage_install');
+      assert.strictEqual(form.get('inbound_leads.status'), 'new');
+    });
+    await testAsync('install requests reject invalid emails without storing a lead', async () => {
+      const before = teamsFormSubmissions.length;
+      const r = await post(BASE + '/api/install-interest', { email: 'invalid' });
+      assert.strictEqual(r.status, 400);
+      assert.strictEqual(teamsFormSubmissions.length, before);
+    });
+    await testAsync('install requests report receiver failures', async () => {
+      teamsFormStatus = 503;
+      const r = await post(BASE + '/api/install-interest', { email: 'failure@example.com' });
+      teamsFormStatus = 200;
+      assert.strictEqual(r.status, 502);
     });
 
     cloudBilling.close();
@@ -2534,6 +2562,7 @@ module.exports = function(harness) {
       const hiddenServer = spawn('node', [path.join(__dirname, '..', 'server.js')], {
         env: {
           PATH: process.env.PATH,
+          NODE_PATH: process.env.NODE_PATH,
           HOME: process.env.HOME,
           HOST: '127.0.0.1',
           PORT: String(hiddenPort),
@@ -2542,6 +2571,7 @@ module.exports = function(harness) {
           CLOUD_PUBLIC_MODE: 'hidden',
           SHORT_LINKS_DB: testShortLinksDbPath,
           SMALLCRM_TEAMS_FORM_ACTION: teamsFormAction,
+        SMALLCRM_INSTALL_FORM_ACTION: teamsFormAction,
           FEEDBACK_DB: testDbPath,
         },
         stdio: 'pipe',

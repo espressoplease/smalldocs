@@ -56,6 +56,9 @@
     link.href += '?return_to=' + encodeURIComponent(returnPath);
   });
 
+  var initialEmail = params.get('email');
+  if (initialEmail) emailInput.value = initialEmail;
+
   emailForm.addEventListener('submit', async function (event) {
     event.preventDefault();
     if (previewMode) {

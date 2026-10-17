@@ -41,7 +41,7 @@ npx skills@latest add https://smalldocs.org/agent-skills/standard --global
 
 The `skills` installer detects supported coding agents and installs the SmallDocs **skill** globally. Its short description lets an agent discover SmallDocs when you say `sdoc`, `S-doc`, or `smalldoc`; the full instructions load only when relevant.
 
-After you connect SmallDocs Cloud, run `sdoc setup --cloud --yes`. The Cloud edition has the same `smalldocs` name, so agents do not see two overlapping SmallDocs skills. In Cloud-first mode, `sdoc FILE.md` creates or updates the Cloud document before opening it. Add `--account UUID` during setup when the machine should always create new documents in one workspace.
+After you connect SmallDocs Cloud, run `sdoc setup --cloud --yes`. The Cloud edition has the same `smalldocs` name, so agents do not see two overlapping SmallDocs skills. In Cloud-first mode, `sdoc FILE.md` creates or updates the Cloud document before opening it. List your libraries with `sdoc cloud libraries --json`. Use `sdoc cloud library-default LIBRARY_UUID --json` to select the default for new documents from this connected computer. An explicit `--account UUID` takes priority; existing documents keep their bindings.
 
 `npx skills@latest` currently requires Node 22.20 or newer. `sdoc setup` remains the built-in fallback and also removes the always-on SmallDocs block written by older CLI releases:
 
@@ -545,6 +545,16 @@ When you run `sdoc <file>` the browser shows a small info card at the top of the
 - **fullPath** — the absolute path on your machine. *Local only.*
 
 The two "local" fields are passed to the browser via a separate URL parameter (`&local=...`) that JavaScript reads into memory on load and immediately strips from the address bar using `history.replaceState`. So by the time you could copy the URL, the local data is no longer in it. `sdoc share <file>` never generates that parameter to begin with — so links produced by `share` are inherently path-free. If a recipient opens your shared URL, only `file` is visible.
+
+## Linking Cloud documents in chat
+
+For Cloud-first agents, run `sdoc FILE.md --cloud --json`. The CLI saves the document before opening the exact Cloud URL returned in the JSON `url` field. Add `--no-open` to save without launching a browser. Check `ok` and the command's exit status before presenting the document as saved.
+
+Always link to that returned Cloud URL in chat, never the underlying local Markdown file or a `file://` path. The local file remains the editable working copy. Later saves keep the same document URL; unchanged files do not create another revision. If `local_changed_after_upload` is true, save again before claiming the Cloud document contains the latest edits.
+
+Cloud `create`, `pull`, `push`, and `restore` return `url` in JSON. Cloud `ls` and `search` return `documents[].url` for linking existing documents. Browser sign-in and document permissions still apply; a URL does not grant access.
+
+Feedback and bridge commands remain local live sessions. A Cloud copy does not replace the live feedback connection.
 
 ## The CLI
 

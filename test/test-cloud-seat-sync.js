@@ -68,6 +68,20 @@ module.exports = function (harness) {
       assert.strictEqual(usageReads, 0);
     });
 
+    await testAsync('single-plan coverage updates unique seats on a retained personal price without changing its price', async () => {
+      let update;
+      const result = await syncTeamSeatQuantity({ workspaceId: 'payer', quantityOverride: 2,
+        idempotencyKey: 'single-plan-retained-price',
+        billing: { getSubscription: () => ({ plan: 'personal', provider: 'stripe', providerSubscriptionId: 'sub_existing' }) },
+        store: { getWorkspaceUsage: () => { throw new Error('Do not count physical library memberships'); } },
+        stripe: { retrieveSubscription: async () => ({ items: { data: [{ id: 'si_existing', quantity: 1 }] } }),
+          updateSubscriptionItemQuantity: async input => { update = input; } } });
+      assert.strictEqual(result.quantity, 2);
+      assert.strictEqual(update.subscriptionItemId, 'si_existing');
+      assert.strictEqual(update.quantity, 2);
+      assert.strictEqual(update.priceId, undefined);
+    });
+
     await testAsync('surfaces Stripe failures so the caller can queue a retry', async () => {
       await assert.rejects(() => syncTeamSeatQuantity({
         workspaceId: 'workspace-123',

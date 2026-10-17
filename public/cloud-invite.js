@@ -43,9 +43,22 @@
     if (!result.response.ok) throw new Error('Your details could not be loaded.');
     firstName.value = result.body.user.first_name || '';
     lastName.value = result.body.user.last_name || '';
-    profileLoaded = true;
-    show('');
-    refreshButton();
+    return fetch('/api/cloud/v1/invitations/' + encodeURIComponent(token)).then(readResponse).then(function (details) {
+      if (!details.response.ok) throw new Error(details.body.error === 'permission_denied'
+        ? 'Sign in with the email address this invitation was sent to.' : 'This invitation is no longer available.');
+      var invitation = details.body.invitation;
+      document.getElementById('invite-title').textContent = 'Join ' + invitation.workspace_name;
+      document.getElementById('invite-copy').textContent = 'Role: ' + invitation.role + '. Your personal documents stay separate.';
+      if (invitation.accepted) {
+        button.textContent = 'Open library';
+        button.disabled = false;
+        button.addEventListener('click', function (event) {
+          event.stopImmediatePropagation();
+          location.assign('/library?scope=cloud&workspace=' + encodeURIComponent(invitation.workspace_id));
+        }, { capture: true });
+      } else { profileLoaded = true; refreshButton(); }
+      show('');
+    });
   }).catch(function (error) {
     show(error.message || 'Your details could not be loaded.', true);
   });
@@ -76,8 +89,8 @@
         }
         throw new Error('This invitation is no longer available.');
       }
-      show('Invitation accepted. Opening the Cloud library...');
-      window.location.assign('/library?scope=cloud&workspace=' + encodeURIComponent(result.body.workspace_id));
+      show('Invitation accepted. Opening setup...');
+      window.location.assign('/cloud/admin?panel=install&workspace_id=' + encodeURIComponent(result.body.workspace_id));
     }).catch(function (error) {
       if (error.message !== 'login_required') {
         refreshButton();

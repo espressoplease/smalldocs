@@ -53,6 +53,7 @@ USAGE
   sdoc cloud status --json         Check the connected Cloud account
   sdoc cloud ls                    List Cloud documents
   sdoc cloud search "query"        Search Cloud documents
+  sdoc file.md --cloud --json      Save to Cloud, open it, and return its Cloud URL
   sdoc cloud create file.md        Add a document to Cloud
   sdoc cloud --help                Full Cloud command reference
   sdoc <file> +tag1 +tag2          Inject tags into the file's front matter at open time
@@ -94,6 +95,10 @@ OPTIONS
   --placement <id>      Attribute a social short link to one publishing
                         placement. Use 4-32 letters, numbers, underscores,
                         or hyphens with --source x, yt, or youtube.
+  --cloud               Save a Markdown file to Cloud, then open and print its
+                        stable document URL. Requires sdoc cloud login.
+                        In chat, link to the returned URL, never the local file.
+  --standard            Open locally without uploading, even in Cloud mode.
   --json                Machine-readable output for safe and Cloud commands.
   --no-open             Do not launch the browser after a normal file open.
   --audit               Also print GitHub links to server-side source

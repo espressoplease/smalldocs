@@ -579,3 +579,11 @@ body.cloud-lab-mode #_sd_cloud-lab-panel {
   .sdoc-cloud-lab-suggestions { grid-template-columns: 1fr; }
   .sdoc-cloud-lab-panel-body { padding-left: 12px; padding-right: 12px; }
 }
+
+.sdoc-cloud-library-icon { display: inline-flex; flex: 0 0 auto; }
+.sdoc-cloud-library-icon svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+button.sdoc-cloud-lab-member { width: 100%; font: inherit; text-align: left; background: transparent; }
+button.sdoc-cloud-lab-member.selected { background: var(--bg-hover); }
+.sdoc-cloud-library-machine { display: flex; flex-direction: column; gap: 6px; margin: 12px 0; font-size: 12px; }
+.sdoc-cloud-library-machine select { width: 100%; min-width: 0; padding: 8px; color: var(--text); background: var(--bg-panel); border: 1px solid var(--border); border-radius: 6px; font: inherit; }
+.sdoc-cloud-library-move { padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-panel); color: var(--text); font: inherit; cursor: pointer; }

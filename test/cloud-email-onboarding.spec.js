@@ -1,0 +1,64 @@
+const { test, expect } = require('@playwright/test');
+const { startFixture } = require('./cloud-onboarding-fixture');
+const { startCaptureServer, decodeMimeParts } = require('./test-email');
+let f, mail;
+test.beforeEach(async () => { mail = await startCaptureServer(); f = await startFixture({ singlePlan: true, smtpPort: mail.port }); });
+test.afterEach(async () => { await f.close(); await new Promise(resolve => mail.server.close(resolve)); });
+
+test('email signup verifies the delivered code, captures a profile and reaches Install with one library', async ({ page }) => {
+  await page.goto(f.origin + '/home-next');
+  const form = page.locator('[data-install-form]').first();
+  await form.locator('input[type=email]').fill('new-human@example.com');
+  await form.getByRole('button', { name: 'Get install prompt' }).click();
+  await expect(page).toHaveURL(/cloud\/sign-in/);
+  await page.locator('#email-form').getByRole('button').click();
+  await expect.poll(() => mail.messages.length).toBe(1);
+  const text = decodeMimeParts(mail.messages[0]).map(part => part.body).join('\n');
+  const code = text.match(/\b\d{6}\b/)[0];
+  await page.locator('#code').fill(code);
+  await page.locator('#code-form').getByRole('button', { name: /sign in|verify|continue/i }).click();
+  await expect(page).toHaveURL(/cloud\/terms/);
+  await page.getByRole('checkbox').check();
+  await page.getByRole('button', { name: /accept|continue/i }).click();
+  await expect(page).toHaveURL(/cloud\/profile/);
+  await page.getByLabel('First name').fill('Robin');
+  await page.getByLabel('Last name').fill('Walker');
+  await page.getByRole('button', { name: 'Continue', exact: true }).click();
+  await expect(page).toHaveURL(/cloud\/admin\?panel=install/);
+  await expect(page.locator('body')).toContainText('Robin Walker');
+  const response = await page.request.get(f.origin + '/api/cloud/v1/workspaces');
+  const data = await response.json();
+  expect(data.workspaces).toHaveLength(1);
+  await page.goto(f.origin + '/cloud/start');
+  await expect(page).toHaveURL(/cloud\/admin\?panel=install/);
+  const again = await page.request.get(f.origin + '/api/cloud/v1/workspaces');
+  expect((await again.json()).workspaces).toHaveLength(1);
+  await expect(page.locator('body')).not.toContainText('Preview only');
+  // Authorize a real CLI connection using the session created by email verification.
+  const issued = await (await page.request.post(f.origin + '/api/cloud/v1/cli/device-authorizations', { data: { display_name: 'Robins laptop' } })).json();
+  const approved = await page.request.post(f.origin + '/api/cloud/v1/cli/device-authorizations/approve', { headers: { Origin: f.origin }, data: { user_code: issued.user_code } });
+  expect(approved.ok()).toBe(true);
+  const token = await (await page.request.post(f.origin + '/api/cloud/v1/cli/device-authorizations/token', { data: { device_code: issued.device_code } })).json();
+  expect(token.ok).toBe(true);
+  const fs = require('fs'), path = require('path');
+  const state = path.join(f.dir, 'cli-state');
+  fs.mkdirSync(path.join(state, 'cloud'), { recursive: true, mode: 0o700 });
+  fs.writeFileSync(path.join(state, 'cloud', 'credentials.json'), JSON.stringify({ [f.origin]: token }), { mode: 0o600 });
+  const markdown = path.join(f.dir, 'first.md');
+  fs.writeFileSync(markdown, '# First Cloud document\n\nSaved from the CLI.');
+  const execFile = require('util').promisify(require('child_process').execFile);
+  const save = async () => JSON.parse((await execFile(process.execPath, [path.join(__dirname, '../cli/bin/sdocs-dev.js'), markdown,
+    '--cloud', '--url', f.origin, '--no-open', '--json'], { env: { ...process.env, SDOCS_HOME: state,
+      SDOCS_CLOUD_URL: f.origin, SDOCS_CLOUD_FILE_CREDENTIALS: '1' } })).stdout);
+  const first = await save();
+  expect(first.ok).toBe(true);
+  expect(first.url).toBe(f.origin + '/docs?cloud-document=' + first.document_id);
+  fs.appendFileSync(markdown, '\n\nA second revision.');
+  const second = await save();
+  expect(second.url).toBe(first.url);
+  expect(second.revision_id).not.toBe(first.revision_id);
+  await page.goto(second.url);
+  await expect(page.getByText('A second revision.', { exact: true })).toBeVisible();
+  await page.goto(f.origin + '/cloud/admin?panel=machines');
+  await expect(page.locator('body')).toContainText('Robins laptop');
+});
