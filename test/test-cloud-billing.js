@@ -274,6 +274,36 @@ module.exports = function (harness) {
       assert.strictEqual(billing.processWebhookEvent(input, () => 'retried').processed, true);
     });
 
+    test('personal trial lasts one calendar month, clamps month end and survives retries', () => {
+      clock = Date.UTC(2026, 0, 31, 12);
+      const trial = billing.ensurePersonalTrial({ userId: 'trial-user', workspaceId: 'trial-workspace' });
+      assert.strictEqual(trial.endsAtMs, Date.UTC(2026, 1, 28, 12));
+      assert.strictEqual(billing.computeEntitlements('trial-workspace').effectiveStatus, 'trial');
+      assert.strictEqual(billing.computeEntitlements('trial-workspace').access.write, true);
+      clock += 2 * 86400000;
+      assert.strictEqual(billing.ensurePersonalTrial({ userId: 'trial-user', workspaceId: 'trial-workspace' }).endsAtMs, trial.endsAtMs);
+      clock = trial.endsAtMs;
+      const expired = billing.computeEntitlements('trial-workspace');
+      assert.strictEqual(expired.access.write, false);
+      assert.strictEqual(expired.access.read, true);
+      assert.strictEqual(expired.effectiveStatus, 'trial_ended');
+    });
+    test('paid subscription takes priority over a personal trial', () => {
+      billing.upsertSubscription({ workspaceId: 'trial-workspace', plan: 'personal', status: 'active', provider: 'testpay' });
+      assert.strictEqual(billing.computeEntitlements('trial-workspace').effectiveStatus, 'active');
+      assert.strictEqual(billing.computeEntitlements('trial-workspace').trialEndsAtMs, null);
+      const paid = billing.ensurePersonalTrial({ userId: 'paid-user', workspaceId: 'wrk_personal' });
+      assert.strictEqual(paid.created, false);
+      assert.strictEqual(paid.endsAtMs, null);
+    });
+    test('trial eligibility cannot be reset by another sign-in identity with the same verified email', () => {
+      billing.trialIdentitySecret = 'test-trial-identity-secret-long';
+      const first = billing.ensurePersonalTrial({ userId: 'identity-a', workspaceId: 'identity-workspace-a', verifiedEmail: 'Person@Company.com' });
+      assert.strictEqual(first.created, true);
+      assert.throws(() => billing.ensurePersonalTrial({ userId: 'identity-b', workspaceId: 'identity-workspace-b', verifiedEmail: 'person@company.com' }), error => error.code === 'trial_already_used');
+      const row = billing.db.prepare('SELECT identity_hash FROM cloud_billing_personal_trials WHERE user_id = ?').get('identity-a');
+      assert.ok(!row.identity_hash.includes('company.com'));
+    });
     billing.close();
     fs.rmSync(dir, { recursive: true, force: true });
   };

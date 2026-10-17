@@ -41,7 +41,7 @@ npx skills@latest add https://smalldocs.org/agent-skills/standard --global
 
 The `skills` installer detects supported coding agents and installs the SmallDocs **skill** globally. Its short description lets an agent discover SmallDocs when you say `sdoc`, `S-doc`, or `smalldoc`; the full instructions load only when relevant.
 
-After you connect SmallDocs Cloud, run `sdoc setup --cloud --yes`. The Cloud edition has the same `smalldocs` name, so agents do not see two overlapping SmallDocs skills. In Cloud-first mode, `sdoc FILE.md` creates or updates the Cloud document before opening it. Add `--account UUID` during setup when the machine should always create new documents in one workspace.
+After you connect SmallDocs Cloud, run `sdoc setup --cloud --yes`. The Cloud edition has the same `smalldocs` name, so agents do not see two overlapping SmallDocs skills. In Cloud-first mode, `sdoc FILE.md` creates or updates the Cloud document before opening it. List your libraries with `sdoc cloud libraries --json`. Use `sdoc cloud library-default LIBRARY_UUID --json` to select the default for new documents from this connected computer. An explicit `--account UUID` takes priority; existing documents keep their bindings.
 
 `npx skills@latest` currently requires Node 22.20 or newer. `sdoc setup` remains the built-in fallback and also removes the always-on SmallDocs block written by older CLI releases:
 

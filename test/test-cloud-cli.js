@@ -361,6 +361,7 @@ module.exports = function(harness) {
       loadCredential() { return account; },
       async authenticated(endpoint, options) {
         calls.push({ endpoint, options });
+        if (endpoint === '/api/cloud/v1/account') return { account: { id: 'acct-1' } };
         if (endpoint === '/api/cloud/v1/account/documents') {
           return { account: { id: 'acct-1' }, document: { id: 'doc-1',
             current_revision_id: 'rev-1', revision_number: 1,
@@ -548,6 +549,30 @@ module.exports = function(harness) {
       assert.strictEqual(result.url, 'https://cloud.test/docs?cloud-document=doc-1');
       assert.strictEqual(Object.hasOwn(result, 'project_id'), false);
       assert.ok(calls.some((call) => call.endpoint === '/api/cloud/v1/account/documents'));
+    });
+
+    await testAsync('create retry keeps the resolved library when the computer default changes after a lost response', async () => {
+      const retrySource = path.join(dir, 'retry-default.md');
+      fs.writeFileSync(retrySource, '# Retry destination');
+      let selected = 'library-original', attempts = 0;
+      const uploads = [];
+      const client = { origin: 'https://cloud.test', loadCredential: () => account,
+        authenticated: async (endpoint, options) => {
+          if (endpoint === '/api/cloud/v1/account') return { account: { id: selected } };
+          uploads.push(JSON.parse(options.body));
+          if (++attempts === 1) throw new Error('response lost after upload');
+          return { account: { id: uploads.at(-1).account_id }, document: {
+            id: 'retry-document', current_revision_id: 'retry-revision', revision_number: 1 } };
+        } };
+      const options = { file: 'create', extra: retrySource, jsonFlag: true };
+      await captureStreams(() => runCloudCommand(options, { client }));
+      assert.strictEqual(attempts, 1);
+      selected = 'library-new-default';
+      const result = await capture(() => runCloudCommand(options, { client }));
+      assert.strictEqual(result.account_id, 'library-original');
+      assert.strictEqual(uploads[0].idempotency_key, uploads[1].idempotency_key);
+      assert.strictEqual(uploads[1].account_id, 'library-original');
+      assert.strictEqual(result.url, 'https://cloud.test/docs?cloud-document=retry-document');
     });
 
     await testAsync('Cloud-first open creates once, pushes later, and keeps +tags out of the file', async () => {

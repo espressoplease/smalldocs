@@ -106,7 +106,7 @@
     return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(date);
   }
   function setCount(id, value) { byId(id).textContent = String(value); }
-  function isTeam() { return Boolean(state.workspace && state.workspace.kind === 'team'); }
+  function isTeam() { return Boolean(state.workspace && (state.singlePlan || state.workspace.kind === 'team')); }
 
   function accountName(workspace) {
     return window.SDocsCloudAccountSelection.label(workspace, state.me);
@@ -122,6 +122,7 @@
       button.append(element('span', 'account-switcher-mark',
         window.SDocsCloudAccountSelection.initials(accountName(workspace))),
       element('strong', '', accountName(workspace)));
+      button.querySelector('.account-switcher-mark').style.backgroundColor = window.SDocsCloudAccountSelection.color(workspace.id);
       if (state.workspace && state.workspace.id === workspace.id) {
         var check = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
         check.setAttribute('viewBox', '0 0 24 24');
@@ -138,9 +139,12 @@
       });
       menu.appendChild(button);
     });
-    byId('account-switcher').hidden = state.workspaces.length <= 1;
+    byId('account-switcher').hidden = state.workspaces.length === 0;
+    byId('account-switcher-button').disabled = state.workspaces.length <= 1;
+    byId('account-switcher-button').querySelector('svg').toggleAttribute('hidden', state.workspaces.length <= 1);
     var name = state.workspace ? accountName(state.workspace) : 'Choose account';
     byId('account-switcher-name').textContent = name;
+    byId('account-switcher-mark').style.backgroundColor = state.workspace ? window.SDocsCloudAccountSelection.color(state.workspace.id) : '';
     byId('account-switcher-mark').textContent = window.SDocsCloudAccountSelection.initials(name);
   }
 
@@ -337,6 +341,14 @@
     byId('billing-status').textContent = plan
       ? 'Status: ' + String(billing.effectiveStatus || billing.subscriptionStatus).replace(/_/g, ' ')
       : 'Subscribe before storing or searching Cloud documents.';
+    if (billing && billing.trialEndsAtMs) {
+      byId('billing-plan').textContent = (isTeam() ? 'Team library' : 'Personal library') + ' trial';
+      if (billing.effectiveStatus === 'trial') {
+        byId('subscribe-link').textContent = 'Subscribe now';
+        byId('subscribe-row').querySelector('p').textContent = 'Subscribing now starts a paid subscription immediately. Otherwise your trial continues until its end date.';
+      }
+      byId('billing-status').textContent = (billing.effectiveStatus === 'trial' ? 'Free until ' : 'Trial ended ') + formatDateTime(billing.trialEndsAtMs) + '. Subscribe to continue saving after the trial.';
+    }
     byId('billing-price').textContent = plan === 'team' ? '\u00a37 / person / month'
       : plan === 'personal' ? '\u00a34 / month' : '';
     var usage = billing && billing.usage;
@@ -344,12 +356,24 @@
     else if (isTeam()) byId('billing-usage').textContent = usage.memberCount
       + (usage.memberCount === 1 ? ' person, ' : ' people, ') + usage.storedBytes + ' stored bytes';
     else byId('billing-usage').textContent = usage.storedBytes + ' stored bytes';
-    var hasSubscription = Boolean(plan);
+    var hasSubscription = Boolean(plan) && !billing.trialEndsAtMs;
     var canManageBilling = state.workspace && state.workspace.role === 'owner';
     byId('manage-billing').hidden = !hasSubscription || !canManageBilling ||
       !billing.canManagePayment;
     byId('subscribe-row').hidden = hasSubscription || !canManageBilling;
-    byId('subscribe-link').href = '/cloud/checkout?plan=' + (isTeam() ? 'team' : 'personal');
+    byId('install-team-link').href = '/cloud/start?choose=1' + (state.workspace ? '&workspace_id=' + encodeURIComponent(state.workspace.id) : '');
+    byId('subscribe-link').href = state.singlePlan ? '/cloud/subscribe' : '/cloud/checkout?plan=' + (isTeam() ? 'team' : 'personal');
+    if (state.singlePlan) {
+      byId('billing-plan').textContent = 'SmallDocs, all features';
+      byId('billing-price').textContent = window.SDocsCloudPricing.primaryAmount('standard', window.SDocsCloudPricing.currentCurrency()) + ' / person / month';
+      if (billing && billing.legacy_price) byId('billing-price').textContent = 'Your existing subscription rate is unchanged. View your current price in Stripe.';
+      if (billing && !billing.trialEndsAtMs) byId('billing-status').textContent = billing.covered ? 'Your subscription is covered.' : 'Subscribe, or ask a library administrator to cover your subscription.';
+      byId('billing-usage').textContent = billing && billing.sponsored_seats ? 'Your billing account covers ' + billing.sponsored_seats + ' people across your libraries.' : 'One paid subscription per person, across libraries.';
+      byId('subscribe-row').hidden = Boolean(billing && billing.covered && !billing.trialEndsAtMs);
+      byId('manage-billing').hidden = !(billing && billing.canManagePayment);
+      byId('install-team-link').textContent = 'Manage libraries';
+      byId('install-team-link').href = '/cloud/admin?panel=libraries';
+    }
   }
 
   function activatePanel(name, updateLocation) {
@@ -359,6 +383,7 @@
     Array.from(document.querySelectorAll('.panel')).forEach(function (panel) {
       panel.hidden = panel.id !== 'panel-' + name;
     });
+    if (name === 'machines') loadCredentials().catch(showError);
     if (updateLocation !== false) {
       var url = new URL(location.href);
       if (name === 'overview') url.searchParams.delete('panel');
@@ -390,7 +415,7 @@
     byId('overview-description').textContent = team
       ? 'Documents, people, and billing.' : 'Your Cloud documents and billing.';
     byId('account-label').textContent = state.me && state.me.email
-      ? 'Signed in as ' + state.me.email : 'Signed in';
+      ? [state.me.first_name, state.me.last_name].filter(Boolean).join(' ') + ' · ' + state.me.email : 'Signed in';
     setCount('member-count', state.members.filter(function (member) { return member.status !== 'disabled'; }).length);
     setCount('document-count', state.documents.length);
     renderAccountSwitcher();
@@ -410,9 +435,12 @@
     if (!workspace && state.workspaces.length === 1) workspace = state.workspaces[0];
     if (!workspace) throw new Error('resource_unavailable');
     state.workspace = workspace;
+    byId('install-library-link').href = '/library?scope=cloud&workspace=' + encodeURIComponent(workspace.id);
+    byId('install-destination-note').textContent = 'To save new documents to ' + accountName(workspace) + ', use --account ' + workspace.id + '.';
+    byId('install-prompt').textContent = byId('install-prompt').dataset.basePrompt + ' For new documents, select Cloud account ' + workspace.id + ' with --account ' + workspace.id + '. Preserve the account bindings of existing documents.';
     window.SDocsCloudAccountSelection.remember(localStorage, workspace.id);
     var encoded = encodeURIComponent(workspace.id);
-    var team = workspace.kind === 'team';
+    var team = state.singlePlan || workspace.kind === 'team';
     var canAdminister = workspace.role === 'owner' || workspace.role === 'admin';
     var responses = await Promise.all([
       team ? request('/account/members?account_id=' + encoded) : Promise.resolve({ members: [] }),
@@ -565,7 +593,7 @@
           state.workspaces = state.workspaces.filter(function (item) { return item.id !== workspace.id; });
           if (state.workspaces.length) await loadWorkspace(state.workspaces[0].id);
           else location.assign('/library?scope=cloud');
-        }, 'Delete team');
+        }, state.singlePlan ? 'Delete library' : 'Delete team');
     });
     byId('confirm-cancel').addEventListener('click', closeConfirm);
     byId('confirm-action').addEventListener('click', async function () {
@@ -591,32 +619,106 @@
     });
   }
 
+  function setupInstall() {
+    var setup = window.SDocCliSetup;
+    var command = setup.installCommand(setup.isWindows());
+    var local = location.origin !== 'https://smalldocs.org';
+    var environment = local ? (setup.isWindows() ? '$env:SDOCS_CLOUD_URL="' + location.origin + '"' : 'export SDOCS_CLOUD_URL=' + location.origin) : '';
+    var login = 'sdoc cloud login';
+    byId('install-command').textContent = command + '\n' + 'sdoc setup --cloud --yes' + '\n' + (environment ? environment + '\n' : '') + login;
+    byId('install-prompt').textContent = 'Install SmallDocs using the instructions at https://smalldocs.org/sdoc. Configure the Cloud-first skill with sdoc setup --cloud --yes, then run ' + login + '. ' + (local ? 'Set SDOCS_CLOUD_URL to ' + location.origin + ' for all SmallDocs commands. ' : '') + 'Let me approve the connection in my browser. Use the Cloud URL returned by sdoc when linking documents in chat.';
+    byId('install-prompt').dataset.basePrompt = byId('install-prompt').textContent;
+    document.querySelectorAll('[data-install-copy]').forEach(function (button) {
+      button.addEventListener('click', async function () {
+        try { await navigator.clipboard.writeText(byId(button.dataset.installCopy).textContent); byId('install-copy-status').textContent = 'Copied'; }
+        catch (_) { byId('install-copy-status').textContent = 'Select the text and copy it.'; }
+      });
+    });
+    byId('install-machines-link').addEventListener('click', function (event) { event.preventDefault(); activatePanel('machines'); });
+    document.addEventListener('visibilitychange', function () {
+      if (!document.hidden && !byId('panel-machines').hidden) loadCredentials().catch(showError);
+    });
+  }
+
+  function setupLibraries() {
+    var list = byId('all-libraries'); list.replaceChildren();
+    state.workspaces.forEach(function (library) {
+      var row = element('div', 'machine-row');
+      var link = element('a', 'btn', library.name); link.href = '/cloud/admin?panel=install&workspace_id=' + encodeURIComponent(library.id);
+      link.style.color = window.SDocsCloudAccountSelection.color(library.id);
+      row.appendChild(link); list.appendChild(row);
+    });
+    byId('create-library-form').onsubmit = async function (event) {
+      event.preventDefault(); var button = this.querySelector('button'); button.disabled = true;
+      try {
+        var result = await mutation('POST', '/workspaces', { name: byId('new-library-name').value.trim() });
+        location.assign('/cloud/admin?panel=install&workspace_id=' + encodeURIComponent(result.workspace.workspaceId));
+      } catch (_) { byId('library-create-status').textContent = 'The library could not be created. Try again.'; button.disabled = false; }
+    };
+    request('/onboarding').then(function (data) { byId('library-request-form').hidden = !data.company_domain; }).catch(function () {});
+    byId('library-request-form').onsubmit = async function (event) {
+      event.preventDefault(); var button = this.querySelector('button'); button.disabled = true;
+      try {
+        var result = await mutation('POST', '/join-requests', { consented: byId('library-request-consent').checked, note: byId('library-request-note').value });
+        byId('library-request-url').value = result.request.handoff_url; byId('library-request-url').hidden = false;
+        byId('library-request-status').textContent = 'Send this link to your library administrator. Nothing has been sent automatically.';
+      } catch (_) { byId('library-request-status').textContent = 'The request could not be created. Try again.'; }
+      button.disabled = false;
+    };
+  }
+
   async function initialize() {
+    setupInstall();
     wireEvents();
     try {
       var responses = await Promise.all([
         request('/me'), request('/workspaces'), request('/cli/credentials'),
-        request('/workspaces/deleted'), request('/documents/deleted'),
       ]);
+      state.singlePlan = Boolean(responses[0].single_plan);
       state.me = responses[0].user || null;
+      document.querySelector('[data-panel="libraries"]').hidden = !state.singlePlan;
+      if (state.singlePlan) {
+        byId('members-empty').textContent = 'No other people have joined this library yet.';
+        byId('invite-status').textContent = 'After acceptance, people without a paid subscription elsewhere are covered by your billing account.';
+        byId('delete-workspace').textContent = 'Delete library';
+        byId('workspace-lifecycle').querySelector('strong').textContent = 'Delete library';
+      }
       state.workspaces = responses[1].workspaces || [];
       state.credentials = responses[2].credentials || [];
-      state.deletedWorkspaces = responses[3].workspaces || [];
-      state.deletedDocuments = responses[4].documents || [];
+      if (state.singlePlan) setupLibraries();
+      state.deletedWorkspaces = [];
+      state.deletedDocuments = [];
       var params = new URLSearchParams(location.search);
+      byId('account-label').textContent = state.me && state.me.email ? [state.me.first_name, state.me.last_name].filter(Boolean).join(' ') + ' · ' + state.me.email : 'Signed in';
       if (!state.workspaces.length) {
+        var panel = params.get('panel');
+        if (panel === 'install' || panel === 'machines') {
+          if (!state.me.first_name || !state.me.last_name) { location.assign('/cloud/profile'); return; }
+          document.querySelector('.account-switcher').hidden = true;
+          ['overview', 'billing'].forEach(function (name) { document.querySelector('[data-panel="' + name + '"]').hidden = true; });
+          var fullName = [state.me.first_name, state.me.last_name].filter(Boolean).join(' ');
+          byId('account-label').textContent = fullName + ' · ' + state.me.email;
+          renderCredentials();
+          activatePanel(panel, false);
+          return;
+        }
         location.assign('/cloud/checkout');
         return;
       }
+      var deleted = await Promise.all([requestWithoutSubscription('/workspaces/deleted', { workspaces: [] }), requestWithoutSubscription('/documents/deleted', { documents: [] })]);
+      state.deletedWorkspaces = deleted[0].workspaces || [];
+      state.deletedDocuments = deleted[1].documents || [];
       var selected = window.SDocsCloudAccountSelection.resolve(
         state.workspaces, params.get('workspace_id'), localStorage);
       if (!selected) {
         renderAccountSwitcher();
+        if (state.singlePlan && params.get('panel') === 'libraries') { activatePanel('libraries', false); return; }
         byId('overview-name').textContent = 'Choose an account';
         byId('overview-description').textContent = 'Select the Cloud account you want to manage.';
         return;
       }
       await loadWorkspace(selected.id);
+      byId('install-library-link').href = '/library?scope=cloud&workspace=' + encodeURIComponent(selected.id);
       var requestedPanel = params.get('panel');
       var panelExists = requestedPanel && byId('panel-' + requestedPanel);
       if (panelExists && !(requestedPanel === 'people' && !isTeam())) {

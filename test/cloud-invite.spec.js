@@ -3,6 +3,14 @@ const { test, expect } = require('@playwright/test');
 test.use({ serviceWorkers: 'block' });
 
 const INVITE_PAGE = '/public/cloud-invite.html';
+test.beforeEach(async ({ page }) => {
+  await page.route('**/api/cloud/v1/invitations/*', route => {
+    const token = new URL(route.request().url()).pathname.split('/').pop();
+    if (token === 'wrong-email') return route.fulfill({ status: 403, json: { error: 'permission_denied' } });
+    if (token === 'unavailable') return route.fulfill({ status: 404, json: { error: 'resource_unavailable' } });
+    return route.fulfill({ json: { ok: true, invitation: { workspace_id: 'team-1', workspace_name: 'Engineering', role: 'member', accepted: false } } });
+  });
+});
 
 async function routeExistingProfile(page) {
   await page.route('**/api/cloud/v1/me', async route => {
@@ -14,7 +22,7 @@ async function routeExistingProfile(page) {
   });
 }
 
-test('collects both names, accepts an invitation, and opens the invited workspace library', async ({ page }) => {
+test('collects both names, accepts an invitation, and opens the invited team Install tab', async ({ page }) => {
   const requests = [];
   await page.route('**/api/cloud/v1/me', async route => {
     const request = route.request();
@@ -31,8 +39,8 @@ test('collects both names, accepts an invitation, and opens the invited workspac
       body: route.request().postDataJSON() });
     await route.fulfill({ json: { ok: true, workspace_id: 'team-1', role: 'member' } });
   });
-  await page.route('**/library?scope=cloud&workspace=team-1', route => route.fulfill({
-    contentType: 'text/html', body: '<!doctype html><title>Cloud library</title><h1>Cloud library</h1>',
+  await page.route('**/cloud/admin?panel=install&workspace_id=team-1', route => route.fulfill({
+    contentType: 'text/html', body: '<!doctype html><title>Install</title><h1>Install SmallDocs</h1>',
   }));
 
   await page.goto(INVITE_PAGE + '?token=invite-token');
@@ -43,8 +51,8 @@ test('collects both names, accepts an invitation, and opens the invited workspac
   await expect(button).toBeEnabled();
   await page.getByRole('button', { name: 'Accept invitation' }).click();
 
-  await expect(page).toHaveURL(/\/library\?scope=cloud&workspace=team-1$/);
-  await expect(page.getByRole('heading', { name: 'Cloud library' })).toBeVisible();
+  await expect(page).toHaveURL(/\/cloud\/admin\?panel=install&workspace_id=team-1$/);
+  await expect(page.getByRole('heading', { name: 'Install SmallDocs' })).toBeVisible();
   expect(requests).toEqual([
     { method: 'GET', path: '/me', body: null },
     { method: 'PATCH', path: '/me', body: { first_name: 'Tom', last_name: 'Oakley' } },
@@ -60,11 +68,9 @@ test('explains when the signed-in email does not match the invitation', async ({
 
   await page.goto(INVITE_PAGE + '?token=wrong-email');
   const button = page.getByRole('button', { name: 'Accept invitation' });
-  await button.click();
-
   await expect(page.getByRole('status')).toHaveText(
     'Sign in with the email address this invitation was sent to.');
-  await expect(button).toBeEnabled();
+  await expect(button).toBeDisabled();
 });
 
 test('explains when an invitation is expired, revoked, or already used', async ({ page }) => {
@@ -75,10 +81,9 @@ test('explains when an invitation is expired, revoked, or already used', async (
 
   await page.goto(INVITE_PAGE + '?token=unavailable');
   const button = page.getByRole('button', { name: 'Accept invitation' });
-  await button.click();
 
   await expect(page.getByRole('status')).toHaveText('This invitation is no longer available.');
-  await expect(button).toBeEnabled();
+  await expect(button).toBeDisabled();
 });
 
 test('explains when the server still requires a complete profile', async ({ page }) => {

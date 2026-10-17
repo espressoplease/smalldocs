@@ -55,7 +55,7 @@ for (const width of [320, 390, 600, 601, 1440]) {
     }
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     const spacing = await page.evaluate(() => {
-      const form = document.querySelector('#start-samples form').getBoundingClientRect();
+      const form = document.querySelector('#start-samples .homepage-google').getBoundingClientRect();
       const samples = document.querySelector('#learn .install-panel').getBoundingClientRect();
       const praise = document.querySelector('#praise .install-panel').getBoundingClientRect();
       return {
@@ -96,51 +96,16 @@ for (const width of [390, 1440]) {
   });
 }
 for (let index = 0; index < 3; index++) {
-  test('email form ' + index + ' reveals install commands only after a saved request', async ({ page }) => {
-    let submitted;
-    await page.route('**/api/install-interest', route => {
-      submitted = route.request().postDataJSON();
-      return route.fulfill({ status: 201, json: { ok: true } });
-    });
+  test('email signup ' + index + ' verifies the entered email before profile setup', async ({ page }) => {
     await page.goto('/home-next');
-    const instructions = page.locator('#install-instructions');
-    await expect(instructions).toBeHidden();
     const form = page.locator('[data-install-form]').nth(index);
     await form.locator('input').fill('reader@example.com');
     await form.locator('button').click();
-    await expect(instructions).toBeVisible();
-    expect(submitted).toEqual({ email: 'reader@example.com' });
-    await expect(page.locator('[data-install-command]')).toContainText('smalldocs.org/install');
-    await expect(page.locator('[data-install-form] input').first()).toHaveValue('reader@example.com');
+    await expect(page).toHaveURL(/cloud\/sign-in\?return=%2Fcloud%2Fprofile&email=reader%40example.com$/);
+    await expect(page.locator('#email')).toHaveValue('reader@example.com');
+    await expect(page.locator('#return-label')).toBeVisible();
   });
 }
-test('failed email submissions preserve the address and allow retry', async ({ page }) => {
-  await page.route('**/api/install-interest', route => route.fulfill({ status: 502, json: { error: 'submission_failed' } }));
-  await page.goto('/home-next');
-  const form = page.locator('[data-install-form]').first();
-  await form.locator('input').fill('reader@example.com');
-  await form.locator('button').click();
-  await expect(page.locator('.start-status').first()).toContainText('Try again');
-  await expect(page.locator('#install-instructions')).toBeHidden();
-  await expect(form.locator('input')).toHaveValue('reader@example.com');
-  await expect(form.locator('button')).toBeEnabled();
-});
-
-
-test('installer copy uses the shared platform command', async ({ page }) => {
-  await page.route('**/api/install-interest', route => route.fulfill({ status: 201, json: { ok: true } }));
-  await page.addInitScript(() => {
-    navigator.clipboard.writeText = async text => { window.copiedInstallCommand = text; };
-  });
-  await page.goto('/home-next');
-  const form = page.locator('[data-install-form]').first();
-  await form.locator('input').fill('reader@example.com');
-  await form.locator('button').click();
-  await page.locator('[data-copy-install]').click();
-  expect(await page.evaluate(() => window.copiedInstallCommand))
-    .toBe('curl -fsSL https://smalldocs.org/install | sh');
-});
-
 
 test('the introduction is a 30-second clip with captions', async ({ page }) => {
   await page.goto('/home-next');
@@ -160,8 +125,8 @@ test('homepage experiment preserves the supplied copy and vertical order', async
     'SmallDocs are built for human-agent feedback loops. Speed up your iteration with targeted features: easy ways to copy precise chunks of text, tables, code and charts, and the ability to leave comments on a document for your agent to pick up.',
     'SmallDocs are automatically saved to an encrypted cloud library. This library is accessible to humans (on the web, including mobile) and agents (via the SmallDocs command line tool).',
     'SmallDocs are agent agnostic, meaning teams using AI from a range of providers can all create and save documents in a standardized way.',
-    'Over 4,000 developers, financiers and scientists use SmallDocs. To join them, enter your email to receive your install prompt:',
-    'SmallDocs is free for a month, then £4/month for individuals and £7/month/user for teams. Free usage can be extended by successfully sharing a referral link.',
+    'Over 4,000 developers, financiers and scientists use SmallDocs. To join them, get your install prompt:',
+    'SmallDocs is free for a month, then £4/user/month, with all features included. Free usage can be extended by successfully sharing a referral link.',
   ];
   expect(await page.locator('.homepage-copy').allTextContents()).toEqual(expected);
   await expect(page.locator('h1')).toHaveText('SmallDocs is a document format and library for coding agents.');
@@ -186,7 +151,7 @@ for (const width of [390, 1440]) {
     }
     const gaps = await page.evaluate(() => {
       const praise = document.querySelector('#praise .install-panel').getBoundingClientRect();
-      const form = document.querySelector('#start-praise form').getBoundingClientRect();
+      const form = document.querySelector('#start-praise .homepage-google').getBoundingClientRect();
       const link = document.querySelector('#start-praise .homepage-sales-link').getBoundingClientRect();
       const sales = document.querySelector('#talk-to-sales .install-panel').getBoundingClientRect();
       return [form.top - praise.bottom, sales.top - link.bottom];
@@ -247,9 +212,41 @@ for (const [locale, personal, team] of [['en-GB', '£4', '£7'], ['en-US', '$5',
     test.use({ locale });
     test('uses the existing Cloud prices in the introductory sentence', async ({ page }) => {
       await page.goto('/home-next');
-      await expect(page.locator('.homepage-price')).toHaveText('SmallDocs is free for a month, then ' + personal + '/month for individuals and ' + team + '/month/user for teams. Free usage can be extended by successfully sharing a referral link.');
-      await expect(page.locator('.homepage-price [data-cloud-plan="personal"] [data-cloud-price-primary]')).toHaveText(personal);
-      await expect(page.locator('.homepage-price [data-cloud-plan="team"] [data-cloud-price-primary]')).toHaveText(team);
+      await expect(page.locator('.homepage-price')).toHaveText('SmallDocs is free for a month, then ' + personal + '/user/month, with all features included. Free usage can be extended by successfully sharing a referral link.');
+      await expect(page.locator('.homepage-price [data-cloud-plan="standard"] [data-cloud-price-primary]')).toHaveText(personal);
     });
   });
 }
+
+for (const width of [390, 1440]) {
+  test('Google-first signup layout precedes all three email forms at width ' + width, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto('/home-next');
+    await expect(page.getByRole('link', { name: 'Continue with Google', exact: true })).toHaveCount(3);
+    for (const start of await page.locator('.homepage-start').all()) {
+      const positions = await start.evaluate(el => {
+        const google = el.querySelector('.homepage-google').getBoundingClientRect();
+        const form = el.querySelector('form').getBoundingClientRect();
+        return { google: google.toJSON(), form: form.toJSON() };
+      });
+      expect(positions.google.bottom).toBeLessThan(positions.form.top);
+      expect(positions.google.width).toBeCloseTo(positions.form.width, 0);
+      const url = new URL(await start.locator('.homepage-google').getAttribute('href'), 'http://localhost:3099');
+      expect(url.pathname).toBe('/api/cloud/auth/oauth/google');
+      expect(url.searchParams.get('return_to')).toBe('/cloud/profile');
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  });
+}
+test('unconfigured Google sign-in explains the email alternative without navigating away', async ({ page }) => {
+  await page.route('**/home-next', async route => { const response = await route.fetch(); await route.fulfill({ response, body: (await response.text()).replace('data-google-enabled="true"', 'data-google-enabled="false"') }); });
+  await page.goto('/home-next');
+  await page.locator('.homepage-google').first().click();
+  await expect(page.locator('#start .start-status')).toHaveText('Google sign-in is unavailable right now. Use email to continue.');
+  await expect(page).toHaveURL(/home-next$/);
+  await expect(page.locator('#install-instructions')).toHaveCount(0);
+});
+test('the homepage no longer shows installation instructions after Google sign-in', async ({ page }) => {
+  await page.goto('/home-next?install=google');
+  await expect(page.locator('#install-instructions')).toHaveCount(0);
+});

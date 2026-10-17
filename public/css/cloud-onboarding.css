@@ -1,0 +1,10 @@
+.onboarding-shell { max-width: none; }
+.onboarding-shell > .auth-card { width: min(640px, 100%); }
+.onboarding-choices { display: grid; gap: 12px; }
+.onboarding-choices .prototype-status { margin: 0 0 8px; }
+.onboarding-shell h2 { font-size: 16px; margin: 20px 0 12px; }
+.onboarding-shell textarea { font: inherit; resize: vertical; }
+.onboarding-shell .provider-button { width: 100%; margin: 8px 0; }
+.onboarding-shell .terms-choice { align-items: flex-start; margin: 16px 0; }
+.onboarding-shell p, .onboarding-shell input { overflow-wrap: anywhere; }
+.onboarding-shell #library-choices { display: grid; gap: 8px; margin-bottom: 20px; }

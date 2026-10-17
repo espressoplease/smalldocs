@@ -242,3 +242,5 @@ label { display: block; margin-bottom: 6px; color: var(--text-2); font-size: 11.
   }
   .provider-icon-github { color: #F0F0F0; }
 }
+
+.profile-form .text-input { margin-bottom: 16px; }

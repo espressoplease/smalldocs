@@ -1225,7 +1225,7 @@ module.exports = function(harness) {
       assert.strictEqual(location.searchParams.get('client_id'), 'http-test-google-client');
       assert.strictEqual(location.searchParams.get('redirect_uri'),
         BASE + '/api/cloud/auth/oauth/google/callback');
-      assert.strictEqual(location.searchParams.get('scope'), 'openid email');
+      assert.strictEqual(location.searchParams.get('scope'), 'openid email profile');
       assert.strictEqual(location.searchParams.get('code_challenge_method'), 'S256');
       assert.ok(location.searchParams.get('code_challenge'));
       assert.ok(location.searchParams.get('nonce'));
@@ -1779,7 +1779,8 @@ module.exports = function(harness) {
 
       const reused = await post(BASE + '/api/cloud/v1/invitations/' + encodeURIComponent(token) + '/accept', {},
         { Origin: BASE, Cookie: cloudMemberCookie });
-      assert.strictEqual(reused.status, 404);
+      assert.strictEqual(reused.status, 200);
+      assert.strictEqual(JSON.parse(reused.body).workspace_id, cloudTeamWorkspace.workspaceId);
     });
 
     await testAsync('Cloud notifications batch documents without granting or inviting access', async () => {
@@ -2235,6 +2236,7 @@ module.exports = function(harness) {
       assert.strictEqual(head.status, 200);
       assert.deepStrictEqual(JSON.parse(head.body).document, {
         id: targetDocument.id,
+        workspace_id: cloudProject.workspaceId,
         current_revision_id: mergedDocument.current_revision_id,
         revision_number: mergedDocument.revision_number,
         updated_at: mergedDocument.updated_at,
@@ -2560,6 +2562,7 @@ module.exports = function(harness) {
       const hiddenServer = spawn('node', [path.join(__dirname, '..', 'server.js')], {
         env: {
           PATH: process.env.PATH,
+          NODE_PATH: process.env.NODE_PATH,
           HOME: process.env.HOME,
           HOST: '127.0.0.1',
           PORT: String(hiddenPort),

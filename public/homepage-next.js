@@ -6,39 +6,15 @@
   }
   if (document.readyState === 'complete') revealLogin();
   else window.addEventListener('load', revealLogin, { once: true });
-  const command = window.SDocCliSetup.installCommand(window.SDocCliSetup.isWindows());
-  document.querySelector('[data-install-command]').textContent = command;
-  document.querySelector('[data-copy-install]').dataset.copy = command;
-  document.querySelectorAll('[data-copy]').forEach(button => button.addEventListener('click', async () => {
-    try {
-      await navigator.clipboard.writeText(button.dataset.copy);
-      const label = button.textContent;
-      button.textContent = 'Copied';
-      setTimeout(() => { button.textContent = label; }, 1400);
-    } catch (_) { button.textContent = 'Select and copy'; }
+  document.querySelectorAll('.homepage-google').forEach(link => link.addEventListener('click', event => {
+    if (document.body.dataset.googleEnabled === 'true') return;
+    event.preventDefault();
+    link.parentElement.querySelector('.start-status').textContent = 'Google sign-in is unavailable right now. Use email to continue.';
   }));
-  document.querySelectorAll('[data-install-form]').forEach(form => form.addEventListener('submit', async event => {
+  document.querySelectorAll('[data-install-form]').forEach(form => form.addEventListener('submit', event => {
     event.preventDefault();
     if (!form.reportValidity()) return;
-    const status = form.parentElement.querySelector('.start-status');
-    const button = form.querySelector('button');
-    const email = form.elements.email.value.trim();
-    button.disabled = true;
-    status.textContent = 'Getting your install script…';
-    try {
-      const response = await fetch('/api/install-interest', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
-      });
-      if (!response.ok) throw new Error('Install request failed');
-      document.querySelectorAll('[data-install-form] input').forEach(input => { input.value = email; });
-      const instructions = document.getElementById('install-instructions');
-      instructions.hidden = false;
-      status.textContent = 'Your install script is ready below.';
-      instructions.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'start' });
-      instructions.focus({ preventScroll: true });
-    } catch (_) { status.textContent = 'Your request could not be saved. Try again.'; }
-    finally { button.disabled = false; }
+    location.assign('/cloud/sign-in?return=%2Fcloud%2Fprofile&email=' + encodeURIComponent(form.elements.email.value.trim()));
   }));
   const video = document.getElementById('intro-video');
   const play = document.querySelector('.intro-play');

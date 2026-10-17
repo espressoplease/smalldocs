@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Review a library request</title>
+<meta name="description" content="Review a library request">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32' fill='none'%3E%3Crect x='2' y='2' width='28' height='28' rx='7' fill='%232563EB' fill-opacity='.15'/%3E%3Crect x='2' y='2' width='28' height='28' rx='7' stroke='%232563EB' stroke-width='2'/%3E%3Cpath d='M9 11h14M9 16h11M9 21h8' stroke='%232563EB' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/public/css/cloud-sign-in.css">
+<link rel="stylesheet" href="/public/css/cloud-onboarding.css">
+</head>
+<body>
+
+<header class="header">
+  <a class="brand" href="/">
+    <span class="brand-full">SmallDocs</span>
+    <span class="brand-short">SDocs</span>
+    <span class="brand-tiny">SD</span>
+  </a>
+  <span class="nav-sep">/</span>
+  <span class="nav-label">Cloud</span>
+</header>
+
+<main class="auth-shell onboarding-shell"><section class="auth-card">
+<div class="auth-heading"><div><h1>Review library request</h1><p>Invite this person to a library you administer.</p></div></div>
+<form id="review-form" hidden><p id="requester-name"></p><p id="requester-email"></p><p id="requester-note"></p>
+<label for="review-team">Library</label><select class="text-input" id="review-team" required></select>
+<p class="prototype-status">Membership begins when the person accepts. Existing private documents stay private. Subscription coverage is checked when they join.</p>
+<button class="primary-button" type="submit">Send invitation</button></form>
+<div id="review-result" hidden><input class="text-input" id="invite-link" readonly aria-label="Invitation link"><button class="provider-button" id="copy-invite" type="button">Copy invitation link</button></div>
+<p class="prototype-status" id="review-status" role="status" aria-live="polite">Loading request...</p>
+</section></main>
+<script src="/public/cloud-join-request.js" defer></script>
+</body></html>

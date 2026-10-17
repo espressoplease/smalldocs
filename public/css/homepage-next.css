@@ -18,6 +18,12 @@
 .home-next .lead { font-size: 16px; }
 .home-next .homepage-copy { margin-top: 9px; }
 .homepage-start { margin-top: 13px; margin-bottom: 12px; width: 100%; }
+.homepage-google { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; min-height: 42px; padding: 10px 12px; background: #fff; border: 1px solid var(--line-2); border-radius: var(--r); color: #1f1f1f; font-size: 14px; font-weight: 500; line-height: 20px; text-decoration: none; transition: background .15s; }
+.homepage-google:hover { background: #f2f2f2; }
+.homepage-google:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.homepage-google-icon { width: 20px; height: 20px; flex-shrink: 0; }
+.homepage-signup-divider { display: flex; align-items: center; gap: 12px; margin: 14px 0; font-size: 12px; line-height: 18px; color: var(--ink-3); }
+.homepage-signup-divider::before, .homepage-signup-divider::after { content: ''; flex: 1; height: 1px; background: var(--line); }
 .homepage-email { display: flex; align-items: stretch; gap: 4px; width: 100%; }
 .homepage-email .tf-field { flex: 1; min-width: 0; }
 .homepage-email input { height: 100%; background: white; border-radius: var(--r) 0 0 var(--r); }
@@ -43,6 +49,7 @@
 .home-next main { padding-bottom: 66px; }
 @media (max-width: 600px) {
   #start-samples, #start-praise { padding: 24px 0; }
+  .homepage-google { min-height: 48px; }
   .homepage-email { flex-direction: column; }
   .homepage-email input, .homepage-email button { min-height: 48px; }
   .homepage-email input { font-size: 16px; border-radius: var(--r) var(--r) 0 0; }

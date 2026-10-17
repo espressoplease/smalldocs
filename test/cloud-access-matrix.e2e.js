@@ -596,7 +596,7 @@ test('reusable staging identities enforce access and merge two-account edits', a
     expect(afterDeniedComment.body.document.markdown).not.toContain('This must not be saved');
     document = afterDeniedComment.body.document;
 
-    const ownerPage = await owner.newPage();
+    let ownerPage = await owner.newPage();
     await ownerPage.setViewportSize({ width: 390, height: 844 });
     await ownerPage.goto('/library?scope=cloud&account_id=' + encodeURIComponent(accountId));
     await expect(ownerPage.getByRole('link', { name: 'Local' })).toBeHidden();
@@ -605,7 +605,9 @@ test('reusable staging identities enforce access and merge two-account edits', a
     const libraryRow = ownerPage.locator('.res[data-id="' + document.id + '"]');
     await expect(libraryRow.locator('.res-title')).toHaveText(document.title);
     await expect(libraryRow.locator('.tag')).toHaveText(['#permission-matrix', '#shared-test']);
+    const openedDocument = owner.waitForEvent('page');
     await libraryRow.click();
+    ownerPage = await openedDocument;
     await expect.poll(() => new URL(ownerPage.url()).searchParams.get('cloud-document'))
       .toBe(document.id);
     await expect(ownerPage.locator('#_sd_rendered')).toContainText('Selected edit from a pruned target.');

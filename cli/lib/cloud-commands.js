@@ -50,6 +50,25 @@ uploading them again. The URL identifies a document; it does not grant access.
 Feedback and bridge commands still use local live sessions. A Cloud URL does
 not turn those sessions into Cloud-backed feedback.
 
+LIBRARIES AND COMPUTER DEFAULTS
+
+  sdoc cloud libraries --json
+  sdoc cloud library-default --json
+  sdoc cloud library-default LIBRARY_UUID --json
+  sdoc cloud library-default clear --json
+  sdoc cloud move DOCUMENT_UUID --account LIBRARY_UUID --dry-run --json
+  sdoc cloud move DOCUMENT_UUID --account LIBRARY_UUID --json
+
+A library is the membership boundary. A paid subscription covers a person across
+libraries; payment never grants access to someone else's documents. A computer
+default applies only to new unbound documents from this authenticated CLI connection.
+An explicit --account takes priority. Existing file bindings keep their library.
+When there are several libraries and no established destination, ask the user.
+Never use the last library viewed in a browser as the CLI destination.
+Moving preserves the document URL and revision history, resets access to Only you,
+and removes access for old-library members. Only the document's creator can move it.
+Review the destination with --dry-run before moving documents on a user's behalf.
+
 DISCOVER AND READ
 
   sdoc cloud status --json
@@ -482,7 +501,16 @@ async function create(opts, client) {
   const digest = bindings.hash(content);
   const credential = requireCredential(client);
   let pending = bindings.getPending(credential.user_id, file);
-  const destination = opts.accountFlag || 'default-account';
+  if (!pending || pending.operation !== 'create' || pending.sha256 !== digest) {
+    pending = { operation: 'create', destination: opts.accountFlag || 'unresolved-default', sha256: digest, idempotency_key: crypto.randomUUID() };
+    bindings.setPending(credential.user_id, file, pending);
+  }
+  let destination = opts.accountFlag || null;
+  if (!destination && pending && pending.operation === 'create' && pending.sha256 === digest && !['default-account', 'unresolved-default'].includes(pending.destination)) destination = pending.destination;
+  if (!destination) {
+    const selected = await client.authenticated('/api/cloud/v1/account');
+    destination = selected.account.id;
+  }
   if (!pending || pending.operation !== 'create' || pending.destination !== destination || pending.sha256 !== digest) {
     pending = { operation: 'create', destination, sha256: digest,
       idempotency_key: crypto.randomUUID() };
@@ -490,7 +518,7 @@ async function create(opts, client) {
   }
   const response = await client.authenticated('/api/cloud/v1/account/documents', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ account_id: opts.accountFlag,
+    body: JSON.stringify({ account_id: destination,
       filename: path.basename(file), markdown: content,
       idempotency_key: pending.idempotency_key }),
   });
@@ -836,6 +864,33 @@ async function undeleteDocument(opts, client) {
     tags: document.tags }, 'Restored ' + document.id + '.');
 }
 
+async function libraries(opts, client) {
+  const data = await client.authenticated('/api/cloud/v1/library-settings');
+  emit(opts, 'cloud.libraries', { libraries: data.libraries }, data.libraries.map(library => library.name + ' (' + library.id + ')').join('\n'));
+}
+async function libraryDefault(opts, client) {
+  const credential = requireCredential(client);
+  let data;
+  if (!opts.extra) data = await client.authenticated('/api/cloud/v1/cli/library-default');
+  else data = await client.authenticated('/api/cloud/v1/cli/credentials/' + encodeURIComponent(credential.credential_id) + '/library-default', {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ workspace_id: opts.extra === 'clear' ? null : opts.extra }) });
+  emit(opts, 'cloud.library-default', data, data.workspace_id ? 'Default library: ' + data.workspace_id : 'No default library. Ask when several libraries are available.');
+}
+async function move(opts, client) {
+  if (!opts.extra || !opts.accountFlag) throw new CloudCommandError('invalid_request', 'usage: sdoc cloud move DOCUMENT_UUID --account LIBRARY_UUID [--dry-run] --json');
+  const current = await client.authenticated('/api/cloud/v1/documents/' + encodeURIComponent(opts.extra));
+  const settings = await client.authenticated('/api/cloud/v1/library-settings');
+  const destination = settings.libraries.find(library => library.id === opts.accountFlag);
+  if (!destination) throw new CloudCommandError('resource_unavailable', 'The destination library is unavailable.');
+  if (!current.permission || !current.permission.can_manage) throw new CloudCommandError('permission_denied', 'Only the document creator can move it.');
+  if (opts.dryRunFlag) return emit(opts, 'cloud.move', { dry_run: true, document_id: opts.extra,
+    destination, access_after_move: 'only_you', url: documentUrl(client, opts.extra) }, 'Move ' + current.document.title + ' to ' + destination.name + '. Access will become Only you.');
+  const data = await client.authenticated('/api/cloud/v1/documents/' + encodeURIComponent(opts.extra) + '/library', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ workspace_id: opts.accountFlag, expected_head_revision_id: current.document.current_revision_id }) });
+  emit(opts, 'cloud.move', { document_id: data.document.id, workspace_id: data.document.workspace_id,
+    permission: data.permission, url: documentUrl(client, data.document.id) }, 'Moved to ' + destination.name + '. Access is Only you.\n' + documentUrl(client, data.document.id));
+}
+
 async function status(opts, client) {
   const query = opts.accountFlag ? '?account_id=' + encodeURIComponent(opts.accountFlag) : '';
   const me = await client.authenticated('/api/cloud/v1/account' + query);
@@ -866,6 +921,9 @@ async function runCloudCommand(opts, dependencies) {
     if (action === 'overview') return overview(opts, client);
     if (action === 'login') return await login(opts, client);
     if (action === 'logout') return await logout(opts, client);
+    if (action === 'libraries') return await libraries(opts, client);
+    if (action === 'library-default') return await libraryDefault(opts, client);
+    if (action === 'move') return await move(opts, client);
     if (action === 'status') return await status(opts, client);
     if (action === 'members') return await members(opts, client);
     if (action === 'tags') return await tags(opts, client);

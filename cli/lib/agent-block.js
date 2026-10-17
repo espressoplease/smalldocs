@@ -28,8 +28,8 @@ const path = require('path');
 const { SETUP_CACHE } = require('./constants');
 
 // ── Skill model ────────────────────────────────────────────
-const SKILL_VERSION = 30;
-const SKILL_REASON  = 'The Cloud edition explains confirmed saves and requires returned Cloud URLs for chat links instead of local file links.';
+const SKILL_VERSION = 31;
+const SKILL_REASON  = 'Cloud library discovery, computer defaults and permission-resetting document moves are explicit.';
 const SKILL_NAME    = 'smalldocs';
 
 // Always-in-context preamble. Concise trigger text; the full reference lives
@@ -118,6 +118,8 @@ When earlier Cloud material should inform new work, use this sequence:
 3. Run \`sdoc cloud search "SPECIFIC TERMS" --json\`, then shorten the query or inspect \`sdoc cloud tags --json\` only when needed.
 4. Pull a promising result with \`sdoc cloud pull DOCUMENT_UUID --output PATH --no-bind --json\` so reading it does not bind the file for a later update.
 
+- List libraries with \`sdoc cloud libraries --json\`. Read the current computer default with \`sdoc cloud library-default --json\`, and set it with \`sdoc cloud library-default LIBRARY_UUID --json\` on the user's instruction. An explicit \`--account\` overrides that default for new documents; an existing document binding always keeps its destination. Ask when several libraries are available and the user or project has not established a destination. Browser selection is not the computer default.
+- Move an owned document with \`sdoc cloud move DOCUMENT_UUID --account LIBRARY_UUID --dry-run --json\`, review that destination, then repeat without \`--dry-run\` on the user's instruction. A move preserves the Cloud URL and history but resets access to Only you. It removes old-library access. Payment or email-domain matching never grants document access.
 - Discover account access, people, tags, and document permission sets with \`sdoc cloud status --json\`, \`sdoc cloud members\`, \`sdoc cloud tags\`, and \`sdoc cloud permission-groups\`. When status reports more than one account, pass \`--account ACCOUNT_UUID\` to account-scoped commands.
 - Find documents with \`sdoc cloud search "QUERY" --json\`. Search matches a case-insensitive phrase across titles, filenames, tags, and Markdown, returning document IDs and snippets rather than full content. Use \`sdoc cloud tags --json\` to discover existing vocabulary, \`--tag TAG\` to narrow results, \`sdoc cloud ls --shared-with-me --json\` for documents shared with the signed-in user, and \`--account ACCOUNT_UUID\` when the relevant account is known.
 - Read a promising result without binding it for future updates with \`sdoc cloud pull DOCUMENT_UUID --output PATH --no-bind --json\`. To update it, pull without \`--no-bind\`, edit the local Markdown, then run \`sdoc cloud push PATH --json\`.
