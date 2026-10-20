@@ -238,6 +238,23 @@ module.exports = function (h) {
         assert.ok(!result.data.includes('__SETUP_'));
         assert.strictEqual(billing.db.prepare('SELECT COUNT(*) AS n FROM cloud_billing_personal_trials WHERE user_id=?').get(alternate.id).n, 0);
       });
+      await testAsync('settings after ownership transfer preserve both payer and member trial deadlines', async () => {
+        let owner = f.auth.signInWithVerifiedEmail('trial-transfer@joes.com').user;
+        owner = f.auth.updateUserProfile({ userId: owner.id, firstName: 'Trial', lastName: 'Owner' });
+        const previous = await store.createTeamWorkspace({ userId: owner.id, name: 'Trial transfer', projectName: 'Documents' });
+        const account = single.initialize(owner.id, previous.workspaceId, 'trial-transfer@joes.com');
+        const deadline = billing.computeEntitlements(account.id).trialEndsAtMs;
+        assert.ok(deadline > Date.now());
+        store.addWorkspaceMember({ actorUserId: owner.id, workspaceId: previous.workspaceId, userId: users.missing.id, role: 'member' });
+        store.transferWorkspaceOwnership({ actorUserId: owner.id, workspaceId: previous.workspaceId, targetUserId: users.missing.id });
+        const trialsBefore = billing.db.prepare('SELECT COUNT(*) AS n FROM cloud_billing_personal_trials').get().n;
+        const page = await api('missing', '/cloud/admin?panel=install');
+        assert.strictEqual(page.status, 200, String(page.data).slice(0, 100));
+        assert.strictEqual(single.account(previous.workspaceId).id, account.id);
+        assert.strictEqual(billing.computeEntitlements(account.id).trialEndsAtMs, deadline);
+        assert.strictEqual(billing.db.prepare('SELECT COUNT(*) AS n FROM cloud_billing_personal_trials').get().n, trialsBefore);
+        assert.strictEqual(single.entitlements(users.missing.id, previous.workspaceId).access.write, false);
+      });
       await testAsync('the obsolete plan checkout and conversion routes cannot create a second subscription', async () => {
         assert.strictEqual((await api('josh', '/api/cloud/billing/checkout', 'POST', { workspace_id: own, plan: 'personal' })).status, 409);
         assert.strictEqual((await api('josh', '/api/cloud/v1/team-upgrade/preview', 'POST', { workspace_id: own, name: 'Team' })).status, 400);
