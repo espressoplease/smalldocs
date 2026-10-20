@@ -78,6 +78,9 @@ function parseArgs(argv) {
   const tagFilters = [];
   const addTags = [];
   const annotations = [];
+  const discovery = { searchArgumentErrors: [] };
+  const searchQueryParts = [];
+  let searchEndOfOptions = false;
   // Multi-file code walkthrough: every source-code positional is collected
   // into `files`, in command order. `currentFile` is the cursor an annotation
   // binds to, so `file1.py 4:"x" file2.py 13:"y"` ties line 4 to file1 and
@@ -88,6 +91,57 @@ function parseArgs(argv) {
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
+
+    // Cloud discovery has its own option grammar. Preserve every query token
+    // and report misspelled options through the command's JSON error envelope.
+    if (subcommand === 'cloud' && (file === 'search' || file === 'ls')) {
+      if (!searchEndOfOptions && arg === '--') { searchEndOfOptions = true; continue; }
+      if (!searchEndOfOptions && (arg === '--help' || arg === '-h')) { helpFlag = true; continue; }
+      if (!searchEndOfOptions && arg === '--json') { jsonFlag = true; continue; }
+      if (!searchEndOfOptions && arg === '--literal') { discovery.literalFlag = true; continue; }
+      if (!searchEndOfOptions && arg === '--compact') { discovery.compactFlag = true; continue; }
+      if (!searchEndOfOptions && arg === '--word-forms') { discovery.wordFormsFlag = true; continue; }
+      if (!searchEndOfOptions && arg === '--all') { discovery.allFlag = true; continue; }
+      if (!searchEndOfOptions && arg === '--mine') { discovery.mineFlag = true; continue; }
+      if (!searchEndOfOptions && arg === '--shared-with-me') { sharedWithMeFlag = true; continue; }
+      if (!searchEndOfOptions && arg === '--facets') {
+        const next = args[i + 1];
+        if (next && /^(tags|authors|libraries)(,(tags|authors|libraries))*$/.test(next)) {
+          discovery.facetsFlag = next.split(','); i++;
+        } else discovery.facetsFlag = ['tags', 'authors', 'libraries'];
+        continue;
+      }
+      const scalarOptions = {
+        '--account': 'accountFlag', '--project': 'projectFlag', '--url': 'url',
+        '--cursor': 'cursorFlag', '--sort': 'sortFlag', '--query-file': 'queryFile',
+        '--documents-file': 'documentsFile', '--created-after': 'createdAfterFlag',
+        '--created-before': 'createdBeforeFlag', '--updated-after': 'updatedAfterFlag',
+        '--updated-before': 'updatedBeforeFlag', '--limit': 'limitFlag',
+        '--facet-limit': 'facetLimitFlag', '--match-limit': 'matchLimitFlag',
+        '--pages': 'pagesFlag', '--max-results': 'maxResultsFlag',
+      };
+      const arrayOptions = { '--tag': tagFilters, '--document': documentFlags };
+      const additionalArrays = { '--any-tag': 'anyTagFilters', '--exclude-tag': 'excludeTagFilters',
+        '--author': 'authorFlags', '--updated-by': 'updatedByFlags', '--field': 'fieldFlags' };
+      if (!searchEndOfOptions && (scalarOptions[arg] || arrayOptions[arg] || additionalArrays[arg])) {
+        const next = args[i + 1];
+        if (next == null || next.startsWith('--')) {
+          discovery.searchArgumentErrors.push(arg + ' requires a value'); continue;
+        }
+        i++;
+        if (scalarOptions[arg]) discovery[scalarOptions[arg]] =
+          ['--limit', '--facet-limit', '--match-limit', '--pages', '--max-results'].includes(arg) ? Number(next) : next;
+        else if (arrayOptions[arg]) arrayOptions[arg].push(next);
+        else (discovery[additionalArrays[arg]] || (discovery[additionalArrays[arg]] = [])).push(next);
+        continue;
+      }
+      if (!searchEndOfOptions && arg.startsWith('-')) {
+        discovery.searchArgumentErrors.push('unknown option: ' + arg + '. Run sdoc cloud ' + file + ' --help.');
+        continue;
+      }
+      searchQueryParts.push(arg);
+      continue;
+    }
 
     // `--help` before a subcommand prints the global help. After a
     // subcommand, it is a flag the subcommand handler reads (library
@@ -204,7 +258,8 @@ function parseArgs(argv) {
     if (extra === null) { extra = arg; continue; }
   }
 
-  return {
+  if (searchQueryParts.length) extra = searchQueryParts.join(' ');
+  return Object.assign({
     file, extra, mode, url, subcommand, section, sourceFlag, placementFlag, theme,
     resetFlag, shortFlag, jsonFlag, auditFlag, waitFlag,
     messageText, connectTimeoutS, idleTimeoutS, reconnectGraceMs,
@@ -214,7 +269,7 @@ function parseArgs(argv) {
     limitFlag, noOpenFlag, noBindFlag, forceFlag, tagFilters,
     everyoneFlag, onlyYouFlag, sharedWithMeFlag, noteText, memberFlags, documentFlags,
     addTags, annotations, files,
-  };
+  }, discovery);
 }
 
 async function readContent(file) {

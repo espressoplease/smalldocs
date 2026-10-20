@@ -174,7 +174,7 @@ function withComments(markdown, comments) {
 }
 
 function runCli(args, env) {
-  const cli = path.join(__dirname, '..', 'cli', 'bin', 'sdocs-dev.js');
+  const cli = process.env.CLOUD_E2E_CLI_PATH || path.join(__dirname, '..', 'cli', 'bin', 'sdocs-dev.js');
   const child = spawn(process.execPath, [cli].concat(args), {
     cwd: path.join(__dirname, '..'), env, stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -714,6 +714,70 @@ test('live Team billing opens the reviewed Stripe portal and returns to the acco
     }
   });
 
+test('rich search keeps pages, evidence and facets within live document permissions', async ({ browser }, testInfo) => {
+  test.setTimeout(60000);
+  const baseURL = String(testInfo.project.use.baseURL).replace(/\/$/, '');
+  const owner = await ownerContext(browser, baseURL);
+  const selected = await login(browser, baseURL, TEST_IDENTITIES.selected, configuredSecret());
+  const outsider = await login(browser, baseURL, TEST_IDENTITIES.outsider, configuredSecret());
+  const documents = [];
+  const marker = 'searchcanary' + Date.now() + Math.random().toString(16).slice(2);
+  try {
+    const libraries = await json(owner, baseURL, 'GET', '/api/cloud/v1/workspaces');
+    const accountId = libraries.body.workspaces.find(item => item.name === 'SmallDocs Acceptance').id;
+    const members = await json(owner, baseURL, 'GET', '/api/cloud/v1/account/members?account_id=' + encodeURIComponent(accountId));
+    const selectedId = members.body.members.find(item => item.email === TEST_IDENTITIES.selected).user_id;
+    const ownerId = members.body.members.find(item => item.email === TEST_IDENTITIES.owner).user_id;
+    for (let index = 0; index < 3; index++) {
+      const created = await json(owner, baseURL, 'POST', '/api/cloud/v1/account/documents', {
+        account_id: accountId, filename: marker + '-' + index + '.md', idempotency_key: marker + '-' + index,
+        markdown: '---\ntags:\n  - ' + marker + '\n  - ' + (index === 2 ? 'hiddenfacet' + marker : 'visiblefacet' + marker) + '\n---\n# Search record ' + index + '\n\n' + marker + ' durable queues.\n\nPayments use retries.\n' + (index === 2 ? '\nprivateword' + marker : ''),
+      });
+      expect(created.response.status()).toBe(201);
+      documents.push(created.body.document);
+      if (index < 2) {
+        const shared = await json(owner, baseURL, 'PATCH', '/api/cloud/v1/documents/' + created.body.document.id + '/permission', { mode: 'custom', member_user_ids: [selectedId] });
+        expect(shared.response.status()).toBe(200);
+      }
+    }
+    const body = { workspace_id: accountId, mode: 'query', query: marker + ' AND "durable queues"', tags: [marker], author_user_ids: [ownerId], facets: true, limit: 1 };
+    const first = await json(selected, baseURL, 'POST', '/api/cloud/v1/search', body);
+    expect(first.response.status()).toBe(200);
+    expect(first.body.total_count).toBe(2);
+    expect(first.body.documents).toHaveLength(1);
+    expect(first.body.next_cursor).toBeTruthy();
+    expect(first.body.documents[0].url).toBe(baseURL + '/docs?cloud-document=' + first.body.documents[0].id);
+    expect(JSON.stringify(first.body)).not.toContain('hiddenfacet' + marker);
+    expect(JSON.stringify(first.body)).not.toContain('privateword' + marker);
+    const tampered = await json(selected, baseURL, 'POST', '/api/cloud/v1/search', { ...body, query: marker, cursor: first.body.next_cursor });
+    expect(tampered.response.status()).toBe(400);
+    const unreturned = documents.slice(0, 2).find(item => item.id !== first.body.documents[0].id);
+    expect((await json(owner, baseURL, 'PATCH', '/api/cloud/v1/documents/' + unreturned.id + '/permission', { mode: 'custom', member_user_ids: [] })).response.status()).toBe(200);
+    const next = await json(selected, baseURL, 'POST', '/api/cloud/v1/search', { ...body, cursor: first.body.next_cursor });
+    expect(next.response.status()).toBe(200);
+    expect(next.body.total_count).toBe(1);
+    expect(next.body.documents.map(item => item.id)).not.toContain(unreturned.id);
+    const privateQuery = { workspace_id: accountId, mode: 'query', query: 'privateword' + marker, facets: true };
+    expect((await json(selected, baseURL, 'POST', '/api/cloud/v1/search', privateQuery)).body.total_count).toBe(0);
+    expect((await json(outsider, baseURL, 'POST', '/api/cloud/v1/search', privateQuery)).response.status()).toBe(404);
+    expect((await json(owner, baseURL, 'PATCH', '/api/cloud/v1/documents/' + documents[2].id + '/permission', { mode: 'custom', member_user_ids: [selectedId] })).response.status()).toBe(200);
+    const granted = await json(selected, baseURL, 'POST', '/api/cloud/v1/search', privateQuery);
+    expect(granted.body.documents.map(item => item.id)).toEqual([documents[2].id]);
+    expect(granted.body.facets.tags.map(item => item.tag)).toContain('hiddenfacet' + marker);
+    expect((await json(owner, baseURL, 'PATCH', '/api/cloud/v1/documents/' + documents[2].id + '/permission', { mode: 'custom', member_user_ids: [] })).response.status()).toBe(200);
+    expect((await json(selected, baseURL, 'POST', '/api/cloud/v1/search', privateQuery)).body.total_count).toBe(0);
+    const wordForms = await json(selected, baseURL, 'POST', '/api/cloud/v1/search', { workspace_id: accountId, document_ids: documents.map(item => item.id), mode: 'query', query: 'payment retry', word_forms: true });
+    expect(wordForms.body.total_count).toBe(1);
+  } finally {
+    try {
+      for (const document of documents) {
+        const removed = await json(owner, baseURL, 'DELETE', '/api/cloud/v1/documents/' + document.id, { expected_head_revision_id: document.current_revision_id });
+        expect(removed.response.status()).toBe(200);
+      }
+    } finally { await Promise.all([owner.close(), selected.close(), outsider.close()]); }
+  }
+});
+
 test('a fresh CLI authorizes, manages a Cloud document, persists, and revokes its credential',
   async ({ browser }, testInfo) => {
     test.setTimeout(120000);
@@ -816,6 +880,13 @@ test('a fresh CLI authorizes, manages a Cloud document, persists, and revokes it
       expect(listed.documents.map(item => item.id)).toContain(documentId);
       const searched = await cliJson(['cloud', 'search', runId], cliEnv);
       expect(searched.documents.map(item => item.id)).toContain(documentId);
+      const richSearch = await cliJson(['cloud', 'search', runId, '--tag', 'cli-acceptance',
+        '--author', 'me', '--facets', '--limit', '1', '--all', '--compact', '--json'], cliEnv);
+      expect(richSearch).toMatchObject({ total_count: 1, returned_count: 1, complete: true, has_more: false });
+      expect(richSearch.documents[0].url).toBe(baseURL + '/docs?cloud-document=' + documentId);
+      const read = await cliJson(['cloud', 'read', documentId], cliEnv);
+      expect(read.markdown).toContain('Created from a fresh machine.');
+      expect(read.url).toBe(richSearch.documents[0].url);
 
       const pulledPath = path.join(cliHome, 'pulled-' + runId + '.md');
       const pulled = await cliJson(['cloud', 'pull', documentId, '--output', pulledPath], cliEnv);

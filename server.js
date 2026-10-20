@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { createCursorCodec, normalizeLimit } = require('./lib/cloud-cursor');
+const cloudSearchQuery = require('./cli/shared/sdocs-search-query');
 const { syncTeamSeatQuantity: syncStripeTeamSeatQuantity } = require('./lib/cloud-seat-sync');
 const cloudBillingLifecycle = require('./lib/cloud-billing-lifecycle');
 const { CURRENT_TERMS_VERSION, CURRENT_TERMS_LABEL } = require('./lib/cloud-terms');
@@ -1154,6 +1155,7 @@ function cloudApiError(res, error) {
     project_limit_reached: 409,
     member_limit_reached: 409,
     search_limit_reached: 429,
+    search_index_building: 503,
     billing_not_configured: 503,
     notification_delivery_not_configured: 503,
     subscription_exists: 409,
@@ -1190,7 +1192,17 @@ function cloudApiError(res, error) {
     body.terms_url = '/legal';
     body.acceptance_url = '/cloud/terms';
   }
-  sendJson(res, statuses[code] || 500, body);
+  if (code === 'invalid_request' && error.details && error.details.field === 'search') {
+    body.message = error.message;
+    body.details = error.details;
+  }
+  if (code === 'search_index_building') {
+    body.message = 'Search is preparing older documents. Retry this request shortly.';
+    body.retry_after_ms = 1000;
+  }
+  if (error && Number.isFinite(error.retryAfterMs) && error.retryAfterMs > 0) body.retry_after_ms = error.retryAfterMs;
+  const retry = body.retry_after_ms ? { 'Retry-After': String(Math.max(1, Math.ceil(body.retry_after_ms / 1000))) } : undefined;
+  sendJson(res, statuses[code] || 500, body, retry);
 }
 
 function cloudApiPrincipal(req, res) {
@@ -2169,56 +2181,78 @@ async function handleCloudApi(req, res, url) {
       return;
     }
     if (req.method === 'POST' && pathname === base + '/search') {
-      const body = await cloudAuthHttp.readJson(req);
+      const body = await cloudAuthHttp.readJson(req, 8 * 1024 * 1024);
+      const search = cloudSearchQuery.normalizeSearchRequest(body, { userId: user.id });
+      function resolveAuthor(expression) {
+        if (!expression) return expression;
+        if (expression.op === 'not') return { op: 'not', clause: resolveAuthor(expression.clause) };
+        if (expression.clauses) return { op: expression.op, clauses: expression.clauses.map(resolveAuthor) };
+        if (expression.field === 'author' && expression.value === 'me') return { field: 'author', value: user.id };
+        return expression;
+      }
+      search.expression = resolveAuthor(search.expression);
+      const visibleWorkspaces = await cloudStore.listWorkspaces(user.id);
+      let workspaceIds;
+      if (search.projectId) {
+        const project = cloudStore.getSearchProjectContext({ userId: user.id, projectId: search.projectId });
+        if (search.workspaceId && search.workspaceId !== project.workspaceId) throw Object.assign(new Error('resource_unavailable'), { code: 'resource_unavailable' });
+        workspaceIds = [project.workspaceId];
+      } else if (search.workspaceId) {
+        if (!visibleWorkspaces.some(workspace => workspace.id === search.workspaceId)) throw Object.assign(new Error('resource_unavailable'), { code: 'resource_unavailable' });
+        workspaceIds = [search.workspaceId];
+      } else workspaceIds = visibleWorkspaces.map(workspace => workspace.id);
       const sourceRate = cloudAuth.consumeRateLimit({ action: 'cloud_search_source',
         key: getClientIp(req), limit: Number(process.env.CLOUD_SEARCH_SOURCE_LIMIT) || 60,
         windowMs: Number(process.env.CLOUD_SEARCH_SOURCE_WINDOW_MS) || 60000 });
-      if (!sourceRate.allowed) throw Object.assign(new Error('rate_limited'), { code: 'rate_limited' });
-      const visibleWorkspaces = await cloudStore.listWorkspaces(user.id);
-      let projectId = body.project_id || null;
-      let workspaceIds;
-      if (projectId) {
-        const project = cloudStore.getProjectContext({ userId: user.id, projectId });
-        workspaceIds = [project.workspaceId];
-      } else if (body.workspace_id) {
-        if (!visibleWorkspaces.some((workspace) => workspace.id === body.workspace_id)) {
-          throw Object.assign(new Error('resource_unavailable'), { code: 'resource_unavailable' });
-        }
-        workspaceIds = [body.workspace_id];
-      } else {
-        workspaceIds = visibleWorkspaces.map((workspace) => workspace.id);
-      }
+      if (!sourceRate.allowed) throw Object.assign(new Error('rate_limited'), { code: 'rate_limited', retryAfterMs: sourceRate.retryAfterMs });
       const searchable = [];
       let entitlementFailure = null;
-      workspaceIds.forEach((workspaceId) => {
+      for (const workspaceId of workspaceIds) {
         try {
           const entitlements = requireCloudEntitlement(user.id, workspaceId, 'search');
           const limits = entitlements && entitlements.limits && entitlements.limits.search;
           if (limits && limits.maxRequests && limits.windowMs) {
             const budget = cloudAuth.consumeRateLimit({ action: 'cloud_search_workspace',
               key: user.id + ':' + workspaceId, limit: limits.maxRequests, windowMs: limits.windowMs });
-            if (!budget.allowed) throw Object.assign(new Error('search_limit_reached'),
-              { code: 'search_limit_reached' });
+            if (!budget.allowed) throw Object.assign(new Error('search_limit_reached'), { code: 'search_limit_reached', retryAfterMs: budget.retryAfterMs });
           }
           searchable.push(workspaceId);
-        } catch (error) {
-          entitlementFailure = entitlementFailure || error;
-        }
-      });
-      if (!searchable.length && entitlementFailure) throw entitlementFailure;
-      const requestedSearchLimit = Math.max(1, Math.min(Number(body.limit) || 50, 100));
-      const documents = [];
-      for (const workspaceId of searchable) {
-        documents.push(...await cloudStore.search({ userId: user.id, query: body.query,
-          projectId, workspaceId, tags: body.tags, limit: requestedSearchLimit,
-          maxProjects: Number(process.env.CLOUD_SEARCH_MAX_PROJECTS) || undefined,
-          maxDocuments: Number(process.env.CLOUD_SEARCH_MAX_DOCUMENTS) || undefined,
-          maxBytes: Number(process.env.CLOUD_SEARCH_MAX_BYTES) || undefined,
-          deadlineMs: Number(process.env.CLOUD_SEARCH_DEADLINE_MS) || undefined }));
+        } catch (error) { entitlementFailure = entitlementFailure || error; }
       }
-      documents.sort((a, b) => b.updated_at.localeCompare(a.updated_at) || a.id.localeCompare(b.id));
-      sendJson(res, 200, { ok: true, documents: documents.slice(0, requestedSearchLimit),
-        next_cursor: null });
+      // An all-library search must not look complete after silently dropping a
+      // library whose entitlement or request budget failed. Callers can retry
+      // or explicitly narrow the library scope.
+      if (entitlementFailure) throw entitlementFailure;
+      searchable.sort();
+      const { cursor, limit, ...scopeFilters } = search;
+      const cursorScope = JSON.stringify({ endpoint: 'search-v1', user_id: user.id, workspace_ids: searchable, filters: scopeFilters });
+      const after = cursor ? cloudCursor.decode(cursor, cursorScope) : null;
+      const beforeReturn = () => {
+        for (const workspaceId of searchable) requireCloudEntitlement(user.id, workspaceId, 'read');
+      };
+      const page = searchable.length ? await cloudStore.searchPage({ ...search, userId: user.id, workspaceIds: searchable, after, beforeReturn })
+        : { documents: [], total_count: 0, facets: {}, nextPosition: null, has_more: false };
+      // Author labels are disclosed only for authors of authorized matching documents.
+      const people = new Map();
+      const person = id => {
+        if (!people.has(id)) {
+          const author = cloudAuth.getUser(id);
+          people.set(id, { user_id: id, name: author ? [author.firstName, author.lastName].filter(Boolean).join(' ') || null : null });
+        }
+        return people.get(id);
+      };
+      const libraries = new Map(visibleWorkspaces.map(workspace => [workspace.id, workspace.name]));
+      const documents = page.documents.map(document => ({ ...document,
+        url: CLOUD_AUTH_PUBLIC_ORIGIN + '/docs?cloud-document=' + encodeURIComponent(document.id),
+        library: { id: document.workspace_id, name: libraries.get(document.workspace_id) || null },
+        author: person(document.created_by_user_id),
+        updated_by: document.updated_by_user_id ? person(document.updated_by_user_id) : null }));
+      const facets = Object.assign({}, page.facets);
+      if (facets.authors) facets.authors = facets.authors.map(author => ({ ...author, ...person(author.user_id) }));
+      if (facets.libraries) facets.libraries = facets.libraries.map(library => ({ ...library, name: libraries.get(library.id) || null }));
+      sendJson(res, 200, { ok: true, schema_version: 1, documents, total_count: page.total_count,
+        facets, facet_totals: page.facet_totals || {}, facets_truncated: page.facets_truncated || {}, has_more: Boolean(page.nextPosition), next_cursor: page.nextPosition ? cloudCursor.encode(cursorScope, page.nextPosition) : null,
+        sort: search.sort, query_digest: crypto.createHash('sha256').update(cursorScope).digest('hex') });
       return;
     }
 
@@ -3889,7 +3923,7 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  if (pathname === '/docs' || pathname === '/new' || policyDocuments[pathname] || pathname === '/agent-changes' || pathname === '/advanced-spreadsheets' || pathname === '/runnable-html' || pathname === '/upgrade' || blogSlug || /^\/s\/[A-Za-z0-9_-]{1,32}$/.test(pathname)) {
+  if (pathname === '/docs' || pathname === '/new' || policyDocuments[pathname] || pathname === '/agent-changes' || pathname === '/cloud-search' || pathname === '/advanced-spreadsheets' || pathname === '/runnable-html' || pathname === '/upgrade' || blogSlug || /^\/s\/[A-Za-z0-9_-]{1,32}$/.test(pathname)) {
     if (pathname === '/docs' && url.searchParams.has('cloud-document')) {
       const authenticated = cloudAuthSession(req);
       if (redirectForCloudTerms(res, authenticated, pathname + url.search)) return;
@@ -3898,7 +3932,9 @@ const server = http.createServer((req, res) => {
     const nonce = crypto.randomBytes(16).toString('base64');
     const defaultMdPath = policyDocuments[pathname]
       ? policyDocuments[pathname]
-      : pathname === '/agent-changes'
+      : pathname === '/cloud-search'
+          ? '/public/cloud-search.md'
+          : pathname === '/agent-changes'
           ? '/public/agent-changes.md'
           : pathname === '/advanced-spreadsheets'
             ? '/public/advanced-spreadsheets.md'

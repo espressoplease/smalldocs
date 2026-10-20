@@ -7,13 +7,14 @@ const io = require('./io');
 const credentialStore = require('./cloud-credentials');
 const bindings = require('./cloud-bindings');
 const SDocYaml = require('../shared/sdocs-yaml.js');
+const searchQuery = require('../shared/sdocs-search-query.js');
 
 const EXIT = { unexpected: 1, invalid_request: 2, login_required: 3,
   resource_unavailable: 4, account_required: 4, account_selection_required: 4,
   permission_denied: 4, revision_conflict: 5,
   idempotency_mismatch: 5,
   unsafe_local_state: 6, base_revision_unavailable: 6, target_too_old: 6, rate_limited: 7,
-  search_limit_reached: 7, temporary_service_failure: 7, billing_not_configured: 7,
+  search_limit_reached: 7, search_index_building: 7, temporary_service_failure: 7, billing_not_configured: 7,
   authentication_not_configured: 7, cloud_storage_not_configured: 7,
   subscription_required: 4, subscription_read_only: 4, payment_grace_expired: 4,
   storage_limit_exceeded: 4, project_limit_reached: 4, member_limit_reached: 4,
@@ -76,17 +77,18 @@ DISCOVER AND READ
   sdoc cloud search "incident response" --json
   sdoc cloud search "authentication" --tag engineering --limit 10 --json
   sdoc cloud ls --shared-with-me --json
+  sdoc cloud read DOCUMENT_ID --json
   sdoc cloud pull DOCUMENT_UUID --output /tmp/reference.md --no-bind --json
 
-Search is case-insensitive substring matching across document titles,
-filenames, tags, and current Markdown. It is not semantic search. Start with a
-specific phrase, then try a shorter phrase or an existing tag if needed.
-Multiple --tag values require every listed tag.
+Search finds all query words across document titles, filenames, tags, and current
+Markdown. Use inner double quotes for a phrase, OR for alternatives, NOT to
+exclude, and a trailing * for a word prefix. Multiple --tag values require every
+listed tag. Run sdoc cloud search --help for the full query and filter reference.
 
 With --json, search returns documents[]. Each result includes its id, url, title,
 tags, current revision metadata, and matches[]. A match reports field, line,
-and snippet. Search does not return the full Markdown. Use pull to retrieve a
-result. --no-bind makes that output a read-only reference from the CLI's point
+and snippet. Search does not return the full Markdown. Use read to retrieve a
+result on stdout without a local file or binding. With pull, --no-bind makes that output a read-only reference from the CLI's point
 of view, so a later push will not update the Cloud document by accident.
 
 UPDATE AN EXISTING DOCUMENT
@@ -104,10 +106,10 @@ CREATE, ORGANIZE, AND SHARE ACCESS
 
   sdoc cloud create PATH [--account UUID] --json
   sdoc cloud tag DOCUMENT_UUID --tag TAG [--tag TAG ...] --json
-  sdoc cloud access DOCUMENT_UUID [--only-you | --everyone | --member USER_UUID ...] --json
+  sdoc cloud access DOCUMENT_UUID [--only-you | --everyone | --member USER_ID ...] --json
   sdoc cloud members [--account UUID] --json
   sdoc cloud permission-groups [--account UUID] --json
-  sdoc cloud notify DOCUMENT_UUID [--document DOCUMENT_UUID ...] --member USER_UUID ... [--note TEXT] --json
+  sdoc cloud notify DOCUMENT_UUID [--document DOCUMENT_UUID ...] --member USER_ID ... [--note TEXT] --json
 
 Notification sends a message to existing account members. It does not grant
 access or create a user. List members and set access deliberately before
@@ -128,9 +130,148 @@ CONNECTION
   sdoc cloud logout
   sdoc cloud status [--account UUID]
 
-Use --account UUID with account-scoped discovery, creation, listing, or search
-when status reports more than one account. Add --json to any command for one
-machine-readable JSON object on stdout.`;
+Search and listing span accessible libraries unless --account UUID narrows them.
+Use --account UUID for account-scoped discovery or a known creation destination.
+Add --json to any command for one machine-readable JSON object on stdout.`;
+
+const CLOUD_SEARCH_HELP = `SmallDocs Cloud search
+
+  sdoc cloud search [QUERY ...] [FILTERS] --json
+  sdoc cloud ls [FILTERS] --json
+
+QUERY
+
+  sdoc cloud search incident response --json
+  sdoc cloud search '"incident response"' --json
+  sdoc cloud search '(incident OR outage) AND NOT exercise' --json
+  sdoc cloud search 'title:rollout OR body:migrat*' --json
+  sdoc cloud search 'incident response' --literal --json
+
+Plain words require every word, anywhere in the searched fields. Search is
+case-insensitive. Inner double quotes preserve a phrase; shell quotes alone
+only keep an argument together. A trailing * matches word prefixes. Operators
+are AND, OR, and NOT; parentheses group clauses. NOT binds before AND, which
+binds before OR. Adjacent clauses imply AND. Prefix a term or phrase with
+title:, filename:, body:, or tags: to search that field. Explicit field prefixes
+apply to their own terms; --field limits unqualified text. --literal searches the
+whole supplied text as a substring, including punctuation and operator words.
+Quoted phrases require adjacent normalized words in one field, ignoring
+punctuation and line breaks. Literal queries scan authorized document content
+and can take longer than indexed words or phrases. This is text search; it does not infer synonyms. Use OR to supply alternatives.
+NOT excludes a lexical match. It cannot decide whether a document supports,
+contradicts, or merely discusses an idea. Read the sources for those judgments.
+--word-forms expands English singular/plural forms of unquoted words; phrases
+and literal queries keep their matching rules.
+
+FILTERS
+
+  --account UUID             Search one library; omitted means all accessible
+  --tag TAG                  Require this exact tag; repeat for all tags
+  --any-tag TAG              Require any of these exact tags; repeat
+  --exclude-tag TAG          Exclude documents carrying this tag; repeat
+  --author USER_ID|me           Document creator; repeated values mean any
+  --mine                     Same as --author me
+  --updated-by USER_ID|me       Author of the current revision; repeat for any
+  --shared-with-me           Accessible documents created by somebody else
+  --document UUID            Restrict to these document IDs; repeat
+  --documents-file PATH      Add document IDs from a file, one per line
+  --field FIELD              Search title, filename, body, or tags; repeat
+  --created-after ISO_DATE   Lower creation-time bound
+  --created-before ISO_DATE  Upper creation-time bound
+  --updated-after ISO_DATE   Lower modification-time bound
+  --updated-before ISO_DATE  Upper modification-time bound
+  --sort ORDER               relevance, updated_desc, or created_desc
+  --limit N                  Page size, 1 to 100; default 50
+  --cursor TOKEN             Continue with the returned next_cursor
+  --pages N                  Fetch up to N pages; default 1
+  --all                      Follow pages until exhausted
+  --max-results N            Cap returned documents; preserve continuation
+  --compact                  Shorter documents[] JSON; keep evidence and IDs
+  --word-forms               Expand English singular/plural word forms
+  --facets [LIST]            Counts for tags,authors,libraries; comma-separated
+  --facet-limit N            Maximum entries per requested facet; default 50
+  --match-limit N            Evidence snippets per result, 0 to 100; default 5
+  --query-file PATH          Read a search request JSON object
+  --literal                  Treat query text as one literal substring
+  --json                     Emit one JSON object
+  --help                     Show this reference without signing in
+
+Filter groups combine with AND. Repeated authors, revision authors, document
+IDs, and fields mean any within their group. Text is optional when browsing by
+metadata. Dates accept ISO 8601. Bounds are inclusive. A date without a time
+covers the UTC day: after starts at midnight and before ends at 23:59:59.999.
+Use members --account LIBRARY_UUID --json to resolve a person's user ID. Author
+means creator, while updated-by means the writer of the current revision.
+Word and phrase queries default to relevance. Literal and metadata-only searches
+default to updated_desc.
+
+  sdoc cloud search --tag engineering --any-tag rollout --any-tag migration --json
+  sdoc cloud search 'deadline' --author me --updated-after 2026-01-01 --json
+  sdoc cloud search 'decision' --shared-with-me --facets --limit 10 --json
+  sdoc cloud search 'security' --document UUID_A --document UUID_B --json
+  sdoc cloud ls --tag planning --sort updated_desc --limit 20 --json
+
+RESULTS AND PAGINATION
+
+Check ok before reading documents[]. Each result includes id, url, title,
+filename, tags, library, author, current revision metadata, score, and matches[].
+Evidence identifies its field and snippet, with a source line for Markdown.
+Use total_count, has_more, and next_cursor to distinguish an empty result from
+another page. --pages N and --all fetch multiple pages; --max-results caps the
+returned count. complete, stopped_reason, pages_fetched, returned_count, and
+started_from_cursor describe the collected result. A capped result retains its
+next_cursor. Later-page failures return ok:false with partial_result.
+--compact preserves IDs, title, tags, score, snippets, and all paging/facet
+metadata while omitting other document metadata. Facets count matching documents
+before pagination. Counts and evidence include only documents the signed-in person can currently access.
+
+Repeat the same query, filters, and sort with --cursor NEXT_CURSOR. A cursor
+does not grant access. Do not infer completeness from the first page. Search
+does not return full Markdown; read a result on stdout with:
+
+  sdoc cloud read DOCUMENT_ID --json
+
+read returns markdown and the Cloud URL without a local file or binding. Use
+sdoc cloud pull DOCUMENT_ID --output PATH --no-bind when a local reference file is useful.
+Cite documents[].url without changing document access. Search and listing do not change permissions.
+
+REPRODUCIBLE REQUESTS
+
+--query-file reads the HTTP search request shape: expression (a query AST) or
+query (a literal substring), tags, tags_any, tags_none, author_user_ids,
+updated_by_user_ids, document_ids, fields, workspace_id, shared_with_me,
+created_after, created_before, updated_after, updated_before, sort, limit,
+cursor, facets, facet_limit, match_limit, and word_forms. CLI scalar options
+override file values; repeated filters add values. A positional query replaces the file's
+expression or query. --documents-file adds IDs to the document_ids subset.
+See https://smalldocs.org/cloud-search for the AST and JSON examples.
+
+RECOVERY
+
+On no matches, broaden a word with a prefix, add an OR alternative, or remove
+one narrow filter. Inspect --facets or cloud tags --account UUID --json for
+existing vocabulary. Fix invalid query syntax, or use --literal for punctuation
+and operator words. On search_limit_reached or rate_limited, wait for
+retry_after_ms or Retry-After and retry. Narrower text or metadata filters do
+not reset a request budget. login_required needs cloud login; an
+invalid cursor needs the original query and filters or a fresh first page.
+An empty result does not establish that an inaccessible document does not exist.
+`;
+
+const CLOUD_READ_HELP = `SmallDocs Cloud read
+
+  sdoc cloud read DOCUMENT_ID --json
+  sdoc cloud read DOCUMENT_ID
+
+Read the current authorized document without a local file or binding.
+With --json, the result includes markdown, url, document_id, revision_id,
+revision_number, title, filename, and tags. Without --json, stdout contains
+the Markdown exactly as stored. Reading does not change content or permissions.
+
+Use sdoc cloud pull DOCUMENT_ID --output PATH --no-bind for a local reference file, or pull
+without --no-bind when you intend to edit and push the document. Historical
+revisions are available through cloud pull --revision REVISION_UUID.
+`;
 
 const CLOUD_OVERVIEW = `SmallDocs Cloud
 
@@ -351,36 +492,16 @@ function filterTags(documents, tags) {
   return documents.filter((document) => wanted.every((tag) => (document.tags || []).includes(tag)));
 }
 
-function requestedLimit(value, fallback) {
+function requestedLimit(value, fallback, option) {
   if (value == null) return fallback;
   if (!Number.isSafeInteger(value) || value < 1) {
-    throw new CloudCommandError('invalid_request', '--limit must be a positive integer');
+    throw new CloudCommandError('invalid_request', (option || '--limit') + ' must be a positive integer');
   }
   return value;
 }
 
 async function list(opts, client) {
-  const target = requestedLimit(opts.limitFlag, 50);
-  const documents = [];
-  const seenCursors = new Set();
-  let cursor = null;
-  do {
-    const params = new URLSearchParams();
-    params.set('limit', String(Math.min(100, target - documents.length)));
-    if (opts.accountFlag) params.set('workspace_id', opts.accountFlag);
-    if (opts.sharedWithMeFlag) params.set('shared_with_me', '1');
-    if (cursor) params.set('cursor', cursor);
-    const response = await client.authenticated('/api/cloud/v1/documents?' + params.toString());
-    documents.push(...filterTags(response.documents || [], opts.tagFilters)
-      .slice(0, target - documents.length)
-      .map((document) => Object.assign({}, document, { url: documentUrl(client, document.id) })));
-    cursor = response.next_cursor || null;
-    if (cursor && seenCursors.has(cursor)) throw new CloudCommandError('temporary_service_failure',
-      'Cloud returned the same document cursor twice.');
-    if (cursor) seenCursors.add(cursor);
-  } while (documents.length < target && cursor);
-  emit(opts, 'cloud.ls', { documents, next_cursor: cursor }, documents.map((document) =>
-    document.id + '  ' + document.title + '  [' + (document.tags || []).join(', ') + ']').join('\n') || 'No Cloud documents.');
+  return discover(opts, client, 'cloud.ls');
 }
 
 async function notify(opts, client) {
@@ -389,7 +510,7 @@ async function notify(opts, client) {
   if (!documentIds.length || !recipientUserIds.length) {
     throw new CloudCommandError('invalid_request',
       'usage: sdoc cloud notify DOCUMENT_UUID [--document DOCUMENT_UUID ...] ' +
-      '--member USER_UUID ... [--note TEXT]');
+      '--member USER_ID ... [--note TEXT]');
   }
   const response = await client.authenticated('/api/cloud/v1/notifications', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -438,7 +559,7 @@ async function permissionGroups(opts, client) {
 async function access(opts, client) {
   const documentId = opts.extra;
   if (!documentId) throw new CloudCommandError('invalid_request',
-    'usage: sdoc cloud access DOCUMENT_UUID [--only-you | --everyone | --member USER_UUID ...]');
+    'usage: sdoc cloud access DOCUMENT_UUID [--only-you | --everyone | --member USER_ID ...]');
   const choices = Number(Boolean(opts.onlyYouFlag)) + Number(Boolean(opts.everyoneFlag))
     + Number(Boolean(opts.memberFlags && opts.memberFlags.length));
   if (choices !== 1) throw new CloudCommandError('invalid_request',
@@ -466,18 +587,177 @@ async function setTags(opts, client) {
   'Updated tags for ' + documentId + '.');
 }
 
+function readSearchFile(file, json) {
+  try {
+    const content = fs.readFileSync(path.resolve(file), 'utf8');
+    if (!json) return content.split(/\r?\n/).map((value) => value.trim()).filter(Boolean);
+    const value = JSON.parse(content);
+    if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('expected a JSON object');
+    return value;
+  } catch (error) {
+    throw new CloudCommandError('invalid_request', 'Could not read ' + file + ': ' + error.message);
+  }
+}
+
+function searchRequest(opts, client) {
+  const request = opts.queryFile ? readSearchFile(opts.queryFile, true) : {};
+  if (opts.extra != null && String(opts.extra).trim()) {
+    delete request.query;
+    delete request.expression;
+    delete request.mode;
+    if (opts.literalFlag) request.query = String(opts.extra);
+    else {
+      try { request.expression = searchQuery.parseQuery(String(opts.extra)); }
+      catch (error) {
+        throw new CloudCommandError('invalid_request', error.message +
+          ' Run sdoc cloud search --help for syntax, or use --literal for a substring.', error.details);
+      }
+    }
+  }
+  if (opts.literalFlag && request.query != null) request.mode = 'literal';
+  const scalarOptions = {
+    accountFlag: 'workspace_id', projectFlag: 'project_id', cursorFlag: 'cursor',
+    sortFlag: 'sort', createdAfterFlag: 'created_after', createdBeforeFlag: 'created_before',
+    updatedAfterFlag: 'updated_after', updatedBeforeFlag: 'updated_before',
+    facetLimitFlag: 'facet_limit', matchLimitFlag: 'match_limit',
+  };
+  for (const [option, field] of Object.entries(scalarOptions)) {
+    if (opts[option] != null) request[field] = opts[option];
+  }
+  const arrayOptions = { tagFilters: 'tags', anyTagFilters: 'tags_any',
+    excludeTagFilters: 'tags_none', authorFlags: 'author_user_ids',
+    updatedByFlags: 'updated_by_user_ids', documentFlags: 'document_ids', fieldFlags: 'fields' };
+  for (const [option, field] of Object.entries(arrayOptions)) {
+    if (opts[option] && opts[option].length) {
+      if (request[field] != null && !Array.isArray(request[field])) {
+        throw new CloudCommandError('invalid_request', field + ' must be an array');
+      }
+      request[field] = (request[field] || []).concat(opts[option]);
+    }
+  }
+  if (opts.mineFlag) {
+    if (request.author_user_ids != null && !Array.isArray(request.author_user_ids)) {
+      throw new CloudCommandError('invalid_request', 'author_user_ids must be an array');
+    }
+    request.author_user_ids = (request.author_user_ids || []).concat('me');
+  }
+  for (const field of ['author_user_ids', 'updated_by_user_ids']) {
+    if (!Array.isArray(request[field]) || !request[field].includes('me')) continue;
+    const credential = client.loadCredential && client.loadCredential();
+    if (!credential || !credential.user_id) throw new CloudCommandError('login_required',
+      'Run `sdoc cloud login` before using me as a user filter.');
+    request[field] = request[field].map((value) => value === 'me' ? credential.user_id : value);
+  }
+  if (opts.documentsFile) {
+    if (request.document_ids != null && !Array.isArray(request.document_ids)) {
+      throw new CloudCommandError('invalid_request', 'document_ids must be an array');
+    }
+    request.document_ids = (request.document_ids || []).concat(readSearchFile(opts.documentsFile, false));
+  }
+  if (opts.sharedWithMeFlag) request.shared_with_me = true;
+  if (opts.wordFormsFlag) request.word_forms = true;
+  if (opts.facetsFlag) request.facets = opts.facetsFlag;
+  request.limit = requestedLimit(opts.limitFlag == null ? request.limit : opts.limitFlag, 50);
+  if (request.limit > 100) throw new CloudCommandError('invalid_request', '--limit must be between 1 and 100');
+  if (opts.file === 'ls' && request.sort == null) request.sort = 'updated_desc';
+  try { searchQuery.normalizeSearchRequest(request); }
+  catch (error) { throw new CloudCommandError('invalid_request', error.message, error.details); }
+  return request;
+}
+
+async function discover(opts, client, command) {
+  const request = searchRequest(opts, client);
+  if (opts.allFlag && opts.pagesFlag != null) throw new CloudCommandError('invalid_request',
+    'Choose --all or --pages N. --max-results may be used with either.');
+  const pageLimit = opts.allFlag ? Infinity : requestedLimit(opts.pagesFlag, 1, '--pages');
+  const maxResults = opts.maxResultsFlag == null ? Infinity : requestedLimit(opts.maxResultsFlag, Infinity, '--max-results');
+  const documents = [], positions = new Map(), seenCursors = new Set();
+  const startedFromCursor = Boolean(request.cursor);
+  if (request.cursor) seenCursors.add(request.cursor);
+  let pagesFetched = 0, response = null, stoppedReason = 'page_limit';
+  function resultFor(reason) {
+    const result = Object.assign({}, response || {}, {
+      documents: opts.compactFlag ? documents.map(compactSearchDocument) : documents,
+      next_cursor: response && response.next_cursor || null,
+      has_more: Boolean(response && (response.has_more || response.next_cursor)),
+      pages_fetched: pagesFetched, returned_count: documents.length,
+      started_from_cursor: startedFromCursor, complete: reason === 'complete', stopped_reason: reason,
+    });
+    delete result.ok;
+    return result;
+  }
+  do {
+    const pageRequest = Object.assign({}, request, { limit: Math.min(request.limit, maxResults - documents.length) });
+    try {
+      response = await client.authenticated('/api/cloud/v1/search', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(pageRequest),
+      });
+    } catch (error) {
+      if (pagesFetched) error.data = Object.assign({}, error.data, { partial_result: resultFor('request_failed') });
+      throw error;
+    }
+    pagesFetched++;
+    for (const value of response.documents || []) {
+      const document = Object.assign({}, value, { url: documentUrl(client, value.id) });
+      if (positions.has(document.id)) documents[positions.get(document.id)] = document;
+      else { positions.set(document.id, documents.length); documents.push(document); }
+    }
+    if (!response.has_more && !response.next_cursor) { stoppedReason = 'complete'; break; }
+    if (!response.next_cursor || seenCursors.has(response.next_cursor)) {
+      throw new CloudCommandError('temporary_service_failure', 'Cloud returned an invalid search continuation.',
+        { partial_result: resultFor('invalid_continuation') });
+    }
+    seenCursors.add(response.next_cursor);
+    if (documents.length >= maxResults) { stoppedReason = 'max_results'; break; }
+    request.cursor = response.next_cursor;
+  } while (pagesFetched < pageLimit);
+  const result = resultFor(stoppedReason);
+  let human = documents.map((document) => {
+    let line = document.id + '  ' + document.title;
+    if (document.library && document.library.name) line += '  [' + document.library.name + ']';
+    for (const match of document.matches || []) {
+      line += '\n  ' + match.field + (match.line ? ':' + match.line : '') + '  ' + match.snippet;
+    }
+    return line;
+  }).join('\n') || 'No matches.';
+  if (result.total_count != null) human += '\n' + result.total_count + ' matching documents.';
+  for (const [kind, entries] of Object.entries(result.facets || {})) {
+    if (!Array.isArray(entries) || !entries.length) continue;
+    human += '\n' + kind + ': ' + entries.map((item) =>
+      (item.tag || item.name || item.user_id || item.id) + ' (' + item.document_count + ')').join(', ');
+  }
+  if (result.has_more || result.next_cursor) human += '\nMore results: repeat this query with --cursor ' + result.next_cursor;
+  human += '\nReturned ' + result.returned_count + ' documents in ' + result.pages_fetched
+    + (result.pages_fetched === 1 ? ' page; ' : ' pages; ') + result.stopped_reason + '.';
+  return emit(opts, command, result, human);
+}
+
+function compactSearchDocument(document) {
+  const value = {};
+  for (const key of ['id', 'url', 'title', 'tags', 'workspace_id', 'created_by_user_id',
+    'updated_by_user_id', 'current_revision_id', 'score', 'matches']) {
+    if (Object.hasOwn(document, key)) value[key] = document[key];
+  }
+  return value;
+}
+
 async function search(opts, client) {
-  if (!opts.extra) throw new CloudCommandError('invalid_request', 'usage: sdoc cloud search QUERY');
-  const limit = requestedLimit(opts.limitFlag, 50);
-  const response = await client.authenticated('/api/cloud/v1/search', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query: opts.extra, tags: opts.tagFilters, limit,
-      workspace_id: opts.accountFlag || undefined }),
-  });
-  const documents = (response.documents || []).map((document) =>
-    Object.assign({}, document, { url: documentUrl(client, document.id) }));
-  emit(opts, 'cloud.search', { documents, next_cursor: null }, documents.map((document) =>
-    document.id + '  ' + document.title + '\n  ' + ((document.matches && document.matches[0] && document.matches[0].snippet) || '')).join('\n') || 'No matches.');
+  return discover(opts, client, 'cloud.search');
+}
+
+async function read(opts, client) {
+  if (!opts.extra) throw new CloudCommandError('invalid_request', 'usage: sdoc cloud read DOCUMENT_ID --json');
+  if (opts.outputPath || opts.noBindFlag || opts.revisionFlag) throw new CloudCommandError('invalid_request',
+    'read writes the current document to stdout. Use cloud pull for a file or historical revision.');
+  const response = await client.authenticated('/api/cloud/v1/documents/' + encodeURIComponent(opts.extra));
+  const document = response.document;
+  if (!document || typeof document.markdown !== 'string') throw new CloudCommandError('temporary_service_failure',
+    'Cloud returned an invalid document response.');
+  const value = { document_id: document.id, url: documentUrl(client, document.id),
+    revision_id: document.current_revision_id, revision_number: document.revision_number,
+    title: document.title, filename: document.filename, tags: document.tags, markdown: document.markdown };
+  if (!opts.jsonFlag && !opts.silent) { process.stdout.write(document.markdown); return value; }
+  return emit(opts, 'cloud.read', value);
 }
 
 function requireFile(file) {
@@ -917,7 +1197,11 @@ async function runCloudCommand(opts, dependencies) {
   const command = 'cloud.' + action;
   const client = dependencies && dependencies.client || new CloudClient();
   try {
-    if (opts.helpFlag || action === 'help') return process.stdout.write(CLOUD_HELP + '\n');
+    if (opts.helpFlag || action === 'help') return process.stdout.write(
+      ((action === 'search' || action === 'ls') ? CLOUD_SEARCH_HELP : action === 'read' ? CLOUD_READ_HELP : CLOUD_HELP) + '\n');
+    if (opts.searchArgumentErrors && opts.searchArgumentErrors.length) {
+      throw new CloudCommandError('invalid_request', opts.searchArgumentErrors.join('; '));
+    }
     if (action === 'overview') return overview(opts, client);
     if (action === 'login') return await login(opts, client);
     if (action === 'logout') return await logout(opts, client);
@@ -933,6 +1217,7 @@ async function runCloudCommand(opts, dependencies) {
     if (action === 'tag') return await setTags(opts, client);
     if (action === 'ls') return await list(opts, client);
     if (action === 'search') return await search(opts, client);
+    if (action === 'read') return await read(opts, client);
     if (action === 'create') return await create(opts, client);
     if (action === 'pull') return await pull(opts, client);
     if (action === 'push') return await push(opts, client);
@@ -948,4 +1233,4 @@ async function runCloudCommand(opts, dependencies) {
 }
 
 module.exports = { CloudClient, CloudCommandError, runCloudCommand, autoSyncOpen, openCloudDocument, filterTags, origin,
-  EXIT, CLOUD_HELP, CLOUD_OVERVIEW, entitlementFailure, skillInstallCommand };
+  EXIT, CLOUD_HELP, CLOUD_SEARCH_HELP, CLOUD_OVERVIEW, entitlementFailure, skillInstallCommand, searchRequest };

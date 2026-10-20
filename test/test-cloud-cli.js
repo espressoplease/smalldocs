@@ -7,7 +7,7 @@ module.exports = function(harness) {
   const io = require('../cli/lib/io');
   const credentials = require('../cli/lib/cloud-credentials');
   const bindings = require('../cli/lib/cloud-bindings');
-  const { CloudClient, runCloudCommand, autoSyncOpen, openCloudDocument, filterTags, skillInstallCommand, CLOUD_HELP } =
+  const { CloudClient, runCloudCommand, autoSyncOpen, openCloudDocument, filterTags, skillInstallCommand, CLOUD_HELP, CLOUD_SEARCH_HELP, searchRequest } =
     require('../cli/lib/cloud-commands');
 
   test('setup parser captures Cloud-first edition and preferred account', () => {
@@ -71,10 +71,65 @@ module.exports = function(harness) {
   });
 
   test('Cloud help documents search result fields and read/update workflows', () => {
-    assert.ok(CLOUD_HELP.includes('Search is case-insensitive substring matching'));
+    assert.ok(CLOUD_HELP.includes('Search finds all query words'));
+    assert.ok(CLOUD_SEARCH_HELP.includes('Inner double quotes preserve a phrase'));
+    assert.ok(CLOUD_SEARCH_HELP.includes('--query-file'));
+    assert.ok(CLOUD_SEARCH_HELP.includes('next_cursor'));
     assert.ok(CLOUD_HELP.includes('matches[]'));
     assert.ok(CLOUD_HELP.includes('--no-bind'));
     assert.ok(CLOUD_HELP.includes('sdoc cloud push ./plan.md --json'));
+  });
+
+  test('Cloud search preserves positional terms and reports unknown or incomplete options', () => {
+    const opts = io.parseArgs(['cloud', 'search', '(incident', 'OR', 'outage)', 'response', '--json']);
+    assert.strictEqual(opts.extra, '(incident OR outage) response');
+    assert.deepStrictEqual(opts.searchArgumentErrors, []);
+    assert.ok(io.parseArgs(['cloud', 'search', 'incident', '--auther', 'me']).searchArgumentErrors[0].includes('--auther'));
+    assert.ok(io.parseArgs(['cloud', 'search', '--author', '--json']).searchArgumentErrors[0].includes('requires a value'));
+    assert.strictEqual(io.parseArgs(['cloud', 'search', '--', '--literal']).extra, '--literal');
+  });
+
+  test('Cloud search maps metadata, pagination, evidence and facet flags', () => {
+    const opts = io.parseArgs(['cloud', 'search', '--tag', 'planning', '--any-tag', 'engineering',
+      '--exclude-tag', 'archived', '--author', 'me', '--updated-by', 'user-b', '--document', 'doc-a',
+      '--field', 'body', '--created-after', '2026-01-01', '--updated-before', '2026-10-20',
+      '--sort', 'created_desc', '--cursor', 'next', '--limit', '20', '--facets', 'tags,authors',
+      '--facet-limit', '30', '--match-limit', '4', '--json']);
+    const request = searchRequest(opts, { loadCredential: () => ({ user_id: 'user-a' }) });
+    assert.deepStrictEqual(request.tags, ['planning']);
+    assert.deepStrictEqual(request.tags_any, ['engineering']);
+    assert.deepStrictEqual(request.tags_none, ['archived']);
+    assert.deepStrictEqual(request.author_user_ids, ['user-a']);
+    assert.deepStrictEqual(request.updated_by_user_ids, ['user-b']);
+    assert.deepStrictEqual(request.document_ids, ['doc-a']);
+    assert.deepStrictEqual(request.fields, ['body']);
+    assert.strictEqual(request.created_after, '2026-01-01');
+    assert.strictEqual(request.updated_before, '2026-10-20');
+    assert.strictEqual(request.sort, 'created_desc');
+    assert.strictEqual(request.cursor, 'next');
+    assert.strictEqual(request.limit, 20);
+    assert.deepStrictEqual(request.facets, ['tags', 'authors']);
+    assert.strictEqual(request.facet_limit, 30);
+    assert.strictEqual(request.match_limit, 4);
+  });
+
+  test('Cloud search distinguishes expressions, phrases and literal substrings', () => {
+    const words = searchRequest(io.parseArgs(['cloud', 'search', 'incident response']), {});
+    const phrase = searchRequest(io.parseArgs(['cloud', 'search', '"incident response"']), {});
+    const literal = searchRequest(io.parseArgs(['cloud', 'search', 'incident response', '--literal']), {});
+    assert.strictEqual(words.expression.op, 'and');
+    assert.strictEqual(phrase.expression.match, 'phrase');
+    assert.strictEqual(literal.query, 'incident response');
+    assert.strictEqual(literal.expression, undefined);
+    assert.throws(() => searchRequest({ extra: 'incident OR' }, {}), /--literal/);
+    assert.throws(() => searchRequest({ limitFlag: 101 }, {}), /between 1 and 100/);
+    assert.throws(() => searchRequest({ fieldFlags: ['unknown'] }, {}), /Fields must/);
+    assert.throws(() => searchRequest({ updatedAfterFlag: 'yesterday' }, {}), /ISO date/);
+    const discovery = searchRequest(io.parseArgs(['cloud', 'search', 'policy', '--word-forms', '--match-limit', '0']), {});
+    assert.strictEqual(discovery.word_forms, true);
+    assert.strictEqual(discovery.match_limit, 0);
+    const literalForms = searchRequest(io.parseArgs(['cloud', 'search', 'policy', '--literal', '--word-forms']), {});
+    assert.strictEqual(literalForms.query, 'policy');
   });
 
   return async function() {
@@ -732,33 +787,27 @@ module.exports = function(harness) {
       assert.strictEqual(result.next_cursor, null);
     });
 
-    await testAsync('cloud ls follows cursors until it returns the requested limit', async () => {
-      const pageCalls = [];
-      const pages = {
-        '': { documents: [{ id: 'doc-a', title: 'A', tags: [] }], next_cursor: 'cursor-1' },
-        'cursor-1': { documents: [{ id: 'doc-b', title: 'B', tags: [] }], next_cursor: 'cursor-2' },
-        'cursor-2': { documents: [{ id: 'doc-c', title: 'C', tags: [] }], next_cursor: 'cursor-3' },
-      };
-      const pagingClient = {
-        origin: 'https://cloud.test',
-        async authenticated(endpoint) {
-          const url = new URL(endpoint, 'https://cloud.test');
-          const cursor = url.searchParams.get('cursor') || '';
-          pageCalls.push({ cursor, limit: url.searchParams.get('limit'),
-            account: url.searchParams.get('workspace_id') });
-          return pages[cursor];
-        },
-      };
+    await testAsync('cloud ls sends filters and a resumable cursor through server-side discovery', async () => {
+      let request;
+      const pagingClient = { origin: 'https://cloud.test', async authenticated(endpoint, options) {
+        assert.strictEqual(endpoint, '/api/cloud/v1/search');
+        request = JSON.parse(options.body);
+        return { documents: [{ id: 'doc-b', title: 'B', tags: ['planning'] }],
+          total_count: 3, has_more: true, next_cursor: 'cursor-2' };
+      } };
       const result = await capture(() => runCloudCommand({ file: 'ls', accountFlag: 'acct-docs',
-        limitFlag: 3, jsonFlag: true }, { client: pagingClient }));
-      assert.deepStrictEqual(result.documents.map((document) => document.id), ['doc-a', 'doc-b', 'doc-c']);
-      assert.deepStrictEqual(result.documents.map((document) => document.url), ['doc-a', 'doc-b', 'doc-c'].map(id => 'https://cloud.test/docs?cloud-document=' + id));
-      assert.strictEqual(result.next_cursor, 'cursor-3');
-      assert.deepStrictEqual(pageCalls, [
-        { cursor: '', limit: '3', account: 'acct-docs' },
-        { cursor: 'cursor-1', limit: '2', account: 'acct-docs' },
-        { cursor: 'cursor-2', limit: '1', account: 'acct-docs' },
-      ]);
+        tagFilters: ['planning'], cursorFlag: 'cursor-1', limitFlag: 1, jsonFlag: true }, { client: pagingClient }));
+      assert.deepStrictEqual(request.tags, ['planning']);
+      assert.strictEqual(request.workspace_id, 'acct-docs');
+      assert.strictEqual(request.cursor, 'cursor-1');
+      assert.strictEqual(request.sort, 'updated_desc');
+      assert.strictEqual(request.limit, 1);
+      assert.strictEqual(result.command, 'cloud.ls');
+      assert.deepStrictEqual(result.documents.map(document => document.id), ['doc-b']);
+      assert.strictEqual(result.documents[0].url, 'https://cloud.test/docs?cloud-document=doc-b');
+      assert.strictEqual(result.total_count, 3);
+      assert.strictEqual(result.has_more, true);
+      assert.strictEqual(result.next_cursor, 'cursor-2');
     });
 
     await testAsync('cloud restore reads the current head and sends an idempotent expected-head write', async () => {
@@ -825,6 +874,185 @@ module.exports = function(harness) {
         revisionFlag: 'rev-1', outputPath: historicalOutput, jsonFlag: true }, { client: fakeClient }));
       assert.strictEqual(historical.error, 'unsafe_local_state');
       assert.strictEqual(fs.existsSync(historicalOutput), false);
+    });
+
+    await testAsync('Cloud search JSON preserves facets and continuation metadata', async () => {
+      const client = { origin: 'https://cloud.test', async authenticated(endpoint, options) {
+        const request = JSON.parse(options.body);
+        assert.strictEqual(request.expression.op, 'or');
+        assert.strictEqual(request.shared_with_me, true);
+        assert.deepStrictEqual(request.facets, ['tags', 'authors', 'libraries']);
+        assert.strictEqual(request.cursor, 'page-1');
+        return { documents: [{ id: 'doc-1', title: 'Incident', library: { id: 'lib-1', name: 'Operations' },
+          matches: [{ field: 'title', snippet: 'Incident', line: null }] }],
+          total_count: 2, has_more: true, next_cursor: 'page-2',
+          facets: { tags: [{ tag: 'operations', document_count: 2 }] } };
+      } };
+      const result = await capture(() => runCloudCommand(io.parseArgs(['cloud', 'search',
+        'incident OR outage', '--shared-with-me', '--facets', '--cursor', 'page-1', '--json']), { client }));
+      assert.strictEqual(result.total_count, 2);
+      assert.strictEqual(result.has_more, true);
+      assert.strictEqual(result.next_cursor, 'page-2');
+      assert.strictEqual(result.facets.tags[0].document_count, 2);
+      assert.strictEqual(result.documents[0].library.name, 'Operations');
+    });
+
+    await testAsync('Cloud search JSON files combine structured requests with explicit overrides', async () => {
+      const requestFile = path.join(dir, 'query.json');
+      const documentFile = path.join(dir, 'documents.txt');
+      fs.writeFileSync(requestFile, JSON.stringify({ query: 'AND NOT', tags: ['planning'],
+        document_ids: ['doc-a'], author_user_ids: ['me'], limit: 10 }));
+      fs.writeFileSync(documentFile, 'doc-b\n\ndoc-c\r\n');
+      const opts = io.parseArgs(['cloud', 'search', '--query-file', requestFile,
+        '--documents-file', documentFile, '--tag', 'engineering', '--limit', '20']);
+      const request = searchRequest(opts, { loadCredential: () => ({ user_id: 'user-a' }) });
+      assert.strictEqual(request.query, 'AND NOT');
+      assert.deepStrictEqual(request.tags, ['planning', 'engineering']);
+      assert.deepStrictEqual(request.document_ids, ['doc-a', 'doc-b', 'doc-c']);
+      assert.deepStrictEqual(request.author_user_ids, ['user-a']);
+      assert.strictEqual(request.limit, 20);
+      opts.extra = 'incident OR outage';
+      const replacement = searchRequest(opts, { loadCredential: () => ({ user_id: 'user-a' }) });
+      assert.strictEqual(replacement.query, undefined);
+      assert.strictEqual(replacement.expression.op, 'or');
+      fs.writeFileSync(requestFile, '[]');
+      assert.throws(() => searchRequest(opts, {}), /JSON object/);
+    });
+
+    await testAsync('Cloud search compact output preserves evidence, IDs and complete top-level metadata', async () => {
+      const client = { origin: 'https://cloud.test', async authenticated(endpoint, options) {
+        assert.strictEqual(JSON.parse(options.body).word_forms, true);
+        return { documents: [{ id: 'doc-a', title: 'Policy', tags: ['operations'], workspace_id: 'lib-a',
+          created_by_user_id: 'usr-a', updated_by_user_id: 'usr-b', current_revision_id: 'rev-a',
+          score: 4, matches: [{ field: 'title', snippet: 'Policy', line: null }],
+          filename: 'policy.md', updated_at: '2026-10-20T00:00:00Z', project: { name: 'Documents' } }],
+          total_count: 1, has_more: false, next_cursor: null,
+          facets: { tags: [{ tag: 'operations', document_count: 1 }] }, facet_totals: { tags: 1 },
+          facets_truncated: { tags: false }, coverage: { libraries: 1 } };
+      } };
+      const result = await capture(() => runCloudCommand(io.parseArgs(['cloud', 'search',
+        'policy', '--word-forms', '--compact', '--json']), { client }));
+      assert.strictEqual(result.documents[0].created_by_user_id, 'usr-a');
+      assert.strictEqual(result.documents[0].updated_by_user_id, 'usr-b');
+      assert.strictEqual(result.documents[0].current_revision_id, 'rev-a');
+      assert.strictEqual(result.documents[0].url, 'https://cloud.test/docs?cloud-document=doc-a');
+      assert.strictEqual(result.documents[0].score, 4);
+      assert.strictEqual(result.documents[0].matches[0].snippet, 'Policy');
+      assert.strictEqual(result.documents[0].filename, undefined);
+      assert.strictEqual(result.documents[0].project, undefined);
+      assert.deepStrictEqual(result.coverage, { libraries: 1 });
+      assert.deepStrictEqual(result.facet_totals, { tags: 1 });
+      assert.deepStrictEqual(result.facets_truncated, { tags: false });
+      assert.strictEqual(result.pages_fetched, 1);
+      assert.strictEqual(result.returned_count, 1);
+      assert.strictEqual(result.complete, true);
+      assert.strictEqual(result.stopped_reason, 'complete');
+    });
+
+    await testAsync('Cloud search explicitly collects pages and caps results without losing continuation', async () => {
+      const calls = [];
+      const client = { origin: 'https://cloud.test', async authenticated(endpoint, options) {
+        const request = JSON.parse(options.body); calls.push(request);
+        const start = Number(request.cursor || 0), end = Math.min(start + request.limit, 7);
+        return { documents: Array.from({ length: end - start }, (_, n) => ({ id: 'doc-' + (start + n) })),
+          total_count: 7, has_more: end < 7, next_cursor: end < 7 ? String(end) : null };
+      } };
+      const first = await capture(() => runCloudCommand(io.parseArgs(['cloud', 'search',
+        '--limit', '2', '--json']), { client }));
+      assert.strictEqual(first.returned_count, 2);
+      assert.strictEqual(first.pages_fetched, 1);
+      assert.strictEqual(first.complete, false);
+      assert.strictEqual(first.stopped_reason, 'page_limit');
+      calls.length = 0;
+      const capped = await capture(() => runCloudCommand(io.parseArgs(['cloud', 'search',
+        '--limit', '2', '--pages', '3', '--max-results', '3', '--json']), { client }));
+      assert.deepStrictEqual(calls.map(request => request.limit), [2, 1]);
+      assert.strictEqual(capped.returned_count, 3);
+      assert.strictEqual(capped.pages_fetched, 2);
+      assert.strictEqual(capped.stopped_reason, 'max_results');
+      assert.strictEqual(capped.complete, false);
+      assert.strictEqual(capped.next_cursor, '3');
+      assert.strictEqual(capped.has_more, true);
+      const all = await capture(() => runCloudCommand(io.parseArgs(['cloud', 'search',
+        '--limit', '2', '--all', '--cursor', '3', '--json']), { client }));
+      assert.strictEqual(all.returned_count, 4);
+      assert.strictEqual(all.pages_fetched, 2);
+      assert.strictEqual(all.started_from_cursor, true);
+      assert.strictEqual(all.complete, true);
+      assert.strictEqual(all.next_cursor, null);
+    });
+
+    await testAsync('Cloud search deduplicates live pages and marks a later request failure as partial', async () => {
+      let call = 0;
+      const client = { origin: 'https://cloud.test', async authenticated() {
+        call++;
+        if (call === 1) return { documents: [{ id: 'doc-a', title: 'Old' }], has_more: true, next_cursor: 'c1' };
+        if (call === 2) return { documents: [{ id: 'doc-a', title: 'New' }, { id: 'doc-b' }],
+          has_more: true, next_cursor: 'c2' };
+        throw Object.assign(new Error('Try later.'), { code: 'rate_limited', data: { retry_after_ms: 1000 } });
+      } };
+      const result = await capture(() => runCloudCommand(io.parseArgs(['cloud', 'search', '--all', '--json']), { client }));
+      assert.strictEqual(result.ok, false);
+      assert.strictEqual(result.error, 'rate_limited');
+      assert.strictEqual(result.retry_after_ms, 1000);
+      assert.strictEqual(result.partial_result.returned_count, 2);
+      assert.strictEqual(result.partial_result.documents[0].title, 'New');
+      assert.strictEqual(result.partial_result.pages_fetched, 2);
+      assert.strictEqual(result.partial_result.complete, false);
+      assert.strictEqual(result.partial_result.stopped_reason, 'request_failed');
+      assert.strictEqual(result.partial_result.next_cursor, 'c2');
+    });
+
+    await testAsync('Cloud search rejects invalid aggregation options before requesting data', async () => {
+      const client = { origin: 'https://cloud.test', async authenticated() { throw new Error('must not request'); } };
+      for (const args of [['--all', '--pages', '2'], ['--pages', '0'], ['--max-results', '-1']]) {
+        const result = await capture(() => runCloudCommand(io.parseArgs(['cloud', 'search', ...args, '--json']), { client }));
+        assert.strictEqual(result.error, 'invalid_request');
+      }
+    });
+
+    await testAsync('Cloud read returns Markdown and its Cloud URL without files or bindings', async () => {
+      const before = fs.readdirSync(dir).sort();
+      const client = { origin: 'https://cloud.test', async authenticated(endpoint, options) {
+        assert.strictEqual(endpoint, '/api/cloud/v1/documents/doc-a');
+        assert.strictEqual(options, undefined);
+        return { document: { id: 'doc-a', title: 'Reference', filename: 'reference.md', tags: ['research'],
+          markdown: '# Reference\n', current_revision_id: 'rev-a', revision_number: 2 } };
+      } };
+      const oldSet = bindings.set;
+      bindings.set = () => { throw new Error('read must not bind a path'); };
+      try {
+        const result = await capture(() => runCloudCommand(io.parseArgs(['cloud', 'read', 'doc-a', '--json']), { client }));
+        assert.strictEqual(result.command, 'cloud.read');
+        assert.strictEqual(result.markdown, '# Reference\n');
+        assert.strictEqual(result.url, 'https://cloud.test/docs?cloud-document=doc-a');
+        assert.strictEqual(result.revision_id, 'rev-a');
+        const plain = await captureStreams(() => runCloudCommand(io.parseArgs(['cloud', 'read', 'doc-a']), { client }));
+        assert.strictEqual(plain.stdout, '# Reference\n');
+        assert.deepStrictEqual(fs.readdirSync(dir).sort(), before);
+      } finally { bindings.set = oldSet; }
+      const denied = await capture(() => runCloudCommand({ file: 'read', extra: 'private', jsonFlag: true }, {
+        client: { async authenticated() { throw Object.assign(new Error('Unavailable.'), { code: 'resource_unavailable' }); } },
+      }));
+      assert.strictEqual(denied.error, 'resource_unavailable');
+      assert.strictEqual(denied.markdown, undefined);
+    });
+
+    await testAsync('Cloud search help and invalid arguments do not request Cloud data', async () => {
+      const client = { origin: 'https://cloud.test', async authenticated() { throw new Error('must not request'); } };
+      const output = await captureStreams(() => runCloudCommand({ file: 'search', helpFlag: true }, { client }));
+      assert.ok(output.stdout.includes('SmallDocs Cloud search'));
+      assert.ok(output.stdout.includes('--updated-by'));
+      assert.strictEqual(output.stderr, '');
+      const readHelp = await captureStreams(() => runCloudCommand({ file: 'read', helpFlag: true }, { client }));
+      assert.ok(readHelp.stdout.includes('SmallDocs Cloud read'));
+      assert.ok(readHelp.stdout.includes('without a local file or binding'));
+      const invalid = await capture(() => runCloudCommand(io.parseArgs(['cloud', 'search',
+        'incident', '--unknown', '--json']), { client }));
+      assert.strictEqual(invalid.ok, false);
+      assert.strictEqual(invalid.error, 'invalid_request');
+      assert.ok(invalid.message.includes('--unknown'));
+      assert.strictEqual(process.exitCode, 2);
     });
 
     await testAsync('cloud search sends tag filters before the server limit', async () => {
