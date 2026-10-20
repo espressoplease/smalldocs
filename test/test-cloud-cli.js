@@ -775,6 +775,171 @@ module.exports = function(harness) {
       assert.strictEqual(result.local_updated_from_cloud, false);
     });
 
+    await testAsync('Cloud push preview never saves, writes bindings, or changes its local file', async () => {
+      const file = path.join(dir, 'preview.md');
+      fs.writeFileSync(file, '# New\n');
+      bindings.set('usr-1', file, { document_id: 'preview-doc', revision_id: 'base', content_sha256: bindings.hash('# Old\n') });
+      bindings.cacheBase('usr-1', 'preview-doc', 'base', '# Old\n');
+      const before = fs.readFileSync(bindings.bindingsFile(), 'utf8');
+      const pending = fs.existsSync(bindings.pendingFile()) ? fs.readFileSync(bindings.pendingFile(), 'utf8') : null;
+      const result = await capture(() => runCloudCommand(io.parseArgs(['cloud', 'push', file, '--dry-run', '--reject-conflicts', '--if-current', 'head', '--json']), {
+        client: { origin: fakeClient.origin, loadCredential: () => account, async authenticated(endpoint, options) {
+          assert.strictEqual(endpoint, '/api/cloud/v1/documents/preview-doc/revisions/preview');
+          const body = JSON.parse(options.body);
+          assert.strictEqual(body.target_revision_id, 'base');
+          assert.strictEqual(body.expected_current_revision_id, 'head');
+          assert.strictEqual(body.reject_conflicts, true);
+          assert.strictEqual(body.filename, undefined);
+          assert.strictEqual(body.idempotency_key, undefined);
+          return { document: { markdown: '# New\n', would_change: true, current_revision_id: 'head' } };
+        } },
+      }));
+      assert.strictEqual(result.dry_run, true);
+      assert.strictEqual(result.would_change, true);
+      assert.strictEqual(fs.readFileSync(file, 'utf8'), '# New\n');
+      assert.strictEqual(fs.readFileSync(bindings.bindingsFile(), 'utf8'), before);
+      assert.strictEqual(fs.existsSync(bindings.pendingFile()) ? fs.readFileSync(bindings.pendingFile(), 'utf8') : null, pending);
+    });
+
+    await testAsync('Cloud pull preserves a new local edit made while a download is in flight', async () => {
+      const file = path.join(dir, 'pull-race.md');
+      fs.writeFileSync(file, '# Before');
+      bindings.set('usr-1', file, { document_id: 'race', revision_id: 'base', content_sha256: bindings.hash('# Before') });
+      const result = await captureStreams(() => runCloudCommand({ file: 'pull', extra: 'race', outputPath: file, jsonFlag: true, forceFlag: true }, {
+        client: { loadCredential: () => account, async authenticated() {
+          fs.writeFileSync(file, '# Local work during request');
+          return { document: { id: 'race', markdown: '# Remote', current_revision_id: 'remote' } };
+        } },
+      }));
+      assert.strictEqual(JSON.parse(result.stdout).error, 'unsafe_local_state');
+      assert.strictEqual(fs.readFileSync(file, 'utf8'), '# Local work during request');
+      assert.strictEqual(bindings.get('usr-1', file).revision_id, 'base');
+    });
+
+    await testAsync('Cloud pull refuses a binding changed during download', async () => {
+      const file = path.join(dir, 'pull-binding-race.md');
+      const result = await captureStreams(() => runCloudCommand({ file: 'pull', extra: 'race', outputPath: file, jsonFlag: true }, {
+        client: { loadCredential: () => account, async authenticated() {
+          bindings.set('usr-1', file, { document_id: 'another', revision_id: 'other' });
+          return { document: { id: 'race', markdown: '# Remote', current_revision_id: 'remote' } };
+        } },
+      }));
+      assert.strictEqual(JSON.parse(result.stdout).error, 'unsafe_local_state');
+      assert.strictEqual(fs.existsSync(file), false);
+      assert.strictEqual(bindings.get('usr-1', file).document_id, 'another');
+    });
+
+    await testAsync('Cloud unchanged push verifies current access and reports newer Cloud content honestly', async () => {
+      const file = path.join(dir, 'no-change.md');
+      fs.writeFileSync(file, '# Same');
+      bindings.set('usr-1', file, { document_id: 'unchanged', revision_id: 'base', content_sha256: bindings.hash('# Same') });
+      const client = { origin: fakeClient.origin, loadCredential: () => account, async authenticated(endpoint, options) {
+        assert.strictEqual(options, undefined);
+        return { document: { id: 'unchanged', current_revision_id: 'newer', markdown: '# Remote edit' } };
+      } };
+      const result = await capture(() => runCloudCommand({ file: 'push', extra: file, jsonFlag: true }, { client }));
+      assert.strictEqual(result.revision_id, 'newer');
+      assert.strictEqual(result.no_local_changes, true);
+      assert.strictEqual(result.remote_changed_since_pull, true);
+      assert.strictEqual(result.cloud_matches_local, false);
+      assert.strictEqual(bindings.get('usr-1', file).revision_id, 'base');
+      client.authenticated = async () => { throw Object.assign(new Error('Unavailable'), { code: 'resource_unavailable' }); };
+      const denied = await captureStreams(() => runCloudCommand({ file: 'push', extra: file, jsonFlag: true }, { client }));
+      assert.strictEqual(JSON.parse(denied.stdout).error, 'resource_unavailable');
+    });
+
+    await testAsync('Cloud read historical content and diff need no local file or binding', async () => {
+      const before = fs.readFileSync(bindings.bindingsFile(), 'utf8');
+      const client = { origin: fakeClient.origin, async authenticated(endpoint) {
+        return { document: { id: 'compare', current_revision_id: endpoint.endsWith('/old') ? 'old' : 'new',
+          markdown: endpoint.endsWith('/old') ? '# Policy\nCap: 10\n' : '# Policy\nCap: 20\n', filename: 'policy.md' } };
+      } };
+      const historical = await capture(() => runCloudCommand(io.parseArgs(['cloud', 'read', 'compare', '--revision', 'old', '--json']), { client }));
+      assert.strictEqual(historical.revision_id, 'old');
+      assert.strictEqual(historical.markdown, '# Policy\nCap: 10\n');
+      const result = await capture(() => runCloudCommand(io.parseArgs(['cloud', 'diff', 'compare', '--from', 'old', '--to', 'new', '--json']), { client }));
+      assert.strictEqual(result.from_revision_id, 'old');
+      assert.strictEqual(result.to_revision_id, 'new');
+      assert.strictEqual(result.diff.changed, true);
+      assert.strictEqual(result.diff.added_lines, 1);
+      assert.strictEqual(result.diff.removed_lines, 1);
+      assert.strictEqual(fs.readFileSync(bindings.bindingsFile(), 'utf8'), before);
+    });
+
+    await testAsync('Cloud restore preview is read-only and a real restore honors the reviewed base', async () => {
+      const before = fs.readFileSync(bindings.pendingFile(), 'utf8');
+      const requests = [];
+      const client = { origin: fakeClient.origin, loadCredential: () => account, async authenticated(endpoint, options) {
+        requests.push({ endpoint, options });
+        if (options) return { document: { id: 'reviewed', current_revision_id: 'saved', revision_number: 3 } };
+        return { document: { id: 'reviewed', current_revision_id: 'latest', markdown: endpoint.endsWith('/old') ? '# Old' : '# Latest' } };
+      } };
+      const result = await capture(() => runCloudCommand(io.parseArgs(['cloud', 'restore', 'reviewed', '--revision', 'old', '--dry-run', '--json']), { client }));
+      assert.strictEqual(result.dry_run, true);
+      assert.strictEqual(result.base_revision_id, 'latest');
+      assert.strictEqual(result.markdown, '# Old');
+      assert.ok(requests.every(request => !request.options));
+      assert.strictEqual(fs.readFileSync(bindings.pendingFile(), 'utf8'), before);
+      await capture(() => runCloudCommand(io.parseArgs(['cloud', 'restore', 'reviewed', '--revision', 'old', '--base-revision', 'reviewed-head', '--json']), { client }));
+      const write = requests.find(request => request.options);
+      assert.strictEqual(JSON.parse(write.options.body).expected_head_revision_id, 'reviewed-head');
+    });
+
+    await testAsync('Unsupported dry runs cannot mutate Cloud or auto-open a document', async () => {
+      let called = false;
+      const client = { origin: fakeClient.origin, loadCredential: () => account, async authenticated() { called = true; } };
+      for (const action of ['create', 'delete', 'undelete', 'notify', 'tag', 'access', 'library-default', 'login', 'logout']) {
+        const result = await captureStreams(() => runCloudCommand({ file: action, extra: source, dryRunFlag: true, jsonFlag: true }, { client }));
+        assert.strictEqual(JSON.parse(result.stdout).error, 'invalid_request');
+      }
+      const result = await captureStreams(() => openCloudDocument({ file: source, dryRunFlag: true, jsonFlag: true }, { client, openBrowser() { called = true; } }));
+      assert.strictEqual(JSON.parse(result.stdout).error, 'invalid_request');
+      assert.strictEqual(called, false);
+    });
+
+    await testAsync('Cloud access without change flags inspects permissions without writing', async () => {
+      let method;
+      const result = await capture(() => runCloudCommand({ file: 'access', extra: 'doc-1', jsonFlag: true }, {
+        client: { async authenticated(endpoint, options) { method = options; return { permission: { mode: 'custom', can_edit: true } }; } },
+      }));
+      assert.strictEqual(result.permission.can_edit, true);
+      assert.strictEqual(method, undefined);
+    });
+
+    await testAsync('Cloud history diffs expose retained changes and identify an unavailable parent', async () => {
+      const client = { origin: fakeClient.origin, async authenticated(endpoint) {
+        if (endpoint.includes('?')) return { revisions: [
+          { id: 'new', parent_revision_id: 'old', revision_number: 3, created_by_user_id: 'author-b', created_at: '2026-10-20T00:00:00Z' },
+          { id: 'old', parent_revision_id: 'pruned', revision_number: 2, created_by_user_id: 'author-a' },
+        ] };
+        return { document: { markdown: endpoint.endsWith('/new') ? '# Plan\nCap: 20\n' : '# Plan\nCap: 10\n' } };
+      } };
+      const result = await capture(() => runCloudCommand(io.parseArgs(['cloud', 'history', 'plan', '--diffs', '--json']), { client }));
+      assert.strictEqual(result.revisions[0].created_by_user_id, 'author-b');
+      assert.strictEqual(result.revisions[0].diff.added_lines, 1);
+      assert.strictEqual(result.revisions[0].diff.hunks[0].before.join(''), 'Cap: 10\n');
+      assert.strictEqual(result.revisions[0].diff.hunks[0].after.join(''), 'Cap: 20\n');
+      assert.strictEqual(result.revisions[1].diff_available, false);
+      assert.strictEqual(result.revisions[1].diff_unavailable_reason, 'parent_not_retained');
+    });
+
+    await testAsync('Cloud push preserves another process binding and a local deletion during upload', async () => {
+      const file = path.join(dir, 'push-binding-race.md'); fs.writeFileSync(file, '# Local');
+      bindings.set('usr-1', file, { document_id: 'race', revision_id: 'base' });
+      const result = await capture(() => runCloudCommand({ file: 'push', extra: file, jsonFlag: true }, {
+        client: { origin: fakeClient.origin, loadCredential: () => account, async authenticated() {
+          bindings.set('usr-1', file, { document_id: 'race', revision_id: 'newer-binding' });
+          fs.unlinkSync(file);
+          return { document: { id: 'race', current_revision_id: 'saved', revision_number: 2, markdown: '# Local', merge_classification: 'clean' } };
+        } },
+      }));
+      assert.strictEqual(result.ok, true);
+      assert.strictEqual(result.local_changed_after_upload, true);
+      assert.strictEqual(result.binding_changed_during_upload, true);
+      assert.strictEqual(bindings.get('usr-1', file).revision_id, 'newer-binding');
+      assert.strictEqual(fs.existsSync(file), false);
+    });
+
     await testAsync('cloud history returns stable revision JSON', async () => {
       const result = await capture(() => runCloudCommand({ file: 'history', extra: 'doc-1',
         jsonFlag: true }, { client: fakeClient }));
@@ -1197,7 +1362,8 @@ module.exports = function(harness) {
       const third = await capture(() => openCloudDocument({ file, jsonFlag: true,
         noOpenFlag: true }, dependencies));
       assert.strictEqual(third.url, first.url);
-      assert.strictEqual(calls.length, callCount);
+      assert.strictEqual(calls.length, callCount + 1);
+      assert.strictEqual(calls[calls.length - 1].options, undefined);
       assert.strictEqual(opened.length, 2);
     });
 

@@ -893,13 +893,26 @@ test('a fresh CLI authorizes, manages a Cloud document, persists, and revokes it
       expect(pulled).toMatchObject({ document_id: documentId, binding_created: true });
       expect(fs.readFileSync(pulledPath, 'utf8')).toContain('Created from a fresh machine.');
       fs.appendFileSync(pulledPath, '\nUpdated through the CLI.\n');
+      const preview = await cliJson(['cloud', 'push', pulledPath, '--dry-run'], cliEnv);
+      expect(preview).toMatchObject({ dry_run: true, would_change: true,
+        current_revision_id: pulled.revision_id });
+      expect(preview.diff.changed).toBe(true);
+      expect((await json(owner, baseURL, 'GET', '/api/cloud/v1/documents/' + documentId))
+        .body.document.current_revision_id).toBe(pulled.revision_id);
       const pushed = await cliJson(['cloud', 'push', pulledPath], cliEnv);
       expect(pushed).toMatchObject({ document_id: documentId, no_change: false });
       expect((await json(owner, baseURL, 'GET',
         '/api/cloud/v1/documents/' + documentId)).body.document.markdown)
         .toContain('Updated through the CLI.');
-      const history = await cliJson(['cloud', 'history', documentId], cliEnv);
+      expect(pushed.filename).toBe(read.filename);
+      const committed = await cliJson(['cloud', 'read', documentId, '--revision', pushed.revision_id], cliEnv);
+      expect(committed.sha256).toBe(pushed.saved_sha256);
+      const compared = await cliJson(['cloud', 'diff', documentId, '--from', pulled.revision_id,
+        '--to', pushed.revision_id], cliEnv);
+      expect(compared.diff.changed).toBe(true);
+      const history = await cliJson(['cloud', 'history', documentId, '--diffs'], cliEnv);
       expect(history.revisions.length).toBeGreaterThanOrEqual(2);
+      expect(history.revisions.find(revision => revision.id === pushed.revision_id).diff.changed).toBe(true);
 
       const deleted = await cliJson(['cloud', 'delete', documentId,
         '--base-revision', pushed.revision_id], cliEnv);

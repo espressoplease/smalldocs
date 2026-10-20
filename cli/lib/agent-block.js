@@ -28,8 +28,8 @@ const path = require('path');
 const { SETUP_CACHE } = require('./constants');
 
 // ── Skill model ────────────────────────────────────────────
-const SKILL_VERSION = 32;
-const SKILL_REASON  = 'Cloud research uses Boolean queries, scoped filters, compact evidence, read-only retrieval and explicit pagination.';
+const SKILL_VERSION = 33;
+const SKILL_REASON  = 'Cloud updates support read-only previews, revision comparisons, guarded saves and verified receipts.';
 const SKILL_NAME    = 'smalldocs';
 
 // Always-in-context preamble. Concise trigger text; the full reference lives
@@ -128,8 +128,12 @@ When earlier Cloud material should inform new work, use this sequence:
 - For a reference file, read a promising result without binding it for future updates with \`sdoc cloud pull DOCUMENT_UUID --output PATH --no-bind --json\`. To update it, pull without \`--no-bind\`, edit the local Markdown, then run \`sdoc cloud push PATH --json\`.
 - Upload a new local file without opening a browser with \`sdoc cloud create FILE.md --account ACCOUNT_UUID --json\`. Omit \`--account\` when status reports one account.
 - Set document access with \`sdoc cloud access DOCUMENT_UUID --only-you\`, \`--everyone\`, or one or more \`--member USER_ID\` values. List members first. Notify existing members with \`sdoc cloud notify ...\`; notification does not grant access or create users.
-- When updating a bound document, the local binding supplies the revision the agent edited. Cloud keeps separate changes from other writers; overlapping replacements may both remain. If the server combines content and the file did not change during upload, push writes the combined Markdown back to the local file. Inspect \`merge_classification\`, \`combined\`, and \`local_updated_from_cloud\` in the JSON result.
-- Inspect or recover history with \`sdoc cloud history DOCUMENT_UUID\` and \`sdoc cloud restore DOCUMENT_UUID --revision REVISION_UUID\`.
+- Before updating, read the selected document and confirm its library and content match the task. Run \`sdoc cloud push --help\` for previews, save receipts, revision comparisons and recovery. Pull to bind a working file, edit it, then use normal \`cloud push PATH --json\`. Saving preserves document access and the Cloud filename.
+- Default saves merge independent changes and retain both overlapping passages. \`combined:true\` and \`overlapping_edits_preserved:true\` describe that result; they do not impose a review or approval step. Preserve other writers' content and verify the committed revision. The optional \`--reject-conflicts\` refuses overlaps when the user needs that stricter behaviour; do not add it to routine saves by default.
+- For a proposal the user wants to review before saving, use \`cloud push PATH --dry-run --json\`. It returns the proposed merged Markdown, diff and observed head without changing Cloud or local state. A later save can use \`--if-current REVISION_ID\` to require that exact reviewed head. Do not save when asked only for a proposal. Routine changes already authorized by the user need no extra confirmation.
+- Read back \`cloud read DOCUMENT_UUID --revision SAVED_REVISION_ID --json\` and check the requested change and preserved content. \`saved_sha256\` identifies stored Markdown. Later local edits during an upload are not saved; the receipt reports \`local_changed_after_upload\`. An unchanged push checks Cloud online and reports whether it matches the working file. Link the returned Cloud URL.
+- Inspect the change log with \`cloud history DOCUMENT_UUID --diffs --json\`, including retained revision author IDs, timestamps and before/after diffs. Read old content with \`cloud read DOCUMENT_UUID --revision REVISION_UUID --json\`; compare two versions with \`cloud diff --help\`. For a single-field repair, apply the older value to a pull of the current document, preserving newer unrelated edits. Full restore replaces the entire document as a new revision. History is bounded: default retention is the current revision plus up to 3 previous revisions, for at most 90 days. Do not promise unlimited recovery.
+
 
 Cloud documents are identified by UUID, not filename. An account is the access boundary; tags organize documents inside it. The local file remains the editable working copy and its binding records the Cloud document and base revision.
 

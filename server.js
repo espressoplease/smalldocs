@@ -1181,6 +1181,12 @@ function cloudApiError(res, error) {
     body.document_id = error.documentId;
     body.base_revision_id = error.baseRevisionId;
     body.current_revision_id = error.currentRevisionId;
+    if (error.reason) body.reason = error.reason;
+    if (error.expectedCurrentRevisionId) body.expected_current_revision_id = error.expectedCurrentRevisionId;
+    if (Array.isArray(error.conflicts)) {
+      body.conflicts = error.conflicts;
+      body.conflict_count = error.conflictCount;
+    }
   }
   if (code === 'target_too_old') {
     body.document_id = error.documentId;
@@ -1695,6 +1701,12 @@ async function handleCloudApi(req, res, url) {
         can_read: cloudBilling ? Boolean(selected.billing && selected.billing.access.read) : true,
         can_write: Boolean(selected.defaultProject && (!cloudBilling ||
           (selected.billing && selected.billing.access.write))),
+        can_create_document: Boolean(selected.defaultProject && (!cloudBilling ||
+          (selected.billing && selected.billing.access.write))),
+        write_entitlement: !cloudBilling || Boolean(selected.billing && selected.billing.access.write),
+        can_edit_shared_documents: Boolean((!cloudBilling ||
+          (selected.billing && selected.billing.access.write)) &&
+          cloudStore.canEditSharedDocuments(user.id, selected.workspace.id)),
       }, accounts: context.accounts,
       single_plan: SINGLE_PLAN_ENABLED, user: cloudUserProfile(user, identity ? identity.verifiedEmail : null) });
       return;
@@ -2375,6 +2387,33 @@ async function handleCloudApi(req, res, url) {
       sendJson(res, 200, { ok: true, document: restored });
       return;
     }
+    const revisionPreviewMatch = pathname.match(/^\/api\/cloud\/v1\/documents\/([^/]+)\/revisions\/preview$/);
+    if (revisionPreviewMatch && req.method === 'POST') {
+      const body = await cloudAuthHttp.readJson(req, CLOUD_DOCUMENT_JSON_MAX_BYTES);
+      if (typeof body.target_revision_id !== 'string' || !body.target_revision_id ||
+          body.expected_head_revision_id != null) {
+        const error = new Error('a target revision is required');
+        error.code = 'invalid_request';
+        throw error;
+      }
+      const context = cloudStore.getDocumentContext({ userId: user.id,
+        documentId: revisionPreviewMatch[1], requiredRole: 'editor' });
+      requireCloudEntitlement(user.id, context.workspaceId, 'store_revision', {
+        fileBytes: cloudMarkdownBytes(body.markdown),
+      });
+      const document = await cloudStore.previewTargetRevision({
+        userId: user.id, documentId: revisionPreviewMatch[1],
+        targetRevisionId: body.target_revision_id, targetMarkdown: body.target_markdown,
+        markdown: body.markdown, filename: body.filename,
+        expectedCurrentRevisionId: body.expected_current_revision_id,
+        rejectConflicts: body.reject_conflicts,
+        maxMarkdownBytes: CLOUD_DOCUMENT_MAX_BYTES,
+        beforeCommit: (detail) => requireCloudEntitlement(user.id, context.workspaceId,
+          'store_revision', { fileBytes: detail.markdownBytes }),
+      });
+      sendJson(res, 200, { ok: true, document });
+      return;
+    }
     const revisionsMatch = pathname.match(/^\/api\/cloud\/v1\/documents\/([^/]+)\/revisions$/);
     if (revisionsMatch && req.method === 'GET') {
       const context = cloudStore.getDocumentContext({ userId: user.id, documentId: revisionsMatch[1],
@@ -2420,6 +2459,8 @@ async function handleCloudApi(req, res, url) {
           ...saveInput,
           targetRevisionId: body.target_revision_id,
           targetMarkdown: body.target_markdown,
+          rejectConflicts: body.reject_conflicts,
+          expectedCurrentRevisionId: body.expected_current_revision_id,
           maxMarkdownBytes: CLOUD_DOCUMENT_MAX_BYTES,
           beforeCommit: (detail) => requireCloudEntitlement(
             user.id, context.workspaceId, 'store_revision', {
@@ -2448,7 +2489,8 @@ async function handleCloudApi(req, res, url) {
       requireCloudEntitlement(user.id, context.workspaceId, 'read');
       const document = await cloudStore.getDocument({ userId: user.id, documentId: revisionMatch[1],
         revisionId: revisionMatch[2], includeDeleted: true });
-      sendJson(res, 200, { ok: true, document });
+      sendJson(res, 200, { ok: true, document, permission: cloudStore.getDocumentPermission({
+        userId: user.id, documentId: document.id, includeDeleted: true }) });
       return;
     }
     const restoreMatch = pathname.match(/^\/api\/cloud\/v1\/documents\/([^/]+)\/revisions\/([^/]+)\/restore$/);
@@ -3923,7 +3965,7 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  if (pathname === '/docs' || pathname === '/new' || policyDocuments[pathname] || pathname === '/agent-changes' || pathname === '/cloud-search' || pathname === '/advanced-spreadsheets' || pathname === '/runnable-html' || pathname === '/upgrade' || blogSlug || /^\/s\/[A-Za-z0-9_-]{1,32}$/.test(pathname)) {
+  if (pathname === '/docs' || pathname === '/new' || policyDocuments[pathname] || pathname === '/agent-changes' || pathname === '/cloud-search' || pathname === '/cloud-updates' || pathname === '/advanced-spreadsheets' || pathname === '/runnable-html' || pathname === '/upgrade' || blogSlug || /^\/s\/[A-Za-z0-9_-]{1,32}$/.test(pathname)) {
     if (pathname === '/docs' && url.searchParams.has('cloud-document')) {
       const authenticated = cloudAuthSession(req);
       if (redirectForCloudTerms(res, authenticated, pathname + url.search)) return;
@@ -3934,6 +3976,8 @@ const server = http.createServer((req, res) => {
       ? policyDocuments[pathname]
       : pathname === '/cloud-search'
           ? '/public/cloud-search.md'
+      : pathname === '/cloud-updates'
+          ? '/public/cloud-updates.md'
           : pathname === '/agent-changes'
           ? '/public/agent-changes.md'
           : pathname === '/advanced-spreadsheets'
@@ -4013,6 +4057,7 @@ async function startServer() {
   if (CLOUD_DEPLOYMENT.enabled && CLOUD_DEPLOYMENT.keyProvider === 'kms') {
     await require('./lib/cloud-deployment-config').checkCloudKmsReadiness(cloudKeyProvider);
   }
+  if (cloudStore) await cloudStore.encryptDocumentIdempotencyReceipts();
   server.listen(PORT, HOST, () => {
     console.log(`sdocs-dev running at http://${HOST}:${PORT}`);
   });

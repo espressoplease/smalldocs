@@ -13,7 +13,10 @@ function read(file) {
 
 function canonical(file) {
   const absolute = path.resolve(file);
-  try { return fs.realpathSync(absolute); } catch (_) { return absolute; }
+  try { return fs.realpathSync(absolute); } catch (_) {
+    const parent = path.dirname(absolute);
+    return parent === absolute ? absolute : path.join(canonical(parent), path.basename(absolute));
+  }
 }
 
 function key(accountId, file) { return accountId + '\0' + canonical(file); }

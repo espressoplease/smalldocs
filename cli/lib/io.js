@@ -57,6 +57,7 @@ function parseArgs(argv) {
   let helpFlag = false;
   let yesFlag = false;
   let dryRunFlag = false;
+  let diffsFlag = false;
   let skillEdition = null;
   let sheetName = null;
   let projectFlag = null;
@@ -65,6 +66,10 @@ function parseArgs(argv) {
   let revisionFlag = null;
   let documentFlag = null;
   let baseRevisionFlag = null;
+  let ifCurrentFlag = null;
+  let rejectConflictsFlag = false;
+  let fromRevisionFlag = null;
+  let toRevisionFlag = null;
   let limitFlag = null;
   let noOpenFlag = false;
   let noBindFlag = false;
@@ -190,6 +195,7 @@ function parseArgs(argv) {
     if (arg === '--log-file')                        { logFile          = args[++i]; continue; }
     if (arg === '--tags')                            { tagsFlag         = true; continue; }
     if (arg === '--yes' || arg === '-y')             { yesFlag          = true; continue; }
+    if (arg === '--diffs') { diffsFlag = true; continue; }
     if (arg === '--dry-run')                         { dryRunFlag       = true; continue; }
     if (arg === '--cloud')                           { skillEdition     = 'cloud'; continue; }
     if (arg === '--standard')                        { skillEdition     = 'standard'; continue; }
@@ -202,6 +208,18 @@ function parseArgs(argv) {
     if (arg === '--shared-with-me')                  { sharedWithMeFlag = true; continue; }
     if (arg === '--note')                            { noteText = args[++i]; continue; }
     if (arg === '--output' || arg === '-o')          { outputPath       = args[++i]; continue; }
+    if (['--if-current', '--from', '--to'].includes(arg)) {
+      const value = args[i + 1];
+      if (!value || value.startsWith('--')) discovery.searchArgumentErrors.push(arg + ' requires a revision ID');
+      else {
+        i += 1;
+        if (arg === '--if-current') ifCurrentFlag = value;
+        if (arg === '--from') fromRevisionFlag = value;
+        if (arg === '--to') toRevisionFlag = value;
+      }
+      continue;
+    }
+    if (arg === '--reject-conflicts') { rejectConflictsFlag = true; continue; }
     if (arg === '--revision')                        { revisionFlag     = args[++i]; continue; }
     if (arg === '--document') {
       documentFlag = args[++i];
@@ -264,8 +282,9 @@ function parseArgs(argv) {
     resetFlag, shortFlag, jsonFlag, auditFlag, waitFlag,
     messageText, connectTimeoutS, idleTimeoutS, reconnectGraceMs,
     keepOpenFlag, logFile,
-    tagsFlag, helpFlag, yesFlag, dryRunFlag, skillEdition, sheetName,
+    tagsFlag, helpFlag, yesFlag, dryRunFlag, diffsFlag, skillEdition, sheetName,
     projectFlag, accountFlag, outputPath, revisionFlag, documentFlag, baseRevisionFlag,
+    ifCurrentFlag, rejectConflictsFlag, fromRevisionFlag, toRevisionFlag,
     limitFlag, noOpenFlag, noBindFlag, forceFlag, tagFilters,
     everyoneFlag, onlyYouFlag, sharedWithMeFlag, noteText, memberFlags, documentFlags,
     addTags, annotations, files,

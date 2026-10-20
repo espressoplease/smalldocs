@@ -1102,6 +1102,12 @@ module.exports = function(harness) {
         assert.strictEqual(managedStore.db.prepare(
           'SELECT COUNT(*) AS count FROM cloud_notification_batches').get().count,
         notificationCount);
+        await assert.rejects(managedStore.createDocument({
+          userId: 'managed-user', projectId: workspace.projectId,
+          filename: 'managed.md', markdown: '# Managed\n\nEncrypted asynchronously.',
+          idempotencyKey: 'managed-create',
+        }), (error) => error.code === 'temporary_service_failure');
+        kmsUnavailable = false;
         const replayed = await managedStore.createDocument({
           userId: 'managed-user', projectId: workspace.projectId,
           filename: 'managed.md', markdown: '# Managed\n\nEncrypted asynchronously.',
@@ -1109,6 +1115,8 @@ module.exports = function(harness) {
         });
         assert.strictEqual(replayed.id, created.id);
         assert.strictEqual(replayed.current_revision_id, created.current_revision_id);
+        managedProvider.clearCache();
+        kmsUnavailable = true;
         await assert.rejects(managedStore.createDocument({
           userId: 'managed-user', projectId: workspace.projectId,
           filename: 'changed.md', markdown: '# Changed', idempotencyKey: 'managed-create',
