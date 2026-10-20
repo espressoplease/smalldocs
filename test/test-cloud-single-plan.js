@@ -44,6 +44,42 @@ module.exports = function (h) {
         assert.strictEqual(single.account(created).owner_user_id, users.gmail.id);
         assert.notStrictEqual(single.account(created).id, single.ownAccount(users.returning.id).id);
       });
+      await testAsync('direct settings entry provisions a free library once, without requiring checkout', async () => {
+        const missingProfile = await api('missing', '/cloud/admin?panel=billing');
+        assert.strictEqual(missingProfile.status, 303);
+        assert.ok(missingProfile.headers.get('location').startsWith('/cloud/profile?return='));
+        f.auth.updateUserProfile({ userId: users.missing.id, firstName: 'Taylor', lastName: 'Example' });
+        const pages = await Promise.all([api('missing', '/cloud/admin?panel=billing'), api('missing', '/cloud/admin?panel=libraries')]);
+        assert.deepStrictEqual(pages.map(page => page.status), [200, 200]);
+        const libraries = await store.listWorkspaces(users.missing.id);
+        assert.strictEqual(libraries.length, 1);
+        const trial = billing.db.prepare('SELECT * FROM cloud_billing_personal_trials WHERE user_id=?').get(users.missing.id);
+        assert.ok(trial.ends_at_ms > Date.now() + 27 * 24 * 60 * 60 * 1000);
+        assert.strictEqual(billing.getSubscription(trial.workspace_id), null);
+        const status = await api('missing', '/api/cloud/billing/subscription');
+        assert.strictEqual(status.status, 200);
+        assert.strictEqual(status.data.trial_active, true);
+        assert.strictEqual(status.data.trial_ends_at_ms, trial.ends_at_ms);
+        assert.strictEqual(status.data.quantity, 1);
+        const saved = await create('missing', libraries[0].id, 'free-trial-write');
+        assert.strictEqual(saved.status, 201, JSON.stringify(saved));
+        billing.db.prepare('UPDATE cloud_billing_personal_trials SET ends_at_ms=? WHERE user_id=?').run(Date.now() - 1, users.missing.id);
+        await api('missing', '/cloud/admin?panel=billing');
+        const expired = await api('missing', '/api/cloud/billing/subscription');
+        assert.strictEqual(expired.data.trial_active, false);
+        assert.ok(expired.data.trial_ends_at_ms < Date.now());
+        assert.strictEqual((await create('missing', libraries[0].id, 'expired-trial-write')).status, 402);
+        assert.strictEqual((await api('missing', '/api/cloud/v1/documents/' + saved.data.document.id)).status, 200);
+        assert.strictEqual(billing.db.prepare('SELECT COUNT(*) AS n FROM cloud_billing_personal_trials WHERE user_id=?').get(users.missing.id).n, 1);
+      });
+      await testAsync('subscription summary requires authentication and does not reveal another user billing', async () => {
+        const unauthenticated = await fetch(f.origin + '/api/cloud/billing/subscription');
+        assert.strictEqual(unauthenticated.status, 401);
+        const own = await api('josh', '/api/cloud/billing/subscription?user_id=' + users.missing.id);
+        assert.strictEqual(own.data.email, users.josh.email);
+        assert.strictEqual(own.data.trial_ends_at_ms, null);
+        assert.strictEqual(own.data.subscription_status, null);
+      });
       await testAsync('single-plan signup is atomic and redirects to Install without rendering an intermediary', async () => {
         const results = await Promise.all([api('josh', '/api/cloud/v1/onboarding/complete', 'POST', {}), api('josh', '/api/cloud/v1/onboarding/complete', 'POST', {})]);
         assert.deepStrictEqual(results.map(r => r.status), [200, 200], JSON.stringify(results));
@@ -188,6 +224,19 @@ module.exports = function (h) {
         single.claim(users.josh.id, library);
         assert.strictEqual(single.entitlements(users.josh.id, library).access.write, false);
         billing.db.prepare('UPDATE cloud_billing_personal_trials SET ends_at_ms=? WHERE user_id=?').run(existing, users.josh.id);
+      });
+      await testAsync('a second identity cannot restart a trial and receives a readable recovery page', async () => {
+        let alternate = f.auth.signInWithExternalIdentity({ provider: 'google', subject: 'second-trial-identity', verifiedEmail: users.missing.email }).user;
+        alternate = f.auth.updateUserProfile({ userId: alternate.id, firstName: 'Taylor', lastName: 'Example' });
+        f.auth.acceptCurrentTerms({ userId: alternate.id, termsVersion: require('../lib/cloud-terms').CURRENT_TERMS_VERSION });
+        users.alternate = { ...alternate, cookie: 'sdocs_cloud=' + f.auth.createBrowserSession(alternate.id).token };
+        const result = await api('alternate', '/cloud/start');
+        assert.strictEqual(result.status, 409);
+        assert.ok(result.headers.get('content-type').includes('text/html'));
+        assert.ok(result.data.includes('Your trial has already started'));
+        assert.ok(result.data.includes('Sign in with your original method'));
+        assert.ok(!result.data.includes('__SETUP_'));
+        assert.strictEqual(billing.db.prepare('SELECT COUNT(*) AS n FROM cloud_billing_personal_trials WHERE user_id=?').get(alternate.id).n, 0);
       });
       await testAsync('the obsolete plan checkout and conversion routes cannot create a second subscription', async () => {
         assert.strictEqual((await api('josh', '/api/cloud/billing/checkout', 'POST', { workspace_id: own, plan: 'personal' })).status, 409);

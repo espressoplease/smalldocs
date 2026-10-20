@@ -21,14 +21,15 @@
   <span class="nav-label">Cloud</span>
 </header>
 
-<main class="auth-shell onboarding-shell"><section class="auth-card">
-<div class="auth-heading"><div><h1>Review library request</h1><p>Invite this person to a library you administer.</p></div></div>
-<form id="review-form" hidden><p id="requester-name"></p><p id="requester-email"></p><p id="requester-note"></p>
+<main class="auth-shell"><section class="auth-card">
+<div class="auth-heading"><div class="auth-mark" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M20 8v6m-3-3h6"/></svg></div><div><h1 id="review-title">Review library request</h1><p id="review-intro">Invite this person to a library you administer.</p></div></div>
+<form id="review-form" hidden><div class="auth-summary"><p><strong id="requester-name"></strong></p><p id="requester-email"></p></div><p class="auth-body" id="requester-note"></p>
 <label for="review-team">Library</label><select class="text-input" id="review-team" required></select>
-<p class="prototype-status">Membership begins when the person accepts. Existing private documents stay private. Subscription coverage is checked when they join.</p>
+<p class="auth-note">They join when they accept your invitation. Existing private documents stay private. Members without a paid subscription elsewhere are covered by this library's billing account. No payment is taken during the free trial.</p>
 <button class="primary-button" type="submit">Send invitation</button></form>
 <div id="review-result" hidden><input class="text-input" id="invite-link" readonly aria-label="Invitation link"><button class="provider-button" id="copy-invite" type="button">Copy invitation link</button></div>
-<p class="prototype-status" id="review-status" role="status" aria-live="polite">Loading request...</p>
+<p class="auth-status" id="review-status" role="status" aria-live="polite">Loading request...</p>
+<p class="auth-footer" id="review-recovery" hidden><a id="review-sign-in" href="/cloud/sign-in">Use another email</a> · <a href="/cloud/admin?panel=libraries">Your libraries</a></p>
 </section></main>
 <script src="/public/cloud-join-request.js" defer></script>
 </body></html>

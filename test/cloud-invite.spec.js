@@ -70,7 +70,8 @@ test('explains when the signed-in email does not match the invitation', async ({
   const button = page.getByRole('button', { name: 'Accept invitation' });
   await expect(page.getByRole('status')).toHaveText(
     'Sign in with the email address this invitation was sent to.');
-  await expect(button).toBeDisabled();
+  await expect(page.locator('#accept-invite')).toBeHidden();
+  await expect(page.getByRole('link', { name: 'Use another email' })).toBeVisible();
 });
 
 test('explains when an invitation is expired, revoked, or already used', async ({ page }) => {
@@ -83,7 +84,8 @@ test('explains when an invitation is expired, revoked, or already used', async (
   const button = page.getByRole('button', { name: 'Accept invitation' });
 
   await expect(page.getByRole('status')).toHaveText('This invitation is no longer available.');
-  await expect(button).toBeDisabled();
+  await expect(page.locator('#accept-invite')).toBeHidden();
+  await expect(page.getByRole('link', { name: 'Use another email' })).toBeVisible();
 });
 
 test('explains when the server still requires a complete profile', async ({ page }) => {
@@ -104,6 +106,22 @@ test('explains when the server still requires a complete profile', async ({ page
 test('disables acceptance when the invitation token is missing', async ({ page }) => {
   await page.goto(INVITE_PAGE);
 
-  await expect(page.getByRole('button', { name: 'Accept invitation' })).toBeDisabled();
-  await expect(page.getByRole('status')).toHaveText('This invitation link is incomplete.');
+  await expect(page.locator('#accept-invite')).toBeHidden();
+  await expect(page.getByLabel('First name')).toBeHidden();
+  await expect(page.getByRole('status')).toHaveText('This invitation link is incomplete. Ask the sender for the full link.');
+  await expect(page.getByRole('link', { name: 'Open SmallDocs' })).toBeVisible();
+});
+
+test('complete profiles accept invitations without asking for names or rewriting the profile', async ({ page }) => {
+  await routeExistingProfile(page);
+  let patches = 0;
+  page.on('request', request => { if (request.method() === 'PATCH') patches++; });
+  await page.route('**/api/cloud/v1/invitations/invite-token/accept', route => route.fulfill({ json: { ok: true, workspace_id: 'team-1' } }));
+  await page.route('**/cloud/admin?panel=install&workspace_id=team-1', route => route.fulfill({ contentType: 'text/html', body: '<h1>Install SmallDocs</h1>' }));
+  await page.goto(INVITE_PAGE + '?token=invite-token');
+  await expect(page.getByRole('button', { name: 'Accept invitation' })).toBeEnabled();
+  await expect(page.getByLabel('First name')).toBeHidden();
+  await page.getByRole('button', { name: 'Accept invitation' }).click();
+  await expect(page.getByRole('heading', { name: 'Install SmallDocs' })).toBeVisible();
+  expect(patches).toBe(0);
 });

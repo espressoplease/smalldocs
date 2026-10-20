@@ -71,12 +71,66 @@ for (const width of [390, 1440]) {
   });
 }
 
-test('one-plan subscription page has no personal/team choice', async ({ page }) => {
+for (const width of [390, 1440]) {
+  test('subscription shows the real free trial and reuses sign-in styling at ' + width, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await login(page);
+    // A direct OAuth return to settings must create a library without a payment step.
+    await page.goto(f.origin + '/cloud/admin?panel=install');
+    await expect(page.getByRole('heading', { name: 'Install SmallDocs', exact: true })).toBeVisible();
+    const trial = f.billing.db.prepare('SELECT * FROM cloud_billing_personal_trials WHERE user_id=?').get(f.users.josh.id);
+    expect(trial).toBeTruthy();
+    await page.goto(f.origin + '/cloud/subscribe');
+    await expect(page.locator('#subscription-state')).toContainText('Your free trial ends on');
+    await expect(page.locator('#subscription-state')).toContainText('will not be charged automatically');
+    await expect(page.getByRole('link', { name: 'Continue using SmallDocs' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Subscribe now' })).toBeVisible();
+    await expect(page.locator('#subscription-legal')).toContainText('immediately');
+    expect(await page.locator('h1').evaluate(el => getComputedStyle(el).fontSize)).toBe('18px');
+    expect(await page.locator('.auth-card').evaluate(el => getComputedStyle(el).borderRadius)).toBe('10px');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.getByRole('link', { name: 'Back to settings' }).click();
+    await expect(page.getByRole('heading', { name: 'Billing', exact: true })).toBeVisible();
+    await expect(page.locator('#billing-status')).toContainText('Free until');
+    expect(f.billing.db.prepare('SELECT ends_at_ms FROM cloud_billing_personal_trials WHERE user_id=?').get(f.users.josh.id).ends_at_ms).toBe(trial.ends_at_ms);
+  });
+}
+test('expired trial offers payment with a readable error and retains the library', async ({ page }) => {
   await login(page);
+  await f.api('josh', '/api/cloud/v1/onboarding/complete', 'POST', {});
+  f.billing.db.prepare('UPDATE cloud_billing_personal_trials SET ends_at_ms=? WHERE user_id=?').run(Date.now() - 1, f.users.josh.id);
   await page.goto(f.origin + '/cloud/subscribe');
-  await expect(page.getByRole('heading', { name: 'SmallDocs, all features' })).toBeVisible();
-  await expect(page.locator('#checkout-personal')).toHaveCount(0);
-  await expect(page.locator('#checkout-team')).toHaveCount(0);
+  await expect(page.locator('#subscription-state')).toContainText('Your free trial has ended');
   await page.getByRole('button', { name: 'Continue to payment' }).click();
-  await expect(page.getByRole('status')).toContainText('Payment setup is unavailable');
+  await expect(page.locator('#subscribe-status')).toContainText('Payment could not be opened');
+  await expect(page.getByRole('button', { name: 'Continue to payment' })).toBeEnabled();
+});
+test('paid accounts cannot accidentally start a second subscription from the page', async ({ page }) => {
+  await login(page, 'returning');
+  await page.goto(f.origin + '/cloud/admin?panel=install');
+  // Initialize coverage through the same billing access used by the app.
+  await f.api('returning', '/api/cloud/v1/account/documents', 'POST', { account_id: f.personal.workspaceId, filename: 'existing.md', markdown: '# Existing', idempotency_key: 'paid-summary' });
+  await page.goto(f.origin + '/cloud/subscribe');
+  await expect(page.locator('#subscription-state')).toContainText('You already have a subscription');
+  await expect(page.locator('#subscribe')).toBeHidden();
+});
+
+test('first sign-in through the library starts a free trial instead of offering a plan', async ({ page }) => {
+  await login(page, 'gmail');
+  await page.goto(f.origin + '/library?scope=cloud');
+  await expect(page.getByRole('heading', { name: 'Install SmallDocs', exact: true })).toBeVisible();
+  await expect(page).not.toHaveURL(/subscribe|checkout/);
+  expect((await f.store.listWorkspaces(f.users.gmail.id)).length).toBe(1);
+  const summary = await f.api('gmail', '/api/cloud/billing/subscription');
+  expect(summary.data.trial_active).toBe(true);
+});
+
+test('cancelling an early subscription does not claim a future trial deadline has passed', async ({ page }) => {
+  await login(page);
+  const setup = await f.api('josh', '/api/cloud/v1/onboarding/complete', 'POST', {});
+  f.billing.upsertSubscription({ workspaceId: setup.data.workspaces[0].id, plan: 'team', status: 'canceled', provider: 'manual' });
+  await page.goto(f.origin + '/cloud/subscribe');
+  await expect(page.getByRole('button', { name: 'Continue to payment' })).toBeVisible();
+  await expect(page.locator('#subscription-state')).not.toContainText('trial has ended');
+  await expect(page.locator('#subscription-state')).toContainText('Subscribe to continue saving');
 });

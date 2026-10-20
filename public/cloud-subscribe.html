@@ -1,12 +1,28 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>SmallDocs subscription</title>
-<link rel="stylesheet" href="/public/css/cloud-sign-in.css"><link rel="stylesheet" href="/public/css/cloud-onboarding.css"></head>
-<body><header class="header"><a class="brand" href="/">SmallDocs</a><span class="nav-sep">/</span><span class="nav-label">Subscription</span></header>
-<main class="auth-shell"><section class="auth-card"><h1>SmallDocs, all features</h1><p id="subscription-identity"></p>
-<p><span data-cloud-plan="standard"><strong data-cloud-price-primary>$5</strong></span> per person each month. One paid subscription covers a person across their libraries.</p>
-<p>You pay for yourself and members you sponsor. People with an active paid subscription elsewhere are not added to your bill.</p>
-<p>Inviting someone does not share existing private documents with them. Choose access on each document.</p>
-<button class="primary-button" id="subscribe">Continue to payment</button><p class="prototype-status" id="subscribe-status" role="status"></p>
-<p>Stripe collects payment. Your subscription renews monthly until cancelled. By continuing, you agree to the <a href="/legal">Terms</a> and acknowledge the <a href="/cancellation">cancellation policy</a>.</p>
-<a href="/cloud/admin?panel=billing">Back to settings</a></section></main>
-<script src="/public/cloud-pricing.js" defer></script><script src="/public/cloud-subscribe.js" defer></script></body></html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Your SmallDocs subscription</title>
+<link rel="stylesheet" href="/public/css/cloud-sign-in.css">
+</head>
+<body>
+<header class="header"><a class="brand" href="/">SmallDocs</a><span class="nav-sep">/</span><span class="nav-label">Subscription</span></header>
+<main class="auth-shell"><section class="auth-card" aria-labelledby="subscription-title">
+<div class="auth-heading">
+<div class="auth-mark" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 10h20M6 16h2"/></svg></div>
+<h1 id="subscription-title">Your subscription</h1><p id="subscription-identity">Loading your details...</p>
+</div>
+<div class="auth-summary" id="subscription-summary" hidden>
+<p class="subscription-price" data-cloud-plan="standard"><strong data-cloud-price-primary>$5</strong> <span>per person, per month</span></p>
+<p>All features, across your libraries.</p>
+</div>
+<p class="auth-body" id="subscription-state" role="status">Checking your subscription...</p>
+<p class="auth-body" id="subscription-quantity" hidden></p>
+<a class="primary-button" id="continue-trial" href="/cloud/start" hidden>Continue using SmallDocs</a>
+<button class="primary-button" id="subscribe" disabled hidden>Continue to payment</button>
+<p class="auth-status" id="subscribe-status" role="status" aria-live="polite"></p>
+<p class="auth-note" id="subscription-legal" hidden>Payment starts your monthly subscription immediately. It renews until cancelled. By continuing, you agree to the <a href="/legal">Terms</a> and acknowledge the <a href="/cancellation">cancellation policy</a>.</p>
+<p class="auth-footer"><a href="/cloud/admin?panel=billing">Back to settings</a></p>
+</section></main>
+<script src="/public/cloud-pricing.js" defer></script><script src="/public/cloud-subscribe.js" defer></script>
+</body></html>

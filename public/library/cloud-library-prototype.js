@@ -163,13 +163,15 @@
     }
     if (responses.some(function (response) { return !response.ok; })) throw new Error('Cloud unavailable');
     const workspaces = (await responses[0].json()).workspaces || [];
-    const me = (await responses[1].json()).user || {};
+    const account = await responses[1].json();
+    const me = account.user || {};
     window.SDocsCloudLibrary.workspaces = workspaces;
     window.SDocsCloudLibrary.user = me;
     actions.hidden = workspaces.length <= 1;
     const note = heading.querySelector('.cloud-access-note');
     if (note) note.textContent = me.email ? 'Signed in as ' + me.email : 'Signed in';
     if (!workspaces.length) {
+      if (account.single_plan) { location.assign('/cloud/start'); return; }
       if (note) note.textContent = 'Choose a Cloud plan to add documents';
       showOnboarding(false);
       return;

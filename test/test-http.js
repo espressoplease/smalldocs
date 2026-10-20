@@ -1181,10 +1181,10 @@ module.exports = function(harness) {
     await testAsync('GET /cloud/business-invite serves the private invitation page', async () => {
       const r = await get(BASE + '/cloud/business-invite?preview=signin');
       assert.strictEqual(r.status, 200);
-      assert.ok(r.body.includes('Welcome to SmallDocs'));
-      assert.ok(r.body.includes('Turn coding-agent work into documents your team can use'));
-      assert.ok(r.body.includes('Your free access'));
-      assert.ok(r.body.includes('We will be in touch'));
+      assert.ok(r.body.includes('Your invitation'));
+      assert.ok(r.body.includes('Sign in to review your invitation and set up SmallDocs'));
+      assert.ok(r.body.includes('Your access'));
+      assert.ok(r.body.includes('check Billing in settings'));
       assert.ok(!r.body.includes('$18'));
       assert.ok(r.body.includes('Accept your invitation'));
       assert.ok(r.body.includes('Install SmallDocs Cloud'));

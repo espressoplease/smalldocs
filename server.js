@@ -721,7 +721,7 @@ function rewriteAssets(html) {
 // rewriter, and send. Every HTML route in this server goes through here so
 // the asset-versioning pass cannot be forgotten on a new entry point.
 function escapeRegExp(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
-function serveHtmlWithRewrite(res, filePath, subs, extraHeaders) {
+function serveHtmlWithRewrite(res, filePath, subs, extraHeaders, statusCode = 200) {
   fs.readFile(filePath, 'utf8', (err, html) => {
     if (err) {
       res.writeHead(404, { 'Content-Type': 'text/plain' });
@@ -738,7 +738,7 @@ function serveHtmlWithRewrite(res, filePath, subs, extraHeaders) {
       'Content-Type': 'text/html; charset=utf-8',
       'Cache-Control': 'no-cache',
     }, extraHeaders || {});
-    res.writeHead(200, headers);
+    res.writeHead(statusCode, headers);
     res.end(html);
   });
 }
@@ -1243,6 +1243,18 @@ function requireCloudEntitlement(userId, workspaceId, operation, extra) {
   return result.entitlements;
 }
 
+function serveCloudSetupError(res, error) {
+  const used = error.code === 'trial_already_used';
+  serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'cloud-setup-error.html'), {
+    '__SETUP_TITLE__': used ? 'Your trial has already started' : 'Setup could not be completed',
+    '__SETUP_ACTION__': used ? 'Sign in to your account' : 'Try again',
+    '__SETUP_URL__': used ? '/cloud/sign-in?return=%2Fcloud%2Fstart' : '/cloud/start',
+    '__SETUP_COPY__': used ? 'This email address has already used a free trial. Sign in with your original method to open your existing library, or view subscription options.'
+      : 'Your library could not be prepared. Try again in a moment.',
+  }, { 'Cache-Control': 'no-store', 'X-Frame-Options': 'DENY', 'Referrer-Policy': 'no-referrer',
+    'Content-Security-Policy': "default-src 'none'; style-src 'self'; font-src 'self'; img-src 'self' data:; base-uri 'none'; frame-ancestors 'none'" }, used ? 409 : 503);
+}
+
 async function completeCloudOnboarding(user) {
       if (cloudBilling) await require('./lib/cloud-library-upgrade').recoverLocal({ billing: cloudBilling, store: cloudStore, userId: user.id });
       if (!user.firstName || !user.lastName) throw Object.assign(new Error('profile_required'), { code: 'profile_required' });
@@ -1254,6 +1266,12 @@ async function completeCloudOnboarding(user) {
           cloudSinglePlan.initialize(user.id, workspace.workspaceId, verifiedCloudEmail(user.id));
         } else await cloudStore.ensurePersonalWorkspace(user.id, user.firstName + ' ' + user.lastName);
         workspaces = await cloudStore.listWorkspaces(user.id);
+      }
+      if (cloudSinglePlan) {
+        for (const workspace of workspaces) {
+          if (workspace.role === 'owner') cloudSinglePlan.initialize(user.id, workspace.id, verifiedCloudEmail(user.id));
+          else cloudSinglePlan.claim(user.id, workspace.id);
+        }
       }
       const personal = workspaces.find(workspace => workspace.kind === 'personal' && workspace.role === 'owner');
       if (personal && cloudBilling && !cloudSinglePlan) cloudBilling.ensurePersonalTrial({ userId: user.id, workspaceId: personal.id, verifiedEmail: verifiedCloudEmail(user.id) });
@@ -2841,6 +2859,29 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  if (req.method === 'GET' && pathname === '/api/cloud/billing/subscription') {
+    const principal = cloudApiPrincipal(req, res);
+    if (!principal) return;
+    if (!cloudSinglePlan) { sendJson(res, 404, { ok: false, error: 'resource_unavailable' }); return; }
+    const userId = principal.user.id;
+    const account = cloudSinglePlan.ownAccount(userId);
+    const sponsor = cloudSinglePlan.coverage(userId);
+    const coverage = sponsor && cloudSinglePlan.hasSponsoredMembership(userId, sponsor.account_id)
+      ? cloudSinglePlan.subscriptionAccess(sponsor.account_id) : null;
+    const subscription = account && cloudBilling.getSubscription(account.id);
+    const trial = cloudBilling.db.prepare('SELECT ends_at_ms FROM cloud_billing_personal_trials WHERE user_id=?').get(userId);
+    const trialEnd = coverage && coverage.trialEndsAtMs
+      ? Math.min(coverage.trialEndsAtMs, trial ? trial.ends_at_ms : Infinity) : trial && trial.ends_at_ms;
+    sendJson(res, 200, { ok: true, email: verifiedCloudEmail(userId),
+      trial_ends_at_ms: trialEnd || null,
+      trial_active: Boolean(trialEnd && cloudBilling.now() < trialEnd && !subscription),
+      subscription_status: subscription ? subscription.status : null,
+      covered_elsewhere: Boolean(sponsor && (!account || sponsor.account_id !== account.id) && coverage && coverage.access.write
+        && cloudBilling.getSubscription(sponsor.account_id)),
+      quantity: account ? cloudSinglePlan.seatCount(account.id) : 1 });
+    return;
+  }
+
   if (req.method === 'POST' && pathname === '/api/cloud/billing/subscribe') {
     const principal = cloudApiPrincipal(req, res);
     if (!principal || !cloudAuthPostAllowed(req, res)) return;
@@ -3023,7 +3064,7 @@ const server = http.createServer((req, res) => {
           const target = '/cloud/admin?panel=' + (url.searchParams.get('choose') === '1' || !selected ? 'libraries' : 'install')
             + (selected ? '&workspace_id=' + encodeURIComponent(selected.id) : '');
           res.writeHead(303, { Location: target, 'Cache-Control': 'no-store' }); res.end();
-        } catch (error) { cloudApiError(res, error); }
+        } catch (error) { serveCloudSetupError(res, error); }
       })(); return;
     }
     serveHtmlWithRewrite(res, path.join(__dirname, 'public', pathname === '/cloud/start' ? 'cloud-start.html' : 'cloud-join-request.html'), null, {
@@ -3200,13 +3241,29 @@ const server = http.createServer((req, res) => {
       return;
     }
     if (redirectForCloudTerms(res, authenticated, pathname + url.search)) return;
-    serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'cloud-admin.html'), null, {
-      'Cache-Control': 'no-store',
-      'X-Content-Type-Options': 'nosniff',
-      'X-Frame-Options': 'DENY',
-      'Referrer-Policy': 'no-referrer',
-      'Content-Security-Policy': "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'; object-src 'none'",
-    });
+    if (SINGLE_PLAN_ENABLED) {
+      if (!authenticated.user.firstName || !authenticated.user.lastName) {
+        res.writeHead(303, { Location: '/cloud/profile?return=' + encodeURIComponent(pathname + url.search), 'Cache-Control': 'no-store' });
+        res.end(); return;
+      }
+      (async () => {
+        try {
+          await completeCloudOnboarding(authenticated.user);
+          serveCloudAdmin();
+        } catch (error) { serveCloudSetupError(res, error); }
+      })();
+      return;
+    }
+    serveCloudAdmin();
+    function serveCloudAdmin() {
+      serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'cloud-admin.html'), null, {
+        'Cache-Control': 'no-store',
+        'X-Content-Type-Options': 'nosniff',
+        'X-Frame-Options': 'DENY',
+        'Referrer-Policy': 'no-referrer',
+        'Content-Security-Policy': "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'; object-src 'none'",
+      });
+    }
     return;
   }
 

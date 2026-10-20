@@ -6,10 +6,19 @@
   var lastName = document.getElementById('invite-last-name');
   var token = new URLSearchParams(window.location.search).get('token');
   var profileLoaded = false;
+  var needsProfile = false;
+  var fields = document.getElementById('invite-profile-fields');
+  var recovery = document.getElementById('invite-recovery');
+  document.getElementById('invite-sign-in').href = '/cloud/sign-in?return=' + encodeURIComponent(location.pathname + location.search);
 
   function show(message, error) {
     status.textContent = message;
     status.classList.toggle('error', Boolean(error));
+    if (error && !profileLoaded) {
+      document.getElementById('invite-title').textContent = 'Invitation unavailable';
+      document.getElementById('invite-copy').hidden = true;
+      fields.hidden = true; button.hidden = true; recovery.hidden = false;
+    }
   }
 
   function readResponse(response) {
@@ -27,7 +36,7 @@
 
   if (!token) {
     button.disabled = true;
-    show('This invitation link is incomplete.', true);
+    show('This invitation link is incomplete. Ask the sender for the full link.', true);
     return;
   }
 
@@ -43,12 +52,13 @@
     if (!result.response.ok) throw new Error('Your details could not be loaded.');
     firstName.value = result.body.user.first_name || '';
     lastName.value = result.body.user.last_name || '';
+    needsProfile = !firstName.value || !lastName.value;
     return fetch('/api/cloud/v1/invitations/' + encodeURIComponent(token)).then(readResponse).then(function (details) {
       if (!details.response.ok) throw new Error(details.body.error === 'permission_denied'
         ? 'Sign in with the email address this invitation was sent to.' : 'This invitation is no longer available.');
       var invitation = details.body.invitation;
       document.getElementById('invite-title').textContent = 'Join ' + invitation.workspace_name;
-      document.getElementById('invite-copy').textContent = 'Role: ' + invitation.role + '. Your personal documents stay separate.';
+      document.getElementById('invite-copy').textContent = 'You will join as ' + (invitation.role === 'owner' ? 'an owner' : invitation.role === 'admin' ? 'an administrator' : 'a member') + '. Existing private documents stay private.';
       if (invitation.accepted) {
         button.textContent = 'Open library';
         button.disabled = false;
@@ -56,7 +66,7 @@
           event.stopImmediatePropagation();
           location.assign('/library?scope=cloud&workspace=' + encodeURIComponent(invitation.workspace_id));
         }, { capture: true });
-      } else { profileLoaded = true; refreshButton(); }
+      } else { profileLoaded = true; fields.hidden = !needsProfile; document.getElementById('invite-profile-note').hidden = !needsProfile; refreshButton(); }
       show('');
     });
   }).catch(function (error) {
@@ -65,11 +75,11 @@
 
   button.addEventListener('click', function () {
     button.disabled = true;
-    show('Saving your details...');
-    fetch('/api/cloud/v1/me', {
+    show(needsProfile ? 'Saving your details...' : 'Accepting invitation...');
+    (needsProfile ? fetch('/api/cloud/v1/me', {
       method: 'PATCH', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ first_name: firstName.value.trim(), last_name: lastName.value.trim() }),
-    }).then(readResponse).then(function (profileResult) {
+    }).then(readResponse) : Promise.resolve({ response: { ok: true } })).then(function (profileResult) {
       if (profileResult.response.status === 401) {
         returnToSignIn();
         throw new Error('login_required');
@@ -85,11 +95,12 @@
           throw new Error('Sign in with the email address this invitation was sent to.');
         }
         if (result.body.error === 'profile_required') {
+          needsProfile = true; fields.hidden = false;
           throw new Error('Enter your first and last name.');
         }
         throw new Error('This invitation is no longer available.');
       }
-      show('Invitation accepted. Opening setup...');
+      show('Invitation accepted. Opening installation...');
       window.location.assign('/cloud/admin?panel=install&workspace_id=' + encodeURIComponent(result.body.workspace_id));
     }).catch(function (error) {
       if (error.message !== 'login_required') {

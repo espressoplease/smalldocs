@@ -244,3 +244,16 @@ label { display: block; margin-bottom: 6px; color: var(--text-2); font-size: 11.
 }
 
 .profile-form .text-input { margin-bottom: 16px; }
+
+/* Supporting copy uses the same scale and spacing as the sign-in form. */
+.auth-body { margin: 0 0 16px; color: var(--text-2); font-size: 12.5px; line-height: 1.6; overflow-wrap: anywhere; }
+.auth-summary { padding: 16px; margin-bottom: 20px; border: 1px solid var(--border-2); border-radius: 6px; background: var(--surface-2); }
+.auth-summary p { color: var(--text-2); font-size: 12px; line-height: 1.5; }
+.auth-summary .subscription-price { margin-bottom: 4px; }
+.subscription-price strong { color: var(--text); font-size: 24px; font-weight: 600; letter-spacing: -.025em; }
+.auth-note { margin-top: 16px; color: var(--text-2); font-size: 11.5px; line-height: 1.6; }
+.auth-footer { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border-2); font-size: 12px; line-height: 1.5; }
+.auth-status { margin-top: 12px; color: var(--text-2); font-size: 12.5px; line-height: 1.5; overflow-wrap: anywhere; }
+.auth-status:empty { display: none; }
+.auth-card > .primary-button + .provider-button { margin-top: 9px; }
+.primary-button:disabled, .provider-button:disabled { cursor: default; opacity: .55; }

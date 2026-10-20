@@ -626,7 +626,7 @@
     var environment = local ? (setup.isWindows() ? '$env:SDOCS_CLOUD_URL="' + location.origin + '"' : 'export SDOCS_CLOUD_URL=' + location.origin) : '';
     var login = 'sdoc cloud login';
     byId('install-command').textContent = command + '\n' + 'sdoc setup --cloud --yes' + '\n' + (environment ? environment + '\n' : '') + login;
-    byId('install-prompt').textContent = 'Install SmallDocs using the instructions at https://smalldocs.org/sdoc. Configure the Cloud-first skill with sdoc setup --cloud --yes, then run ' + login + '. ' + (local ? 'Set SDOCS_CLOUD_URL to ' + location.origin + ' for all SmallDocs commands. ' : '') + 'Let me approve the connection in my browser. Use the Cloud URL returned by sdoc when linking documents in chat.';
+    byId('install-prompt').textContent = 'Install SmallDocs using the instructions at https://smalldocs.org/sdoc. ' + (local ? 'Set SDOCS_CLOUD_URL to ' + location.origin + ' for all SmallDocs commands before connecting. ' : '') + 'Configure the Cloud-first skill with sdoc setup --cloud --yes, then run ' + login + '. Let me approve the connection in my browser. Use the Cloud URL returned by sdoc when linking documents in chat.';
     byId('install-prompt').dataset.basePrompt = byId('install-prompt').textContent;
     document.querySelectorAll('[data-install-copy]').forEach(function (button) {
       button.addEventListener('click', async function () {
@@ -678,6 +678,8 @@
       state.me = responses[0].user || null;
       document.querySelector('[data-panel="libraries"]').hidden = !state.singlePlan;
       if (state.singlePlan) {
+        byId('install-team-link').textContent = 'Manage libraries';
+        byId('install-team-link').href = '/cloud/admin?panel=libraries';
         byId('members-empty').textContent = 'No other people have joined this library yet.';
         byId('invite-status').textContent = 'After acceptance, people without a paid subscription elsewhere are covered by your billing account.';
         byId('delete-workspace').textContent = 'Delete library';
@@ -702,7 +704,7 @@
           activatePanel(panel, false);
           return;
         }
-        location.assign('/cloud/checkout');
+        location.assign(state.singlePlan ? '/cloud/start' : '/cloud/checkout');
         return;
       }
       var deleted = await Promise.all([requestWithoutSubscription('/workspaces/deleted', { workspaces: [] }), requestWithoutSubscription('/documents/deleted', { documents: [] })]);

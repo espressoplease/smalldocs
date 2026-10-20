@@ -8,3 +8,11 @@
 .onboarding-shell .terms-choice { align-items: flex-start; margin: 16px 0; }
 .onboarding-shell p, .onboarding-shell input { overflow-wrap: anywhere; }
 .onboarding-shell #library-choices { display: grid; gap: 8px; margin-bottom: 20px; }
+
+.onboarding-shell .auth-card > form > p,
+.onboarding-shell .auth-card > div > p,
+.onboarding-shell #request-pending > p { margin: 12px 0; color: var(--text-2); font-size: 12.5px; line-height: 1.6; }
+.onboarding-shell .prototype-status { font-size: 12px; line-height: 1.6; text-align: left; }
+.onboarding-shell .text-input { margin-bottom: 12px; }
+#review-form .text-input { margin-bottom: 0; }
+#review-form .primary-button, #review-result .provider-button { margin-top: 16px; }
