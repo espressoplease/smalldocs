@@ -28,8 +28,8 @@ const path = require('path');
 const { SETUP_CACHE } = require('./constants');
 
 // ── Skill model ────────────────────────────────────────────
-const SKILL_VERSION = 33;
-const SKILL_REASON  = 'Cloud updates support read-only previews, revision comparisons, guarded saves and verified receipts.';
+const SKILL_VERSION = 34;
+const SKILL_REASON  = 'Cloud history retains every revision for 90 days, with the current revision always kept.';
 const SKILL_NAME    = 'smalldocs';
 
 // Always-in-context preamble. Concise trigger text; the full reference lives
@@ -132,7 +132,7 @@ When earlier Cloud material should inform new work, use this sequence:
 - Default saves merge independent changes and retain both overlapping passages. \`combined:true\` and \`overlapping_edits_preserved:true\` describe that result; they do not impose a review or approval step. Preserve other writers' content and verify the committed revision. The optional \`--reject-conflicts\` refuses overlaps when the user needs that stricter behaviour; do not add it to routine saves by default.
 - For a proposal the user wants to review before saving, use \`cloud push PATH --dry-run --json\`. It returns the proposed merged Markdown, diff and observed head without changing Cloud or local state. A later save can use \`--if-current REVISION_ID\` to require that exact reviewed head. Do not save when asked only for a proposal. Routine changes already authorized by the user need no extra confirmation.
 - Read back \`cloud read DOCUMENT_UUID --revision SAVED_REVISION_ID --json\` and check the requested change and preserved content. \`saved_sha256\` identifies stored Markdown. Later local edits during an upload are not saved; the receipt reports \`local_changed_after_upload\`. An unchanged push checks Cloud online and reports whether it matches the working file. Link the returned Cloud URL.
-- Inspect the change log with \`cloud history DOCUMENT_UUID --diffs --json\`, including retained revision author IDs, timestamps and before/after diffs. Read old content with \`cloud read DOCUMENT_UUID --revision REVISION_UUID --json\`; compare two versions with \`cloud diff --help\`. For a single-field repair, apply the older value to a pull of the current document, preserving newer unrelated edits. Full restore replaces the entire document as a new revision. History is bounded: default retention is the current revision plus up to 3 previous revisions, for at most 90 days. Do not promise unlimited recovery.
+- Inspect the change log with \`cloud history DOCUMENT_UUID --diffs --json\`, including retained revision author IDs, timestamps and before/after diffs. Read old content with \`cloud read DOCUMENT_UUID --revision REVISION_UUID --json\`; compare two versions with \`cloud diff --help\`. For a single-field repair, apply the older value to a pull of the current document, preserving newer unrelated edits. Full restore replaces the entire document as a new revision. History keeps every revision for 90 days, and always keeps the current revision. Older revisions may be pruned, so do not promise unlimited recovery.
 
 
 Cloud documents are identified by UUID, not filename. An account is the access boundary; tags organize documents inside it. The local file remains the editable working copy and its binding records the Cloud document and base revision.

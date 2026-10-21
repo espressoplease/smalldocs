@@ -606,7 +606,7 @@ test('reusable staging identities enforce access and merge two-account edits', a
     await expect(libraryRow.locator('.res-title')).toHaveText(document.title);
     await expect(libraryRow.locator('.tag')).toHaveText(['#permission-matrix', '#shared-test']);
     const openedDocument = owner.waitForEvent('page');
-    await libraryRow.click();
+    await libraryRow.locator('.res-title').click();
     ownerPage = await openedDocument;
     await expect.poll(() => new URL(ownerPage.url()).searchParams.get('cloud-document'))
       .toBe(document.id);
@@ -749,6 +749,19 @@ test('rich search keeps pages, evidence and facets within live document permissi
     expect(first.body.documents[0].url).toBe(baseURL + '/docs?cloud-document=' + first.body.documents[0].id);
     expect(JSON.stringify(first.body)).not.toContain('hiddenfacet' + marker);
     expect(JSON.stringify(first.body)).not.toContain('privateword' + marker);
+    const libraryPage = await selected.newPage();
+    await libraryPage.goto(baseURL + '/library?scope=cloud&workspace=' + encodeURIComponent(accountId));
+    await libraryPage.locator('#q').fill(marker);
+    await expect(libraryPage.locator('#count')).toHaveText('2 results');
+    await expect(libraryPage.locator('.res')).toHaveCount(2);
+    await libraryPage.locator('[data-facet="author"]').click();
+    await libraryPage.locator('[data-person-choice="' + ownerId + '"]').click();
+    await expect(libraryPage.locator('#count')).toHaveText('2 results');
+    await expect(libraryPage.locator('.res')).toHaveCount(2);
+    await expect(libraryPage.locator('.res').first().locator('[data-cloud-person="' + ownerId + '"]')).toBeVisible();
+    await expect(libraryPage.locator('#results')).not.toContainText('privateword' + marker);
+    await libraryPage.close();
+
     const tampered = await json(selected, baseURL, 'POST', '/api/cloud/v1/search', { ...body, query: marker, cursor: first.body.next_cursor });
     expect(tampered.response.status()).toBe(400);
     const unreturned = documents.slice(0, 2).find(item => item.id !== first.body.documents[0].id);
@@ -948,3 +961,44 @@ test('a fresh CLI authorizes, manages a Cloud document, persists, and revokes it
       fs.rmSync(cliHome, { recursive: true, force: true });
     }
   });
+
+
+test('live cleanup retains every recent revision beyond the old count cap', async ({ browser }, testInfo) => {
+  const baseURL = String(testInfo.project.use.baseURL).replace(/\/$/, '');
+  const owner = await ownerContext(browser, baseURL);
+  const marker = 'historycanary' + Date.now();
+  let document;
+  try {
+    const libraries = await json(owner, baseURL, 'GET', '/api/cloud/v1/workspaces');
+    const accountId = libraries.body.workspaces.find(item => item.name === 'SmallDocs Acceptance').id;
+    const created = await json(owner, baseURL, 'POST', '/api/cloud/v1/account/documents', {
+      account_id: accountId, filename: marker + '.md', markdown: '# History canary\n\nRevision 1.',
+      idempotency_key: marker + '-1',
+    });
+    expect(created.response.status()).toBe(201);
+    document = created.body.document;
+    const firstRevision = document.current_revision_id;
+    for (let revision = 2; revision <= 8; revision++) {
+      const saved = await json(owner, baseURL, 'POST', '/api/cloud/v1/documents/' + document.id + '/revisions', {
+        expected_head_revision_id: document.current_revision_id,
+        markdown: '# History canary\n\nRevision ' + revision + '.',
+        idempotency_key: marker + '-' + revision,
+      });
+      expect(saved.response.status()).toBe(201);
+      document = saved.body.document;
+    }
+    // Let the staging worker process its cleanup jobs before checking history.
+    await new Promise(resolve => setTimeout(resolve, 2500));
+    const history = await json(owner, baseURL, 'GET', '/api/cloud/v1/documents/' + document.id + '/revisions');
+    expect(history.response.status()).toBe(200);
+    expect(history.body.revisions.map(revision => revision.revision_number)).toEqual([8, 7, 6, 5, 4, 3, 2, 1]);
+    const original = await json(owner, baseURL, 'GET', '/api/cloud/v1/documents/' + document.id + '/revisions/' + firstRevision);
+    expect(original.response.status()).toBe(200);
+    expect(original.body.document.markdown).toContain('Revision 1.');
+  } finally {
+    try {
+      if (document) expect((await json(owner, baseURL, 'DELETE', '/api/cloud/v1/documents/' + document.id,
+        { expected_head_revision_id: document.current_revision_id })).response.status()).toBe(200);
+    } finally { await owner.close(); }
+  }
+});

@@ -23,11 +23,17 @@ const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || '0.0.0.0';
 const CLOUD_DOCUMENT_MAX_BYTES = 10 * 1024 * 1024;
 const CLOUD_DOCUMENT_JSON_MAX_BYTES = 24 * 1024 * 1024;
-const CLOUD_REVISION_KEEP_PREVIOUS = integerEnvironmentSetting(
-  'CLOUD_REVISION_KEEP_PREVIOUS', 3, 0);
 const CLOUD_REVISION_RETENTION_DAYS = integerEnvironmentSetting(
   'CLOUD_REVISION_RETENTION_DAYS', 90, 1);
-const CLOUD_REVISION_RETENTION_MS = CLOUD_REVISION_RETENTION_DAYS * 24 * 60 * 60 * 1000;
+const CLOUD_REVISION_MINIMUM_RETENTION_MS = 90 * 24 * 60 * 60 * 1000;
+const CLOUD_REVISION_RETENTION_MS = Math.max(CLOUD_REVISION_MINIMUM_RETENTION_MS,
+  CLOUD_REVISION_RETENTION_DAYS * 24 * 60 * 60 * 1000);
+
+function cloudRevisionRetentionMs(value) {
+  const duration = Number(value);
+  return Math.max(CLOUD_REVISION_MINIMUM_RETENTION_MS,
+    Number.isSafeInteger(duration) && duration > 0 ? duration : CLOUD_REVISION_RETENTION_MS);
+}
 const CLOUD_DOCUMENT_RESTORE_WINDOW_MS = integerEnvironmentSetting(
   'CLOUD_DOCUMENT_RESTORE_WINDOW_MS', 30 * 24 * 60 * 60 * 1000, 1);
 const CLOUD_PAYMENT_GRACE_MS = integerEnvironmentSetting(
@@ -319,12 +325,11 @@ function scheduleRevisionPrune(document, entitlements) {
   if (!cloudJobs || !document) return;
   const configuredDays = entitlements && entitlements.limits &&
     entitlements.limits.revisionRetentionDays;
-  const retentionMs = configuredDays == null
-    ? CLOUD_REVISION_RETENTION_MS : configuredDays * 24 * 60 * 60 * 1000;
+  const retentionMs = cloudRevisionRetentionMs(configuredDays == null
+    ? CLOUD_REVISION_RETENTION_MS : configuredDays * 24 * 60 * 60 * 1000);
   enqueueCloudJob({ type: 'revision_prune',
-    idempotencyKey: document.id + ':' + document.current_revision_id,
-    payload: { documentId: document.id, keepPrevious: CLOUD_REVISION_KEEP_PREVIOUS,
-      retentionMs } });
+    idempotencyKey: document.id + ':' + document.current_revision_id + ':age-only-v1',
+    payload: { documentId: document.id, retentionMs } });
 }
 
 function scheduleTeamSeatSync(workspaceId, seatChangeId) {
@@ -416,15 +421,17 @@ async function processCloudJob(job) {
   }
   if (job.type === 'revision_prune') {
     if (cloudStore) {
+      // Older queued jobs can carry a count cap or a shorter retention window.
+      const retentionMs = cloudRevisionRetentionMs(job.payload.retentionMs);
       const result = cloudStore.pruneRevisions({ documentId: job.payload.documentId,
-        keepPrevious: job.payload.keepPrevious,
-        retainAfterMs: Date.now() - job.payload.retentionMs });
+        retainAfterMs: Math.max(0, Date.now() - retentionMs) });
       if (result.oldest_retained_previous_created_at_ms != null) {
         const expiresAtMs = result.oldest_retained_previous_created_at_ms +
-          job.payload.retentionMs + 1;
+          retentionMs + 1;
         enqueueCloudJob({ type: 'revision_prune',
-          idempotencyKey: result.document_id + ':' + result.current_revision_id + ':' + expiresAtMs,
-          payload: job.payload, availableAtMs: Math.max(Date.now(), expiresAtMs) });
+          idempotencyKey: result.document_id + ':' + result.current_revision_id + ':age-only-v1:' + expiresAtMs,
+          payload: { documentId: result.document_id, retentionMs },
+          availableAtMs: Math.max(Date.now(), expiresAtMs) });
       }
     }
     return;

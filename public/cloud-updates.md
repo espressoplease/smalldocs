@@ -75,7 +75,7 @@ sdoc cloud restore DOCUMENT_ID --revision OLD_REVISION_ID --dry-run --json
 sdoc cloud restore DOCUMENT_ID --revision OLD_REVISION_ID --base-revision REVIEWED_HEAD_ID --json
 ```
 
-A restore creates a new revision. History is bounded: default retention keeps the current revision and up to three previous revisions, with previous revisions retained for at most 90 days. Deployments can configure a different policy. Do not treat revision history as an unlimited archive.
+A restore creates a new revision. Every revision is kept for 90 days, and the current revision is always kept. Revisions older than 90 days may be deleted.
 
 ## Access and failures
 

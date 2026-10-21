@@ -100,15 +100,57 @@ References: [Google collaboration design](https://drive.googleblog.com/2010/09/w
 
 ## Limits and decisions
 
-History already exists for every document. The default retains the current
-revision and up to three previous revisions, with previous revisions retained
-for at most 90 days. `history --diffs` marks a missing parent as unavailable. This
-is useful for recent repairs, but it is not an unlimited change archive. A longer
-retention policy or named checkpoints should be chosen before promising long-term
-agent recovery.
+History exists for every document. As of the 21 October follow-up, every revision
+is retained for 90 days and the current revision is always kept. Cleanup ignores
+legacy count caps and normalizes older queued retention windows to at least 90
+days. `history --diffs` marks a pruned parent as unavailable. Revisions already
+removed under the previous policy cannot be recovered by this change.
 
 Permissive overlap may leave contradictory prose or invalid JSON, as explicitly
 chosen. Concurrent YAML scalar edits still produce one effective rendered value;
 both values are visible in diagnostics and retained history. Merges canonicalize
 YAML quoting. This candidate does not implement character-level live editing,
 named checkpoints, permanent history, or a shareable unsaved preview URL.
+
+
+## 21 October: revision retention and library people filters
+
+The revision worker now keeps all revisions from the last 90 days and always
+keeps the current revision. Old queued count caps and shorter retention windows
+cannot remove that history. Cleanup remains date based, and schedules the next
+expiry using a versioned job key. The real worker regression covers old payloads,
+more than three previous revisions, an old current revision and an idempotent
+save beside a legacy queued job.
+
+The Cloud library now uses permission-scoped search for initial results and all
+filters. Created by and Updated by use stable user IDs and combine with text,
+tags, shared-with-me and date filters. Results use cursor pagination in pages of
+60, preserving relative date bounds between pages. Failed replacement searches
+clear stale cursors and offer Retry; failed next pages preserve existing results.
+Library changes abort and discard results from the previous library.
+
+Active libraries with more than one member show creator pills and, when different,
+the latest editor. Single-member libraries hide both names and people filters,
+regardless of their historical personal/team label. Pills reuse the document
+controls through shared CSS. Former contributors remain discoverable through
+authorized document metadata. Keyboard focus survives filtering and refresh.
+
+Validation on this branch:
+
+- 1,708 Node tests passed, including the real retention worker.
+- 15 new real-server headless people-filter tests passed, including a reproduced
+  HTTP 400 cursor regression, retry recovery, tied timestamps, former members,
+  private documents, outsiders, library switching and 320/390/1440px layouts.
+- 46 existing library, document controls and mobile tag-sheet tests passed.
+- Four HTTPS acceptance tests passed locally. The optional live Stripe portal
+  test was skipped because this run did not configure Stripe portal credentials.
+- A production-mode cached-main service-worker upgrade emitted sdocs-reload,
+  refreshed the document shell, loaded shared pills and produced no page errors.
+- Both generated v34 skill editions passed the skill schema validator. The
+  experiment folder has CLI 1.20.0-rc.4 and the Cloud v34 skill; its existing
+  credentials and defaults were preserved.
+
+The HTTPS suite also contains a staging-compatible eight-revision canary. It
+waits for cleanup, reads all eight revisions and retrieves the original content.
+The rich-search acceptance case exercises the visible Created by filter through
+a second user's browser while checking private content remains absent.

@@ -342,10 +342,8 @@ HISTORY AND RECOVERY
 
 History --diffs adds a before/after diff for each retained change, alongside
 its revision, author IDs and timestamp. A pruned parent is marked unavailable.
-Every save retains a revision. History lists the currently retained revisions,
-not an unlimited archive. Default retention is the current revision and up to
-3 previous revisions, with previous revisions kept for at most 90 days.
-Deployments can configure a different policy.
+Every save retains a revision. All revisions are kept for 90 days, and the
+current revision is always kept. Revisions older than 90 days may be deleted.
 
 Restore creates a new revision containing the entire older document. For a
 single-field repair, read the older revision, edit that field in a pull of the

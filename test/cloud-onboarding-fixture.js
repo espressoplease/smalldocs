@@ -39,7 +39,8 @@ async function startFixture(options = {}) {
     NOTIFY_SMTP_HOST: options.smtpPort ? '127.0.0.1' : '', NOTIFY_SMTP_PORT: String(options.smtpPort || 1025),
     NOTIFY_SMTP_SECURITY: options.smtpPort ? 'none' : '', NOTIFY_SMTP_USER: '',
     NOTIFY_EMAIL_FROM: 'login@smalldocs.test', CLOUD_AUTH_DEV_LOG_CODES: '',
-    STRIPE_SECRET_KEY: options.stripeApiBase ? 'sk_test_fixture' : '', STRIPE_SECRET_KEY_FILE: '', SDOCS_STRIPE_TEST_API_BASE: options.stripeApiBase || '', STRIPE_STANDARD_PRICE_ID: options.stripeApiBase ? 'price_standard' : '', STRIPE_WEBHOOK_SECRET: options.stripeApiBase ? 'whsec_fixture' : '', CLOUD_JOBS_DB: '', CLOUD_KMS_KEY_ID: '', NOTIFY_SMTP_PASS: '',
+    STRIPE_SECRET_KEY: options.stripeApiBase ? 'sk_test_fixture' : '', STRIPE_SECRET_KEY_FILE: '', SDOCS_STRIPE_TEST_API_BASE: options.stripeApiBase || '', STRIPE_STANDARD_PRICE_ID: options.stripeApiBase ? 'price_standard' : '', STRIPE_WEBHOOK_SECRET: options.stripeApiBase ? 'whsec_fixture' : '', CLOUD_JOBS_DB: options.jobs ? path.join(dir, 'jobs.db') : '',
+    CLOUD_JOB_POLL_MS: options.jobs ? '250' : '', CLOUD_KMS_KEY_ID: '', NOTIFY_SMTP_PASS: '',
     SDOCS_SKIP_KMS_PREFLIGHT: '1', SHORT_LINKS_DB: path.join(dir, 'links.db'),
   }, stdio: ['ignore', 'pipe', 'pipe'] });
   let startupErrors = '';

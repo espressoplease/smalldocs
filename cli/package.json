@@ -1,6 +1,6 @@
 {
   "name": "sdocs-dev",
-  "version": "1.20.0-rc.3",
+  "version": "1.20.0-rc.4",
   "description": "Open, share, and style markdown files from the terminal",
   "main": "bin/sdocs-dev.js",
   "bin": {

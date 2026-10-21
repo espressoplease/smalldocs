@@ -303,3 +303,15 @@ body.cloud-library-loading #results { display: none; }
     text-align: center;
   }
 }
+
+/* Person pills share the document controls' base CSS. */
+.cloud-library-person { max-width: 100%; }
+.cloud-library-person > span { min-width: 0; overflow-wrap: anywhere; }
+.cloud-library-person-option[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent-light);
+  color: var(--accent-text);
+}
+.cloud-library .res-overflow { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 10px; }
+.cloud-library .res-overflow .btn { min-height: 32px; }
+.cloud-library .syntax-hint[hidden] { display: none; }
