@@ -5,6 +5,46 @@ let f, mail;
 test.beforeEach(async () => { mail = await startCaptureServer(); f = await startFixture({ singlePlan: true, smtpPort: mail.port }); });
 test.afterEach(async () => { await f.close(); await new Promise(resolve => mail.server.close(resolve)); });
 
+for (const width of [390, 1440]) {
+  test('new email signup returns to the same CLI authorization at ' + width, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    const authorization = f.auth.issueDeviceAuthorization({ displayName: 'Fresh laptop' });
+    const target = '/cloud/authorize?user_code=' + authorization.userCode;
+    await page.goto(f.origin + target);
+    await expect(page).toHaveURL(/cloud\/sign-in/);
+    await page.getByLabel('Email address', { exact: true }).fill('fresh-cli@example.test');
+    await page.locator('#email-form').getByRole('button').click();
+    await expect.poll(() => mail.messages.length).toBe(1);
+    const text = decodeMimeParts(mail.messages[0]).map(part => part.body).join('\n');
+    await page.locator('#code').fill(text.match(/\b\d{6}\b/)[0]);
+    await page.locator('#code-form').getByRole('button').click();
+    await expect(page).toHaveURL(/cloud\/terms/);
+    await page.getByRole('checkbox').check();
+    await page.getByRole('button', { name: /accept|continue/i }).click();
+    await expect(page).toHaveURL(/cloud\/profile/);
+    await page.getByLabel('First name').fill('Fresh');
+    await page.getByLabel('Last name').fill('Person');
+    await page.getByRole('button', { name: 'Continue', exact: true }).click();
+    await expect(page).toHaveURL(f.origin + target);
+    await expect(page.getByLabel('Authorization code')).toHaveValue(authorization.userCode);
+    await expect(page.locator('#authorization-detail')).toContainText('Fresh laptop');
+    await page.getByRole('button', { name: 'Authorize CLI', exact: true }).click();
+    await expect(page.locator('#authorization-result')).toHaveText('CLI authorized. You can return to the terminal.');
+    const token = f.auth.pollDeviceAuthorization({ deviceCode: authorization.deviceCode });
+    expect(token.ok).toBe(true);
+    const headers = { Authorization: 'Bearer ' + token.accessToken };
+    const account = await page.request.get(f.origin + '/api/cloud/v1/account', { headers });
+    expect((await account.json()).account.can_create_document).toBe(true);
+    const saved = await page.request.post(f.origin + '/api/cloud/v1/account/documents', { headers, data: {
+      filename: 'first.md', markdown: '# Ready after signup', idempotency_key: 'first-cli-document' } });
+    expect(saved.status()).toBe(201);
+    expect(f.store.listWorkspaceMemberships(token.userId)).toHaveLength(1);
+    expect(f.billing.db.prepare('SELECT COUNT(*) AS n FROM cloud_billing_personal_trials WHERE user_id=?').get(token.userId).n).toBe(1);
+    const geometry = await page.evaluate(() => ({ width: document.documentElement.scrollWidth, viewport: innerWidth }));
+    expect(geometry.width).toBeLessThanOrEqual(geometry.viewport);
+  });
+}
+
 test('email signup verifies the delivered code, captures a profile and reaches Install with one library', async ({ page }) => {
   await page.goto(f.origin + '/home-next');
   const form = page.locator('[data-install-form]').first();

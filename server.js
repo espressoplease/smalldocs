@@ -1268,12 +1268,28 @@ function requireCloudEntitlement(userId, workspaceId, operation, extra) {
   return result.entitlements;
 }
 
-function serveCloudSetupError(res, error) {
+function cloudOnboardingDestination(requestedReturn) {
+  let target = cloudAuthHttp.safeReturnPath(requestedReturn);
+  const seen = new Set();
+  while (!seen.has(target)) {
+    seen.add(target);
+    const page = new URL(target, CLOUD_AUTH_PUBLIC_ORIGIN);
+    if (!['/cloud/start', '/cloud/profile', '/cloud/terms'].includes(page.pathname) || !page.searchParams.has('return')) break;
+    target = cloudAuthHttp.safeReturnPath(page.searchParams.get('return'), '/cloud/start');
+  }
+  return target;
+}
+
+function cloudSetupLocation(returnTo) {
+  return '/cloud/start?return=' + encodeURIComponent(cloudAuthHttp.safeReturnPath(returnTo));
+}
+
+function serveCloudSetupError(res, error, returnTo) {
   const used = error.code === 'trial_already_used';
   serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'cloud-setup-error.html'), {
     '__SETUP_TITLE__': used ? 'Your trial has already started' : 'Setup could not be completed',
     '__SETUP_ACTION__': used ? 'Sign in to your account' : 'Try again',
-    '__SETUP_URL__': used ? '/cloud/sign-in?return=%2Fcloud%2Fstart' : '/cloud/start',
+    '__SETUP_URL__': used ? '/cloud/sign-in?return=%2Fcloud%2Fstart' : cloudSetupLocation(returnTo),
     '__SETUP_COPY__': used ? 'This email address has already used a free trial. Sign in with your original method to open your existing library, or view subscription options.'
       : 'Your library could not be prepared. Try again in a moment.',
   }, { 'Cache-Control': 'no-store', 'X-Frame-Options': 'DENY', 'Referrer-Policy': 'no-referrer',
@@ -1301,6 +1317,52 @@ async function completeCloudOnboarding(user) {
       const personal = workspaces.find(workspace => workspace.kind === 'personal' && workspace.role === 'owner');
       if (personal && cloudBilling && !cloudSinglePlan) cloudBilling.ensurePersonalTrial({ userId: user.id, workspaceId: personal.id, verifiedEmail: verifiedCloudEmail(user.id) });
       return workspaces;
+}
+
+function cloudNeedsOnboarding(user) {
+  if (!cloudStore || !cloudSinglePlan) return true;
+  if (!user.firstName || !user.lastName) return true;
+  const memberships = cloudStore.listWorkspaceMemberships(user.id);
+  if (!memberships.length) return true;
+  return memberships.some(workspace => {
+    const account = cloudSinglePlan.account(workspace.id);
+    if (!account) return true;
+    return account.owner_user_id === user.id && !cloudBilling.getSubscription(account.id) &&
+      !cloudBilling.db.prepare('SELECT 1 FROM cloud_billing_personal_trials WHERE workspace_id=?').get(account.id);
+  });
+}
+
+async function prepareCloudAccount(user) {
+  if (SINGLE_PLAN_ENABLED && cloudNeedsOnboarding(user)) await completeCloudOnboarding(user);
+}
+
+async function cloudSignInContinuation(user, requestedReturn) {
+  const target = cloudOnboardingDestination(requestedReturn);
+  if (!cloudTermsAccepted(user)) return { return_to: cloudTermsLocation(target), onboarding_complete: false };
+  if (!SINGLE_PLAN_ENABLED) return { return_to: target };
+  if (!user.firstName || !user.lastName) {
+    return { return_to: '/cloud/profile?return=' + encodeURIComponent(target), onboarding_complete: false };
+  }
+  // Accepting an email-bound invitation supplies the first library. Keep that
+  // deliberate step ahead of provisioning a separate library and trial.
+  const invitation = new URL(target, CLOUD_AUTH_PUBLIC_ORIGIN);
+  if (['/cloud/invite', '/cloud/business-invite'].includes(invitation.pathname) && invitation.searchParams.get('token')) {
+    return { return_to: target, onboarding_complete: !cloudNeedsOnboarding(user) };
+  }
+  try {
+    await prepareCloudAccount(user);
+    return { return_to: target, onboarding_complete: true };
+  } catch (_) {
+    // Authentication remains valid if storage or billing is temporarily down.
+    // Setup retries with this session rather than consuming another email code.
+    return { return_to: cloudSetupLocation(target), onboarding_complete: false };
+  }
+}
+
+function redirectForCloudSetup(res, authenticated, returnTo) {
+  if (!SINGLE_PLAN_ENABLED || !authenticated.ok || !cloudNeedsOnboarding(authenticated.user)) return false;
+  res.writeHead(303, { Location: cloudSetupLocation(returnTo), 'Cache-Control': 'no-store' });
+  res.end(); return true;
 }
 
 function requireInvitationEntitlement(userId, workspaceId) {
@@ -1409,6 +1471,7 @@ function cloudRequireDocumentRead(userId, document, options = {}) {
 }
 
 async function cloudAccountContext(userId, requestedId) {
+  if (SINGLE_PLAN_ENABLED) await prepareCloudAccount(cloudAuth.getUser(userId));
   const workspaces = await cloudStore.listWorkspaces(userId);
   const workspaceRows = new Map(workspaces.map(workspace => [workspace.id,
     cloudStore.db.prepare('SELECT * FROM cloud_workspaces WHERE id = ?').get(workspace.id)]));
@@ -1552,6 +1615,7 @@ async function handleCloudApi(req, res, url) {
       return;
     }
     if (req.method === 'GET' && pathname === base + '/library-settings') {
+      await prepareCloudAccount(user);
       sendJson(res, 200, { ok: true, single_plan: SINGLE_PLAN_ENABLED,
         libraries: await cloudStore.listWorkspaces(user.id),
         machines: cloudAuth.listCliCredentials(user.id).filter(c => c.revokedAtMs == null).map(c => ({ id: c.id,
@@ -1685,6 +1749,7 @@ async function handleCloudApi(req, res, url) {
       return;
     }
     if (req.method === 'GET' && pathname === base + '/workspaces') {
+      await prepareCloudAccount(user);
       sendJson(res, 200, { ok: true, single_plan: SINGLE_PLAN_ENABLED, workspaces: await cloudStore.listWorkspaces(user.id),
         user: cloudUserProfile(user) });
       return;
@@ -1734,7 +1799,8 @@ async function handleCloudApi(req, res, url) {
       const body = await cloudAuthHttp.readJson(req);
       const updated = cloudAuth.updateUserProfile({ userId: user.id,
         firstName: body.first_name, lastName: body.last_name });
-      sendJson(res, 200, { ok: true, user: cloudUserProfile(updated) });
+      const continuation = await cloudSignInContinuation(updated, body.return_to || '/cloud/start');
+      sendJson(res, 200, { ok: true, user: cloudUserProfile(updated), ...continuation });
       return;
     }
     if (req.method === 'GET' && pathname === base + '/account') {
@@ -2655,11 +2721,9 @@ async function handleCloudEmailVerify(req, res) {
     const result = cloudAuth.consumeEmailCode({ requestId: body.challenge_id, code: body.code });
     if (!result.ok) return sendJson(res, 400, { ok: false, error: 'invalid_or_expired_code' });
     const session = cloudAuth.createBrowserSession(result.user.id);
-    const requestedReturn = cloudAuthHttp.safeReturnPath(body.return_to);
-    const returnTo = cloudTermsAccepted(result.user)
-      ? requestedReturn : cloudTermsLocation(requestedReturn);
+    const continuation = await cloudSignInContinuation(result.user, body.return_to);
     const secure = new URL(CLOUD_AUTH_PUBLIC_ORIGIN).protocol === 'https:';
-    sendJson(res, 200, { ok: true, return_to: returnTo }, {
+    sendJson(res, 200, { ok: true, ...continuation }, {
       'Set-Cookie': cloudAuthHttp.sessionCookie(session.token, {
         secure,
         maxAge: Math.max(1, Math.floor((session.expiresAtMs - Date.now()) / 1000)),
@@ -2692,10 +2756,8 @@ async function handleCloudTestLogin(req, res) {
     const signedIn = cloudAuth.signInWithVerifiedEmail(email);
     const session = cloudAuth.createBrowserSession(signedIn.user.id);
     const secure = new URL(CLOUD_AUTH_PUBLIC_ORIGIN).protocol === 'https:';
-    const requestedReturn = cloudAuthHttp.safeReturnPath(body.return_to);
-    const returnTo = cloudTermsAccepted(signedIn.user)
-      ? requestedReturn : cloudTermsLocation(requestedReturn);
-    sendJson(res, 200, { ok: true, return_to: returnTo }, {
+    const continuation = await cloudSignInContinuation(signedIn.user, body.return_to);
+    sendJson(res, 200, { ok: true, ...continuation }, {
       'Set-Cookie': cloudAuthHttp.sessionCookie(session.token, { secure,
         maxAge: Math.max(1, Math.floor((session.expiresAtMs - Date.now()) / 1000)),
       }),
@@ -2778,10 +2840,8 @@ async function finishCloudOAuth(req, res, url, provider) {
         firstName: completed.identity.firstName, lastName: completed.identity.lastName });
     }
     const session = cloudAuth.createBrowserSession(signedIn.user.id);
-    const requestedReturn = cloudAuthHttp.safeReturnPath(completed.returnTo);
-    const returnTo = cloudTermsAccepted(signedIn.user)
-      ? requestedReturn : cloudTermsLocation(requestedReturn);
-    res.writeHead(303, { Location: returnTo,
+    const continuation = await cloudSignInContinuation(signedIn.user, completed.returnTo);
+    res.writeHead(303, { Location: continuation.return_to,
       'Set-Cookie': [cloudAuthHttp.sessionCookie(session.token, { secure,
         maxAge: Math.max(1, Math.floor((session.expiresAtMs - Date.now()) / 1000)) }), clearBinding],
       'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' });
@@ -2812,9 +2872,10 @@ async function handleCloudTermsAcceptance(req, res) {
     }
     const acceptance = cloudAuth.acceptCurrentTerms({ userId: authenticated.user.id,
       termsVersion: body.terms_version });
+    const continuation = await cloudSignInContinuation(cloudAuth.getUser(authenticated.user.id), body.return_to);
     sendJson(res, 200, { ok: true, terms_version: acceptance.termsVersion,
       accepted_at: new Date(acceptance.acceptedAtMs).toISOString(),
-      return_to: cloudAuthHttp.safeReturnPath(body.return_to) });
+      ...continuation });
   } catch (error) {
     if (error.code === 'payload_too_large') return sendJson(res, 413, { ok: false, error: error.code });
     if (error.code === 'invalid_json' || error.code === 'invalid_terms_version') {
@@ -3222,10 +3283,12 @@ const server = http.createServer((req, res) => {
           const workspaces = await completeCloudOnboarding(authenticated.user);
           const explicit = workspaces.find(w => w.id === url.searchParams.get('workspace_id'));
           const selected = explicit || (workspaces.length === 1 ? workspaces[0] : null);
-          const target = '/cloud/admin?panel=' + (url.searchParams.get('choose') === '1' || !selected ? 'libraries' : 'install')
+          const resume = cloudAuthHttp.safeReturnPath(url.searchParams.get('return'), '/cloud/start');
+          const target = new URL(resume, CLOUD_AUTH_PUBLIC_ORIGIN).pathname !== '/cloud/start' ? resume
+            : '/cloud/admin?panel=' + (url.searchParams.get('choose') === '1' || !selected ? 'libraries' : 'install')
             + (selected ? '&workspace_id=' + encodeURIComponent(selected.id) : '');
           res.writeHead(303, { Location: target, 'Cache-Control': 'no-store' }); res.end();
-        } catch (error) { serveCloudSetupError(res, error); }
+        } catch (error) { serveCloudSetupError(res, error, url.searchParams.get('return')); }
       })(); return;
     }
     serveHtmlWithRewrite(res, path.join(__dirname, 'public', pathname === '/cloud/start' ? 'cloud-start.html' : 'cloud-join-request.html'), null, {
@@ -3244,8 +3307,11 @@ const server = http.createServer((req, res) => {
     }
     if (redirectForCloudTerms(res, authenticated, pathname + url.search)) return;
     if (authenticated.user.firstName && authenticated.user.lastName) {
-      res.writeHead(303, { Location: returnTo, 'Cache-Control': 'no-store' });
-      res.end(); return;
+      (async () => {
+        const continuation = await cloudSignInContinuation(authenticated.user, returnTo);
+        res.writeHead(303, { Location: continuation.return_to, 'Cache-Control': 'no-store' }); res.end();
+      })().catch(error => serveCloudSetupError(res, error, returnTo));
+      return;
     }
     serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'cloud-profile.html'), null, {
       'Cache-Control': 'no-store', 'X-Frame-Options': 'DENY',
@@ -3415,7 +3481,7 @@ const server = http.createServer((req, res) => {
         try {
           await completeCloudOnboarding(authenticated.user);
           serveCloudAdmin();
-        } catch (error) { serveCloudSetupError(res, error); }
+        } catch (error) { serveCloudSetupError(res, error, pathname + url.search); }
       })();
       return;
     }
@@ -3529,6 +3595,7 @@ const server = http.createServer((req, res) => {
     if (url.searchParams.get('scope') === 'cloud') {
       const authenticated = cloudAuthSession(req);
       if (redirectForCloudTerms(res, authenticated, pathname + url.search)) return;
+      if (redirectForCloudSetup(res, authenticated, pathname + url.search)) return;
     }
     const csp = [
       "default-src 'self'",
@@ -4058,6 +4125,7 @@ const server = http.createServer((req, res) => {
     if (pathname === '/docs' && url.searchParams.has('cloud-document')) {
       const authenticated = cloudAuthSession(req);
       if (redirectForCloudTerms(res, authenticated, pathname + url.search)) return;
+      if (redirectForCloudSetup(res, authenticated, pathname + url.search)) return;
     }
     const documentNav = documentNavigation(req);
     const nonce = crypto.randomBytes(16).toString('base64');

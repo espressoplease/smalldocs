@@ -223,7 +223,7 @@
       method: 'PATCH',
       credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ first_name: firstName.value.trim(), last_name: lastName.value.trim() })
+      body: JSON.stringify({ first_name: firstName.value.trim(), last_name: lastName.value.trim(), return_to: location.pathname + location.search })
     }).then(readResponse).then(function (profileResult) {
       if (profileResult.response.status === 401) {
         showOnly(authCard);

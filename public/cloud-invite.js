@@ -78,7 +78,7 @@
     show(needsProfile ? 'Saving your details...' : 'Accepting invitation...');
     (needsProfile ? fetch('/api/cloud/v1/me', {
       method: 'PATCH', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ first_name: firstName.value.trim(), last_name: lastName.value.trim() }),
+      body: JSON.stringify({ first_name: firstName.value.trim(), last_name: lastName.value.trim(), return_to: location.pathname + location.search }),
     }).then(readResponse) : Promise.resolve({ response: { ok: true } })).then(function (profileResult) {
       if (profileResult.response.status === 401) {
         returnToSignIn();

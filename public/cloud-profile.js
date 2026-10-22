@@ -2,8 +2,12 @@
   'use strict';
   var returnTo = '/cloud/start';
   try {
-    var target = new URL(new URLSearchParams(location.search).get('return') || returnTo, location.origin);
-    if (target.origin === location.origin && ['/cloud/start', '/cloud/invite', '/cloud/admin'].includes(target.pathname)) returnTo = target.pathname + target.search;
+    var requested = new URLSearchParams(location.search).get('return') || returnTo;
+    var target = new URL(requested, location.origin);
+    if (requested.charAt(0) === '/' && requested.slice(0, 2) !== '//' &&
+        !/[\\\u0000-\u001f\u007f]/.test(requested) && target.origin === location.origin) {
+      returnTo = target.pathname + target.search + target.hash;
+    }
   } catch (_) {}
   var form = document.getElementById('profile-form');
   var first = document.getElementById('profile-first');
@@ -12,7 +16,7 @@
   async function load() {
     try {
       var response = await fetch('/api/cloud/v1/me');
-      if (response.status === 401) { location.assign('/cloud/sign-in?return=%2Fcloud%2Fprofile'); return; }
+      if (response.status === 401) { location.assign('/cloud/sign-in?return=' + encodeURIComponent(location.pathname + location.search)); return; }
       if (!response.ok) throw new Error();
       var data = await response.json();
       document.getElementById('profile-email').textContent = data.user.email || '';
@@ -30,9 +34,10 @@
     try {
       var response = await fetch('/api/cloud/v1/me', { method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ first_name: first.value.trim(), last_name: last.value.trim() }) });
+        body: JSON.stringify({ first_name: first.value.trim(), last_name: last.value.trim(), return_to: returnTo }) });
       if (!response.ok) throw new Error();
-      location.assign(returnTo);
+      var data = await response.json();
+      location.assign(data.return_to || returnTo);
     } catch (_) { status.textContent = 'Your details could not be saved. Try again.'; button.disabled = false; }
   });
   load();
