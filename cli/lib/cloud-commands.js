@@ -263,7 +263,7 @@ created_after, created_before, updated_after, updated_before, sort, limit,
 cursor, facets, facet_limit, match_limit, and word_forms. CLI scalar options
 override file values; repeated filters add values. A positional query replaces the file's
 expression or query. --documents-file adds IDs to the document_ids subset.
-See https://smalldocs.org/cloud-search for the AST and JSON examples.
+See ${constants.DEFAULT_URL}/cloud-search for the AST and JSON examples.
 
 RECOVERY
 
@@ -394,7 +394,7 @@ class CloudCommandError extends Error {
 }
 
 function origin() {
-  return String(process.env.SDOCS_CLOUD_URL || constants.DEFAULT_URL).replace(/\/$/, '');
+  return String(constants.resolveCloudOrigin()).replace(/\/$/, '');
 }
 
 function documentUrl(client, documentId) {
@@ -421,7 +421,7 @@ function entitlementFailure(code, status, cloudOrigin) {
 class CloudClient {
   constructor(options) {
     options = options || {};
-    this.origin = options.origin || origin();
+    this.origin = constants.resolveCloudOrigin(options.origin);
     this.credentials = options.credentials || credentialStore;
     this.fetch = options.fetch || global.fetch;
   }
@@ -431,7 +431,8 @@ class CloudClient {
 
   async raw(endpoint, options) {
     let response;
-    try { response = await this.fetch(this.origin + endpoint, options || {}); }
+    try { response = await this.fetch(this.origin + endpoint, constants.INSTALLATION_CHANNEL
+      ? Object.assign({}, options, { redirect: 'manual' }) : options || {}); }
     catch (error) {
       throw new CloudCommandError('temporary_service_failure',
         'Could not reach SmallDocs Cloud.', { cause: error && error.message });
@@ -505,6 +506,7 @@ function emit(opts, command, value, human) {
 
 function skillInstallCommand(originValue, cloud) {
   const edition = cloud ? 'cloud' : 'standard';
+  if (constants.INSTALLATION_CHANNEL) return 'sdoc setup --' + edition + ' --yes';
   return 'npx skills@latest add ' + originValue + '/agent-skills/' + edition + ' --global';
 }
 
@@ -541,6 +543,7 @@ async function login(opts, client) {
     body: JSON.stringify({ display_name: os.hostname() || 'SmallDocs CLI' }),
   });
   if (!issued.response.ok) throw new CloudCommandError(issued.data.error || 'temporary_service_failure');
+  if (constants.INSTALLATION_CHANNEL) constants.resolveCloudOrigin(issued.data.verification_uri_complete);
   process.stderr.write('Authorize this CLI at:\n' + issued.data.verification_uri_complete + '\nCode: ' + issued.data.user_code + '\n');
   if (!opts.noOpenFlag) io.openBrowser(issued.data.verification_uri_complete,
     (message) => process.stderr.write(message + '\n'));
@@ -1403,8 +1406,8 @@ function overview(opts, client) {
 async function runCloudCommand(opts, dependencies) {
   const action = String(opts.file || 'overview').toLowerCase();
   const command = 'cloud.' + action;
-  const client = dependencies && dependencies.client || new CloudClient();
   try {
+    const client = dependencies && dependencies.client || new CloudClient();
     if (opts.helpFlag || action === 'help') return process.stdout.write(
       ((action === 'search' || action === 'ls') ? CLOUD_SEARCH_HELP : action === 'read' ? CLOUD_READ_HELP
         : ['push', 'pull', 'diff', 'history', 'restore', 'access'].includes(action) ? CLOUD_UPDATE_HELP : CLOUD_HELP) + '\n');

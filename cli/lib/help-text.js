@@ -3272,3 +3272,23 @@ SUPPORTED LANGUAGES
 `;
 
 module.exports = { HELP, COMMENTS_HELP, SCHEMA, CHARTS_HELP, DIAGRAMS_HELP, VIDEOS_HELP, APPS_HELP, CELLS_HELP, CODE_HELP, SLIDES_HELP, SLIDES_CUSTOM_SHAPES_HELP, LIBRARY_HELP };
+
+
+// Keep installed-channel examples consistent with the destination used by commands.
+const { INSTALLATION_CHANNEL } = require('./constants');
+if (INSTALLATION_CHANNEL) {
+  const origin = INSTALLATION_CHANNEL.origin;
+  const hostname = new URL(origin).host;
+  module.exports.HELP = module.exports.HELP
+    .replace('Toggle auto-install of sdoc updates', 'Automatic binary updates are disabled')
+    .replace('Upgrade sdoc to the latest version now', 'Print staging manual-update instructions')
+    .replace('Custom base URL (default: https://smalldocs.org)', 'Must match the installed staging origin: ' + origin)
+    .replace('Fallback base URL if --url is not passed.', 'Must match the installed staging origin: ' + origin);
+  module.exports.LIBRARY_HELP = module.exports.LIBRARY_HELP.replace(
+    /    - refuses any browser request whose Origin is not smalldocs\.org,[\s\S]*?SDOCS_AGENT_ALLOWED_ORIGINS\)/,
+    '    - accepts browser requests only from ' + origin);
+  for (const key of Object.keys(module.exports)) {
+    module.exports[key] = module.exports[key].split('https://smalldocs.org').join(origin)
+      .replace(/(?<![A-Za-z0-9.-])smalldocs\.org/g, hostname);
+  }
+}

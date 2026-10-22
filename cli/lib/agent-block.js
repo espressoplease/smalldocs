@@ -25,11 +25,11 @@
 
 const fs   = require('fs');
 const path = require('path');
-const { SETUP_CACHE } = require('./constants');
+const { SETUP_CACHE, INSTALLATION_CHANNEL } = require('./constants');
 
 // ── Skill model ────────────────────────────────────────────
-const SKILL_VERSION = 35;
-const SKILL_REASON  = 'Cloud browser and CLI share indexed substring search and per-user document stars.';
+const SKILL_VERSION = 36;
+const SKILL_REASON  = 'Installed staging builds bind agent guidance and CLI destinations to staging, with manual updates.';
 const SKILL_NAME    = 'smalldocs';
 
 // Always-in-context preamble. Concise trigger text; the full reference lives
@@ -156,10 +156,26 @@ const CLOUD_SKILL_BODY = SKILL_BODY
 
 function formatSkill(version, options) {
   const cloud = Boolean(options && options.cloud);
-  const description = cloud ? CLOUD_SKILL_DESCRIPTION : SKILL_DESCRIPTION;
-  const body = cloud ? CLOUD_SKILL_BODY : SKILL_BODY;
+  let description = cloud ? CLOUD_SKILL_DESCRIPTION : SKILL_DESCRIPTION;
+  let body = cloud ? CLOUD_SKILL_BODY : SKILL_BODY;
   const edition = cloud ? 'cloud' : 'standard';
-  return `---\nname: ${SKILL_NAME}\ndescription: "${description}"\n---\n\n<!-- sdocs-skill: v=${version} -->\n<!-- sdocs-skill-edition: ${edition} -->\n${body}`;
+  let originMarker = '';
+  if (INSTALLATION_CHANNEL) {
+    const origin = INSTALLATION_CHANNEL.origin;
+    description = 'Use SmallDocs for sdoc, smalldoc and Markdown requests. Staging: ' +
+      origin + '. ' + description.slice(description.indexOf('. ') + 2);
+    body = body.split('https://smalldocs.org').join(origin);
+    body += '\n### Installation destination\n\nThis CLI is bound to ' + origin +
+      '. Use the installed sdoc command and returned URLs for this environment. ' +
+      'Production URL overrides are rejected. CLI updates are manual; sdoc upgrade prints the reinstall command.\n';
+    originMarker = '<!-- sdocs-skill-origin: ' + origin + ' -->\n';
+  }
+  return `---\nname: ${SKILL_NAME}\ndescription: "${description}"\n---\n\n<!-- sdocs-skill: v=${version} -->\n<!-- sdocs-skill-edition: ${edition} -->\n${originMarker}${body}`;
+}
+
+function readSkillOrigin(content) {
+  const match = /<!-- sdocs-skill-origin: (https:\/\/[^\s]+) -->/.exec(content || '');
+  return match ? match[1] : null;
 }
 
 const SKILL_VERSION_RE = /<!-- sdocs-skill: v=(\d+) -->/;
@@ -457,6 +473,7 @@ module.exports = {
   formatSkill,
   readSkillVersion,
   readSkillEdition,
+  readSkillOrigin,
   canonicalSkillDir,
   canonicalSkillFile,
   resolveSkillAgents,

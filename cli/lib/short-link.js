@@ -16,7 +16,7 @@ const SDocStyles = require('../shared/sdocs-styles.js');
 const { slugify } = require('../shared/sdocs-slugify.js');
 
 const { toBase64Url } = require('./url');
-const { DEFAULT_URL } = require('./constants');
+const { resolveBaseUrl } = require('./constants');
 
 const PLACEMENT_RE = /^[A-Za-z0-9][A-Za-z0-9_-]{3,31}$/;
 const PLACEMENT_SOURCES = new Set(['x', 'yt', 'youtube']);
@@ -114,7 +114,7 @@ async function buildShortUrl(content, opts) {
     content = SDocYaml.serializeFrontMatter(parsed.meta) + '\n' + parsed.body;
   }
 
-  const baseUrl = opts.url || process.env.SDOCS_URL || DEFAULT_URL;
+  const baseUrl = resolveBaseUrl(opts.url);
   const { keyBytes, cipherB64url } = compressAndEncrypt(content);
   const id = await uploadShortLink(cipherB64url, baseUrl);
   const keyB64 = toBase64Url(keyBytes);

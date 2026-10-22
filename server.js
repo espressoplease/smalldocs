@@ -1385,18 +1385,54 @@ function cloudActorLabel(userId) {
   return verifiedCloudEmail(userId) || 'A SmallDocs account member';
 }
 
+function cloudReadUnavailable() {
+  return Object.assign(new Error('resource_unavailable'), { code: 'resource_unavailable' });
+}
+
+function cloudRequireDocumentRead(userId, document, options = {}) {
+  const projectId = document.project_id || document.project && document.project.id ||
+    options.source && options.source.projectId;
+  const project = projectId && cloudStore.db.prepare('SELECT workspace_id FROM cloud_projects WHERE id = ?').get(projectId);
+  const workspaceId = document.workspace_id || project && project.workspace_id;
+  if (!projectId || !workspaceId || options.workspaceId && options.workspaceId !== workspaceId ||
+      options.projectId && options.projectId !== projectId || options.source &&
+      (options.source.workspaceId !== workspaceId || options.source.projectId !== projectId)) throw cloudReadUnavailable();
+  const snapshot = { document_id: document.id, workspace_id: workspaceId, project_id: projectId,
+    current_revision_id: document.current_revision_id,
+    deleted_at_ms: document.deleted_at == null ? null : Date.parse(document.deleted_at),
+    purge_after_ms: document.purge_after == null ? null : Date.parse(document.purge_after) };
+  if (!cloudStore._documentReadIsCurrent(userId, snapshot, { includeDeleted: options.includeDeleted,
+    onlyDeleted: options.onlyDeleted, requireHead: !options.revisionId,
+    revisionId: options.revisionId || document.current_revision_id })) throw cloudReadUnavailable();
+  requireCloudEntitlement(userId, workspaceId, 'read');
+  return document;
+}
+
 async function cloudAccountContext(userId, requestedId) {
   const workspaces = await cloudStore.listWorkspaces(userId);
-  const accounts = [];
+  const workspaceRows = new Map(workspaces.map(workspace => [workspace.id,
+    cloudStore.db.prepare('SELECT * FROM cloud_workspaces WHERE id = ?').get(workspace.id)]));
+  let accounts = [];
   for (const workspace of workspaces) {
     if (cloudSinglePlan && workspace.role === 'owner') cloudSinglePlan.initialize(userId, workspace.id, verifiedCloudEmail(userId));
     if (cloudSinglePlan && cloudSinglePlan.resolveLibrary(workspace.id)) cloudSinglePlan.claim(userId, workspace.id);
+    const projects = await cloudStore.listProjects(userId, workspace.id);
+    const projectRows = new Map(projects.map(project => [project.id,
+      cloudStore.db.prepare('SELECT * FROM cloud_projects WHERE id = ?').get(project.id)]));
+    accounts.push({ workspace, projects, projectRows });
+  }
+  // No awaited work follows this proof of every accumulated account and project.
+  accounts = accounts.flatMap(({ workspace, projects, projectRows }) => {
+    const current = cloudStore.db.prepare('SELECT * FROM cloud_workspaces WHERE id = ? AND deleted_at_ms IS NULL').get(workspace.id);
+    const role = cloudStore._workspaceRole(userId, workspace.id);
+    if (!role || !cloudStore._sameReadName(current, workspaceRows.get(workspace.id)) || current.kind !== workspace.kind) return [];
+    const project = projects.find(value => projectRows.get(value.id) && cloudStore._projectReadIsCurrent(projectRows.get(value.id)) &&
+      cloudStore._projectAccess(userId, workspace.id, value.id) === 'editor');
+    const defaultProject = project ? { ...project, role: 'editor' } : null;
     const usage = cloudWorkspaceUsage(userId, workspace.id);
     const billing = cloudSinglePlan ? cloudSinglePlan.entitlements(userId, workspace.id, usage) : cloudBilling ? cloudBilling.computeEntitlements(workspace.id, usage) : null;
-    const projects = await cloudStore.listProjects(userId, workspace.id);
-    const defaultProject = projects.find((project) => project.role === 'editor') || null;
-    accounts.push({ workspace, billing, defaultProject });
-  }
+    return [{ workspace: { ...workspace, role }, billing, defaultProject }];
+  });
   let selected = requestedId ? accounts.find((item) => item.workspace.id === requestedId) : null;
   if (requestedId && !selected) {
     throw Object.assign(new Error('resource_unavailable'), { code: 'resource_unavailable' });
@@ -1776,6 +1812,7 @@ async function handleCloudApi(req, res, url) {
       const invitations = await cloudStore.listWorkspaceInvitations({
         userId: user.id, workspaceId: context.selected.workspace.id,
       });
+      requireCloudEntitlement(user.id, context.selected.workspace.id, 'manage');
       sendJson(res, 200, { ok: true, account_id: context.selected.workspace.id, invitations });
       return;
     }
@@ -1931,6 +1968,21 @@ async function handleCloudApi(req, res, url) {
       requireCloudEntitlement(user.id, workspaceExportMatch[1], 'read');
       const exported = await cloudStore.exportWorkspace({ userId: user.id,
         workspaceId: workspaceExportMatch[1], includeRevisions: true });
+      cloudStore._requireWorkspaceRole(user.id, workspaceExportMatch[1], ['owner']);
+      requireCloudEntitlement(user.id, workspaceExportMatch[1], 'read');
+      exported.documents = exported.documents.filter(document => {
+        try {
+          cloudRequireDocumentRead(user.id, document, { workspaceId: workspaceExportMatch[1] });
+          document.revisions = document.revisions.filter(revision => {
+            try {
+              cloudRequireDocumentRead(user.id, revision, { workspaceId: workspaceExportMatch[1],
+                revisionId: revision.current_revision_id, includeDeleted: true });
+              return true;
+            } catch (_) { return false; }
+          });
+          return true;
+        } catch (_) { return false; }
+      });
       sendJson(res, 200, { ok: true, export: exported }, {
         'Content-Disposition': 'attachment; filename="smalldocs-cloud-export.json"',
       });
@@ -2125,10 +2177,9 @@ async function handleCloudApi(req, res, url) {
         userId: user.id, projectId, workspaceId,
       });
       if (sharedWithMe) documents = documents.filter((document) => document.shared_with_me);
-      if (cloudBilling) documents = documents.filter((document) => {
+      documents = documents.filter((document) => {
         try {
-          const context = cloudStore.getDocumentContext({ userId: user.id, documentId: document.id });
-          requireCloudEntitlement(user.id, context.workspaceId, 'read');
+          cloudRequireDocumentRead(user.id, document, { workspaceId, projectId });
           return true;
         } catch (_) { return false; }
       });
@@ -2277,8 +2328,15 @@ async function handleCloudApi(req, res, url) {
     }
 
     if (req.method === 'GET' && pathname === base + '/documents/deleted') {
-      sendJson(res, 200, { ok: true, documents: await cloudStore.listDeletedDocuments({
+      const workspaceId = url.searchParams.get('workspace_id') || null;
+      const documents = await cloudStore.listDeletedDocuments({
         userId: user.id, workspaceId: url.searchParams.get('workspace_id') || null,
+      });
+      sendJson(res, 200, { ok: true, documents: documents.filter(document => {
+        try {
+          cloudRequireDocumentRead(user.id, document, { workspaceId, includeDeleted: true, onlyDeleted: true });
+          return true;
+        } catch (_) { return false; }
       }) });
       return;
     }
@@ -2372,6 +2430,7 @@ async function handleCloudApi(req, res, url) {
       const context = cloudStore.getDocumentContext({ userId: user.id, documentId: documentMatch[1] });
       requireCloudEntitlement(user.id, context.workspaceId, 'read');
       const document = await cloudStore.getDocument({ userId: user.id, documentId: documentMatch[1] });
+      cloudRequireDocumentRead(user.id, document, { source: context });
       const permission = cloudStore.getDocumentPermission({ userId: user.id,
         documentId: documentMatch[1] });
       sendJson(res, 200, { ok: true, document, permission });
@@ -2507,6 +2566,7 @@ async function handleCloudApi(req, res, url) {
       requireCloudEntitlement(user.id, context.workspaceId, 'read');
       const document = await cloudStore.getDocument({ userId: user.id, documentId: revisionMatch[1],
         revisionId: revisionMatch[2], includeDeleted: true });
+      cloudRequireDocumentRead(user.id, document, { source: context, revisionId: revisionMatch[2], includeDeleted: true });
       sendJson(res, 200, { ok: true, document, permission: cloudStore.getDocumentPermission({
         userId: user.id, documentId: document.id, includeDeleted: true }) });
       return;

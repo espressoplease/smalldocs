@@ -43,7 +43,8 @@ const {
   printSyncSummary,
 } = require('./agent-files');
 
-const { VERSION, AGENT_CHANGES_URL } = require('./constants');
+const { VERSION, AGENT_CHANGES_URL, INSTALLATION_CHANNEL } = require('./constants');
+const { manualUpdateInstructions } = require('./install-channel');
 
 function ask(question) {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
@@ -53,6 +54,10 @@ function ask(question) {
 }
 
 async function askAutoInstallConsent() {
+  if (INSTALLATION_CHANNEL) {
+    console.log(manualUpdateInstructions(INSTALLATION_CHANNEL));
+    return false;
+  }
   console.log('\nAuto-install sdoc updates when available?');
   console.log('');
   console.log('This runs `' + upgradeCommand() + '` on your behalf when a new');
@@ -311,6 +316,11 @@ async function runRefresh() {
 // `sdoc auto-update on|off|status` - flips state.autoInstallUpdates.
 function runAutoUpdateSubcommand(arg) {
   let state = readSetupState();
+  if (INSTALLATION_CHANNEL) {
+    if (state) writeSetupState({ ...state, autoInstallUpdates: false });
+    console.log(manualUpdateInstructions(INSTALLATION_CHANNEL));
+    return;
+  }
   if (!state) {
     console.log('Run `sdoc setup` first to configure auto-update.');
     return;

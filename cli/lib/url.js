@@ -11,7 +11,7 @@ const zlib = require('zlib');
 const SDocYaml   = require('../shared/sdocs-yaml.js');
 const SDocStyles = require('../shared/sdocs-styles.js');
 const { slugify } = require('../shared/sdocs-slugify.js');
-const { DEFAULT_URL } = require('./constants');
+const { resolveBaseUrl } = require('./constants');
 
 function toBase64Url(buf) {
   return Buffer.from(buf).toString('base64')
@@ -62,7 +62,7 @@ function stripAndCompress(content) {
 }
 
 function buildUrl(content, opts) {
-  const baseUrl = opts.url || process.env.SDOCS_URL || DEFAULT_URL;
+  const baseUrl = resolveBaseUrl(opts.url);
   const params = new URLSearchParams();
 
   // Runtime-only metadata (paths). Stripped from the URL by the browser on load,
