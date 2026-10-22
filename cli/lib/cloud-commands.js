@@ -146,6 +146,14 @@ CONNECTION
   sdoc cloud logout
   sdoc cloud status [--account UUID]
 
+After login, run sdoc cloud status --json. The status result includes origin,
+so you can verify which service is connected. With one library, new documents
+use it automatically. With several libraries, ask the user which to use, then
+set sdoc cloud library-default LIBRARY_UUID --json or pass --account UUID.
+If account_required is returned, open setup_url on the same service, finish
+profile and library setup, then retry. A staging-bound CLI already has its
+server address; it does not need an SDOCS_CLOUD_URL override.
+
 Search and listing span accessible libraries unless --account UUID narrows them.
 Use --account UUID for account-scoped discovery or a known creation destination.
 Add --json to any command for one machine-readable JSON object on stdout.`;
@@ -488,7 +496,11 @@ class CloudClient {
         }).join(', ');
         message = 'Choose an account with --account.' + (choices ? ' Available: ' + choices : '');
       } else if (result.data.error === 'account_required') {
-        message = 'Set up SmallDocs Cloud before using this command.';
+        const setupUrl = this.origin + '/cloud/start';
+        message = 'Finish library setup at ' + setupUrl + ', then retry this command.';
+        result.data.setup_url = setupUrl;
+        result.data.origin = this.origin;
+        result.data.next_action = 'Open setup_url, finish your profile and library setup, then retry.';
       }
       throw new CloudCommandError(result.data.error || 'temporary_service_failure',
         message, Object.assign({}, result.data, { http_status: result.response.status }));
@@ -531,7 +543,8 @@ async function login(opts, client) {
   if (client.loadCredential()) {
     try {
       const me = await client.authenticated('/api/cloud/v1/me');
-      return emit(opts, 'cloud.login', { user: me.user, already_logged_in: true,
+      return emit(opts, 'cloud.login', { user: me.user, already_logged_in: true, origin: client.origin,
+        next_action: 'sdoc cloud status --json',
         skill_mode: 'cloud', skill_install_command: installCommand,
         cloud_first_setup_command: setupCommand },
         'Already signed in as ' + (me.user.email || me.user.id) + '.\n' +
@@ -560,7 +573,8 @@ async function login(opts, client) {
       access_token: polled.data.access_token, access_token_expires_at: polled.data.access_token_expires_at,
       refresh_token: polled.data.refresh_token };
     client.saveCredential(credential);
-    return emit(opts, 'cloud.login', { user_id: credential.user_id,
+    return emit(opts, 'cloud.login', { user_id: credential.user_id, origin: client.origin,
+      next_action: 'sdoc cloud status --json',
       credential_id: credential.credential_id, skill_mode: 'cloud',
       skill_install_command: installCommand,
       cloud_first_setup_command: setupCommand },

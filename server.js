@@ -1536,6 +1536,13 @@ async function handleCloudApi(req, res, url) {
     }
     if (req.method === 'POST' && pathname === base + '/cli/device-authorizations/approve') {
       const body = await cloudAuthHttp.readJson(req);
+      if (SINGLE_PLAN_ENABLED) {
+        const authorization = cloudAuth.getDeviceAuthorization(body.user_code);
+        if (!authorization || authorization.approved || authorization.denied || authorization.consumed) {
+          throw Object.assign(new Error('resource_unavailable'), { code: 'resource_unavailable' });
+        }
+        await completeCloudOnboarding(user);
+      }
       cloudAuth.approveDeviceAuthorization({ userCode: body.user_code, userId: user.id });
       sendJson(res, 200, { ok: true });
       return;
@@ -3298,6 +3305,10 @@ const server = http.createServer((req, res) => {
       return;
     }
     if (redirectForCloudTerms(res, authenticated, req.url)) return;
+    if (SINGLE_PLAN_ENABLED && (!authenticated.user.firstName || !authenticated.user.lastName)) {
+      res.writeHead(303, { Location: '/cloud/profile?return=' + encodeURIComponent(req.url), 'Cache-Control': 'no-store' });
+      res.end(); return;
+    }
     serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'cloud-authorize.html'), null, {
       'Cache-Control': 'no-store',
       'X-Content-Type-Options': 'nosniff',

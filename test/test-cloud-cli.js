@@ -1310,6 +1310,21 @@ module.exports = function(harness) {
       assert.strictEqual(result.exitCode, 4);
     });
 
+    await testAsync('missing Cloud library returns an origin-bound setup URL and recovery step', async () => {
+      const client = new CloudClient({ origin: 'https://cloud-staging.smalldocs.org',
+        credentials: { load() { return account; }, save() {}, remove() {} },
+        fetch: async () => ({ ok: false, status: 404,
+          json: async () => ({ ok: false, error: 'account_required' }) }),
+      });
+      const result = await captureStreams(() => runCloudCommand({ file: 'status', jsonFlag: true }, { client }));
+      const body = JSON.parse(result.stdout);
+      assert.strictEqual(result.exitCode, 4);
+      assert.strictEqual(body.origin, 'https://cloud-staging.smalldocs.org');
+      assert.strictEqual(body.setup_url, 'https://cloud-staging.smalldocs.org/cloud/start');
+      assert.ok(body.message.includes(body.setup_url));
+      assert.ok(body.next_action.includes('retry'));
+    });
+
     await testAsync('cloud create explains a required subscription and exits nonzero', async () => {
       const fresh = path.join(dir, 'new-cloud-file.md');
       fs.writeFileSync(fresh, '# New document');

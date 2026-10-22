@@ -46,6 +46,22 @@ const {
 const { VERSION, AGENT_CHANGES_URL, INSTALLATION_CHANNEL } = require('./constants');
 const { manualUpdateInstructions } = require('./install-channel');
 
+const SETUP_HELP = `SmallDocs agent skill setup
+
+  sdoc setup --cloud --yes                Enable Cloud-first agent guidance
+  sdoc setup --cloud --account UUID --yes Set an installation default library
+  sdoc setup --standard --yes             Enable local-first agent guidance
+  sdoc setup --dry-run                    Show the skill and paths without changes
+  sdoc setup                             Choose setup preferences interactively
+  sdoc refresh                           Refresh the installed skill
+
+Setup installs agent instructions. It does not sign in or create a subscription.
+Run sdoc cloud login to connect this computer, then sdoc cloud status --json.
+With one library, new documents use it automatically. With several libraries,
+ask the user which to use, then run sdoc cloud library-default UUID --json.
+Use sdoc FILE.md --cloud --account UUID for one save instead of changing a default.
+`;
+
 function ask(question) {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
   return new Promise(resolve => {
@@ -340,6 +356,7 @@ function runAutoUpdateSubcommand(arg) {
 }
 
 module.exports = {
+  SETUP_HELP,
   ask,
   askAutoInstallConsent,
   askAutoRefreshConsent,

@@ -28,8 +28,8 @@ const path = require('path');
 const { SETUP_CACHE, INSTALLATION_CHANNEL } = require('./constants');
 
 // ── Skill model ────────────────────────────────────────────
-const SKILL_VERSION = 36;
-const SKILL_REASON  = 'Installed staging builds bind agent guidance and CLI destinations to staging, with manual updates.';
+const SKILL_VERSION = 37;
+const SKILL_REASON  = 'Explain first Cloud login, automatic single-library selection, and setup recovery.';
 const SKILL_NAME    = 'smalldocs';
 
 // Always-in-context preamble. Concise trigger text; the full reference lives
@@ -96,6 +96,8 @@ For a presentation request, follow this sequence rather than treating it as an o
 const CLOUD_SKILL_SECTION = `### SmallDocs Cloud for agents
 
 This user has enabled Cloud-first mode. Treat Cloud as the normal destination for SmallDocs Markdown. Write or update the local Markdown working copy, then run \`sdoc FILE.md --cloud --json\`. The CLI creates a Cloud document for an unbound file or pushes a revision for a bound file before it opens the browser. If the Cloud write fails, stop and report the error instead of presenting the local copy as saved.
+
+For the first connection, run \`sdoc cloud status --json\`. On \`login_required\`, run \`sdoc cloud login\` and have the user authorize it in the browser, completing their profile if requested. Run status again after login; its \`origin\` identifies the connected service. With one library, new documents use it automatically. On \`account_selection_required\`, list \`sdoc cloud libraries --json\`, ask which library to use, and pass \`--account LIBRARY_UUID\` or set \`sdoc cloud library-default LIBRARY_UUID --json\` when the user wants a computer default. On \`account_required\`, open the returned \`setup_url\` on the same service, finish profile and library setup, then retry. A staging-bound installation already has its server address and does not need an environment override. \`sdoc setup --help\` describes agent skill setup without installing anything.
 
 The authenticated CLI uploads first. After a successful save it returns one JSON object with \`ok\`, \`document_id\`, \`revision_id\`, and \`url\`, and opens that exact Cloud URL in the browser. The local file is a working copy, not the link to give the user. Later saves of the same bound file keep the document ID and URL; changed content advances the revision and unchanged content does not. Add \`--no-open\` to save and return the URL without launching a browser. Browser sign-in and document permissions still apply independently of the CLI credential.
 

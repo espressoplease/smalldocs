@@ -41,6 +41,8 @@ npx skills@latest add https://smalldocs.org/agent-skills/standard --global
 
 The `skills` installer detects supported coding agents and installs the SmallDocs **skill** globally. Its short description lets an agent discover SmallDocs when you say `sdoc`, `S-doc`, or `smalldoc`; the full instructions load only when relevant.
 
+Run `sdoc cloud login`, complete authorization in the browser, then run `sdoc cloud status --json`. First-time Cloud-first authorization prepares your library and trial before the CLI connects. One library is selected automatically; with several libraries, choose where new documents should be saved.
+
 After you connect SmallDocs Cloud, run `sdoc setup --cloud --yes`. The Cloud edition has the same `smalldocs` name, so agents do not see two overlapping SmallDocs skills. In Cloud-first mode, `sdoc FILE.md` creates or updates the Cloud document before opening it. List your libraries with `sdoc cloud libraries --json`. Use `sdoc cloud library-default LIBRARY_UUID --json` to select the default for new documents from this connected computer. An explicit `--account UUID` takes priority; existing documents keep their bindings.
 
 `npx skills@latest` currently requires Node 22.20 or newer. `sdoc setup` remains the built-in fallback and also removes the always-on SmallDocs block written by older CLI releases:
@@ -597,6 +599,8 @@ npx skills@latest add https://smalldocs.org/agent-skills/standard --global
 Installs the standard SmallDocs skill globally using the cross-agent `skills` installer. The skill is a `SKILL.md` whose short description sits in your agent's context and whose full reference loads on demand only when relevant. The full reference includes runnable HTML guidance so agents use executable components only when interaction explains something more clearly than prose, diagrams, charts, or computed cells.
 
 Run `sdoc setup` when `npx skills` is unavailable, or when an older SmallDocs release previously wrote an always-on block to an agent configuration file. The built-in setup writes one canonical copy to `~/.agents/skills/smalldocs/SKILL.md`, links detected agent-specific skill directories to it, and removes recognised legacy blocks while preserving surrounding notes.
+
+Run `sdoc setup --help` to read setup options without installing a skill or opening a prompt.
 
 `sdoc setup` also auto-prompts once the first time you use the CLI. If you decline or skip it then, you can come back and run it manually. It is idempotent, so re-running it on an up-to-date install is a no-op.
 

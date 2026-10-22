@@ -44,7 +44,7 @@ module.exports = function (h) {
         assert.strictEqual(value.custom, 'http://localhost:3000');
       });
       await testAsync('maintainer installer copies the current CLI with staging metadata and records its runtime fingerprint', async () => {
-        assert.strictEqual(installation.version, '1.20.0-rc.6');
+        assert.strictEqual(installation.version, require('../cli/package.json').version);
         assert.match(installation.source_sha256, /^[a-f0-9]{64}$/);
         assert.strictEqual(fs.realpathSync(path.join(prefix, 'bin/sdoc')), fs.realpathSync(bin));
         const channel = readInstallationChannel(installation.installed);
@@ -92,7 +92,7 @@ module.exports = function (h) {
         fs.mkdirSync(path.join(home, '.claude'));
         assert.strictEqual(run(['setup', '--cloud', '--yes']).status, 0);
         let text = fs.readFileSync(skillFile, 'utf8');
-        assert.ok(text.includes('sdocs-skill: v=36'));
+        assert.ok(text.includes('sdocs-skill: v=' + require('../cli/lib/agent-block').SKILL_VERSION));
         assert.ok(text.includes('sdocs-skill-edition: cloud'));
         assert.ok(text.includes('sdocs-skill-origin: ' + origin));
         assert.ok(text.includes('Staging: ' + origin));
@@ -143,7 +143,7 @@ module.exports = function (h) {
         assert.strictEqual(fs.readFileSync(path.join(prefix, 'keep-document.md'), 'utf8'), '# Keep this document\n');
         assert.strictEqual(fs.readFileSync(setupFile, 'utf8'), previousState);
         assert.strictEqual(readInstallationChannel(next.installed).origin, origin);
-        assert.strictEqual(run(['version']).stdout.trim(), '1.20.0-rc.6');
+        assert.strictEqual(run(['version']).stdout.trim(), require('../cli/package.json').version);
       });
       await testAsync('invalid installation metadata fails closed instead of choosing production', async () => {
         const file = path.join(installation.installed, 'channel.json');
