@@ -1,5 +1,9 @@
 # Cloud search evaluation, 20 October 2026
 
+This is the historical 20 October evaluation. The 22 October browser/CLI literal
+search, stars, memory and isolation results are in
+[cloud-search-resources-2026-10-22.md](cloud-search-resources-2026-10-22.md).
+
 The candidate implements permission-scoped company research through the Cloud
 API and CLI. It replaces the API's bounded decrypt-and-scan search with a keyed
 current-revision index for words, phrases, prefixes and metadata. Literal

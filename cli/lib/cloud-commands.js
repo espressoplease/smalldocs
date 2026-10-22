@@ -70,6 +70,14 @@ Moving preserves the document URL and revision history, resets access to Only yo
 and removes access for old-library members. Only the document's creator can move it.
 Review the destination with --dry-run before moving documents on a user's behalf.
 
+STARS
+
+  sdoc cloud star DOCUMENT_UUID --json
+  sdoc cloud unstar DOCUMENT_UUID --json
+
+Stars belong to you and persist in the browser and CLI. They do not change
+access. Add --starred to cloud search or cloud ls to search your starred documents.
+
 DISCOVER AND READ
 
   sdoc cloud status --json
@@ -77,6 +85,7 @@ DISCOVER AND READ
   sdoc cloud search "incident response" --json
   sdoc cloud search "authentication" --tag engineering --limit 10 --json
   sdoc cloud ls --shared-with-me --json
+  sdoc cloud ls --starred --json
   sdoc cloud read DOCUMENT_ID --json
   sdoc cloud pull DOCUMENT_UUID --output /tmp/reference.md --no-bind --json
 
@@ -163,7 +172,7 @@ title:, filename:, body:, or tags: to search that field. Explicit field prefixes
 apply to their own terms; --field limits unqualified text. --literal searches the
 whole supplied text as a substring, including punctuation and operator words.
 Quoted phrases require adjacent normalized words in one field, ignoring
-punctuation and line breaks. Literal queries scan authorized document content
+punctuation and line breaks. Literal queries verify indexed candidates
 and can take longer than indexed words or phrases. This is text search; it does not infer synonyms. Use OR to supply alternatives.
 NOT excludes a lexical match. It cannot decide whether a document supports,
 contradicts, or merely discusses an idea. Read the sources for those judgments.
@@ -179,6 +188,7 @@ FILTERS
   --author USER_ID|me           Document creator; repeated values mean any
   --mine                     Same as --author me
   --updated-by USER_ID|me       Author of the current revision; repeat for any
+  --starred                  Documents you have starred in the CLI or browser
   --shared-with-me           Accessible documents created by somebody else
   --document UUID            Restrict to these document IDs; repeat
   --documents-file PATH      Add document IDs from a file, one per line
@@ -210,7 +220,9 @@ covers the UTC day: after starts at midnight and before ends at 23:59:59.999.
 Use members --account LIBRARY_UUID --json to resolve a person's user ID. Author
 means creator, while updated-by means the writer of the current revision.
 Word and phrase queries default to relevance. Literal and metadata-only searches
-default to updated_desc.
+default to updated_desc. Stars belong to the signed-in person, are shared with
+the browser, and do not change document permissions. Use cloud star DOCUMENT_UUID
+or cloud unstar DOCUMENT_UUID to update them.
 
   sdoc cloud search --tag engineering --any-tag rollout --any-tag migration --json
   sdoc cloud search 'deadline' --author me --updated-after 2026-01-01 --json
@@ -246,7 +258,7 @@ REPRODUCIBLE REQUESTS
 
 --query-file reads the HTTP search request shape: expression (a query AST) or
 query (a literal substring), tags, tags_any, tags_none, author_user_ids,
-updated_by_user_ids, document_ids, fields, workspace_id, shared_with_me,
+updated_by_user_ids, document_ids, fields, workspace_id, shared_with_me, starred_only,
 created_after, created_before, updated_after, updated_before, sort, limit,
 cursor, facets, facet_limit, match_limit, and word_forms. CLI scalar options
 override file values; repeated filters add values. A positional query replaces the file's
@@ -746,6 +758,7 @@ function searchRequest(opts, client) {
     request.document_ids = (request.document_ids || []).concat(readSearchFile(opts.documentsFile, false));
   }
   if (opts.sharedWithMeFlag) request.shared_with_me = true;
+  if (opts.starredOnlyFlag) request.starred_only = true;
   if (opts.wordFormsFlag) request.word_forms = true;
   if (opts.facetsFlag) request.facets = opts.facetsFlag;
   request.limit = requestedLimit(opts.limitFlag == null ? request.limit : opts.limitFlag, 50);
@@ -826,7 +839,7 @@ async function discover(opts, client, command) {
 function compactSearchDocument(document) {
   const value = {};
   for (const key of ['id', 'url', 'title', 'tags', 'workspace_id', 'created_by_user_id',
-    'updated_by_user_id', 'current_revision_id', 'score', 'matches']) {
+    'updated_by_user_id', 'current_revision_id', 'starred', 'score', 'matches']) {
     if (Object.hasOwn(document, key)) value[key] = document[key];
   }
   return value;
@@ -834,6 +847,15 @@ function compactSearchDocument(document) {
 
 async function search(opts, client) {
   return discover(opts, client, 'cloud.search');
+}
+
+async function setStar(opts, client, starred) {
+  if (!opts.extra) throw new CloudCommandError('invalid_request', 'usage: sdoc cloud ' + (starred ? 'star' : 'unstar') + ' DOCUMENT_UUID --json');
+  const result = await client.authenticated('/api/cloud/v1/documents/' + encodeURIComponent(opts.extra) + '/star', {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ starred }),
+  });
+  return emit(opts, 'cloud.' + (starred ? 'star' : 'unstar'), { document_id: result.document_id,
+    starred: result.starred, url: documentUrl(client, result.document_id) }, starred ? 'Document starred.' : 'Star removed.');
 }
 
 async function read(opts, client) {
@@ -1408,6 +1430,7 @@ async function runCloudCommand(opts, dependencies) {
     if (action === 'tag') return await setTags(opts, client);
     if (action === 'ls') return await list(opts, client);
     if (action === 'search') return await search(opts, client);
+    if (action === 'star' || action === 'unstar') return await setStar(opts, client, action === 'star');
     if (action === 'read') return await read(opts, client);
     if (action === 'diff') return await diff(opts, client);
     if (action === 'create') return await create(opts, client);

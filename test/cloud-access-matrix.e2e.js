@@ -760,6 +760,22 @@ test('rich search keeps pages, evidence and facets within live document permissi
     await expect(libraryPage.locator('.res')).toHaveCount(2);
     await expect(libraryPage.locator('.res').first().locator('[data-cloud-person="' + ownerId + '"]')).toBeVisible();
     await expect(libraryPage.locator('#results')).not.toContainText('privateword' + marker);
+    const starredId = documents[0].id;
+    const starResponse = libraryPage.waitForResponse(response => response.request().method() === 'PUT'
+      && response.url().endsWith('/documents/' + starredId + '/star'));
+    await libraryPage.locator('.res[data-id="' + starredId + '"] .res-star').click();
+    expect((await starResponse).status()).toBe(200);
+    await libraryPage.reload();
+    await libraryPage.locator('#q').fill(marker);
+    await expect(libraryPage.locator('.res[data-id="' + starredId + '"] .res-star')).toHaveAttribute('aria-pressed', 'true');
+    await libraryPage.locator('#star-toggle').click();
+    await expect(libraryPage.locator('#count')).toHaveText('1 result');
+    const ownerStars = await json(owner, baseURL, 'POST', '/api/cloud/v1/search', {
+      workspace_id: accountId, query: marker, starred_only: true });
+    expect(ownerStars.body.total_count).toBe(0);
+    const deniedStar = await json(outsider, baseURL, 'PUT', '/api/cloud/v1/documents/' + starredId + '/star', { starred: true });
+    expect(deniedStar.response.status()).toBe(404);
+    expect((await json(selected, baseURL, 'PUT', '/api/cloud/v1/documents/' + starredId + '/star', { starred: false })).response.status()).toBe(200);
     await libraryPage.close();
 
     const tampered = await json(selected, baseURL, 'POST', '/api/cloud/v1/search', { ...body, query: marker, cursor: first.body.next_cursor });
@@ -855,6 +871,16 @@ test('a fresh CLI authorizes, manages a Cloud document, persists, and revokes it
       const found = await cliJson(['cloud', 'search', runId, '--account', accountId], cliEnv);
       expect(found.documents).toHaveLength(1);
       documentId = found.documents[0].id;
+      expect((await cliJson(['cloud', 'star', documentId], cliEnv)).starred).toBe(true);
+      const cliStars = await cliJson(['cloud', 'search', runId, '--literal', '--starred', '--account', accountId], cliEnv);
+      expect(cliStars.documents).toHaveLength(1);
+      expect(cliStars.documents[0]).toMatchObject({ id: documentId, starred: true });
+      const browserStars = await json(owner, baseURL, 'POST', '/api/cloud/v1/search', {
+        workspace_id: accountId, query: runId, starred_only: true });
+      expect(browserStars.body.documents.map(item => item.id)).toEqual([documentId]);
+      expect((await cliJson(['cloud', 'unstar', documentId], cliEnv)).starred).toBe(false);
+      expect((await cliJson(['cloud', 'ls', '--starred', '--account', accountId, '--document', documentId], cliEnv)).documents).toEqual([]);
+
 
       fs.appendFileSync(source, '\nUpdated by an ordinary Cloud-first sdoc open.\n');
       const secondOpen = await runCli([source, '--no-open'], cliEnv).completed;

@@ -77,6 +77,7 @@ function parseArgs(argv) {
   let everyoneFlag = false;
   let onlyYouFlag = false;
   let sharedWithMeFlag = false;
+  let starredOnlyFlag = false;
   let noteText = null;
   const memberFlags = [];
   const documentFlags = [];
@@ -108,6 +109,7 @@ function parseArgs(argv) {
       if (!searchEndOfOptions && arg === '--word-forms') { discovery.wordFormsFlag = true; continue; }
       if (!searchEndOfOptions && arg === '--all') { discovery.allFlag = true; continue; }
       if (!searchEndOfOptions && arg === '--mine') { discovery.mineFlag = true; continue; }
+      if (!searchEndOfOptions && arg === '--starred') { starredOnlyFlag = true; continue; }
       if (!searchEndOfOptions && arg === '--shared-with-me') { sharedWithMeFlag = true; continue; }
       if (!searchEndOfOptions && arg === '--facets') {
         const next = args[i + 1];
@@ -286,7 +288,7 @@ function parseArgs(argv) {
     projectFlag, accountFlag, outputPath, revisionFlag, documentFlag, baseRevisionFlag,
     ifCurrentFlag, rejectConflictsFlag, fromRevisionFlag, toRevisionFlag,
     limitFlag, noOpenFlag, noBindFlag, forceFlag, tagFilters,
-    everyoneFlag, onlyYouFlag, sharedWithMeFlag, noteText, memberFlags, documentFlags,
+    everyoneFlag, onlyYouFlag, sharedWithMeFlag, starredOnlyFlag, noteText, memberFlags, documentFlags,
     addTags, annotations, files,
   }, discovery);
 }

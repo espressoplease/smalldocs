@@ -619,6 +619,8 @@ function cloudPersonPills(entry) {
     ? pill(entry.updatedById, 'updatedBy', 'Updated by ') : '');
 }
 
+const cloudStarWrites = new Set();
+
 function renderRow(e, i, tagMatches) {
   const isStarred = !!e.starred;
   let snippetHtml = '';
@@ -651,7 +653,7 @@ function renderRow(e, i, tagMatches) {
       ${snippetHtml ? `<div class="res-snippet">${snippetHtml}</div>` : ''}
     </div>
     <div class="res-side">
-      <button class="res-star ${isStarred ? 'on' : ''}" data-star="${escHtml(e.id)}" aria-pressed="${isStarred}">
+      <button class="res-star ${isStarred ? 'on' : ''}" data-star="${escHtml(e.id)}" aria-pressed="${isStarred}" aria-label="${isStarred ? 'Remove star' : 'Star document'}" ${cloudStarWrites.has(e.id) ? 'disabled' : ''}>
         <svg viewBox="0 0 24 24" width="15" height="15"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill="${isStarred ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
       </button>
       <div class="res-when">${escHtml(when)}</div>
@@ -671,7 +673,7 @@ function renderResults() {
   const c = document.getElementById('results');
   if (isCloudMode() && !shown.length && (STATE.cloudLoading || STATE.cloudError)) { c.innerHTML = ''; return; }
   if (!shown.length) {
-    if (!STATE.entries.length && !(isCloudMode() && (STATE.q.trim() || STATE.chips.length || STATE.sharedOnly))) {
+    if (!STATE.entries.length && !(isCloudMode() && (STATE.q.trim() || STATE.chips.length || STATE.sharedOnly || STATE.starredOnly))) {
       c.innerHTML = isCloudMode()
         ? '<div class="empty">No Cloud documents yet.<div class="tip">Save a document with <code>sdoc file.md --cloud</code>. It will appear here.</div></div>'
         : '<div class="empty">Library is empty.<div class="tip">Open a markdown file with <code>sdoc file.md</code> to add it.</div></div>';
@@ -888,6 +890,7 @@ function cloudEntry(document) {
   const match = document.matches && document.matches[0];
   return {
     id: document.id,
+    starred: document.starred === true,
     title: document.title,
     path: document.filename,
     tags: document.tags || [],
@@ -907,7 +910,7 @@ let cloudScheduledKey = null;
 let cloudTimer = null;
 function cloudFilterKey() {
   return JSON.stringify([window.SDocsCloudLibrary && window.SDocsCloudLibrary.workspaceId,
-    STATE.q.trim(), STATE.chips, STATE.sharedOnly]);
+    STATE.q.trim(), STATE.chips, STATE.sharedOnly, STATE.starredOnly]);
 }
 function scheduleCloudRefresh() {
   if (!isCloudMode() || isSignedOutCloudMode() || !window.SDocsCloudLibrary || !window.SDocsCloudLibrary.workspaceId) return;
@@ -927,7 +930,7 @@ function cloudLoadError(error) {
 }
 function cloudSearchRequest(query) {
   const request = { workspace_id: window.SDocsCloudLibrary.workspaceId, limit: 60,
-    query: query.trim() || undefined, sort: 'updated_desc', shared_with_me: STATE.sharedOnly,
+    query: query.trim() || undefined, sort: 'updated_desc', shared_with_me: STATE.sharedOnly, starred_only: STATE.starredOnly,
     tags: [], tags_none: [] };
   for (const chip of STATE.chips) {
     if (chip.key === 'author' && !chip.exclude) request.author_user_ids = [chip.value];
@@ -1086,7 +1089,31 @@ async function loadData() {
 }
 
 async function toggleStar(id, starred) {
-  if (isCloudMode()) return;
+  if (isCloudMode()) {
+    if (cloudStarWrites.has(id)) return;
+    const entry = STATE.entries.find(value => value.id === id);
+    const workspaceId = window.SDocsCloudLibrary.workspaceId;
+    cloudStarWrites.add(id);
+    renderResults();
+    try {
+      const response = await fetch('/api/cloud/v1/documents/' + encodeURIComponent(id) + '/star', {
+        method: 'PUT', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ starred }) });
+      if (!response.ok) throw new Error('Star could not be saved');
+      if (workspaceId === window.SDocsCloudLibrary.workspaceId) await loadCloudData(STATE.q).catch(cloudLoadError);
+    } catch (_) {
+      if (entry) entry.starred = !starred;
+      if (workspaceId === window.SDocsCloudLibrary.workspaceId) {
+        const current = STATE.entries.find(value => value.id === id);
+        if (current) current.starred = !starred;
+        showBanner({ kind: 'error', message: 'Could not save your star. Try again.' });
+      }
+    } finally {
+      cloudStarWrites.delete(id);
+      if (workspaceId === window.SDocsCloudLibrary.workspaceId) renderResults();
+    }
+    return;
+  }
   if (isDemoMode()) return; // local state already updated in the click handler
   try {
     await fetch(api('/api/library/star'), {
@@ -1239,7 +1266,7 @@ document.getElementById('results').addEventListener('click', (e) => {
   if (starBtn) {
     const id = starBtn.dataset.star;
     const entry = STATE.entries.find(x => x.id === id);
-    if (entry) {
+    if (entry && !cloudStarWrites.has(id)) {
       entry.starred = !entry.starred;
       toggleStar(id, entry.starred);
       renderAll();
@@ -1299,7 +1326,7 @@ if (!isSignedOutCloudMode() && (!window.SDocsConnect ||
 }
 
 if (isCloudMode()) {
-  document.getElementById('star-toggle').hidden = true;
+  document.getElementById('star-toggle').hidden = false;
   document.getElementById('shared-toggle').hidden = false;
   document.getElementById('q').placeholder = 'search titles, tags, and document text...';
   const projectButton = document.querySelector('[data-facet="project"]');

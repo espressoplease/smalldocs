@@ -1728,7 +1728,8 @@ async function handleCloudApi(req, res, url) {
     if (req.method === 'GET' && pathname === base + '/account/tags') {
       const context = await cloudAccountContext(user.id, url.searchParams.get('account_id'));
       const tags = await cloudStore.listTags({ userId: user.id,
-        workspaceId: context.selected.workspace.id });
+        workspaceId: context.selected.workspace.id,
+        beforeReturn: () => requireCloudEntitlement(user.id, context.selected.workspace.id, 'read') });
       sendJson(res, 200, { ok: true, account_id: context.selected.workspace.id, tags });
       return;
     }
@@ -2165,19 +2166,19 @@ async function handleCloudApi(req, res, url) {
     }
     if (req.method === 'GET' && pathname === base + '/tags') {
       const projectId = url.searchParams.get('project_id') || undefined;
-      let documents = await cloudStore.listDocuments({ userId: user.id, projectId });
-      if (cloudBilling) documents = documents.filter((document) => {
-        try {
-          const context = cloudStore.getDocumentContext({ userId: user.id, documentId: document.id });
-          requireCloudEntitlement(user.id, context.workspaceId, 'read');
-          return true;
-        } catch (_) { return false; }
-      });
-      const counts = new Map();
-      documents.forEach((document) => document.tags.forEach((tag) =>
-        counts.set(tag, (counts.get(tag) || 0) + 1)));
-      const tags = Array.from(counts, ([tag, count]) => ({ tag, count }))
-        .sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag));
+      const workspaceIds = [];
+      if (projectId) {
+        const project = cloudStore.getSearchProjectContext({ userId: user.id, projectId });
+        requireCloudEntitlement(user.id, project.workspaceId, 'read');
+        workspaceIds.push(project.workspaceId);
+      } else {
+        for (const workspace of await cloudStore.listWorkspaces(user.id)) {
+          try { requireCloudEntitlement(user.id, workspace.id, 'read'); workspaceIds.push(workspace.id); }
+          catch (_) { /* Preserve the existing readable-library inventory scope. */ }
+        }
+      }
+      const tags = await cloudStore.listTags({ userId: user.id, projectId, workspaceIds,
+        beforeReturn: () => { for (const id of workspaceIds) requireCloudEntitlement(user.id, id, 'read'); } });
       sendJson(res, 200, { ok: true, tags });
       return;
     }
@@ -2279,6 +2280,16 @@ async function handleCloudApi(req, res, url) {
       sendJson(res, 200, { ok: true, documents: await cloudStore.listDeletedDocuments({
         userId: user.id, workspaceId: url.searchParams.get('workspace_id') || null,
       }) });
+      return;
+    }
+
+    const documentStarMatch = pathname.match(/^\/api\/cloud\/v1\/documents\/([^/]+)\/star$/);
+    if (documentStarMatch && req.method === 'PUT') {
+      const body = await cloudAuthHttp.readJson(req);
+      const context = cloudStore.getDocumentContext({ userId: user.id, documentId: documentStarMatch[1] });
+      requireCloudEntitlement(user.id, context.workspaceId, 'read');
+      const result = cloudStore.setDocumentStar({ userId: user.id, documentId: documentStarMatch[1], starred: body.starred });
+      sendJson(res, 200, { ok: true, ...result });
       return;
     }
 

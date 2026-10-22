@@ -113,6 +113,15 @@ module.exports = function(harness) {
     assert.strictEqual(request.match_limit, 4);
   });
 
+  test('Cloud starred search uses the shared browser filter without treating the flag as query text', () => {
+    const opts = io.parseArgs(['cloud', 'search', 'release', '--starred', '--literal', '--json']);
+    const request = searchRequest(opts, {});
+    assert.strictEqual(request.starred_only, true);
+    assert.strictEqual(request.query, 'release');
+    assert.deepStrictEqual(opts.searchArgumentErrors, []);
+    assert.strictEqual(io.parseArgs(['cloud', 'ls', '--starred']).starredOnlyFlag, true);
+  });
+
   test('Cloud search distinguishes expressions, phrases and literal substrings', () => {
     const words = searchRequest(io.parseArgs(['cloud', 'search', 'incident response']), {});
     const phrase = searchRequest(io.parseArgs(['cloud', 'search', '"incident response"']), {});
@@ -133,6 +142,15 @@ module.exports = function(harness) {
   });
 
   return async function() {
+    await testAsync('Cloud star commands use idempotent per-user sets on the same API as the browser', async () => {
+      const calls = [];
+      const client = { origin: 'https://cloud.example.test', authenticated: async (url, options) => {
+        calls.push({ url, options }); return { document_id: 'doc-a', starred: JSON.parse(options.body).starred };
+      }};
+      for (const action of ['star', 'star', 'unstar']) await runCloudCommand({ file: action, extra: 'doc-a', silent: true }, { client });
+      assert.deepStrictEqual(calls.map(call => JSON.parse(call.options.body)), [{ starred: true }, { starred: true }, { starred: false }]);
+      assert.ok(calls.every(call => call.url === '/api/cloud/v1/documents/doc-a/star' && call.options.method === 'PUT'));
+    });
     console.log('\n-- Cloud CLI Tests ------------------------------------\n');
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sdocs-cloud-cli-'));
     const previousHome = process.env.SDOCS_HOME;

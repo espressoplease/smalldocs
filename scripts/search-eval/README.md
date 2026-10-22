@@ -100,3 +100,23 @@ This probe reports memory before opening the store and after each query. SQL
 profiling groups execution and preparation time by statement. Omit
 `--sql-profile` for final latency samples. All-visible fixture counts and author
 and library facet totals are checked using independent arithmetic.
+
+## Concurrent search memory
+
+Backfill an existing fixture to the current format before measurement. Each
+configuration starts a fresh Node process, excludes fixture creation, and overlaps
+requests through an asynchronous local key-provider boundary. It measures the
+shared search service used by the CLI and browser, without HTTP or managed KMS.
+It asserts result counts, unique returned IDs, facet counts and decryption counts.
+
+```sh
+node scripts/search-eval/concurrent.js --fixture RETAINED_DIRECTORY --output /tmp/concurrent-search.json
+node scripts/search-eval/concurrent.js --fixture RETAINED_DIRECTORY --worker --concurrency 8 --kind broad-literal --rounds 3
+```
+
+The default matrix uses concurrency 1, 4 and 8 for rare/absent/broad literal
+fragments, a multi-run literal phrase, broad indexed words, indexed phrases and
+tag inventory. Use `--kinds` with a comma-separated list to select cases. The
+worker reports total process peak RSS, per-round memory samples, actual peak
+request overlap, elapsed times and body decryption counts. No forced garbage
+collection is used. It also checks that request temporary tables are gone.

@@ -180,12 +180,13 @@
     var result = { expression: expression, query: query, workspaceId: id(input.workspace_id || input.account_id, 'workspace_id'), projectId: id(input.project_id, 'project_id'),
       tags: list(input.tags, 'tags'), tagsAny: list(input.tags_any, 'tags_any'), tagsNone: list(input.tags_none, 'tags_none'),
       authorUserIds: authors(input.author_user_ids, 'author_user_ids'), updatedByUserIds: authors(input.updated_by_user_ids, 'updated_by_user_ids'),
-      documentIds: input.document_ids == null ? undefined : list(input.document_ids, 'document_ids', 100000), sharedWithMe: input.shared_with_me === true,
+      documentIds: input.document_ids == null ? undefined : list(input.document_ids, 'document_ids', 100000), sharedWithMe: input.shared_with_me === true, starredOnly: input.starred_only === true,
       createdAfter: date(input.created_after, 'created_after'), createdBefore: date(input.created_before, 'created_before'),
       updatedAfter: date(input.updated_after, 'updated_after'), updatedBefore: date(input.updated_before, 'updated_before'),
       fields: fields.length ? fields : TEXT_FIELDS.slice(), sort: sort, facets: facets,
       limit: integer(input.limit, 'limit', 50, 100), facetLimit: integer(input.facet_limit, 'facet_limit', 50, 1000),
       matchLimit: integer(input.match_limit, 'match_limit', 5, 100, 0), cursor: id(input.cursor, 'cursor') };
+    if (input.starred_only != null && typeof input.starred_only !== 'boolean') throw invalid('starred_only must be true or false.');
     if (input.shared_with_me != null && typeof input.shared_with_me !== 'boolean') throw invalid('shared_with_me must be true or false.');
     if (result.createdAfter && result.createdBefore && result.createdAfter > result.createdBefore || result.updatedAfter && result.updatedBefore && result.updatedAfter > result.updatedBefore) throw invalid('Date ranges must put after before before.');
     return result;

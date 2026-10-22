@@ -85,6 +85,7 @@ const runCloudRevisionRetention = require('./test-cloud-revision-retention')(har
 require('./test-cloud-search-query')(harness);
 const runCloudSearch = require('./test-cloud-search')(harness);
 const runCloudSearchApi = require('./test-cloud-search-api')(harness);
+const runCloudSearchIsolation = require('./test-cloud-search-isolation')(harness);
 const runCloudUpdatePreview = require('./test-cloud-update-preview')(harness);
 const runCloudCli = require('./test-cloud-cli')(harness);
 const runCloudCheckout = require('./test-cloud-checkout')(harness);
@@ -128,6 +129,7 @@ const runLibraryServer = require('./test-library-server')(harness);
   await runCloudRevisionRetention();
   await runCloudSearch();
   await runCloudSearchApi();
+  await runCloudSearchIsolation();
   await runCloudUpdatePreview();
   await runCloudCli();
   await runCloudCheckout();

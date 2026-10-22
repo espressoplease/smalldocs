@@ -101,6 +101,19 @@ Resolve a named person to a user ID with `sdoc cloud members --account LIBRARY_U
 
 Field prefixes apply to their own terms; `--field` limits unqualified text. `tags:` searches tag text, while `tag:` matches an exact tag. Use a tag filter or `tag:` when tag identity matters.
 
+## Stars
+
+Stars belong to you and persist across the browser and CLI. They do not change document permissions. Search results include `starred`, and `--starred` restricts search or listing to your starred documents across the requested libraries. Documents you can no longer access are excluded.
+
+```sh
+sdoc cloud star DOCUMENT_UUID --json
+sdoc cloud search 'release' --starred --json
+sdoc cloud ls --starred --account LIBRARY_UUID --json
+sdoc cloud unstar DOCUMENT_UUID --json
+```
+
+The API uses `PUT /api/cloud/v1/documents/DOCUMENT_UUID/star` with `{"starred":true}` or `{"starred":false}`. Repeating a request sets the same state. The authenticated user determines whose star changes. Use `starred_only: true` in a search JSON request for the same filter.
+
 ## Dates and ordering
 
 Use `--created-after`, `--created-before`, `--updated-after`, and `--updated-before` with an ISO date or a date-time that includes its time zone. Bounds are inclusive. A date-only lower bound starts at midnight UTC; a date-only upper bound ends at 23:59:59.999 UTC.
@@ -248,7 +261,7 @@ Expression nodes have these shapes:
 
 Text fields are `text`, `title`, `filename`, `tags`, and `body`. `text` searches the fields selected by `fields`, or all four document fields when omitted. Use `query` for a literal substring request, or `query` with `mode: "query"` to parse the string as query syntax. Supply one of `query` or `expression`.
 
-Supported request keys are `expression`, `query`, `mode`, `workspace_id`, `project_id`, `tags`, `tags_any`, `tags_none`, `author_user_ids`, `updated_by_user_ids`, `document_ids`, `shared_with_me`, `fields`, `created_after`, `created_before`, `updated_after`, `updated_before`, `sort`, `limit`, `cursor`, `facets`, `facet_limit`, `match_limit`, and `word_forms`.
+Supported request keys are `expression`, `query`, `mode`, `workspace_id`, `project_id`, `tags`, `tags_any`, `tags_none`, `author_user_ids`, `updated_by_user_ids`, `document_ids`, `shared_with_me`, `starred_only`, `fields`, `created_after`, `created_before`, `updated_after`, `updated_before`, `sort`, `limit`, `cursor`, `facets`, `facet_limit`, `match_limit`, and `word_forms`.
 
 ## Recover from an empty result or an error
 
@@ -275,7 +288,7 @@ words in one field, so punctuation and line breaks between those words are
 ignored. Use `--literal` when punctuation itself matters, for example `C++` or
 an exact error string.
 
-Literal substring searches scan authorized document content to verify the text. Broad literal searches can take longer than indexed word or phrase queries. Narrowing the library, dates, creator, or document subset reduces the content that must be read.
+Literal substring searches use keyed character indexes to find candidates. A fragment within one indexed text run is verified against encrypted vocabulary; other queries verify candidate document text. Short or common substrings can still require reading many accessible documents. Narrowing the library, dates, creator, or document subset reduces the content that must be read.
 
 An empty explicit `document_ids` array, including an empty `--documents-file`,
 matches no documents. Omitting the subset searches the selected library scope.
