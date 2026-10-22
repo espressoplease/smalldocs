@@ -336,27 +336,36 @@ test('people filters query all documents and pagination has no duplicates, inclu
   await page.locator('[data-facet="since"]').click();
   const dated = searchResponse(page, body => Boolean(body.updated_after) && !body.cursor);
   await page.locator('.facet-option[data-value="30d"] .opt-label').click();
-  expect((await dated).status()).toBe(200);
-  await expect(page.locator('[data-cloud-more]')).toBeVisible();
+  const datedResponse = await dated;
+  expect(datedResponse.status()).toBe(200);
+  const datedRequest = datedResponse.request().postDataJSON();
+  const firstIds = await page.locator('.res').evaluateAll(rows => rows.map(item => item.dataset.id));
+  await expect(page.locator('[data-cloud-page="next"]')).toBeEnabled();
   const next = searchResponse(page, body => Boolean(body.cursor));
-  await page.locator('[data-cloud-more]').click();
+  await page.locator('[data-cloud-page="next"]').click();
   const nextResponse = await next;
   expect(nextResponse.status(), await nextResponse.text()).toBe(200);
-  await expect(page.locator('.res')).toHaveCount(65);
-  await expect(page.locator('[data-cloud-more]')).toHaveCount(0);
-  const ids = await page.locator('.res').evaluateAll(rows => rows.map(item => item.dataset.id));
+  expect(nextResponse.request().postDataJSON().updated_after).toBe(datedRequest.updated_after);
+  await expect(page.locator('.res')).toHaveCount(5);
+  await expect(page.locator('[data-cloud-page="next"]')).toBeDisabled();
+  const ids = firstIds.concat(await page.locator('.res').evaluateAll(rows => rows.map(item => item.dataset.id)));
   expect(new Set(ids).size).toBe(65);
   expect(new Set(ids)).toEqual(new Set(documents.slice(3).map(item => item.id)));
+  const previous = searchResponse(page, body => !body.cursor && Boolean(body.updated_after));
+  await page.locator('[data-cloud-page="previous"]').click();
+  expect((await previous).request().postDataJSON().updated_after).toBe(datedRequest.updated_after);
+  await expect(page.locator('.res')).toHaveCount(60);
+  expect(await page.locator('.res').evaluateAll(rows => rows.map(item => item.dataset.id))).toEqual(firstIds);
 
   const cleared = searchResponse(page, body => !body.author_user_ids && !body.updated_after && !body.cursor);
   await page.locator('#clear').click();
   expect((await cleared).status()).toBe(200);
   await expect(page.locator('.res')).toHaveCount(60);
   const allNext = searchResponse(page, body => Boolean(body.cursor) && !body.author_user_ids);
-  await page.locator('[data-cloud-more]').click();
+  await page.locator('[data-cloud-page="next"]').click();
   expect((await allNext).status()).toBe(200);
-  await expect(page.locator('.res')).toHaveCount(68);
-  expect(new Set(await page.locator('.res').evaluateAll(rows => rows.map(item => item.dataset.id))).size).toBe(68);
+  await expect(page.locator('.res')).toHaveCount(8);
+  expect(new Set(await page.locator('.res').evaluateAll(rows => rows.map(item => item.dataset.id))).size).toBe(8);
 });
 
 test('a failed replacement search cannot reuse a cursor from the previous filter', async ({ page }) => {
@@ -375,13 +384,13 @@ test('a failed replacement search cannot reuse a cursor from the previous filter
   });
   await openLibrary(page);
   await expect(page.locator('.res')).toHaveCount(60);
-  await expect(page.locator('[data-cloud-more]')).toBeVisible();
+  await expect(page.locator('[data-cloud-page="next"]')).toBeEnabled();
   const failed = searchResponse(page, body => body.query === 'needle');
   await page.locator('#q').fill('needle');
   expect((await failed).status()).toBe(503);
   await expect(page.locator('#agent-banner')).toContainText('Cloud search is temporarily unavailable.');
   await expect(page.locator('.res')).toHaveCount(0);
-  await expect(page.locator('[data-cloud-more]')).toHaveCount(0);
+  await expect(page.locator('[data-cloud-page="next"]')).toHaveCount(0);
   const retried = searchResponse(page, body => body.query === 'needle');
   await page.locator('#agent-banner').getByRole('button', { name: 'Retry', exact: true }).click();
   const response = await retried;
@@ -390,9 +399,9 @@ test('a failed replacement search cannot reuse a cursor from the previous filter
   await expect(page.locator('.res')).toHaveCount(60);
   await expect(page.locator('#agent-banner')).toBeHidden();
   const next = searchResponse(page, body => body.query === 'needle' && Boolean(body.cursor));
-  await page.locator('[data-cloud-more]').click();
+  await page.locator('[data-cloud-page="next"]').click();
   expect((await next).status()).toBe(200);
-  await expect(page.locator('.res')).toHaveCount(61);
+  await expect(page.locator('.res')).toHaveCount(1);
   const reset = searchResponse(page, body => !body.query && !body.cursor);
   await page.locator('#q').fill('');
   expect((await reset).status()).toBe(200);
@@ -400,7 +409,7 @@ test('a failed replacement search cannot reuse a cursor from the previous filter
   await expect(page.locator('#count')).toHaveText('61 results');
 });
 
-test('a failed next page preserves existing results and Retry restarts a valid page sequence', async ({ page }) => {
+test('a failed next page preserves existing results and Retry fetches that page', async ({ page }) => {
   for (let index = 0; index < 61; index++) {
     await f.store.createDocument({ userId: f.users.bob.id, projectId: f.team.projectId,
       filename: 'append-' + index + '.md', markdown: '# Append ' + index,
@@ -418,23 +427,19 @@ test('a failed next page preserves existing results and Retry restarts a valid p
   await expect(page.locator('.res')).toHaveCount(60);
   const firstIds = await page.locator('.res').evaluateAll(rows => rows.map(item => item.dataset.id));
   const failed = searchResponse(page, body => Boolean(body.cursor));
-  await page.locator('[data-cloud-more]').click();
+  await page.locator('[data-cloud-page="next"]').click();
   expect((await failed).status()).toBe(503);
   await expect(page.locator('#agent-banner')).toContainText('Cloud search is temporarily unavailable.');
   await expect(page.locator('.res')).toHaveCount(60);
   expect(await page.locator('.res').evaluateAll(rows => rows.map(item => item.dataset.id))).toEqual(firstIds);
-  await expect(page.locator('[data-cloud-more]')).toBeEnabled();
-  const retried = searchResponse(page, body => !body.cursor);
+  await expect(page.locator('[data-cloud-page="next"]')).toBeEnabled();
+  const retried = searchResponse(page, body => Boolean(body.cursor));
   await page.locator('#agent-banner').getByRole('button', { name: 'Retry', exact: true }).click();
   expect((await retried).status()).toBe(200);
-  await expect(page.locator('.res')).toHaveCount(60);
+  await expect(page.locator('.res')).toHaveCount(1);
   await expect(page.locator('#agent-banner')).toBeHidden();
-  const next = searchResponse(page, body => Boolean(body.cursor));
-  await page.locator('[data-cloud-more]').click();
-  expect((await next).status()).toBe(200);
-  await expect(page.locator('.res')).toHaveCount(61);
-  expect(new Set(await page.locator('.res').evaluateAll(rows => rows.map(item => item.dataset.id))).size).toBe(61);
-  await expect(page.locator('[data-cloud-more]')).toHaveCount(0);
+  await expect(page.locator('[data-cloud-page="next"]')).toBeDisabled();
+  await expect(page.locator('[data-cloud-page="previous"]')).toBeEnabled();
 });
 
 test('creator and editor filters combine with full-text, tag and shared filters on the server', async ({ page }) => {

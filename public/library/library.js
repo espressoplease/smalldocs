@@ -129,6 +129,9 @@ const STATE = {
   cloudMembersWorkspace: null,
   cloudPeople: new Map(),
   cloudNextCursor: null,
+  cloudPage: 0,
+  cloudPageCursors: [null],
+  cloudRetryPage: null,
   cloudTotal: 0,
   cloudLoading: false,
   cloudError: false,
@@ -664,6 +667,15 @@ function renderRow(e, i, tagMatches) {
 `;
 }
 
+function cloudPagination() {
+  if (!STATE.cloudPage && !STATE.cloudNextCursor) return '';
+  const disabled = STATE.cloudLoading || STATE.cloudRequestKey !== cloudFilterKey();
+  return '<nav class="res-overflow" aria-label="Document pages">'
+    + '<button class="btn" type="button" data-cloud-page="previous"' + (disabled || !STATE.cloudPage ? ' disabled' : '') + '>Previous</button>'
+    + '<span aria-live="polite">' + (STATE.cloudLoading ? 'Loading...' : 'Page ' + (STATE.cloudPage + 1)) + '</span>'
+    + '<button class="btn" type="button" data-cloud-page="next"' + (disabled || !STATE.cloudNextCursor ? ' disabled' : '') + '>Next</button></nav>';
+}
+
 function renderResults() {
   const all = applyFilters();
   const shown = isCloudMode() ? all : all.slice(0, 60);
@@ -673,6 +685,7 @@ function renderResults() {
   document.getElementById('count').textContent = isCloudMode() && !shown.length && (STATE.cloudLoading || STATE.cloudError)
     ? (STATE.cloudLoading ? 'Searching...' : '') : total + ' result' + (total === 1 ? '' : 's');
   const c = document.getElementById('results');
+  if (isCloudMode()) c.setAttribute('aria-busy', String(STATE.cloudLoading));
   if (isCloudMode() && !shown.length && (STATE.cloudLoading || STATE.cloudError)) { c.innerHTML = ''; return; }
   if (!shown.length) {
     if (!STATE.entries.length && !(isCloudMode() && (STATE.q.trim() || STATE.chips.length || STATE.sharedOnly || STATE.starredOnly))) {
@@ -689,8 +702,7 @@ function renderResults() {
   const q = STATE.q.trim().toLowerCase();
   const tagMatches = (tag) => tagChips.has(tag) || (q && tag.toLowerCase().includes(q));
 
-  const overflow = isCloudMode() ? (STATE.cloudNextCursor
-    ? '<div class="res-overflow">Showing ' + shown.length + ' of ' + total + ' results. <button class="btn" type="button" data-cloud-more' + (STATE.cloudLoading ? ' disabled' : '') + '>' + (STATE.cloudLoading ? 'Loading...' : 'Load more') + '</button></div>' : '') : all.length > shown.length
+  const overflow = isCloudMode() ? cloudPagination() : all.length > shown.length
     ? `<div class="res-overflow">Showing first ${shown.length} of ${all.length} - narrow with a filter or refine your search.</div>`
     : '';
 
@@ -981,7 +993,7 @@ function cloudLoadError(error) {
   showBanner({ kind: 'error', message: 'Cloud search is temporarily unavailable.' });
   const retry = document.createElement('button');
   retry.className = 'btn'; retry.type = 'button'; retry.textContent = 'Retry';
-  retry.addEventListener('click', () => loadCloudData(STATE.q).catch(cloudLoadError));
+  retry.addEventListener('click', () => loadCloudData(STATE.q, STATE.cloudRetryPage).catch(cloudLoadError));
   document.getElementById('agent-banner').appendChild(retry);
 }
 function cloudSearchRequest(query) {
@@ -1002,7 +1014,7 @@ function cloudSearchRequest(query) {
   }
   return request;
 }
-async function loadCloudData(query, append) {
+async function loadCloudData(query, page) {
   const workspaceId = window.SDocsCloudLibrary && window.SDocsCloudLibrary.workspaceId;
   if (!workspaceId || isSignedOutCloudMode()) return;
   const key = cloudFilterKey(), version = ++cloudRequestVersion;
@@ -1011,47 +1023,65 @@ async function loadCloudData(query, append) {
   if (cloudAbort) cloudAbort.abort();
   const controller = cloudAbort = new AbortController();
   const options = { credentials: 'same-origin', signal: controller.signal };
-  append = Boolean(append && STATE.cloudNextCursor && STATE.cloudRequestKey === key);
-  if (!append) {
+  const reuse = Number.isInteger(page) && page >= 0 && STATE.cloudRequest && STATE.cloudRequestKey === key &&
+    (page < STATE.cloudPageCursors.length || (page === STATE.cloudPage + 1 && STATE.cloudNextCursor));
+  const targetPage = reuse ? page : 0;
+  const cursor = reuse && targetPage > 0
+    ? (targetPage === STATE.cloudPage + 1 ? STATE.cloudNextCursor : STATE.cloudPageCursors[targetPage]) : null;
+  // Keep exact filters and relative date bounds for both directions. Store only
+  // page cursors, so Previous always fetches rows with current permissions.
+  const request = reuse ? Object.assign({}, STATE.cloudRequest) : cloudSearchRequest(query);
+  if (cursor) request.cursor = cursor;
+  if (!reuse && !STATE.q.trim() && !STATE.chips.length && !STATE.sharedOnly) { request.facets = ['authors']; request.facet_limit = 1000; }
+  if (!reuse) {
     STATE.entries = []; STATE.cloudTotal = 0; STATE.cloudNextCursor = null;
+    STATE.cloudPage = 0; STATE.cloudPageCursors = [null];
     STATE.cloudRequest = null; STATE.cloudRequestKey = null;
   }
+  const pageChanged = targetPage !== STATE.cloudPage;
+  let loaded = false;
+  STATE.cloudRetryPage = null;
   STATE.cloudLoading = true; STATE.cloudError = false;
   hideBanner();
   renderResults();
   loadCloudFilters(workspaceId);
   function current() { return version === cloudRequestVersion && key === cloudFilterKey(); }
   try {
-    // Reuse the exact search bounds across pages, including relative dates.
-    let request;
-    if (append && STATE.cloudNextCursor && STATE.cloudRequestKey === key) {
-      request = Object.assign({}, STATE.cloudRequest, { cursor: STATE.cloudNextCursor });
-    } else {
-      append = false;
-      request = cloudSearchRequest(query);
-      if (!STATE.q.trim() && !STATE.chips.length && !STATE.sharedOnly) { request.facets = ['authors']; request.facet_limit = 1000; }
-    }
     const data = await getCloudJson('/api/cloud/v1/search', Object.assign({}, options,
       { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(request) }));
     if (!current()) { scheduleCloudRefresh(); return; }
+    const documents = data.documents || [];
+    // A deletion or revocation can empty a later page. Return to the first page
+    // of the same search rather than leaving the user beyond the remaining rows.
+    if (targetPage && !documents.length) return loadCloudData(query, 0);
     STATE.cloudRequest = Object.assign({}, request);
     delete STATE.cloudRequest.cursor;
     STATE.cloudRequestKey = key;
-    const documents = data.documents || [];
     for (const person of (data.facets && data.facets.authors || []).concat(documents.flatMap(doc => [doc.author, doc.updated_by].filter(Boolean)))) {
       if (person.user_id && !STATE.cloudPeople.has(person.user_id)) STATE.cloudPeople.set(person.user_id, person);
     }
-    const entries = append ? STATE.entries.concat(documents.map(cloudEntry)) : documents.map(cloudEntry);
-    STATE.entries = Array.from(new Map(entries.map(entry => [entry.id, entry])).values());
+    STATE.entries = documents.map(cloudEntry);
+    STATE.cloudPage = targetPage;
+    STATE.cloudPageCursors = STATE.cloudPageCursors.slice(0, targetPage + 1);
+    STATE.cloudPageCursors[targetPage] = cursor;
+    STATE.selected = 0;
     STATE.cloudNextCursor = data.next_cursor || null;
     STATE.cloudTotal = data.total_count == null ? STATE.entries.length : data.total_count;
     STATE.lastScanAt = Date.now(); STATE.enabled = true;
     STATE.autostart = { supported: false, enabled: false, userDisabled: false };
     hideBanner();
+    loaded = true;
   } catch (error) {
-    if (current()) { STATE.cloudError = true; throw error; }
+    if (current()) { STATE.cloudError = true; STATE.cloudRetryPage = targetPage; throw error; }
   } finally {
-    if (version === cloudRequestVersion) { STATE.cloudLoading = false; renderAll(); showCloudFilterError(); }
+    if (version === cloudRequestVersion) {
+      STATE.cloudLoading = false; renderAll(); showCloudFilterError();
+      if (loaded && pageChanged) {
+        const results = document.getElementById('results');
+        results.focus({ preventScroll: true });
+        results.scrollIntoView({ block: 'start' });
+      }
+    }
   }
 }
 
@@ -1135,7 +1165,7 @@ async function toggleStar(id, starred) {
         method: 'PUT', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ starred }) });
       if (!response.ok) throw new Error('Star could not be saved');
-      if (workspaceId === window.SDocsCloudLibrary.workspaceId) await loadCloudData(STATE.q).catch(cloudLoadError);
+      if (workspaceId === window.SDocsCloudLibrary.workspaceId) await loadCloudData(STATE.q, STATE.cloudPage).catch(cloudLoadError);
     } catch (_) {
       if (entry) entry.starred = !starred;
       if (workspaceId === window.SDocsCloudLibrary.workspaceId) {
@@ -1285,8 +1315,10 @@ document.getElementById('shared-toggle').addEventListener('click', () => {
 });
 
 document.getElementById('results').addEventListener('click', (e) => {
-  if (e.target.closest('[data-cloud-more]')) {
-    loadCloudData(STATE.q, true).catch(cloudLoadError); return;
+  const pageButton = e.target.closest('[data-cloud-page]');
+  if (pageButton) {
+    if (!pageButton.disabled) loadCloudData(STATE.q, STATE.cloudPage + (pageButton.dataset.cloudPage === 'next' ? 1 : -1)).catch(cloudLoadError);
+    return;
   }
   const person = e.target.closest('[data-cloud-person]');
   if (person) {
@@ -1371,6 +1403,10 @@ if (isCloudMode()) {
   const agentButton = document.querySelector('[data-facet="agent"]');
   if (agentButton) agentButton.hidden = true;
   document.body.classList.add('cloud-library');
+  const results = document.getElementById('results');
+  results.tabIndex = -1;
+  results.setAttribute('role', 'region');
+  results.setAttribute('aria-label', 'Documents');
 }
 
 window.addEventListener('sdocs-cloud-workspace-change', function () {
@@ -1380,6 +1416,7 @@ window.addEventListener('sdocs-cloud-workspace-change', function () {
   STATE.cloudMembersWorkspace = null;
   STATE.cloudTagsWorkspace = null; STATE.cloudTags = null; STATE.cloudNextCursor = null; STATE.cloudTotal = 0;
   STATE.cloudRequest = null; STATE.cloudRequestKey = null; STATE.cloudError = false;
+  STATE.cloudPage = 0; STATE.cloudPageCursors = [null]; STATE.cloudRetryPage = null;
   STATE.chips = STATE.chips.filter(chip => chip.key !== 'author' && chip.key !== 'updatedBy');
   document.querySelectorAll('[data-facet="author"], [data-facet="updatedBy"]').forEach(button => { button.hidden = true; });
   if (openFacet === 'author' || openFacet === 'updatedBy') openFacet = null;

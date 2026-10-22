@@ -314,4 +314,5 @@ body.cloud-library-loading #results { display: none; }
 }
 .cloud-library .res-overflow { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 10px; }
 .cloud-library .res-overflow .btn { min-height: 32px; }
+.cloud-library .res-overflow .btn:disabled { opacity: .55; cursor: default; background: var(--bg-input); color: var(--text-2); }
 .cloud-library .syntax-hint[hidden] { display: none; }
