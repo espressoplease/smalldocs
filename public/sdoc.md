@@ -45,6 +45,8 @@ Run `sdoc cloud login`, complete authorization in the browser, then run `sdoc cl
 
 After you connect SmallDocs Cloud, run `sdoc setup --cloud --yes`. The Cloud edition has the same `smalldocs` name, so agents do not see two overlapping SmallDocs skills. In Cloud-first mode, `sdoc FILE.md` creates or updates the Cloud document before opening it. List your libraries with `sdoc cloud libraries --json`. Use `sdoc cloud library-default LIBRARY_UUID --json` to select the default for new documents from this connected computer. An explicit `--account UUID` takes priority; existing documents keep their bindings.
 
+The Cloud skill treats tagging as part of every new document. Agents reuse relevant vocabulary from the destination library, choose tags that describe the document's subject, project, or purpose, and check the saved tags before returning its Cloud link. For example, `sdoc api-design.md --cloud --json +payments +idempotency +api-design` saves a tagged document without changing the local file's tags. Run `sdoc cloud tag --help` for the tagging reference.
+
 `npx skills@latest` currently requires Node 22.20 or newer. `sdoc setup` remains the built-in fallback and also removes the always-on SmallDocs block written by older CLI releases:
 
 ```bash
@@ -550,7 +552,7 @@ The two "local" fields are passed to the browser via a separate URL parameter (`
 
 ## Linking Cloud documents in chat
 
-For Cloud-first agents, run `sdoc FILE.md --cloud --json`. The CLI saves the document before opening the exact Cloud URL returned in the JSON `url` field. Add `--no-open` to save without launching a browser. Check `ok` and the command's exit status before presenting the document as saved.
+For Cloud-first agents, run `sdoc FILE.md --cloud --json +subject +project`. The CLI saves the document before opening the exact Cloud URL returned in the JSON `url` field. Add `--no-open` to save without launching a browser. Check `ok`, the saved `tags`, and the command's exit status before presenting the document as saved.
 
 Always link to that returned Cloud URL in chat, never the underlying local Markdown file or a `file://` path. The local file remains the editable working copy. Later saves keep the same document URL; unchanged files do not create another revision. If `local_changed_after_upload` is true, save again before claiming the Cloud document contains the latest edits.
 

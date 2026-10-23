@@ -60,6 +60,8 @@ Run sdoc cloud login to connect this computer, then sdoc cloud status --json.
 With one library, new documents use it automatically. With several libraries,
 ask the user which to use, then run sdoc cloud library-default UUID --json.
 Use sdoc FILE.md --cloud --account UUID for one save instead of changing a default.
+The Cloud skill treats relevant tagging as part of every new document.
+Inspect sdoc cloud tags --json, then save with sdoc FILE.md --cloud --json +subject +project.
 `;
 
 function ask(question) {

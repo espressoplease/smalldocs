@@ -26,11 +26,20 @@ Cloud stores selected Markdown documents with search, revisions, member access,
 and cross-device CLI and browser access. Run \`sdoc setup --cloud --yes\` to make
 ordinary \`sdoc FILE.md\` opens create or update the Cloud document first.
 
+BUILD A TAGGED LIBRARY OF KNOWLEDGE
+
+Tag every new Cloud document as part of saving it. Choose tags that describe
+its subject, project, or purpose so humans and agents can find it later.
+Inspect cloud tags --account LIBRARY_UUID --json, or reuse relevant vocabulary
+already discovered there during this task. Keep existing spelling and introduce
+a new tag when the library's vocabulary does not describe the content.
+Preserve relevant tags when updating. Check ok, tags, and url in the save result.
+
 SAVE, OPEN, AND LINK IN CHAT
 
-  sdoc FILE.md --cloud --json
-  sdoc FILE.md --cloud --account ACCOUNT_UUID --json
-  sdoc FILE.md --cloud --no-open --json
+  sdoc FILE.md --cloud --json +subject +project
+  sdoc FILE.md --cloud --account ACCOUNT_UUID --json +subject +project
+  sdoc FILE.md --cloud --no-open --json +subject +project
 
 The authenticated CLI uploads first, then opens the same Cloud URL returned
 in url. The local Markdown is the editable working copy. Its binding keeps
@@ -120,12 +129,16 @@ Cloud may combine work saved by another writer since the pull.
 
 CREATE, ORGANIZE, AND SHARE ACCESS
 
-  sdoc cloud create PATH [--account UUID] --json
+  sdoc PATH --cloud --no-open --json +subject +project
   sdoc cloud tag DOCUMENT_UUID --tag TAG [--tag TAG ...] --json
   sdoc cloud access DOCUMENT_UUID [--only-you | --everyone | --member USER_ID ...] --json
   sdoc cloud members [--account UUID] --json
   sdoc cloud permission-groups [--account UUID] --json
   sdoc cloud notify DOCUMENT_UUID [--document DOCUMENT_UUID ...] --member USER_ID ... [--note TEXT] --json
+
+Normal saves with +tag add to the document's existing tags without editing the
+local file. cloud tag replaces the complete set; include tags you intend to keep.
+Run cloud tag --help for examples and cloud tags --help for library vocabulary.
 
 Notification sends a message to existing account members. It does not grant
 access or create a user. List members and set access deliberately before
@@ -157,6 +170,57 @@ server address; it does not need an SDOCS_CLOUD_URL override.
 Search and listing span accessible libraries unless --account UUID narrows them.
 Use --account UUID for account-scoped discovery or a known creation destination.
 Add --json to any command for one machine-readable JSON object on stdout.`;
+
+const CLOUD_TAG_HELP = `SmallDocs Cloud tags
+
+Build a tagged library of knowledge. Tag every new document with meaningful
+subjects, projects, or purposes so humans and agents can find it later.
+Reuse relevant existing vocabulary and keep its spelling. Add a new tag when
+the existing vocabulary does not describe the content. Preserve relevant tags
+when updating. Read-only research does not change source documents or their tags.
+
+DISCOVER LIBRARY VOCABULARY
+
+  sdoc cloud tags --account LIBRARY_UUID --json
+
+Lists tags by frequency within documents you can access in that library.
+With one library, --account can be omitted. Reuse relevant tags already
+discovered during this task instead of fetching the same inventory again.
+
+SAVE A DOCUMENT OR ADD CLOUD TAGS
+
+  sdoc api-design.md --cloud --json +payments +idempotency +api-design
+  sdoc api-design.md --cloud --no-open --json +payments +idempotency +api-design
+
+These saves add Cloud tags and preserve existing ones. The local Markdown is
+not changed by +tags. Include --account LIBRARY_UUID when selecting a new
+document's destination. Existing file bindings keep their library.
+Check ok, tags, and the returned Cloud url before linking the document.
+Use this tagged save workflow for routine creation; cloud create is the
+lower-level upload command and does not apply +tag arguments.
+
+REPLACE THE COMPLETE TAG SET ON AN EXISTING DOCUMENT
+
+  sdoc cloud read DOCUMENT_UUID --json
+  sdoc cloud tag DOCUMENT_UUID --tag payments --tag idempotency --tag api-design --json
+
+cloud tag replaces all tags with the repeated --tag values. Include every
+existing tag you intend to keep. It changes Cloud tags without changing
+document access. The JSON result includes the saved revision and tags.
+To find documents again, use cloud search --tag payments --tag idempotency --json.
+`;
+
+const CLOUD_CREATE_HELP = `SmallDocs Cloud create
+
+  sdoc cloud create FILE.md [--account LIBRARY_UUID] --json
+
+Uploads the Markdown working copy and binds it to the returned Cloud document.
+Later saves of that bound file update the same document. The JSON result
+includes document_id, revision_id, tags, and url.
+
+For routine creation with selected tags, use the save workflow below.
+
+` + CLOUD_TAG_HELP;
 
 const CLOUD_SEARCH_HELP = `SmallDocs Cloud search
 
@@ -1202,6 +1266,7 @@ async function autoSyncOpen(opts, dependencies) {
     { credential, file, silent: syncOpts.silent });
   return { synced: true, documentId: result.document_id,
     revisionId: tagged && tagged.current_revision_id || result.revision_id, created: !binding,
+    tags: tagged && tagged.tags || result.tags || [],
     localChangedAfterUpload: Boolean(result.local_changed_after_upload) };
 }
 
@@ -1222,7 +1287,7 @@ async function openCloudDocument(opts, dependencies) {
     }
     return emit(opts, 'cloud.open', {
       document_id: saved.documentId, revision_id: saved.revisionId,
-      url: canonicalUrl, created: saved.created,
+      url: canonicalUrl, created: saved.created, tags: saved.tags,
       local_changed_after_upload: saved.localChangedAfterUpload,
     }, canonicalUrl + (saved.localChangedAfterUpload
       ? '\nThe local file changed during upload. Run sdoc again to save the latest changes.' : ''));
@@ -1424,6 +1489,7 @@ async function runCloudCommand(opts, dependencies) {
     const client = dependencies && dependencies.client || new CloudClient();
     if (opts.helpFlag || action === 'help') return process.stdout.write(
       ((action === 'search' || action === 'ls') ? CLOUD_SEARCH_HELP : action === 'read' ? CLOUD_READ_HELP
+        : ['tag', 'tags'].includes(action) ? CLOUD_TAG_HELP : action === 'create' ? CLOUD_CREATE_HELP
         : ['push', 'pull', 'diff', 'history', 'restore', 'access'].includes(action) ? CLOUD_UPDATE_HELP : CLOUD_HELP) + '\n');
     if (opts.searchArgumentErrors && opts.searchArgumentErrors.length) {
       throw new CloudCommandError('invalid_request', opts.searchArgumentErrors.join('; '));
@@ -1464,5 +1530,5 @@ async function runCloudCommand(opts, dependencies) {
   }
 }
 
-module.exports = { CloudClient, CloudCommandError, runCloudCommand, autoSyncOpen, openCloudDocument, filterTags, origin,
+module.exports = { CloudClient, CloudCommandError, runCloudCommand, autoSyncOpen, openCloudDocument, filterTags, origin, CLOUD_TAG_HELP, CLOUD_CREATE_HELP,
   EXIT, CLOUD_HELP, CLOUD_SEARCH_HELP, CLOUD_UPDATE_HELP, CLOUD_OVERVIEW, entitlementFailure, skillInstallCommand, searchRequest };

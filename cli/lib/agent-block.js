@@ -28,8 +28,8 @@ const path = require('path');
 const { SETUP_CACHE, INSTALLATION_CHANNEL } = require('./constants');
 
 // ── Skill model ────────────────────────────────────────────
-const SKILL_VERSION = 37;
-const SKILL_REASON  = 'Explain first Cloud login, automatic single-library selection, and setup recovery.';
+const SKILL_VERSION = 38;
+const SKILL_REASON  = 'Make relevant tagging part of every new Cloud document and preserve useful library vocabulary.';
 const SKILL_NAME    = 'smalldocs';
 
 // Always-in-context preamble. Concise trigger text; the full reference lives
@@ -37,7 +37,7 @@ const SKILL_NAME    = 'smalldocs';
 // no double quotes (it is emitted as a double-quoted YAML scalar).
 const SKILL_DESCRIPTION = "Use SmallDocs when the user says sdoc, S-doc, smalldoc, sdoc this, or asks to open, present, share, style, save, or walk through a Markdown document with SmallDocs. Create or locate the Markdown file and use sdoc FILE.md for normal viewing. For a document walkthrough add source-line annotations to the sdoc command; the source file stays unchanged. For a presentation run sdoc slides, create a Markdown deck from the source material, run sdoc slides verify FILE.md --json and fix every error, then run sdoc present FILE.md. Use a runnable browser component only when the reader must interact with the result to understand something static document forms cannot express as clearly. When that criterion is met, run sdoc apps, use an sdoc-app block, and check inline, fullscreen, narrow, and wide layouts. Run the matching bare reference command before other specialised syntax. Local files stay local unless the user explicitly requests sharing or Cloud storage.";
 
-const CLOUD_SKILL_DESCRIPTION = "Use SmallDocs when the user says sdoc, S-doc, smalldoc, sdoc this, or asks to open, present, share, style, search, save, or walk through a Markdown document with SmallDocs. This user has enabled Cloud-first mode: use sdoc FILE.md --cloud --json to save Markdown, open its Cloud URL, and return it. When linking a SmallDoc in chat, always use the returned Cloud url and never the underlying local file path. Check ok before linking. Use +tag arguments for Cloud tags. For prior Cloud material run sdoc cloud status --json, sdoc cloud search --help, search, then read. For a presentation run sdoc slides, create a Markdown deck, run sdoc slides verify FILE.md --json and fix every error, run sdoc FILE.md --cloud --json to store it, then run sdoc present FILE.md. Use a runnable browser component only when the reader must interact with the result to understand something static document forms cannot express as clearly. When that criterion is met, run sdoc apps and check inline, fullscreen, narrow, and wide layouts.";
+const CLOUD_SKILL_DESCRIPTION = "Use SmallDocs for sdoc, S-doc, smalldoc, and creating, reading or searching Markdown documents. This user has enabled Cloud-first mode: use sdoc FILE.md --cloud --json +subject +project, then open and return its Cloud URL. Tag every new Cloud document; reuse relevant library tags and verify the saved tags. When linking a SmallDoc in chat, always use the returned Cloud url and never the underlying local file path. Check ok before linking. For prior Cloud material run sdoc cloud status --json, sdoc cloud search --help, search, then read. For a presentation run sdoc slides, create the deck, run sdoc slides verify FILE.md --json and fix every error, save with relevant tags, then run sdoc present FILE.md. Use a runnable browser component only when the reader must interact with the result to understand something static document forms cannot express as clearly. When needed, run sdoc apps and check inline, fullscreen, narrow, and wide layouts.";
 
 const STANDARD_CLOUD_SKILL_SECTION = `### SmallDocs Cloud is available
 
@@ -95,7 +95,7 @@ For a presentation request, follow this sequence rather than treating it as an o
 
 const CLOUD_SKILL_SECTION = `### SmallDocs Cloud for agents
 
-This user has enabled Cloud-first mode. Treat Cloud as the normal destination for SmallDocs Markdown. Write or update the local Markdown working copy, then run \`sdoc FILE.md --cloud --json\`. The CLI creates a Cloud document for an unbound file or pushes a revision for a bound file before it opens the browser. If the Cloud write fails, stop and report the error instead of presenting the local copy as saved.
+This user has enabled Cloud-first mode. Treat Cloud as the normal destination for SmallDocs Markdown. Write or update the local Markdown working copy, choose relevant tags, then run \`sdoc FILE.md --cloud --json +subject +project\`. The CLI creates a Cloud document for an unbound file or pushes a revision for a bound file before it opens the browser. If the Cloud write fails, stop and report the error instead of presenting the local copy as saved.
 
 For the first connection, run \`sdoc cloud status --json\`. On \`login_required\`, run \`sdoc cloud login\` and have the user authorize it in the browser, completing their profile if requested. Run status again after login; its \`origin\` identifies the connected service. With one library, new documents use it automatically. On \`account_selection_required\`, list \`sdoc cloud libraries --json\`, ask which library to use, and pass \`--account LIBRARY_UUID\` or set \`sdoc cloud library-default LIBRARY_UUID --json\` when the user wants a computer default. On \`account_required\`, open the returned \`setup_url\` on the same service, finish profile and library setup, then retry. A staging-bound installation already has its server address and does not need an environment override. \`sdoc setup --help\` describes agent skill setup without installing anything.
 
@@ -107,7 +107,7 @@ Cloud create, pull, push, and restore return \`url\` in JSON. Cloud list and sea
 
 The \`sdoc feedback\` and \`sdoc bridge\` commands still use local live sessions. Saving a Cloud copy does not create a live feedback session. Keep using these commands for live interaction; do not describe a Cloud URL as receiving live submissions until Cloud-backed feedback exists.
 
-Use \`sdoc FILE.md --cloud --json +tag1 +tag2\` to add Cloud tags. Do not add SmallDocs tags to local front matter and do not use the local library. Use \`sdoc cloud ls\`, \`sdoc cloud search\`, and \`sdoc cloud tags\` for discovery. Use \`sdoc share\` only when the user explicitly asks for an encrypted snapshot link rather than the managed Cloud document.
+Add Cloud tags with \`+tag\` arguments on the normal save command. They are stored in Cloud; do not add SmallDocs tags to the local working copy's front matter or use the local library. Use \`sdoc cloud ls\`, \`sdoc cloud search\`, and \`sdoc cloud tags\` for discovery. Use \`sdoc share\` only when the user explicitly asks for an encrypted snapshot link rather than the managed Cloud document.
 
 Treat Cloud as a source of context, not only a place to save new work. When earlier decisions, research, plans, or documentation could materially inform the task, search Cloud before recreating that context. Start with relevant project words, inspect evidence and facets, then refine the query. For read-only research, search and read existing sources without uploading notes or changing tags, document access, or local bindings. Plain words require every word; use OR for alternative vocabulary and inner double quotes for a phrase of adjacent words. Do not search unrelated Cloud documents merely because Cloud is enabled.
 
@@ -128,7 +128,7 @@ When earlier Cloud material should inform new work, use this sequence:
 - Search and listing span accessible libraries; \`--account LIBRARY_UUID\` narrows the read scope without changing the save destination. Metadata-only searches are valid. Use \`--starred\` to search your saved stars. \`sdoc cloud star DOCUMENT_UUID --json\` and \`sdoc cloud unstar DOCUMENT_UUID --json\` update your stars across the browser and CLI without changing document access. \`sdoc cloud ls --tag TAG --json\` uses the same filters, sorted by modification time. \`--limit\` is a page size up to 100; commands fetch one page by default. Use \`--pages N\` or \`--all\` when the task needs more, optionally capped by \`--max-results N\`. Inspect \`complete\`, \`stopped_reason\`, \`returned_count\`, and \`next_cursor\`; a cap preserves continuation. \`--compact --json\` keeps source IDs, URLs and evidence with shorter document metadata. Facets and \`total_count\` describe matching accessible documents before pagination. Large reproducible requests can use \`--query-file PATH\` with the documented JSON shape.
 - On zero results, try a prefix or OR alternative, remove one narrow filter, or inspect \`--facets\` and \`sdoc cloud tags --account LIBRARY_UUID --json\`. Fix syntax errors or use \`--literal\`. On \`search_limit_reached\` or \`rate_limited\`, wait for \`retry_after_ms\` or \`Retry-After\`, then retry. Narrower text or metadata filters do not reset a request budget. Distinguish empty results from incomplete pages and failed requests. Search evidence, counts, and facets obey document permissions; a missing result does not establish that a document does not exist. Do not broaden permissions to improve search. The full reference is https://smalldocs.org/cloud-search.
 - For a reference file, read a promising result without binding it for future updates with \`sdoc cloud pull DOCUMENT_UUID --output PATH --no-bind --json\`. To update it, pull without \`--no-bind\`, edit the local Markdown, then run \`sdoc cloud push PATH --json\`.
-- Upload a new local file without opening a browser with \`sdoc cloud create FILE.md --account ACCOUNT_UUID --json\`. Omit \`--account\` when status reports one account.
+- Save a tagged document without opening a browser with \`sdoc FILE.md --cloud --account ACCOUNT_UUID --no-open --json +subject +project\`. Omit \`--account\` when status reports one account.
 - Set document access with \`sdoc cloud access DOCUMENT_UUID --only-you\`, \`--everyone\`, or one or more \`--member USER_ID\` values. List members first. Notify existing members with \`sdoc cloud notify ...\`; notification does not grant access or create users.
 - Before updating, read the selected document and confirm its library and content match the task. Run \`sdoc cloud push --help\` for previews, save receipts, revision comparisons and recovery. Pull to bind a working file, edit it, then use normal \`cloud push PATH --json\`. Saving preserves document access and the Cloud filename.
 - Default saves merge independent changes and retain both overlapping passages. \`combined:true\` and \`overlapping_edits_preserved:true\` describe that result; they do not impose a review or approval step. Preserve other writers' content and verify the committed revision. The optional \`--reject-conflicts\` refuses overlaps when the user needs that stricter behaviour; do not add it to routine saves by default.
@@ -141,18 +141,44 @@ Cloud documents are identified by UUID, not filename. An account is the access b
 
 `;
 
+const CLOUD_TAGGING_SECTION = `### Build a tagged library of knowledge
+
+Every document you create contributes to a library that humans and agents will search later. Tag every new Cloud document as part of saving it. A finished document has useful tags as well as readable content and a confirmed Cloud URL.
+
+Choose tags that describe its subject, project, or purpose. Think about how someone would look for this knowledge without knowing the document's title. Reuse relevant tags already used in the destination library, keeping their existing spelling. Introduce a new tag when the existing vocabulary does not describe the content. Choose tags from the document yourself rather than asking the user to classify routine work.
+
+For a new document:
+
+1. Establish the destination library, then inspect \`sdoc cloud tags --account LIBRARY_UUID --json\` or use relevant vocabulary already discovered there during this task.
+2. Write the document and select a focused set of meaningful tags. Prefer reusable subjects and projects over labels that only repeat its filename.
+3. Save with \`sdoc api-design.md --cloud --json +payments +idempotency +api-design\`. Include \`--account LIBRARY_UUID\` when the destination requires it.
+4. Check \`ok\`, the saved \`tags\`, and the returned Cloud \`url\` before linking the finished document.
+
+When updating, preserve existing relevant tags and add any needed to reflect the new content. Normal saves with \`+tag\` add to existing Cloud tags. \`sdoc cloud tag DOCUMENT_UUID --tag payments --tag api-design --json\` replaces the complete tag set, so include the existing tags you intend to keep. Read-only research stays read-only; do not retag source documents while gathering context.
+
+`;
+
 const CLOUD_SKILL_BODY = SKILL_BODY
   .replace(
     'The `sdoc` CLI (`sdoc path/to/file.md`) is installed globally and renders local Markdown files securely in the browser (at https://smalldocs.org) in a way that\'s comfortable for your user to read and share. Nothing hits a server unless the user explicitly saves the file to the SmallDocs cloud or runs `sdoc share`.',
     'The `sdoc` CLI (`sdoc path/to/file.md`) is installed globally and renders Markdown in the browser at https://smalldocs.org. Cloud-first mode uploads a new Markdown file or pushes a bound file before opening it, so the Cloud copy stays current while the local file remains the editable working copy.',
   )
+  .replace('### Basic `sdoc` usage', CLOUD_TAGGING_SECTION + '### Basic `sdoc` usage')
   .replace(
     '- `sdoc file.md` - the default way to open a file, for comfortable reading or quick sharing.',
-    '- `sdoc file.md --cloud --json` - save the Cloud document, open the returned Cloud URL, and use that same `url` when linking in chat. Never link to the local working file.',
+    '- `sdoc file.md --cloud --json +subject +project` - save the tagged Cloud document, open the returned Cloud URL, and use that same `url` when linking in chat. Never link to the local working file.',
   )
   .replace(
     '- `sdoc library` - opens a library view containing files previously opened with `sdoc path/to/file.md`; filter by directory, date, or tags (the index doesn\'t search file content - fall back to `grep` for that). Opt out per-file with `sdocs-library: false` in front matter. (`sdoc library --help` for the full reference.)\n- `sdoc library ls --tags` - list the current project\'s tags by frequency. When tags would make a document worth rediscovering, run this before choosing them. Prefer an existing tag that fits; introduce a new one when none does.\n- `sdoc file.md +tag1 +tag2` - open the file and add the selected tags to its YAML front matter. The `+` prefix is shell-safe and the tags persist.',
-    '- `sdoc cloud ls --json` - list documents and their returned Cloud URLs.\n- `sdoc cloud tags` - list Cloud tags by frequency. Prefer an existing tag that fits when the document should be easy to find again.\n- `sdoc file.md --cloud --json +tag1 +tag2` - create or update the Cloud document and add the selected Cloud tags. The local Markdown is not changed.',
+    '- `sdoc cloud ls --json` - list documents and their returned Cloud URLs.\n- `sdoc cloud tags --account LIBRARY_UUID --json` - inspect existing tags in the destination library before choosing tags for a new document. Reuse relevant vocabulary.\n- `sdoc file.md --cloud --json +tag1 +tag2` - create or update the Cloud document and add the selected Cloud tags. The local Markdown is not changed.',
+  )
+  .replace(
+    'To create something new, write the `.md` file first, then `sdoc path/to/file.md`.',
+    'To create something new, write the `.md` file, choose relevant library tags, then run `sdoc path/to/file.md --cloud --json +subject +project`.',
+  )
+  .replace(
+    '4. Run `sdoc present FILE.md` so the user sees the deck in presentation mode.',
+    '4. Save the deck with relevant tags using `sdoc FILE.md --cloud --json +subject +slides` and check the Cloud result.\n5. Run `sdoc present FILE.md` so the user sees the deck in presentation mode.',
   )
   .replace(STANDARD_CLOUD_SKILL_SECTION, CLOUD_SKILL_SECTION);
 

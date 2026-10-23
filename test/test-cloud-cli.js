@@ -7,7 +7,7 @@ module.exports = function(harness) {
   const io = require('../cli/lib/io');
   const credentials = require('../cli/lib/cloud-credentials');
   const bindings = require('../cli/lib/cloud-bindings');
-  const { CloudClient, runCloudCommand, autoSyncOpen, openCloudDocument, filterTags, skillInstallCommand, CLOUD_HELP, CLOUD_SEARCH_HELP, searchRequest } =
+  const { CloudClient, runCloudCommand, autoSyncOpen, openCloudDocument, filterTags, skillInstallCommand, CLOUD_HELP, CLOUD_TAG_HELP, CLOUD_CREATE_HELP, CLOUD_SEARCH_HELP, searchRequest } =
     require('../cli/lib/cloud-commands');
 
   test('setup parser captures Cloud-first edition and preferred account', () => {
@@ -1374,6 +1374,18 @@ module.exports = function(harness) {
       assert.strictEqual(result.stderr, '');
     });
 
+    await testAsync('Cloud tag help is read-only and distinguishes additions from replacement', async () => {
+      const client = { authenticated() { throw new Error('Help must not contact Cloud'); } };
+      for (const action of ['tag', 'tags', 'create']) {
+        const result = await captureStreams(() => runCloudCommand(io.parseArgs(['cloud', action, '--help']), { client }));
+        assert.strictEqual(result.exitCode, 0);
+        assert.strictEqual(result.stdout, (action === 'create' ? CLOUD_CREATE_HELP : CLOUD_TAG_HELP) + '\n');
+        assert.ok(result.stdout.includes('preserve existing ones'));
+        assert.ok(result.stdout.includes('replaces all tags'));
+        assert.ok(result.stdout.includes('Check ok, tags, and the returned Cloud url'));
+      }
+    });
+
     await testAsync('Cloud open prints and opens the same stable URL after confirmed saves', async () => {
       const file = path.join(dir, 'canonical-cloud.md');
       fs.writeFileSync(file, '# Canonical Cloud\nFirst version');
@@ -1385,11 +1397,13 @@ module.exports = function(harness) {
       assert.strictEqual(first.url, 'https://cloud.test/docs?cloud-document=doc-1');
       assert.deepStrictEqual(opened, [first.url]);
       assert.strictEqual(first.created, true);
+      assert.deepStrictEqual(first.tags, ['release', 'planning']);
       fs.writeFileSync(file, '# Canonical Cloud\nSecond version');
       const second = await capture(() => openCloudDocument({ file, jsonFlag: true }, dependencies));
       assert.strictEqual(second.created, false);
       assert.strictEqual(second.url, first.url);
       assert.strictEqual(second.revision_id, 'rev-2');
+      assert.deepStrictEqual(second.tags, ['release']);
       assert.deepStrictEqual(opened, [first.url, first.url]);
       const callCount = calls.length;
       const third = await capture(() => openCloudDocument({ file, jsonFlag: true,

@@ -109,7 +109,7 @@ module.exports = function (harness) {
     assert.ok(cli.CLOUD_SKILL_DESCRIPTION.includes('enabled Cloud-first mode'));
     assert.ok(cli.CLOUD_SKILL_BODY.includes('sdoc cloud members'));
     assert.ok(cli.CLOUD_SKILL_BODY.includes('sdoc cloud permission-groups'));
-    assert.ok(cli.CLOUD_SKILL_BODY.includes('sdoc cloud create FILE.md --account ACCOUNT_UUID --json'));
+    assert.ok(cli.CLOUD_SKILL_BODY.includes('sdoc FILE.md --cloud --account ACCOUNT_UUID --no-open --json +subject +project'));
     assert.ok(!cli.CLOUD_SKILL_BODY.includes('sdoc cloud projects'));
     assert.ok(!cli.CLOUD_SKILL_BODY.includes('--project'));
   });
@@ -339,7 +339,9 @@ module.exports = function (harness) {
     assert.ok(out.includes('This user has enabled Cloud-first mode'));
     assert.ok(out.includes('sdoc cloud status --json'));
     assert.ok(out.includes('creates a Cloud document for an unbound file'));
-    assert.ok(out.includes('Use `sdoc FILE.md --cloud --json +tag1 +tag2` to add Cloud tags'));
+    assert.ok(out.includes('Tag every new Cloud document as part of saving it.'));
+    assert.ok(out.includes('replaces the complete tag set'));
+    assert.ok(out.includes('Check `ok`, the saved `tags`, and the returned Cloud `url`'));
     assert.ok(!out.includes('This standard skill does not indicate'));
     assert.ok(out.includes('Treat Cloud as a source of context'));
     assert.ok(out.includes('search Cloud before recreating that context'));

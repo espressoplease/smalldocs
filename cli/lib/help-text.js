@@ -53,10 +53,12 @@ USAGE
   sdoc cloud status --json         Check the connected Cloud account
   sdoc cloud ls                    List Cloud documents
   sdoc cloud search "query"        Search Cloud documents
-  sdoc file.md --cloud --json      Save to Cloud, open it, and return its Cloud URL
+  sdoc file.md --cloud --json +topic +project
+                                  Save a tagged Cloud document and return its URL
   sdoc cloud create file.md        Add a document to Cloud
   sdoc cloud --help                Full Cloud command reference
-  sdoc <file> +tag1 +tag2          Inject tags into the file's front matter at open time
+  sdoc <file> +tag1 +tag2           Add Cloud tags in Cloud-first mode;
+                                  edit local front matter in local-first mode
   sdoc defaults                    Show ~/.sdocs/styles.yaml
   sdoc defaults --reset            Remove default styles
   sdoc setup                       Install the SmallDocs skill for your coding agents
