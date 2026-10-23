@@ -16,14 +16,17 @@ async function worker(directory, concurrency, kind, rounds = 1) {
   assert.equal(store.searchIndexStatus({}).ready, true, 'Backfill before measuring search');
   const before = process.memoryUsage();
   const decrypt = store._decryptRevision.bind(store);
+  const decryptMetadata = store._decryptRevisionMetadata.bind(store);
   const projectKey = store._projectKey.bind(store);
   // Yield at key-provider boundaries so concurrent requests actually overlap.
   // This models asynchronous I/O, without claiming to measure managed KMS.
   store._projectKey = async (...args) => { await new Promise(setImmediate); return projectKey(...args); };
-  let decryptions = 0, active = 0, peakActive = 0;
+  let decryptions = 0, metadataDecryptions = 0, active = 0, peakActive = 0;
   store._decryptRevision = async (...args) => { decryptions++; return decrypt(...args); };
+  store._decryptRevisionMetadata = async (...args) => { metadataDecryptions++; return decryptMetadata(...args); };
+  const browsing = kind === 'browse' || kind === 'browse-with-tags';
   const request = { userId: USERS.reader, workspaceIds: Object.values(context.workspaces),
-    limit: 20, facets: ['tags', 'authors', 'libraries'], matchLimit: 2 };
+    limit: browsing ? 60 : 20, facets: browsing ? ['authors'] : ['tags', 'authors', 'libraries'], matchLimit: 2 };
   if (kind === 'rare-literal') request.query = 'quorumneedle';
   if (kind === 'broad-literal') request.query = 'operat';
   if (kind === 'broad-word') request.expression = { field: 'text', match: 'term', value: 'operations' };
@@ -41,25 +44,32 @@ async function worker(directory, concurrency, kind, rounds = 1) {
       active++; peakActive = Math.max(peakActive, active);
       const start = performance.now();
       try {
-        const result = kind === 'tags' ? await store.listTags(request) : await store.searchPage(request);
+        let result;
+        if (kind === 'browse-with-tags') {
+          const [page, tags] = await Promise.all([store.searchPage(request), store.listTags(request)]);
+          assert.ok(tags.length > 0);
+          result = page;
+        } else result = kind === 'tags' ? await store.listTags(request) : await store.searchPage(request);
         if (kind === 'tags') assert.ok(result.length > 0);
         else {
           assert.equal(result.total_count, expected);
           assert.equal(result.documents.length, Math.min(expected, request.limit));
           assert.equal(new Set(result.documents.map(doc => doc.id)).size, result.documents.length);
           assert.equal(result.facets.authors.reduce((sum, row) => sum + row.document_count, 0), expected);
-          assert.equal(result.facets.libraries.reduce((sum, row) => sum + row.document_count, 0), expected);
+          if (!browsing) assert.equal(result.facets.libraries.reduce((sum, row) => sum + row.document_count, 0), expected);
+          if (browsing) assert.ok(result.documents.every(doc => Array.isArray(doc.tags) && doc.matches.length === 0));
         }
       } finally { latencies.push(performance.now() - start); active--; }
     }));
     memorySamples.push(process.memoryUsage());
     }
-    const expectedDecryptions = kind === 'tags' || kind === 'absent-literal' ? 0
+    const expectedDecryptions = browsing || kind === 'tags' || kind === 'absent-literal' ? 0
       : kind === 'phrase-literal' ? concurrency * (expected + Math.min(expected, request.limit)) : concurrency * Math.min(expected, request.limit);
     assert.equal(decryptions, expectedDecryptions * rounds);
+    assert.equal(metadataDecryptions, browsing ? concurrency * Math.min(expected, request.limit) * rounds : 0);
     assert.equal(store.db.prepare("SELECT count(*) AS n FROM sqlite_temp_master WHERE name LIKE 'cloud_search_scope_%'").get().n, 0);
     return { kind, concurrency, rounds, memory_samples: memorySamples, peak_active_requests: peakActive, document_count: context.documentCount,
-      expected_matches_per_request: kind === 'tags' ? null : expected, decryption_count: decryptions,
+      expected_matches_per_request: kind === 'tags' ? null : expected, decryption_count: decryptions, metadata_decryption_count: metadataDecryptions,
       elapsed_ms: Math.round(performance.now() - started), ...timingSummary(latencies),
       before, after: process.memoryUsage(), peak_rss_bytes: process.resourceUsage().maxRSS * 1024,
       scope: 'One process and SQLite connection; all fixture documents authorized; asynchronous local key provider; no corpus in JS' };

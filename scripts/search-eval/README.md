@@ -112,6 +112,7 @@ It asserts result counts, unique returned IDs, facet counts and decryption count
 ```sh
 node scripts/search-eval/concurrent.js --fixture RETAINED_DIRECTORY --output /tmp/concurrent-search.json
 node scripts/search-eval/concurrent.js --fixture RETAINED_DIRECTORY --worker --concurrency 8 --kind broad-literal --rounds 3
+node scripts/search-eval/concurrent.js --fixture RETAINED_DIRECTORY --kinds browse,browse-with-tags --output /tmp/library-browse.json
 ```
 
 The default matrix uses concurrency 1, 4 and 8 for rare/absent/broad literal
@@ -120,3 +121,8 @@ tag inventory. Use `--kinds` with a comma-separated list to select cases. The
 worker reports total process peak RSS, per-round memory samples, actual peak
 request overlap, elapsed times and body decryption counts. No forced garbage
 collection is used. It also checks that request temporary tables are gone.
+
+The `browse` case reads 60 document rows and the author facet, as the Cloud
+library does on entry. `browse-with-tags` starts the complete tag inventory at
+the same time. Both assert that browsing decrypts page metadata and no document
+bodies, while retaining exact authorized counts and row tags.

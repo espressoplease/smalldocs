@@ -50,6 +50,7 @@ module.exports = function (h) {
 
       await testAsync('literal and word searches isolate private documents, tag labels, counts and all facets', async () => {
         for (const input of [{ query: 'needle :: 42%' }, { expression: term('identical') },
+          { documentIds: [visible.id, privateSameCompany.id, privateOtherCompany.id] },
           { expression: { op: 'not', clause: term('doesnotexist') }, documentIds: [visible.id, privateSameCompany.id, privateOtherCompany.id] }]) {
           const result = await search(input);
           assert.deepStrictEqual(identifiers(result), new Set([visible.id]));
@@ -75,6 +76,30 @@ module.exports = function (h) {
         const admin = await search({ userId: 'company-a-admin', query: 'ReaderOnlyCanary', documentIds: [privateReader.id] });
         assert.strictEqual(admin.total_count, 0);
         assert.deepStrictEqual(admin.facets.tags, []);
+      });
+      await testAsync('complete tag inventory excludes inaccessible labels and counts, including for the library owner', async () => {
+        const inventory = await store.listTags({ userId: reader, workspaceId: first.workspaceId });
+        assert.deepStrictEqual(inventory, [{ tag: 'reader-private-label', count: 1 }, { tag: 'shared-label', count: 1 }]);
+        const ownerInventory = await store.listTags({ userId: owners[0], workspaceId: first.workspaceId });
+        assert.deepStrictEqual(ownerInventory, [{ tag: 'private-a-label', count: 1 }, { tag: 'shared-label', count: 1 }]);
+        assert.deepStrictEqual(await store.listTags({ userId: reader, workspaceId: foreign.workspaceId }), []);
+        const original = store._projectKey;
+        let revoked = false;
+        store._projectKey = async function(...args) {
+          const value = await original.apply(this, args);
+          if (!revoked) {
+            revoked = true;
+            secondConnection.setDocumentPermission({ userId: owners[0], documentId: visible.id, mode: 'custom', memberUserIds: [] });
+          }
+          return value;
+        };
+        try {
+          assert.deepStrictEqual(await store.listTags({ userId: reader, workspaceId: first.workspaceId }), [{ tag: 'reader-private-label', count: 1 }]);
+          assert.strictEqual(revoked, true);
+        } finally {
+          store._projectKey = original;
+          store.setDocumentPermission({ userId: owners[0], documentId: visible.id, mode: 'custom', memberUserIds: [reader] });
+        }
       });
       await testAsync('identical plaintext receives independent project digests and access stays document scoped', async () => {
         const firstHashes = new Set(store.db.prepare('SELECT term_hash FROM cloud_search_terms WHERE project_id=?').all(first.projectId).map(row => row.term_hash.toString('hex')));
@@ -196,7 +221,66 @@ module.exports = function (h) {
           }
         });
       }
-      await testAsync('workspace revocation during a key await removes the whole company from results and facets', async () => {
+      for (const method of ['_projectKey', '_decryptRevisionMetadata', '_decryptProjectName']) {
+        await testAsync('metadata browsing rechecks revocation during ' + method + ' before rows counts facets and cursors', async () => {
+          const control = await create(first, owners[0], tagged('safe-browse', '# Safe browse'), 'safe-browse-' + sequence + '.md', true);
+          const target = await create(first, owners[0], tagged('revoked-browse-tag', '# Revoked browse canary'), 'revoked-browse-' + sequence + '.md', true);
+          store.db.prepare('UPDATE cloud_documents SET updated_at_ms=? WHERE id=?').run(Date.now() + 1000, target.id);
+          const original = store[method];
+          let revoked = false;
+          store[method] = async function(...args) {
+            const value = await original.apply(this, args);
+            if (!revoked && (method !== '_decryptRevisionMetadata' || args[0].document_id === target.id)) {
+              revoked = true;
+              secondConnection.setDocumentPermission({ userId: owners[0], documentId: target.id, mode: 'custom', memberUserIds: [] });
+            }
+            return value;
+          };
+          try {
+            const page = await search({ documentIds: [control.id, target.id], limit: 1, facets: ['authors', 'libraries'] });
+            assert.strictEqual(revoked, true);
+            assert.deepStrictEqual(identifiers(page), new Set([control.id]));
+            assert.strictEqual(page.total_count, 1);
+            assert.strictEqual(page.has_more, false);
+            assert.strictEqual(page.nextPosition, null);
+            assert.deepStrictEqual(page.facets.authors, [{ user_id: owners[0], document_count: 1 }]);
+            noDisclosure(page, [target.id, target.title, target.filename, 'revoked-browse-tag']);
+          } finally { store[method] = original; }
+        });
+      }
+      await testAsync('metadata browsing removes earlier and unselected revoked rows during a later metadata await', async () => {
+        const selected = await create(first, owners[0], tagged('private-browse-marker', '# Selected canary'), 'selected-browse.md', true);
+        const loading = await create(first, owners[0], tagged('safe-browse-marker', '# Safe browse'), 'loading-browse.md', true);
+        const unsnippeted = await create(first, owners[0], tagged('private-browse-marker', '# Unselected canary'), 'unselected-browse.md', true);
+        const continuation = await create(first, owners[0], tagged('safe-browse-marker', '# Continuation'), 'continuation-browse.md', true);
+        const documents = [selected, loading, unsnippeted, continuation];
+        documents.forEach((document, index) => store.db.prepare('UPDATE cloud_documents SET updated_at_ms=? WHERE id=?').run(Date.now() - index * 1000, document.id));
+        const original = store._decryptRevisionMetadata;
+        let revoked = false;
+        store._decryptRevisionMetadata = async function(row) {
+          const value = await original.call(this, row);
+          if (!revoked && row.document_id === loading.id) {
+            revoked = true;
+            for (const document of [selected, unsnippeted]) secondConnection.setDocumentPermission({
+              userId: owners[0], documentId: document.id, mode: 'custom', memberUserIds: [],
+            });
+          }
+          return value;
+        };
+        try {
+          const input = { documentIds: documents.map(document => document.id), limit: 2, sort: 'updated_desc' };
+          const page = await search(input);
+          assert.strictEqual(revoked, true);
+          assert.deepStrictEqual(identifiers(page), new Set([loading.id]));
+          assert.strictEqual(page.total_count, 2);
+          assert.deepStrictEqual(page.facets.tags, [{ tag: 'safe-browse-marker', document_count: 2 }]);
+          assert.strictEqual(page.nextPosition.id, loading.id);
+          noDisclosure(page, [selected.id, unsnippeted.id, selected.title, unsnippeted.title, 'private-browse-marker']);
+          const next = await search({ ...input, after: page.nextPosition });
+          assert.deepStrictEqual(identifiers(next), new Set([continuation.id]));
+        } finally { store._decryptRevisionMetadata = original; }
+      });
+      for (const mode of ['literal', 'browse']) await testAsync(mode + ' workspace revocation during a key await removes the whole company from results and facets', async () => {
         const original = store._projectKey;
         let revoked = false;
         store._projectKey = async function (...args) {
@@ -208,11 +292,12 @@ module.exports = function (h) {
           return value;
         };
         try {
-          const result = await search({ query: 'needle :: 42%' });
+          const result = await search({ workspaceIds: [first.workspaceId],
+            ...(mode === 'literal' ? { query: 'needle :: 42%' } : { facets: ['authors', 'libraries'] }) });
           assert.strictEqual(revoked, true);
           assert.strictEqual(result.total_count, 0);
           assert.deepStrictEqual(result.documents, []);
-          for (const facet of allFacets) assert.deepStrictEqual(result.facets[facet], []);
+          for (const facet of Object.keys(result.facets)) assert.deepStrictEqual(result.facets[facet], []);
           noDisclosure(result, [visible.id, first.workspaceId, 'shared-label']);
         } finally {
           store._projectKey = original;
@@ -334,9 +419,9 @@ module.exports = function (h) {
       await testAsync('unstarring during a document await keeps starred-only results and facets consistent', async () => {
         const document = await create(first, owners[0], tagged('racing-star-label', '# Star race\n'), 'star-race.md', true);
         store.setDocumentStar({ userId: reader, documentId: document.id, starred: true });
-        const original = store._decryptRevision;
+        const original = store._decryptRevisionMetadata;
         let removed = false;
-        store._decryptRevision = async function (row) {
+        store._decryptRevisionMetadata = async function (row) {
           const content = await original.call(this, row);
           if (!removed && row.document_id === document.id) {
             removed = true;
@@ -352,7 +437,7 @@ module.exports = function (h) {
           for (const facet of allFacets) assert.deepStrictEqual(result.facets[facet], []);
           assert.strictEqual(result.nextPosition, null);
           noDisclosure(result, [document.id, 'racing-star-label']);
-        } finally { store._decryptRevision = original; }
+        } finally { store._decryptRevisionMetadata = original; }
       });
     } finally { secondConnection.close(); store.close(); fs.rmSync(directory, { recursive: true, force: true }); }
 
@@ -411,7 +496,9 @@ module.exports = function (h) {
           assert.strictEqual(result.data.documents, undefined);
           assert.strictEqual(result.data.facets, undefined);
         }
-        const tampered = cursor.slice(0, -1) + (cursor.endsWith('a') ? 'b' : 'a');
+        // Change a signature byte, not unused padding bits in its final base64 character.
+        const [body, signature] = cursor.split('.');
+        const tampered = body + '.' + (signature.startsWith('a') ? 'b' : 'a') + signature.slice(1);
         assert.strictEqual((await post('member', request({ cursor: tampered }))).status, 400);
         const next = await post('member', request({ cursor, limit: 2 }));
         assert.strictEqual(next.status, 200, JSON.stringify(next.data));

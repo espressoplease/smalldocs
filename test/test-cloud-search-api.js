@@ -54,9 +54,12 @@ module.exports = function (h) {
         const first = await search('member', rich('cobalt', { limit: 1 }));
         assert.ok(first.data.next_cursor);
         const cursor = first.data.next_cursor;
+        const [cursorBody, signature] = cursor.split('.');
+        // Flip signature data rather than unused bits in the last base64 character.
+        const tampered = cursorBody + '.' + (signature.startsWith('a') ? 'b' : 'a') + signature.slice(1);
         for (const [actor, body] of [['bob', rich('cobalt', { limit: 1, cursor })], ['member', rich('recovery', { limit: 1, cursor })],
           ['member', rich('cobalt', { tags: ['engineering'], limit: 1, cursor })], ['member', rich('cobalt', { sort: 'created_desc', limit: 1, cursor })],
-          ['member', rich('cobalt', { limit: 1, cursor: cursor.slice(0, -1) + (cursor.endsWith('a') ? 'b' : 'a') })]]) {
+          ['member', rich('cobalt', { limit: 1, cursor: tampered })]]) {
           const result = await search(actor, body); assert.strictEqual(result.status, 400, JSON.stringify(result));
           assert.strictEqual(result.data.error, 'invalid_request');
         }

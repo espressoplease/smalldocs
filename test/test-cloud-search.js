@@ -327,6 +327,49 @@ module.exports = function(harness) {
           assert.strictEqual(decrypted, 3);
         } finally { store._decryptRevision = original; }
       });
+      await testAsync('browsing reads page metadata without opening bodies or keys for unselected projects', async () => {
+        const recent = await create('---\ntags:\n  - browse-notes\n---\n# Latest note\n' + 'Long document body. '.repeat(10000), 'latest-note.md');
+        const originalBody = store._decryptRevision;
+        const originalMetadata = store._decryptRevisionMetadata;
+        const originalKey = store._projectKey;
+        const metadataRows = [];
+        const projects = new Set();
+        store._decryptRevision = async function() { throw new Error('Browsing decrypted a document body'); };
+        store._decryptRevisionMetadata = async function(row) {
+          assert.strictEqual(row.body_ciphertext, undefined);
+          metadataRows.push(row.document_id);
+          return originalMetadata.call(this, row);
+        };
+        store._projectKey = async function(projectId, version) {
+          projects.add(projectId);
+          return originalKey.call(this, projectId, version);
+        };
+        try {
+          for (const extra of [{}, { authorUserIds: [owner] }, { updatedByUserIds: [owner] }, { sharedWithMe: true }]) {
+            metadataRows.length = 0; projects.clear();
+            const page = await search({ workspaceIds: [workspace.workspaceId, second.workspaceId],
+              limit: 1, sort: 'updated_desc', facets: ['authors', 'libraries'], ...extra });
+            assert.strictEqual(page.documents[0].id, recent.id);
+            assert.strictEqual(page.documents[0].title, recent.title);
+            assert.deepStrictEqual(page.documents[0].tags, recent.tags);
+            assert.deepStrictEqual(page.documents[0].matches, []);
+            assert.deepStrictEqual(metadataRows, [recent.id]);
+            assert.deepStrictEqual(projects, new Set([workspace.projectId]));
+            assert.ok(page.total_count > 100);
+            assert.strictEqual(page.has_more, true);
+          }
+          const tagged = await search({ tags: ['browse-notes'], limit: 1 });
+          assert.strictEqual(tagged.documents.length, 1);
+          assert.ok(tagged.documents[0].tags.includes('browse-notes'));
+          const silent = await search({ expression: term('backfillword'), limit: 1, matchLimit: 0 });
+          assert.strictEqual(silent.total_count, 105);
+          assert.deepStrictEqual(silent.documents[0].matches, []);
+        } finally {
+          store._decryptRevision = originalBody;
+          store._decryptRevisionMetadata = originalMetadata;
+          store._projectKey = originalKey;
+        }
+      });
       await testAsync('compatibility forms that expand into words match in both directions with source evidence', async () => {
         for (const [compact, expanded] of [['¼', '1⁄4'], ['ﷺ', 'صلى الله عليه وسلم']]) {
           for (const [source, query] of [[compact, expanded], [expanded, compact]]) {

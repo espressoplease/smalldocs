@@ -106,6 +106,112 @@ test('Cloud rows show their creator and only a different latest editor, and both
   await expect(page.locator('#chips-row .filter-chip')).toHaveCount(0);
 });
 
+test('documents and searches do not wait for tags or members, and typing does not restart filter requests', async ({ page }) => {
+  const document = await createDocument('bob', 'Release notes', { tags: ['release'] });
+  const held = {};
+  const calls = { tags: 0, members: 0 };
+  for (const kind of ['tags', 'members']) await page.route('**/api/cloud/v1/account/' + kind + '?*', route => {
+    calls[kind]++; held[kind] = route;
+  });
+  await openLibrary(page);
+  await expect(row(page, document)).toBeVisible();
+  await expect(row(page, document).locator('.tag')).toHaveText('#release');
+  await expect.poll(() => calls).toEqual({ tags: 1, members: 1 });
+  const searched = searchResponse(page, body => body.query === 'release');
+  await page.locator('#q').fill('release');
+  expect((await searched).status()).toBe(200);
+  await expect(row(page, document)).toBeVisible();
+  await held.tags.continue();
+  await expect(page.locator('.facet-option[data-value="release"]')).toBeVisible();
+  expect(calls).toEqual({ tags: 1, members: 1 });
+  await held.members.continue();
+  await expect(row(page, document).locator('.cloud-library-person')).toHaveText('You');
+});
+
+test('all accessible tags load before the panel is opened, including tags outside the first document page', async ({ page }) => {
+  for (let index = 0; index < 75; index++) {
+    await f.store.createDocument({ userId: f.users.bob.id, projectId: f.team.projectId,
+      filename: 'tagged-' + index + '.md', markdown: '---\ntags:\n  - common\n  - subject-' + index + '\n---\n# Tagged ' + index,
+      idempotencyKey: 'tag-vocabulary-' + index });
+  }
+  await createDocument('member', 'Private source', { tags: ['private-only-label', 'common'], shared: false });
+  let tagRequests = 0;
+  page.on('request', request => { if (request.url().includes('/api/cloud/v1/account/tags?')) tagRequests++; });
+  const loaded = page.waitForResponse(response => response.url().includes('/api/cloud/v1/account/tags?'));
+  await openLibrary(page);
+  const response = await loaded;
+  expect(response.status()).toBe(200);
+  expect((await response.json()).tags).toHaveLength(76);
+  await expect(page.locator('.res')).toHaveCount(60);
+  await expect(page.locator('.res .tag').filter({ hasText: /^#subject-0$/ })).toHaveCount(0);
+  await page.locator('[data-facet="tag"]').click();
+  await expect(page.locator('.facet-option')).toHaveCount(76);
+  await expect(page.locator('.facet-option').first()).toHaveAttribute('data-value', 'common');
+  await expect(page.locator('.facet-option[data-value="common"] .count')).toHaveText('75');
+  await expect(page.locator('.facet-option[data-value="private-only-label"]')).toHaveCount(0);
+  const filtered = searchResponse(page, body => body.tags.includes('subject-0'));
+  await page.locator('.facet-option[data-value="subject-0"] .opt-label').click();
+  expect((await filtered).status()).toBe(200);
+  await expect(page.locator('.res')).toHaveCount(1);
+  await expect(page.locator('.res-title')).toHaveText('Tagged 0');
+  expect(tagRequests).toBe(1);
+});
+
+for (const failedKind of ['tags', 'members']) test('failed ' + failedKind + ' loading keeps documents usable and retries only the missing filters', async ({ page }) => {
+  const document = await createDocument('bob', 'Tagged handoff', { tags: ['handoff'] });
+  const calls = { tags: 0, members: 0 };
+  for (const kind of ['tags', 'members']) await page.route('**/api/cloud/v1/account/' + kind + '?*', route => {
+    calls[kind]++;
+    if (kind === failedKind && calls[kind] === 1) return route.fulfill({ status: 503, json: { ok: false } });
+    return route.continue();
+  });
+  await openLibrary(page);
+  await expect(row(page, document)).toBeVisible();
+  await expect(page.locator('#agent-banner')).toContainText('Could not load library filters.');
+  await page.locator('#agent-banner').getByRole('button', { name: 'Retry', exact: true }).click();
+  await page.locator('[data-facet="tag"]').click();
+  await expect(page.locator('.facet-option[data-value="handoff"]')).toBeVisible();
+  await expect(row(page, document).locator('.cloud-library-person')).toHaveText('You');
+  await expect(page.locator('#agent-banner')).toBeHidden();
+  expect(calls).toEqual(failedKind === 'tags' ? { tags: 2, members: 1 } : { tags: 1, members: 2 });
+  await expect(row(page, document)).toBeVisible();
+});
+
+test('switching libraries ignores delayed tag and member responses from the previous library', async ({ page }) => {
+  const old = await createDocument('bob', 'Team tag notes', { tags: ['team-only'] });
+  const solo = await createSoloTeam();
+  const own = await createDocument('bob', 'Personal tag notes', { workspaceId: solo.workspaceId, tags: ['personal-only'] });
+  let release;
+  const gate = new Promise(resolve => { release = resolve; });
+  const completed = [];
+  for (const kind of ['tags', 'members']) {
+    let finished;
+    completed.push(new Promise(resolve => { finished = resolve; }));
+    await page.route('**/api/cloud/v1/account/' + kind + '?*', async route => {
+      if (!route.request().url().includes(f.team.workspaceId)) return route.continue();
+      const response = await route.fetch();
+      await gate;
+      await route.fulfill({ response }).catch(() => {});
+      finished();
+    });
+  }
+  try {
+    await openLibrary(page);
+    await expect(row(page, old)).toBeVisible();
+    await page.locator('#workspace-button').click();
+    await page.locator('#workspace-menu .workspace-menu-item').filter({ hasText: 'Personal notes' }).click();
+    await expect(row(page, own)).toBeVisible();
+    await page.locator('[data-facet="tag"]').click();
+    await expect(page.locator('.facet-option[data-value="personal-only"]')).toBeVisible();
+    release();
+    await Promise.all(completed);
+    await expect(page.locator('.facet-option[data-value="team-only"]')).toHaveCount(0);
+    await expect(page.locator('.facet-option[data-value="personal-only"]')).toBeVisible();
+    await expect(page.locator('.cloud-library-person')).toHaveCount(0);
+    await expect(page.locator('[data-facet="author"]')).toBeHidden();
+  } finally { release(); }
+});
+
 test('native keyboard activation filters people and keeps focus in the people panel', async ({ page }) => {
   const own = await createDocument('bob', 'Owner draft');
   const member = await createDocument('member', 'Member draft');

@@ -126,6 +126,7 @@ const STATE = {
   cloudTags: null,
   cloudTagsWorkspace: null,
   cloudMembers: [],
+  cloudMembersWorkspace: null,
   cloudPeople: new Map(),
   cloudNextCursor: null,
   cloudTotal: 0,
@@ -488,7 +489,8 @@ function renderFacetPanel() {
     return;
   }
   if (!opts.length) {
-    container.innerHTML = '<div class="muted" style="font-size:11.5px">no values yet</div>';
+    const tagsLoading = isCloudMode() && openFacet === 'tag' && STATE.cloudTags === null && cloudFiltersLoad && !cloudFiltersLoad.failed;
+    container.innerHTML = '<div class="muted" style="font-size:11.5px">' + (tagsLoading ? 'Loading...' : 'no values yet') + '</div>';
     return;
   }
   const exclusive = !!def.exclusive;
@@ -908,6 +910,60 @@ let cloudRequestVersion = 0;
 let cloudAbort = null;
 let cloudScheduledKey = null;
 let cloudTimer = null;
+let cloudFiltersLoad = null;
+async function getCloudJson(url, options) {
+  const response = await fetch(url, Object.assign({ credentials: 'same-origin' }, options));
+  if (response.status === 401) {
+    location.href = '/cloud/sign-in?return=' + encodeURIComponent(location.pathname + location.search);
+    throw new Error('Sign in required');
+  }
+  if (!response.ok) throw new Error('Cloud returned ' + response.status);
+  return response.json();
+}
+function showCloudFilterError() {
+  if (!cloudFiltersLoad || !cloudFiltersLoad.failed || STATE.cloudError) return;
+  showBanner({ kind: 'error', message: 'Could not load library filters.' });
+  const retry = document.createElement('button');
+  retry.className = 'btn'; retry.type = 'button'; retry.textContent = 'Retry';
+  retry.addEventListener('click', () => loadCloudFilters(window.SDocsCloudLibrary.workspaceId, true));
+  document.getElementById('agent-banner').appendChild(retry);
+}
+function loadCloudFilters(workspaceId, retry) {
+  // Fetch the complete tag vocabulary on entry, independently of document pages
+  // and search changes. Opening the tag panel never starts a network request.
+  if (!retry && cloudFiltersLoad && cloudFiltersLoad.workspaceId === workspaceId) return;
+  if (cloudFiltersLoad) cloudFiltersLoad.controller.abort();
+  const load = cloudFiltersLoad = { workspaceId, controller: new AbortController(), failed: false };
+  const suffix = '?account_id=' + encodeURIComponent(workspaceId);
+  const options = { signal: load.controller.signal };
+  const current = () => cloudFiltersLoad === load && window.SDocsCloudLibrary.workspaceId === workspaceId;
+  if (retry) hideBanner();
+  async function fetchFilter(kind, apply) {
+    try {
+      const data = await getCloudJson('/api/cloud/v1/account/' + kind + suffix, options);
+      if (current()) { apply(data); renderAll(); }
+    } catch (error) {
+      if (current() && error.name !== 'AbortError') load.failed = true;
+    }
+  }
+  const tags = STATE.cloudTagsWorkspace === workspaceId ? null : fetchFilter('tags', data => {
+    STATE.cloudTags = data.tags || [];
+    STATE.cloudTagsWorkspace = workspaceId;
+  });
+  const members = STATE.cloudMembersWorkspace === workspaceId ? null : fetchFilter('members', data => {
+    STATE.cloudMembers = data.members || [];
+    STATE.cloudMembersWorkspace = workspaceId;
+    for (const person of STATE.cloudMembers) STATE.cloudPeople.set(person.user_id, person);
+    if (STATE.cloudMembers.length <= 1) {
+      STATE.chips = STATE.chips.filter(chip => chip.key !== 'author' && chip.key !== 'updatedBy');
+      if (openFacet === 'author' || openFacet === 'updatedBy') openFacet = null;
+    }
+    document.querySelectorAll('[data-facet="author"], [data-facet="updatedBy"]').forEach(button => { button.hidden = STATE.cloudMembers.length <= 1; });
+  });
+  load.promise = Promise.all([tags, members]).then(() => {
+    if (current()) { renderAll(); showCloudFilterError(); }
+  });
+}
 function cloudFilterKey() {
   return JSON.stringify([window.SDocsCloudLibrary && window.SDocsCloudLibrary.workspaceId,
     STATE.q.trim(), STATE.chips, STATE.sharedOnly, STATE.starredOnly]);
@@ -963,31 +1019,9 @@ async function loadCloudData(query, append) {
   STATE.cloudLoading = true; STATE.cloudError = false;
   hideBanner();
   renderResults();
-  async function getJson(url, extra) {
-    const response = await fetch(url, Object.assign({}, options, extra));
-    if (response.status === 401) {
-      location.href = '/cloud/sign-in?return=' + encodeURIComponent(location.pathname + location.search);
-      throw new Error('Sign in required');
-    }
-    if (!response.ok) throw new Error('Cloud returned ' + response.status);
-    return response.json();
-  }
+  loadCloudFilters(workspaceId);
   function current() { return version === cloudRequestVersion && key === cloudFilterKey(); }
   try {
-    if (STATE.cloudTagsWorkspace !== workspaceId) {
-      const suffix = '?account_id=' + encodeURIComponent(workspaceId);
-      const [tags, members] = await Promise.all([getJson('/api/cloud/v1/account/tags' + suffix), getJson('/api/cloud/v1/account/members' + suffix)]);
-      if (!current()) return;
-      STATE.cloudTags = tags.tags || [];
-      STATE.cloudTagsWorkspace = workspaceId;
-      STATE.cloudMembers = members.members || [];
-      STATE.cloudPeople = new Map(STATE.cloudMembers.map(member => [member.user_id, member]));
-      if (STATE.cloudMembers.length <= 1) {
-        STATE.chips = STATE.chips.filter(chip => chip.key !== 'author' && chip.key !== 'updatedBy');
-        if (openFacet === 'author' || openFacet === 'updatedBy') openFacet = null;
-      }
-      document.querySelectorAll('[data-facet="author"], [data-facet="updatedBy"]').forEach(button => { button.hidden = STATE.cloudMembers.length <= 1; });
-    }
     // Reuse the exact search bounds across pages, including relative dates.
     let request;
     if (append && STATE.cloudNextCursor && STATE.cloudRequestKey === key) {
@@ -997,7 +1031,8 @@ async function loadCloudData(query, append) {
       request = cloudSearchRequest(query);
       if (!STATE.q.trim() && !STATE.chips.length && !STATE.sharedOnly) { request.facets = ['authors']; request.facet_limit = 1000; }
     }
-    const data = await getJson('/api/cloud/v1/search', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(request) });
+    const data = await getCloudJson('/api/cloud/v1/search', Object.assign({}, options,
+      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(request) }));
     if (!current()) { scheduleCloudRefresh(); return; }
     STATE.cloudRequest = Object.assign({}, request);
     delete STATE.cloudRequest.cursor;
@@ -1016,7 +1051,7 @@ async function loadCloudData(query, append) {
   } catch (error) {
     if (current()) { STATE.cloudError = true; throw error; }
   } finally {
-    if (version === cloudRequestVersion) { STATE.cloudLoading = false; renderAll(); }
+    if (version === cloudRequestVersion) { STATE.cloudLoading = false; renderAll(); showCloudFilterError(); }
   }
 }
 
@@ -1339,7 +1374,10 @@ if (isCloudMode()) {
 }
 
 window.addEventListener('sdocs-cloud-workspace-change', function () {
+  if (cloudFiltersLoad) cloudFiltersLoad.controller.abort();
+  cloudFiltersLoad = null;
   STATE.entries = []; STATE.cloudMembers = []; STATE.cloudPeople = new Map();
+  STATE.cloudMembersWorkspace = null;
   STATE.cloudTagsWorkspace = null; STATE.cloudTags = null; STATE.cloudNextCursor = null; STATE.cloudTotal = 0;
   STATE.cloudRequest = null; STATE.cloudRequestKey = null; STATE.cloudError = false;
   STATE.chips = STATE.chips.filter(chip => chip.key !== 'author' && chip.key !== 'updatedBy');
