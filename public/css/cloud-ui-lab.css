@@ -57,61 +57,6 @@
   }
 }
 
-.sdoc-cloud-lab-access,
-.sdoc-cloud-lab-tag,
-.sdoc-cloud-lab-plus {
-  min-height: 25px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  border: 1px solid color-mix(in srgb, var(--md-p-color) 15%, transparent);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--md-pre-bg) 86%, transparent);
-  color: var(--md-p-color);
-  font: inherit;
-  font-size: 11px;
-  line-height: 1;
-  cursor: pointer;
-  transition: background .12s, border-color .12s, color .12s, transform .12s;
-}
-
-.sdoc-cloud-lab-access { padding: 4px 9px 4px 7px; font-weight: 600; }
-.sdoc-cloud-lab-tag { padding: 4px 8px 4px 6px; font-family: var(--md-code-font); }
-.sdoc-cloud-lab-plus { width: 25px; padding: 4px; color: var(--fic-muted); }
-
-.sdoc-cloud-lab-access:hover,
-.sdoc-cloud-lab-tag:hover,
-.sdoc-cloud-lab-plus:hover {
-  background: var(--md-copy-btn-hover, rgba(0,0,0,.07));
-  border-color: color-mix(in srgb, var(--md-p-color) 28%, transparent);
-}
-
-.sdoc-cloud-lab-access:focus-visible,
-.sdoc-cloud-lab-tag:focus-visible,
-.sdoc-cloud-lab-plus:focus-visible,
-.sdoc-cloud-lab-add-link:focus-visible,
-.sdoc-cloud-lab-state-icon:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--accent) 66%, transparent);
-  outline-offset: 2px;
-}
-
-.sdoc-cloud-lab-access svg,
-.sdoc-cloud-lab-tag svg,
-.sdoc-cloud-lab-plus svg,
-.sdoc-cloud-lab-state-icon svg {
-  width: 14px;
-  height: 14px;
-  flex: 0 0 auto;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.sdoc-cloud-lab-tag svg { width: 12px; height: 12px; color: var(--accent-text); }
-
 .sdoc-cloud-lab-no-tags {
   color: var(--fic-muted);
   font-size: 11px;
@@ -579,3 +524,11 @@ body.cloud-lab-mode #_sd_cloud-lab-panel {
   .sdoc-cloud-lab-suggestions { grid-template-columns: 1fr; }
   .sdoc-cloud-lab-panel-body { padding-left: 12px; padding-right: 12px; }
 }
+
+.sdoc-cloud-library-icon { display: inline-flex; flex: 0 0 auto; }
+.sdoc-cloud-library-icon svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+button.sdoc-cloud-lab-member { width: 100%; font: inherit; text-align: left; background: transparent; }
+button.sdoc-cloud-lab-member.selected { background: var(--bg-hover); }
+.sdoc-cloud-library-machine { display: flex; flex-direction: column; gap: 6px; margin: 12px 0; font-size: 12px; }
+.sdoc-cloud-library-machine select { width: 100%; min-width: 0; padding: 8px; color: var(--text); background: var(--bg-panel); border: 1px solid var(--border); border-radius: 6px; font: inherit; }
+.sdoc-cloud-library-move { padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-panel); color: var(--text); font: inherit; cursor: pointer; }

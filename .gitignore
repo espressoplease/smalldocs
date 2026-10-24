@@ -21,3 +21,6 @@ cloud.db*
 smallcrm-home-desktop.png
 smallcrm-objects-wrap.png
 tmp/
+
+# Installation-specific CLI metadata is generated outside the source tree.
+/cli/channel.json

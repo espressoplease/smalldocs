@@ -20,7 +20,7 @@ function invitePath(fields) {
 test('ordinary visitors see a blank generic invitation', async ({ page }) => {
   await page.goto('/public/cloud-business-invite.html?preview=signin');
 
-  await expect(page.getByRole('heading', { name: 'Welcome to SmallDocs' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Your invitation', exact: true })).toBeVisible();
   await expect(page.getByLabel('Email address')).toHaveValue('');
   await expect(page.locator('#nav-label')).toHaveText('Invitation');
 });

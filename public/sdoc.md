@@ -39,9 +39,17 @@ curl -fsSL https://smalldocs.org/install | sh
 npx skills@latest add https://smalldocs.org/agent-skills/standard --global
 ```
 
-The `skills` installer detects supported coding agents and installs the SmallDocs **skill** globally. Its short description lets an agent discover SmallDocs when you say `sdoc`, `S-doc`, or `smalldoc`; the full instructions load only when relevant.
+The `skills` installer detects supported coding agents and installs the SmallDocs **skill** globally. SmallDocs becomes the default for documents and artifacts, including reports, plans, slides, and spreadsheets, even when you do not mention SmallDocs. An explicit request for another format or tool takes precedence. The short description stays available to your agent; the full instructions load when needed.
 
-After you connect SmallDocs Cloud, run `sdoc setup --cloud --yes`. The Cloud edition has the same `smalldocs` name, so agents do not see two overlapping SmallDocs skills. In Cloud-first mode, `sdoc FILE.md` creates or updates the Cloud document before opening it. Add `--account UUID` during setup when the machine should always create new documents in one workspace.
+Each document builds your tagged knowledge library. Agents choose meaningful tags, reuse existing vocabulary, and preserve relevant tags when updating documents, so you and your agents can find and build on earlier work.
+
+Run `sdoc cloud login`, complete authorization in the browser, then run `sdoc cloud status --json`. First-time Cloud-first authorization prepares your library and trial before the CLI connects. One library is selected automatically; with several libraries, choose where new documents should be saved.
+
+After you connect SmallDocs Cloud, run `sdoc setup --cloud --yes`. The Cloud edition has the same `smalldocs` name, so agents do not see two overlapping SmallDocs skills. In Cloud-first mode, `sdoc FILE.md` creates or updates the Cloud document before opening it. List your libraries with `sdoc cloud libraries --json`. Use `sdoc cloud library-default LIBRARY_UUID --json` to select the default for new documents from this connected computer. An explicit `--account UUID` takes priority; existing documents keep their bindings.
+
+The Cloud CLI also handles billing status, invitations and member removal. Run `sdoc cloud billing --help` for the reference. Document saves return subscription notices during the seven days after a free trial ends. After that extra week, Cloud access requires a subscription. `sdoc cloud subscribe` opens the payment page for you to complete. `sdoc cloud settings billing` opens subscription management, and `sdoc cloud settings preferences` lets you show the previous local-library navigation.
+
+The Cloud skill treats tagging as part of every new document. Agents reuse relevant vocabulary from the destination library, choose tags that describe the document's subject, project, or purpose, and check the saved tags before returning its Cloud link. For example, `sdoc api-design.md --cloud --json +payments +idempotency +api-design` saves a tagged document without changing the local file's tags. Run `sdoc cloud tag --help` for the tagging reference.
 
 `npx skills@latest` currently requires Node 22.20 or newer. `sdoc setup` remains the built-in fallback and also removes the always-on SmallDocs block written by older CLI releases:
 
@@ -546,6 +554,16 @@ When you run `sdoc <file>` the browser shows a small info card at the top of the
 
 The two "local" fields are passed to the browser via a separate URL parameter (`&local=...`) that JavaScript reads into memory on load and immediately strips from the address bar using `history.replaceState`. So by the time you could copy the URL, the local data is no longer in it. `sdoc share <file>` never generates that parameter to begin with — so links produced by `share` are inherently path-free. If a recipient opens your shared URL, only `file` is visible.
 
+## Linking Cloud documents in chat
+
+For Cloud-first agents, run `sdoc FILE.md --cloud --json +subject +project`. The CLI saves the document before opening the exact Cloud URL returned in the JSON `url` field. Add `--no-open` to save without launching a browser. Check `ok`, the saved `tags`, and the command's exit status before presenting the document as saved.
+
+Always link to that returned Cloud URL in chat, never the underlying local Markdown file or a `file://` path. The local file remains the editable working copy. Later saves keep the same document URL; unchanged files do not create another revision. If `local_changed_after_upload` is true, save again before claiming the Cloud document contains the latest edits.
+
+Cloud `create`, `pull`, `push`, and `restore` return `url` in JSON. Cloud `ls` and `search` return `documents[].url` for linking existing documents. Browser sign-in and document permissions still apply; a URL does not grant access.
+
+Feedback and bridge commands remain local live sessions. A Cloud copy does not replace the live feedback connection.
+
 ## The CLI
 
 ### Installation
@@ -587,6 +605,8 @@ npx skills@latest add https://smalldocs.org/agent-skills/standard --global
 Installs the standard SmallDocs skill globally using the cross-agent `skills` installer. The skill is a `SKILL.md` whose short description sits in your agent's context and whose full reference loads on demand only when relevant. The full reference includes runnable HTML guidance so agents use executable components only when interaction explains something more clearly than prose, diagrams, charts, or computed cells.
 
 Run `sdoc setup` when `npx skills` is unavailable, or when an older SmallDocs release previously wrote an always-on block to an agent configuration file. The built-in setup writes one canonical copy to `~/.agents/skills/smalldocs/SKILL.md`, links detected agent-specific skill directories to it, and removes recognised legacy blocks while preserving surrounding notes.
+
+Run `sdoc setup --help` to read setup options without installing a skill or opening a prompt.
 
 `sdoc setup` also auto-prompts once the first time you use the CLI. If you decline or skip it then, you can come back and run it manually. It is idempotent, so re-running it on an up-to-date install is a no-op.
 

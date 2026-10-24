@@ -64,7 +64,9 @@ function buildRouter() {
   r.register('comments', { handler: () => { console.log(helpText.COMMENTS_HELP); process.exit(0); } });
 
   // Setup / refresh / auto-update.
-  r.register('setup',       { handler: async (opts) => { await setup.runSetup({
+  r.register('setup',       { handler: async (opts) => {
+    if (opts.helpFlag) { console.log(setup.SETUP_HELP); process.exit(0); return; }
+    await setup.runSetup({
     force: true, yes: !!opts.yesFlag, dryRun: !!opts.dryRunFlag,
     edition: opts.skillEdition, accountId: opts.accountFlag,
   }); process.exit(0); } });
@@ -121,7 +123,10 @@ function buildRouter() {
 
   r.register(null,       { handler: async (opts) => {
     const cloudFirst = setup.cloudFirstSettings();
-    if (cloudFirst) {
+    if (opts.skillEdition === 'cloud') {
+      return cloudCommands.openCloudDocument(opts, { accountId: cloudFirst && cloudFirst.accountId });
+    }
+    if (cloudFirst && opts.skillEdition !== 'standard') {
       await cloudCommands.autoSyncOpen(opts, { accountId: cloudFirst.accountId });
     } else {
       // Index-on-open tap: fires before the open so any +tag CLI args land

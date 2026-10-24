@@ -1,7 +1,7 @@
-// Live library UI. The page is served from the SDocs site; all data
-// comes from a local agent the user starts with `sdoc library`. The
-// agent's URL is passed as ?agent=http://127.0.0.1:<port>. The page
-// shows a fallback banner when the agent isn't reachable.
+// Library UI for local files and authenticated Cloud documents. Local data
+// comes from the agent started by `sdoc library`, passed as
+// ?agent=http://127.0.0.1:<port>. Cloud searches run against the selected
+// library and return only documents the signed-in user can access.
 //
 // First-visit gate: if this browser has never been through /connect,
 // bounce there with a return URL so the user sees the explainer +
@@ -125,6 +125,18 @@ const STATE = {
   entries: [],
   cloudTags: null,
   cloudTagsWorkspace: null,
+  cloudMembers: [],
+  cloudMembersWorkspace: null,
+  cloudPeople: new Map(),
+  cloudNextCursor: null,
+  cloudPage: 0,
+  cloudPageCursors: [null],
+  cloudRetryPage: null,
+  cloudTotal: 0,
+  cloudLoading: false,
+  cloudError: false,
+  cloudRequest: null,
+  cloudRequestKey: null,
   lastScanAt: 0,
   enabled: true,
   shownLen: 0,
@@ -183,7 +195,30 @@ function pathPrefixOptions() {
     .map(([k, v]) => ({ value: k, label: k, count: v }));
 }
 
+const CLOUD_PERSON_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></svg>';
+let cloudColorPeople = null, cloudColorCount = 0, cloudPersonColors = new Map();
+function cloudPersonIcon(id) {
+  if (cloudColorPeople !== STATE.cloudPeople || cloudColorCount !== STATE.cloudPeople.size) {
+    cloudColorPeople = STATE.cloudPeople; cloudColorCount = STATE.cloudPeople.size;
+    cloudPersonColors = window.SDocsCloudAccountSelection.colorMap(STATE.cloudPeople.keys());
+  }
+  const color = cloudPersonColors.get(id) || window.SDocsCloudAccountSelection.color(id);
+  return CLOUD_PERSON_ICON.replace('<svg ', '<svg style="color:' + color + '" ');
+}
+function cloudPersonLabel(id) {
+  const person = STATE.cloudPeople.get(id);
+  if (person && person.is_you) return 'You';
+  return person && (person.name || person.email) || 'Member';
+}
+function cloudPeopleOptions() {
+  return Array.from(STATE.cloudPeople.entries()).map(([id]) => ({ value: id, label: cloudPersonLabel(id) }))
+    .sort((a, b) => (a.label === 'You' ? -1 : b.label === 'You' ? 1 : a.label.localeCompare(b.label)));
+}
 const FACET_DEFS = {
+  author: { title: 'Created by', exclusive: true, people: true, getOptions: cloudPeopleOptions,
+    match: (entry, id) => entry.authorId === id },
+  updatedBy: { title: 'Updated by', exclusive: true, people: true, getOptions: cloudPeopleOptions,
+    match: (entry, id) => entry.updatedById === id },
   project: {
     title: 'Project',
     getOptions: () => Object.entries(countBy('gitProject')).sort((a,b) => b[1]-a[1]).map(([k,v]) => ({ value: k, label: k, count: v })),
@@ -283,6 +318,8 @@ function applyFilters() {
   const q = STATE.q.toLowerCase();
   return STATE.entries.filter(e => {
     if (STATE.starredOnly && !e.starred) return false;
+    // Cloud filters are evaluated across the whole authorized library by search.
+    if (isCloudMode()) return true;
     if (STATE.sharedOnly && !e.sharedWithMe) return false;
     for (const c of STATE.chips) {
       const def = FACET_DEFS[c.key];
@@ -314,7 +351,7 @@ function applyFilters() {
 // (or `not:tag:foo`) adds an exclude chip. Unknown keys fall through
 // to free-text search.
 function parseInput(s) {
-  const KEYS = ['project','agent','path','since','tag'];
+  const KEYS = isCloudMode() ? ['since', 'tag'] : ['project','agent','path','since','tag'];
   const tokens = s.split(/\s+/);
   const remaining = [];
   for (const t of tokens) {
@@ -324,7 +361,7 @@ function parseInput(s) {
     if (token.startsWith('-')) { exclude = true; token = token.slice(1); }
     else if (token.toLowerCase().startsWith('not:')) { exclude = true; token = token.slice(4); }
     const m = token.match(/^(\w+):(.+)$/);
-    if (m && KEYS.includes(m[1])) {
+    if (m && KEYS.includes(m[1]) && !(isCloudMode() && m[1] === 'since' && exclude)) {
       setChip(m[1], m[2], { exclude });
     } else {
       remaining.push(t);
@@ -388,6 +425,7 @@ function syncSearchTagPanel() {
 }
 
 function chipDisplayValue(c) {
+  if (c.key === 'author' || c.key === 'updatedBy') return cloudPersonLabel(c.value);
   if (c.key === 'since' && typeof c.value === 'string' && c.value.startsWith('range:')) {
     const body = c.value.slice(6);
     const sep = body.indexOf('..');
@@ -407,7 +445,7 @@ function renderChipsInline() {
     const prefix = c.exclude ? '−&nbsp;' : '';
     const cls = c.exclude ? 'filter-chip exclude' : 'filter-chip';
     const title = c.exclude ? 'excluded - click × to remove' : 'included - click × to remove';
-    return `<span class="${cls}" title="${title}">${prefix}${c.key}:${escHtml(chipDisplayValue(c))}<span class="x" data-rm="${i}" title="remove">&times;</span></span>`;
+    return `<span class="${cls}" title="${title}">${prefix}${escHtml(FACET_DEFS[c.key] && FACET_DEFS[c.key].people ? FACET_DEFS[c.key].title : c.key)}:${escHtml(chipDisplayValue(c))}<span class="x" data-rm="${i}" title="remove">&times;</span></span>`;
   }).join('');
   document.querySelectorAll('[data-rm]').forEach(el => el.addEventListener('click', () => {
     STATE.chips.splice(+el.dataset.rm, 1);
@@ -447,9 +485,24 @@ function renderFacetPanel() {
   const tagQuery = isCloudMode() && openFacet === 'tag' ? STATE.q.trim().toLowerCase() : '';
   const opts = def.getOptions().filter(o => !tagQuery || o.value.toLowerCase().includes(tagQuery));
   const container = document.getElementById('facet-panel-options');
+  const focusedPerson = container.contains(document.activeElement) && document.activeElement.dataset.personChoice;
   container.classList.toggle('column', !!def.column);
+  panel.querySelector('.syntax-hint').hidden = !!def.people;
+  if (def.people) {
+    container.innerHTML = opts.map(option => '<button class="sdoc-cloud-lab-access cloud-library-person-option" type="button" data-person-choice="' + escHtml(option.value)
+      + '" aria-pressed="' + (chipState(openFacet, option.value) === 'include') + '">' + cloudPersonIcon(option.value) + '<span>' + escHtml(option.label) + '</span></button>').join('');
+    container.querySelectorAll('[data-person-choice]').forEach(button => button.addEventListener('click', () => {
+      toggleIncludeChip(openFacet, button.dataset.personChoice); renderAll();
+    }));
+    if (focusedPerson) {
+      const replacement = Array.from(container.querySelectorAll('[data-person-choice]')).find(button => button.dataset.personChoice === focusedPerson);
+      if (replacement) replacement.focus({ preventScroll: true });
+    }
+    return;
+  }
   if (!opts.length) {
-    container.innerHTML = '<div class="muted" style="font-size:11.5px">no values yet</div>';
+    const tagsLoading = isCloudMode() && openFacet === 'tag' && STATE.cloudTags === null && cloudFiltersLoad && !cloudFiltersLoad.failed;
+    container.innerHTML = '<div class="muted" style="font-size:11.5px">' + (tagsLoading ? 'Loading...' : 'no values yet') + '</div>';
     return;
   }
   const exclusive = !!def.exclusive;
@@ -568,6 +621,20 @@ function dayLabel(key) {
 // One result row. `i` is the running index across the whole shown set so
 // the shared keyboard/click handlers (which key off data-idx) work in
 // both the flat list and the day-grouped view.
+function cloudPersonPills(entry) {
+  function pill(id, facet, prefix) {
+    if (!id) return '';
+    const label = cloudPersonLabel(id), title = FACET_DEFS[facet].title + ' ' + label;
+    return '<button class="sdoc-cloud-lab-access cloud-library-person" type="button" data-cloud-person="' + escHtml(id)
+      + '" data-person-facet="' + facet + '" title="' + escHtml(title) + '" aria-label="Filter: ' + escHtml(title)
+      + '">' + cloudPersonIcon(id) + '<span>' + escHtml(prefix + label) + '</span></button>';
+  }
+  return pill(entry.authorId, 'author', '') + (entry.updatedById && entry.updatedById !== entry.authorId
+    ? pill(entry.updatedById, 'updatedBy', 'Updated by ') : '');
+}
+
+const cloudStarWrites = new Set();
+
 function renderRow(e, i, tagMatches) {
   const isStarred = !!e.starred;
   let snippetHtml = '';
@@ -582,7 +649,8 @@ function renderRow(e, i, tagMatches) {
       <span class="path-dir">${highlight(dir, STATE.q)}</span><span class="path-base">${highlight(base, STATE.q)}</span>
     </span>`;
   }
-  const project = e.gitProject ? `<code>${escHtml(e.gitProject)}</code>` : '';
+  const people = isCloudMode() && STATE.cloudMembers.length > 1 ? cloudPersonPills(e) : '';
+  const project = !isCloudMode() && e.gitProject ? `<code>${escHtml(e.gitProject)}</code>` : '';
   const agent = e.agent ? `<span>${escHtml(e.agent)}</span>` : '';
   const rescued = e.rescued
     ? `<a class="rescued-badge" href="/library/rescued" target="_blank" rel="noopener" title="This file lived in a throwaway folder. SDocs kept a snapshot so it survives. Click for details.${e.rescuedFrom ? '\n\nOriginal: ' + e.rescuedFrom : ''}" onclick="event.stopPropagation()">rescued</a>`
@@ -593,13 +661,13 @@ function renderRow(e, i, tagMatches) {
     <div>
       <div class="res-title">${highlight(e.title || e.path || '(untitled)', STATE.q)}</div>
       <div class="res-meta">
-        ${project} ${agent} ${pathHtml} ${rescued}
+        ${people} ${project} ${agent} ${pathHtml} ${rescued}
         ${(e.tags || []).map(t => `<span class="tag ${tagMatches(t)?'match':''}">#${escHtml(t)}</span>`).join('')}
       </div>
       ${snippetHtml ? `<div class="res-snippet">${snippetHtml}</div>` : ''}
     </div>
     <div class="res-side">
-      <button class="res-star ${isStarred ? 'on' : ''}" data-star="${escHtml(e.id)}" aria-pressed="${isStarred}">
+      <button class="res-star ${isStarred ? 'on' : ''}" data-star="${escHtml(e.id)}" aria-pressed="${isStarred}" aria-label="${isStarred ? 'Remove star' : 'Star document'}" ${cloudStarWrites.has(e.id) ? 'disabled' : ''}>
         <svg viewBox="0 0 24 24" width="15" height="15"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill="${isStarred ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
       </button>
       <div class="res-when">${escHtml(when)}</div>
@@ -608,17 +676,30 @@ function renderRow(e, i, tagMatches) {
 `;
 }
 
+function cloudPagination() {
+  if (!STATE.cloudPage && !STATE.cloudNextCursor) return '';
+  const disabled = STATE.cloudLoading || STATE.cloudRequestKey !== cloudFilterKey();
+  return '<nav class="res-overflow" aria-label="Document pages">'
+    + '<button class="btn" type="button" data-cloud-page="previous"' + (disabled || !STATE.cloudPage ? ' disabled' : '') + '>Previous</button>'
+    + '<span aria-live="polite">' + (STATE.cloudLoading ? 'Loading...' : 'Page ' + (STATE.cloudPage + 1)) + '</span>'
+    + '<button class="btn" type="button" data-cloud-page="next"' + (disabled || !STATE.cloudNextCursor ? ' disabled' : '') + '>Next</button></nav>';
+}
+
 function renderResults() {
   const all = applyFilters();
-  const shown = all.slice(0, 60);
+  const shown = isCloudMode() ? all : all.slice(0, 60);
+  const total = isCloudMode() ? STATE.cloudTotal : all.length;
   if (STATE.selected >= shown.length) STATE.selected = Math.max(0, shown.length - 1);
   STATE.shownLen = shown.length;
-  document.getElementById('count').textContent = all.length + ' result' + (all.length === 1 ? '' : 's');
+  document.getElementById('count').textContent = isCloudMode() && !shown.length && (STATE.cloudLoading || STATE.cloudError)
+    ? (STATE.cloudLoading ? 'Searching...' : '') : total + ' result' + (total === 1 ? '' : 's');
   const c = document.getElementById('results');
+  if (isCloudMode()) c.setAttribute('aria-busy', String(STATE.cloudLoading));
+  if (isCloudMode() && !shown.length && (STATE.cloudLoading || STATE.cloudError)) { c.innerHTML = ''; return; }
   if (!shown.length) {
-    if (!STATE.entries.length) {
+    if (!STATE.entries.length && !(isCloudMode() && (STATE.q.trim() || STATE.chips.length || STATE.sharedOnly || STATE.starredOnly))) {
       c.innerHTML = isCloudMode()
-        ? '<div class="empty">No Cloud documents yet.<div class="tip">Open a document in SmallDocs and choose Add to Cloud. It will appear here.</div></div>'
+        ? '<div class="empty">No Cloud documents yet.<div class="tip">Save a document with <code>sdoc file.md --cloud</code>. It will appear here.</div></div>'
         : '<div class="empty">Library is empty.<div class="tip">Open a markdown file with <code>sdoc file.md</code> to add it.</div></div>';
     } else {
       c.innerHTML = '<div class="empty">No matches. Try removing a chip or refining your search.</div>';
@@ -630,7 +711,7 @@ function renderResults() {
   const q = STATE.q.trim().toLowerCase();
   const tagMatches = (tag) => tagChips.has(tag) || (q && tag.toLowerCase().includes(q));
 
-  const overflow = all.length > shown.length
+  const overflow = isCloudMode() ? cloudPagination() : all.length > shown.length
     ? `<div class="res-overflow">Showing first ${shown.length} of ${all.length} - narrow with a filter or refine your search.</div>`
     : '';
 
@@ -689,6 +770,7 @@ function renderAll() {
   renderSharedToggle();
   renderResults();
   renderStatus();
+  scheduleCloudRefresh();
   const clearBtn = document.getElementById('clear');
   const hasFilters = STATE.chips.length > 0 || STATE.q.trim().length > 0 ||
     STATE.starredOnly || STATE.sharedOnly;
@@ -831,6 +913,7 @@ function cloudEntry(document) {
   const match = document.matches && document.matches[0];
   return {
     id: document.id,
+    starred: document.starred === true,
     title: document.title,
     path: document.filename,
     tags: document.tags || [],
@@ -839,63 +922,176 @@ function cloudEntry(document) {
     mtime: document.updated_at,
     cloudRevisionId: document.current_revision_id,
     sharedWithMe: document.shared_with_me === true,
+    authorId: document.created_by_user_id,
+    updatedById: document.updated_by_user_id,
   };
 }
 
-async function loadCloudData(query) {
-  const workspaceId = window.SDocsCloudLibrary && window.SDocsCloudLibrary.workspaceId;
-  if (STATE.cloudTags === null || STATE.cloudTagsWorkspace !== workspaceId || !query) {
-    const params = new URLSearchParams();
-    if (workspaceId) params.set('account_id', workspaceId);
-    const tagsResponse = await fetch('/api/cloud/v1/account/tags?' + params.toString(),
-      { credentials: 'same-origin' });
-    if (tagsResponse.status === 401) {
-      location.href = '/cloud/sign-in?return=' + encodeURIComponent(location.pathname + location.search);
-      return;
-    }
-    if (!tagsResponse.ok) throw new Error('Cloud returned ' + tagsResponse.status);
-    STATE.cloudTags = (await tagsResponse.json()).tags || [];
-    STATE.cloudTagsWorkspace = workspaceId;
-  }
-  let response;
-  if (query && query.trim()) {
-    response = await fetch('/api/cloud/v1/search', {
-      method: 'POST',
-      credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query: query.trim(), workspace_id: workspaceId || undefined }),
-    });
-  } else {
-    const documents = [];
-    let cursor = null;
-    do {
-      const params = new URLSearchParams({ limit: '100' });
-      if (workspaceId) params.set('workspace_id', workspaceId);
-      if (cursor) params.set('cursor', cursor);
-      response = await fetch('/api/cloud/v1/documents?' + params.toString(), { credentials: 'same-origin' });
-      if (response.status === 401) {
-        location.href = '/cloud/sign-in?return=' + encodeURIComponent(location.pathname + location.search);
-        return;
-      }
-      if (!response.ok) throw new Error('Cloud returned ' + response.status);
-      const page = await response.json();
-      documents.push.apply(documents, page.documents || []);
-      cursor = page.next_cursor || null;
-    } while (cursor);
-    response = { ok: true, status: 200, json: async function () { return { documents: documents }; } };
-  }
+let cloudRequestVersion = 0;
+let cloudAbort = null;
+let cloudScheduledKey = null;
+let cloudTimer = null;
+let cloudFiltersLoad = null;
+async function getCloudJson(url, options) {
+  const response = await fetch(url, Object.assign({ credentials: 'same-origin' }, options));
   if (response.status === 401) {
     location.href = '/cloud/sign-in?return=' + encodeURIComponent(location.pathname + location.search);
-    return;
+    throw new Error('Sign in required');
   }
   if (!response.ok) throw new Error('Cloud returned ' + response.status);
-  const data = await response.json();
-  STATE.entries = (data.documents || []).map(cloudEntry);
-  STATE.lastScanAt = Date.now();
-  STATE.enabled = true;
-  STATE.autostart = { supported: false, enabled: false, userDisabled: false };
+  return response.json();
+}
+function showCloudFilterError() {
+  if (!cloudFiltersLoad || !cloudFiltersLoad.failed || STATE.cloudError) return;
+  showBanner({ kind: 'error', message: 'Could not load library filters.' });
+  const retry = document.createElement('button');
+  retry.className = 'btn'; retry.type = 'button'; retry.textContent = 'Retry';
+  retry.addEventListener('click', () => loadCloudFilters(window.SDocsCloudLibrary.workspaceId, true));
+  document.getElementById('agent-banner').appendChild(retry);
+}
+function loadCloudFilters(workspaceId, retry) {
+  // Fetch the complete tag vocabulary on entry, independently of document pages
+  // and search changes. Opening the tag panel never starts a network request.
+  if (!retry && cloudFiltersLoad && cloudFiltersLoad.workspaceId === workspaceId) return;
+  if (cloudFiltersLoad) cloudFiltersLoad.controller.abort();
+  const load = cloudFiltersLoad = { workspaceId, controller: new AbortController(), failed: false };
+  const suffix = '?account_id=' + encodeURIComponent(workspaceId);
+  const options = { signal: load.controller.signal };
+  const current = () => cloudFiltersLoad === load && window.SDocsCloudLibrary.workspaceId === workspaceId;
+  if (retry) hideBanner();
+  async function fetchFilter(kind, apply) {
+    try {
+      const data = await getCloudJson('/api/cloud/v1/account/' + kind + suffix, options);
+      if (current()) { apply(data); renderAll(); }
+    } catch (error) {
+      if (current() && error.name !== 'AbortError') load.failed = true;
+    }
+  }
+  const tags = STATE.cloudTagsWorkspace === workspaceId ? null : fetchFilter('tags', data => {
+    STATE.cloudTags = data.tags || [];
+    STATE.cloudTagsWorkspace = workspaceId;
+  });
+  const members = STATE.cloudMembersWorkspace === workspaceId ? null : fetchFilter('members', data => {
+    STATE.cloudMembers = data.members || [];
+    STATE.cloudMembersWorkspace = workspaceId;
+    for (const person of STATE.cloudMembers) STATE.cloudPeople.set(person.user_id, person);
+    if (STATE.cloudMembers.length <= 1) {
+      STATE.chips = STATE.chips.filter(chip => chip.key !== 'author' && chip.key !== 'updatedBy');
+      if (openFacet === 'author' || openFacet === 'updatedBy') openFacet = null;
+    }
+    document.querySelectorAll('[data-facet="author"], [data-facet="updatedBy"]').forEach(button => { button.hidden = STATE.cloudMembers.length <= 1; });
+  });
+  load.promise = Promise.all([tags, members]).then(() => {
+    if (current()) { renderAll(); showCloudFilterError(); }
+  });
+}
+function cloudFilterKey() {
+  return JSON.stringify([window.SDocsCloudLibrary && window.SDocsCloudLibrary.workspaceId,
+    STATE.q.trim(), STATE.chips, STATE.sharedOnly, STATE.starredOnly]);
+}
+function scheduleCloudRefresh() {
+  if (!isCloudMode() || isSignedOutCloudMode() || !window.SDocsCloudLibrary || !window.SDocsCloudLibrary.workspaceId) return;
+  const key = cloudFilterKey();
+  if (cloudScheduledKey === key) return;
+  cloudScheduledKey = key;
+  clearTimeout(cloudTimer);
+  cloudTimer = setTimeout(() => loadCloudData(STATE.q).catch(cloudLoadError), 180);
+}
+function cloudLoadError(error) {
+  if (error && error.name === 'AbortError') return;
+  showBanner({ kind: 'error', message: 'Cloud search is temporarily unavailable.' });
+  const retry = document.createElement('button');
+  retry.className = 'btn'; retry.type = 'button'; retry.textContent = 'Retry';
+  retry.addEventListener('click', () => loadCloudData(STATE.q, STATE.cloudRetryPage).catch(cloudLoadError));
+  document.getElementById('agent-banner').appendChild(retry);
+}
+function cloudSearchRequest(query) {
+  const request = { workspace_id: window.SDocsCloudLibrary.workspaceId, limit: 60,
+    query: query.trim() || undefined, sort: 'updated_desc', shared_with_me: STATE.sharedOnly, starred_only: STATE.starredOnly,
+    tags: [], tags_none: [] };
+  for (const chip of STATE.chips) {
+    if (chip.key === 'author' && !chip.exclude) request.author_user_ids = [chip.value];
+    if (chip.key === 'updatedBy' && !chip.exclude) request.updated_by_user_ids = [chip.value];
+    if (chip.key === 'tag') request[chip.exclude ? 'tags_none' : 'tags'].push(chip.value);
+    if (chip.key === 'since' && !chip.exclude) {
+      if (chip.value.startsWith('range:')) {
+        const [from, to] = chip.value.slice(6).split('..');
+        if (from) request.updated_after = new Date(from + 'T00:00:00').toISOString();
+        if (to) request.updated_before = new Date(to + 'T23:59:59.999').toISOString();
+      } else request.updated_after = new Date(Date.now() - daysFromSince(chip.value) * 86400000).toISOString();
+    }
+  }
+  return request;
+}
+async function loadCloudData(query, page) {
+  const workspaceId = window.SDocsCloudLibrary && window.SDocsCloudLibrary.workspaceId;
+  if (!workspaceId || isSignedOutCloudMode()) return;
+  const key = cloudFilterKey(), version = ++cloudRequestVersion;
+  cloudScheduledKey = key;
+  clearTimeout(cloudTimer);
+  if (cloudAbort) cloudAbort.abort();
+  const controller = cloudAbort = new AbortController();
+  const options = { credentials: 'same-origin', signal: controller.signal };
+  const reuse = Number.isInteger(page) && page >= 0 && STATE.cloudRequest && STATE.cloudRequestKey === key &&
+    (page < STATE.cloudPageCursors.length || (page === STATE.cloudPage + 1 && STATE.cloudNextCursor));
+  const targetPage = reuse ? page : 0;
+  const cursor = reuse && targetPage > 0
+    ? (targetPage === STATE.cloudPage + 1 ? STATE.cloudNextCursor : STATE.cloudPageCursors[targetPage]) : null;
+  // Keep exact filters and relative date bounds for both directions. Store only
+  // page cursors, so Previous always fetches rows with current permissions.
+  const request = reuse ? Object.assign({}, STATE.cloudRequest) : cloudSearchRequest(query);
+  if (cursor) request.cursor = cursor;
+  if (!reuse && !STATE.q.trim() && !STATE.chips.length && !STATE.sharedOnly) { request.facets = ['authors']; request.facet_limit = 1000; }
+  if (!reuse) {
+    STATE.entries = []; STATE.cloudTotal = 0; STATE.cloudNextCursor = null;
+    STATE.cloudPage = 0; STATE.cloudPageCursors = [null];
+    STATE.cloudRequest = null; STATE.cloudRequestKey = null;
+  }
+  const pageChanged = targetPage !== STATE.cloudPage;
+  let loaded = false;
+  STATE.cloudRetryPage = null;
+  STATE.cloudLoading = true; STATE.cloudError = false;
   hideBanner();
-  renderAll();
+  renderResults();
+  loadCloudFilters(workspaceId);
+  function current() { return version === cloudRequestVersion && key === cloudFilterKey(); }
+  try {
+    const data = await getCloudJson('/api/cloud/v1/search', Object.assign({}, options,
+      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(request) }));
+    if (!current()) { scheduleCloudRefresh(); return; }
+    const documents = data.documents || [];
+    // A deletion or revocation can empty a later page. Return to the first page
+    // of the same search rather than leaving the user beyond the remaining rows.
+    if (targetPage && !documents.length) return loadCloudData(query, 0);
+    STATE.cloudRequest = Object.assign({}, request);
+    delete STATE.cloudRequest.cursor;
+    STATE.cloudRequestKey = key;
+    for (const person of (data.facets && data.facets.authors || []).concat(documents.flatMap(doc => [doc.author, doc.updated_by].filter(Boolean)))) {
+      if (person.user_id && !STATE.cloudPeople.has(person.user_id)) STATE.cloudPeople.set(person.user_id, person);
+    }
+    STATE.entries = documents.map(cloudEntry);
+    STATE.cloudPage = targetPage;
+    STATE.cloudPageCursors = STATE.cloudPageCursors.slice(0, targetPage + 1);
+    STATE.cloudPageCursors[targetPage] = cursor;
+    STATE.selected = 0;
+    STATE.cloudNextCursor = data.next_cursor || null;
+    STATE.cloudTotal = data.total_count == null ? STATE.entries.length : data.total_count;
+    STATE.lastScanAt = Date.now(); STATE.enabled = true;
+    STATE.autostart = { supported: false, enabled: false, userDisabled: false };
+    hideBanner();
+    loaded = true;
+  } catch (error) {
+    if (current()) { STATE.cloudError = true; STATE.cloudRetryPage = targetPage; throw error; }
+  } finally {
+    if (version === cloudRequestVersion) {
+      STATE.cloudLoading = false; renderAll(); showCloudFilterError();
+      if (loaded && pageChanged) {
+        const results = document.getElementById('results');
+        results.focus({ preventScroll: true });
+        results.scrollIntoView({ block: 'start' });
+      }
+    }
+  }
 }
 
 function showDemoBanner() {
@@ -967,7 +1163,31 @@ async function loadData() {
 }
 
 async function toggleStar(id, starred) {
-  if (isCloudMode()) return;
+  if (isCloudMode()) {
+    if (cloudStarWrites.has(id)) return;
+    const entry = STATE.entries.find(value => value.id === id);
+    const workspaceId = window.SDocsCloudLibrary.workspaceId;
+    cloudStarWrites.add(id);
+    renderResults();
+    try {
+      const response = await fetch('/api/cloud/v1/documents/' + encodeURIComponent(id) + '/star', {
+        method: 'PUT', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ starred }) });
+      if (!response.ok) throw new Error('Star could not be saved');
+      if (workspaceId === window.SDocsCloudLibrary.workspaceId) await loadCloudData(STATE.q, STATE.cloudPage).catch(cloudLoadError);
+    } catch (_) {
+      if (entry) entry.starred = !starred;
+      if (workspaceId === window.SDocsCloudLibrary.workspaceId) {
+        const current = STATE.entries.find(value => value.id === id);
+        if (current) current.starred = !starred;
+        showBanner({ kind: 'error', message: 'Could not save your star. Try again.' });
+      }
+    } finally {
+      cloudStarWrites.delete(id);
+      if (workspaceId === window.SDocsCloudLibrary.workspaceId) renderResults();
+    }
+    return;
+  }
   if (isDemoMode()) return; // local state already updated in the click handler
   try {
     await fetch(api('/api/library/star'), {
@@ -1055,6 +1275,7 @@ document.addEventListener('keydown', (e) => {
   if (e.key === '/' && document.activeElement !== document.getElementById('q')) {
     e.preventDefault(); document.getElementById('q').focus(); return;
   }
+  if (e.target.closest('button, a, select, textarea, [contenteditable]')) return;
   if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
     if (!STATE.shownLen) return;
     e.preventDefault();
@@ -1103,11 +1324,25 @@ document.getElementById('shared-toggle').addEventListener('click', () => {
 });
 
 document.getElementById('results').addEventListener('click', (e) => {
+  const pageButton = e.target.closest('[data-cloud-page]');
+  if (pageButton) {
+    if (!pageButton.disabled) loadCloudData(STATE.q, STATE.cloudPage + (pageButton.dataset.cloudPage === 'next' ? 1 : -1)).catch(cloudLoadError);
+    return;
+  }
+  const person = e.target.closest('[data-cloud-person]');
+  if (person) {
+    setExclusiveChip(person.dataset.personFacet, person.dataset.cloudPerson);
+    openFacet = person.dataset.personFacet; tagsOpenedBySearch = false;
+    renderAll();
+    const option = Array.from(document.querySelectorAll('[data-person-choice]')).find(button => button.dataset.personChoice === person.dataset.cloudPerson);
+    if (option) option.focus({ preventScroll: true });
+    return;
+  }
   const starBtn = e.target.closest('[data-star]');
   if (starBtn) {
     const id = starBtn.dataset.star;
     const entry = STATE.entries.find(x => x.id === id);
-    if (entry) {
+    if (entry && !cloudStarWrites.has(id)) {
       entry.starred = !entry.starred;
       toggleStar(id, entry.starred);
       renderAll();
@@ -1134,12 +1369,7 @@ input.addEventListener('input', (e) => {
   }
   syncSearchTagPanel();
   renderAll();
-  if (isCloudMode()) {
-    clearTimeout(window.SDocsCloudSearchTimer);
-    window.SDocsCloudSearchTimer = setTimeout(() => loadCloudData(STATE.q).catch(function () {
-      showBanner({ kind: 'error', message: 'Cloud search is temporarily unavailable.' });
-    }), 220);
-  }
+
 });
 input.addEventListener('keydown', (e) => {
   if (e.key === 'Backspace' && !input.value && STATE.chips.length) {
@@ -1151,7 +1381,7 @@ document.getElementById('clear').addEventListener('click', () => {
   STATE.chips = []; STATE.q = ''; STATE.starredOnly = false; STATE.sharedOnly = false;
   syncSearchTagPanel();
   input.value = ''; renderAll();
-  if (isCloudMode()) loadCloudData('').catch(function () {});
+
 });
 
 // Hold the kick-off fetch until we know the user has been through
@@ -1172,7 +1402,7 @@ if (!isSignedOutCloudMode() && (!window.SDocsConnect ||
 }
 
 if (isCloudMode()) {
-  document.getElementById('star-toggle').hidden = true;
+  document.getElementById('star-toggle').hidden = false;
   document.getElementById('shared-toggle').hidden = false;
   document.getElementById('q').placeholder = 'search titles, tags, and document text...';
   const projectButton = document.querySelector('[data-facet="project"]');
@@ -1180,13 +1410,30 @@ if (isCloudMode()) {
   const pathButton = document.querySelector('[data-facet="path"]');
   if (pathButton) pathButton.hidden = true;
   const agentButton = document.querySelector('[data-facet="agent"]');
-  if (agentButton) agentButton.childNodes[0].textContent = 'updated by ';
+  if (agentButton) agentButton.hidden = true;
+  document.body.classList.add('cloud-library');
+  const results = document.getElementById('results');
+  results.tabIndex = -1;
+  results.setAttribute('role', 'region');
+  results.setAttribute('aria-label', 'Documents');
 }
 
 window.addEventListener('sdocs-cloud-workspace-change', function () {
+  if (cloudFiltersLoad) cloudFiltersLoad.controller.abort();
+  cloudFiltersLoad = null;
+  STATE.entries = []; STATE.cloudMembers = []; STATE.cloudPeople = new Map();
+  STATE.cloudMembersWorkspace = null;
+  STATE.cloudTagsWorkspace = null; STATE.cloudTags = null; STATE.cloudNextCursor = null; STATE.cloudTotal = 0;
+  STATE.cloudRequest = null; STATE.cloudRequestKey = null; STATE.cloudError = false;
+  STATE.cloudPage = 0; STATE.cloudPageCursors = [null]; STATE.cloudRetryPage = null;
+  STATE.chips = STATE.chips.filter(chip => chip.key !== 'author' && chip.key !== 'updatedBy');
+  document.querySelectorAll('[data-facet="author"], [data-facet="updatedBy"]').forEach(button => { button.hidden = true; });
+  if (openFacet === 'author' || openFacet === 'updatedBy') openFacet = null;
   STATE.q = '';
   syncSearchTagPanel();
   input.value = '';
+  STATE.cloudLoading = true;
+  renderAll();
   loadCloudData('').catch(function () {
     showBanner({ kind: 'error', message: 'Could not load this Cloud workspace.' });
   });

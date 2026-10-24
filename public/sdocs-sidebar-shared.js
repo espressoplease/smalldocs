@@ -97,6 +97,9 @@
   }
 
   function sitePrimaryHtml(active, rowClass) {
+    var legacy = typeof document === 'undefined' || !document.querySelector('[data-legacy-library="false"]');
+    if (!legacy) return topRowHtml({ href: '/library?scope=cloud', rowClass: rowClass,
+      icon: icons.local, label: 'Library', active: active === 'cloud' });
     return topRowHtml({
       href: '/library',
       rowClass: rowClass,
@@ -111,6 +114,74 @@
       label: 'Cloud library',
       active: active === 'cloud',
     });
+  }
+
+  function applyLibraryPreference(legacy) {
+    if (typeof document === 'undefined') return;
+    document.body.dataset.legacyLibrary = legacy ? 'true' : 'false';
+    var reader = document.getElementById('_sd_sidebar');
+    if (reader) {
+      reader.dataset.legacyLibrary = legacy ? 'true' : 'false';
+      var local = reader.querySelector('[data-sidebar-section="library"]');
+      if (local) local.hidden = !legacy;
+      var cloud = reader.querySelector('[data-sidebar-section="cloud"] > .sdocs-sidebar-top-row');
+      if (cloud) {
+        var label = cloud.querySelector('span');
+        if (label) label.textContent = legacy ? 'Cloud library' : 'Library';
+        var icon = cloud.querySelector('svg');
+        if (icon) icon.outerHTML = legacy ? icons.cloud : icons.local;
+        cloud.dataset.railLabel = legacy ? 'Cloud library' : 'Library';
+      }
+    }
+    var site = document.querySelector('.sdocs-site-sidebar');
+    if (site) {
+      var localLink = site.querySelector('.sdocs-site-sidebar-local');
+      if (localLink) localLink.hidden = !legacy;
+      var link = site.querySelector('a[href="/library?scope=cloud"]');
+      if (link) {
+        link.querySelector('span').textContent = legacy ? 'Cloud library' : 'Library';
+        link.querySelector('svg').outerHTML = legacy ? icons.cloud : icons.local;
+        link.dataset.railLabel = legacy ? 'Cloud library' : 'Library';
+      }
+    }
+  }
+
+  async function bindSubscriptionUi() {
+    if (typeof document === 'undefined') return;
+    var marker = document.querySelector('[data-legacy-library]');
+    if (marker) applyLibraryPreference(marker.dataset.legacyLibrary !== 'false');
+    if (!document.querySelector('[data-cloud-authenticated="true"]')) return;
+    var sidebar = document.querySelector('.sdocs-sidebar-shell');
+    if (!sidebar) return;
+    try {
+      var response = await fetch('/api/cloud/billing/subscription');
+      if (!response.ok) return;
+      var data = await response.json();
+      var status = data.subscription || data;
+      if (status.phase === 'active') return;
+      var section = document.createElement('div');
+      section.className = 'sdocs-sidebar-preview';
+      section.setAttribute('data-subscription-status', status.phase);
+      var link = document.createElement('a');
+      link.className = 'sdocs-sidebar-footer-link';
+      link.href = status.subscribe_url || '/cloud/subscribe';
+      link.textContent = 'Subscribe';
+      section.appendChild(link);
+      if (status.phase === 'trial_warning' || status.phase === 'payment_required') {
+        var note = document.createElement('p');
+        note.className = 'sdocs-sidebar-explainer';
+        note.textContent = status.phase === 'trial_warning'
+          ? 'Your trial has ended. Subscribe by ' + new Date(status.paywall_starts_at_ms).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }) + ' to keep using SmallDocs.'
+          : 'Subscribe to continue using SmallDocs.';
+        section.appendChild(note);
+        var feedback = document.createElement('a');
+        feedback.className = 'sdocs-sidebar-footer-link'; feedback.href = status.feedback_url;
+        feedback.textContent = 'Share feedback'; section.appendChild(feedback);
+      }
+      var anchor = sidebar.querySelector('[data-sidebar-section="cloud"]') ||
+        sidebar.querySelector('a[href="/library?scope=cloud"]');
+      if (anchor) anchor.after(section);
+    } catch (_) { /* Navigation stays usable when billing status is unavailable. */ }
   }
 
   function brandHtml(options) {
@@ -383,6 +454,8 @@
   exports.sectionHtml = sectionHtml;
   exports.supportingSectionsHtml = supportingSectionsHtml;
   exports.sitePrimaryHtml = sitePrimaryHtml;
+  exports.applyLibraryPreference = applyLibraryPreference;
+  exports.bindSubscriptionUi = bindSubscriptionUi;
   exports.brandHtml = brandHtml;
   exports.footerInnerHtml = footerInnerHtml;
   exports.renderShell = renderShell;
@@ -394,4 +467,8 @@
 })(typeof module !== 'undefined' && module.exports
   ? module.exports : (window.SDocsSidebarShared = {}));
 
-if (typeof document !== 'undefined') window.SDocsSidebarShared.hydrate(document);
+if (typeof document !== 'undefined') {
+  window.SDocsSidebarShared.hydrate(document);
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', window.SDocsSidebarShared.bindSubscriptionUi, { once: true });
+  else window.SDocsSidebarShared.bindSubscriptionUi();
+}

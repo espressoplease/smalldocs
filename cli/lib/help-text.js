@@ -53,9 +53,12 @@ USAGE
   sdoc cloud status --json         Check the connected Cloud account
   sdoc cloud ls                    List Cloud documents
   sdoc cloud search "query"        Search Cloud documents
+  sdoc file.md --cloud --json +topic +project
+                                  Save a tagged Cloud document and return its URL
   sdoc cloud create file.md        Add a document to Cloud
   sdoc cloud --help                Full Cloud command reference
-  sdoc <file> +tag1 +tag2          Inject tags into the file's front matter at open time
+  sdoc <file> +tag1 +tag2           Add Cloud tags in Cloud-first mode;
+                                  edit local front matter in local-first mode
   sdoc defaults                    Show ~/.sdocs/styles.yaml
   sdoc defaults --reset            Remove default styles
   sdoc setup                       Install the SmallDocs skill for your coding agents
@@ -94,6 +97,10 @@ OPTIONS
   --placement <id>      Attribute a social short link to one publishing
                         placement. Use 4-32 letters, numbers, underscores,
                         or hyphens with --source x, yt, or youtube.
+  --cloud               Save a Markdown file to Cloud, then open and print its
+                        stable document URL. Requires sdoc cloud login.
+                        In chat, link to the returned URL, never the local file.
+  --standard            Open locally without uploading, even in Cloud mode.
   --json                Machine-readable output for safe and Cloud commands.
   --no-open             Do not launch the browser after a normal file open.
   --audit               Also print GitHub links to server-side source
@@ -3267,3 +3274,23 @@ SUPPORTED LANGUAGES
 `;
 
 module.exports = { HELP, COMMENTS_HELP, SCHEMA, CHARTS_HELP, DIAGRAMS_HELP, VIDEOS_HELP, APPS_HELP, CELLS_HELP, CODE_HELP, SLIDES_HELP, SLIDES_CUSTOM_SHAPES_HELP, LIBRARY_HELP };
+
+
+// Keep installed-channel examples consistent with the destination used by commands.
+const { INSTALLATION_CHANNEL } = require('./constants');
+if (INSTALLATION_CHANNEL) {
+  const origin = INSTALLATION_CHANNEL.origin;
+  const hostname = new URL(origin).host;
+  module.exports.HELP = module.exports.HELP
+    .replace('Toggle auto-install of sdoc updates', 'Automatic binary updates are disabled')
+    .replace('Upgrade sdoc to the latest version now', 'Print staging manual-update instructions')
+    .replace('Custom base URL (default: https://smalldocs.org)', 'Must match the installed staging origin: ' + origin)
+    .replace('Fallback base URL if --url is not passed.', 'Must match the installed staging origin: ' + origin);
+  module.exports.LIBRARY_HELP = module.exports.LIBRARY_HELP.replace(
+    /    - refuses any browser request whose Origin is not smalldocs\.org,[\s\S]*?SDOCS_AGENT_ALLOWED_ORIGINS\)/,
+    '    - accepts browser requests only from ' + origin);
+  for (const key of Object.keys(module.exports)) {
+    module.exports[key] = module.exports[key].split('https://smalldocs.org').join(origin)
+      .replace(/(?<![A-Za-z0-9.-])smalldocs\.org/g, hostname);
+  }
+}

@@ -18,7 +18,15 @@ Verify the changed behaviour on https://cloud-staging.smalldocs.org. Record the 
 
 The machine-specific key and host configuration are in AGENTS.local.md. SSH may request fingerprint authentication. Verify the production endpoints and confirm /opt/smalldocs/current and /opt/smalldocs/staging-current resolve to the intended release. The scripts retain the preceding release pointers for recovery.
 
-The staging script checks that HEAD is the published main tip. The production script archives HEAD; it does not select a branch for you. Keep the same checkout between stages. If main advances during a release, finish or reassess that release explicitly rather than switching commits unnoticed.
+For an isolated candidate before merging to main, pass its published branch explicitly:
+
+```sh
+./ops/deploy-staging.sh smalldocs-prod codex/homepage-next-review
+```
+
+This updates staging only. The candidate must be committed and HEAD must match the exact published branch tip. Production promotion still follows the main release procedure above.
+
+The staging script defaults to checking that HEAD is the published main tip. The production script archives HEAD; it does not select a branch for you. Keep the same checkout between stages. If main advances during a release, finish or reassess that release explicitly rather than switching commits unnoticed.
 
 ## Reconciliation on 10 October 2026
 

@@ -1,0 +1,258 @@
+{
+  "generated_at": "2026-10-20T22:47:38.827Z",
+  "agent_trials": 9,
+  "trials": [
+    {
+      "round": "baseline",
+      "scenario": "targeted",
+      "decoys_unchanged": true,
+      "filename_preserved": true,
+      "final_revision_number": 2,
+      "command_count": 8,
+      "pushes": [
+        {
+          "exit_code": 0,
+          "dry_run": false,
+          "classification": "clean",
+          "conflict_count": 0
+        }
+      ],
+      "used_changelog": false,
+      "limits": [
+        22
+      ]
+    },
+    {
+      "round": "baseline",
+      "scenario": "history",
+      "decoys_unchanged": true,
+      "filename_preserved": false,
+      "final_revision_number": 5,
+      "command_count": 10,
+      "pushes": [
+        {
+          "exit_code": 0,
+          "dry_run": false,
+          "classification": "clean",
+          "conflict_count": 0
+        }
+      ],
+      "used_changelog": false,
+      "limits": [],
+      "phone_recovered": true,
+      "newer_rota_preserved": true
+    },
+    {
+      "round": "baseline",
+      "scenario": "overlap",
+      "decoys_unchanged": true,
+      "filename_preserved": true,
+      "final_revision_number": 4,
+      "command_count": 10,
+      "pushes": [
+        {
+          "exit_code": 0,
+          "dry_run": false,
+          "classification": "combined",
+          "conflict_count": 0
+        },
+        {
+          "exit_code": 0,
+          "dry_run": false,
+          "classification": "clean",
+          "conflict_count": 0
+        }
+      ],
+      "used_changelog": false,
+      "limits": [
+        39
+      ]
+    },
+    {
+      "round": "baseline",
+      "scenario": "independent",
+      "decoys_unchanged": true,
+      "filename_preserved": true,
+      "final_revision_number": 3,
+      "command_count": 9,
+      "pushes": [
+        {
+          "exit_code": 0,
+          "dry_run": false,
+          "classification": "rebased",
+          "conflict_count": 0
+        }
+      ],
+      "used_changelog": false,
+      "limits": [
+        35
+      ]
+    },
+    {
+      "round": "baseline",
+      "scenario": "revoked",
+      "decoys_unchanged": true,
+      "filename_preserved": true,
+      "final_revision_number": 1,
+      "command_count": 7,
+      "pushes": [
+        {
+          "exit_code": 4,
+          "dry_run": false,
+          "error": "resource_unavailable",
+          "conflict_count": 0
+        }
+      ],
+      "used_changelog": false,
+      "limits": [
+        12
+      ]
+    },
+    {
+      "round": "retest",
+      "scenario": "history",
+      "decoys_unchanged": true,
+      "filename_preserved": true,
+      "final_revision_number": 5,
+      "command_count": 14,
+      "pushes": [
+        {
+          "exit_code": 0,
+          "dry_run": true,
+          "classification": "clean",
+          "conflict_count": 0
+        },
+        {
+          "exit_code": 0,
+          "dry_run": false,
+          "classification": "clean",
+          "conflict_count": 0
+        }
+      ],
+      "used_changelog": false,
+      "limits": [],
+      "phone_recovered": true,
+      "newer_rota_preserved": true
+    },
+    {
+      "round": "permissive",
+      "scenario": "overlap",
+      "decoys_unchanged": true,
+      "filename_preserved": true,
+      "final_revision_number": 3,
+      "command_count": 10,
+      "pushes": [
+        {
+          "exit_code": 0,
+          "dry_run": false,
+          "classification": "combined",
+          "conflict_count": 1
+        }
+      ],
+      "used_changelog": true,
+      "limits": [
+        19,
+        24
+      ],
+      "kept_both_values": true,
+      "permissions_preserved": true
+    },
+    {
+      "round": "permissive",
+      "scenario": "review",
+      "decoys_unchanged": true,
+      "filename_preserved": true,
+      "final_revision_number": 2,
+      "command_count": 10,
+      "pushes": [
+        {
+          "exit_code": 0,
+          "dry_run": true,
+          "classification": "rebased",
+          "conflict_count": 0
+        },
+        {
+          "exit_code": 0,
+          "dry_run": true,
+          "classification": "clean",
+          "conflict_count": 0
+        }
+      ],
+      "used_changelog": false,
+      "limits": [
+        19
+      ],
+      "agent_created_revisions": 0,
+      "preview_only": true
+    },
+    {
+      "round": "final",
+      "scenario": "independent",
+      "decoys_unchanged": true,
+      "filename_preserved": true,
+      "final_revision_number": 3,
+      "command_count": 12,
+      "pushes": [
+        {
+          "exit_code": 0,
+          "dry_run": false,
+          "classification": "rebased",
+          "conflict_count": 0
+        }
+      ],
+      "used_changelog": true,
+      "limits": [
+        21
+      ]
+    }
+  ],
+  "discarded_trials": [
+    {
+      "round": "retest",
+      "scenario": "overlap",
+      "reason": "Instrumentation triggered on push --help before the read; discarded as a concurrency trial and repeated with help excluded."
+    }
+  ],
+  "concurrency": {
+    "passed": true,
+    "generated_at": "2026-10-20T22:45:50.075Z",
+    "results": [
+      {
+        "scenario": "simultaneous_independent_cli_saves",
+        "passed": true,
+        "classifications": [
+          "clean",
+          "rebased"
+        ]
+      },
+      {
+        "scenario": "simultaneous_overlapping_cli_saves_keep_both_and_expose_changelog",
+        "passed": true,
+        "revision_count": 3
+      },
+      {
+        "scenario": "explicit_strict_mode_is_optional_and_atomic",
+        "passed": true
+      },
+      {
+        "scenario": "response_lost_after_commit_replays_exact_revision_without_duplicate",
+        "passed": true
+      },
+      {
+        "scenario": "unchanged_push_cannot_claim_success_after_revocation",
+        "passed": true
+      }
+    ]
+  },
+  "validation": {
+    "node_tests_passed": 1706,
+    "focused_update_tests_included": 37,
+    "cli_tests_included": 72,
+    "generated_diff_cases": 1000,
+    "generated_independent_merge_cases": 300,
+    "headless_acceptance_passed": 3,
+    "unrelated_opt_in_billing_test_skipped": 1,
+    "cli_version": "1.20.0-rc.3",
+    "skill_version": 33
+  }
+}

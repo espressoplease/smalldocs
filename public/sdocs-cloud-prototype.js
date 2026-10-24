@@ -9,6 +9,9 @@ var CLOUD_CHECK_SVG = '<svg width="18" height="18" viewBox="0 0 24 24" fill="non
 var FILE_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>';
 var USER_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></svg>';
 var USERS_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 21a8 8 0 0 0-16 0"/><circle cx="10" cy="8" r="5"/><path d="M22 20c0-3.37-2-6.5-4-8a5 5 0 0 0-.45-8.3"/></svg>';
+var LIBRARY_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/></svg>';
+var librarySettings = null;
+var selectedLibrary = null;
 var PLUS_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg>';
 var CHECK_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m20 6-11 11-5-5"/></svg>';
 var CLOSE_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
@@ -183,6 +186,7 @@ async function jsonRequest(url, options) {
   var response = await fetch(url, Object.assign({ credentials: 'same-origin' }, options || {}));
   var data = await response.json().catch(function () { return {}; });
   if (!response.ok) {
+    if (data.error === 'trial_payment_required') location.assign('/cloud/subscribe');
     var error = new Error(data.error || 'request_failed');
     error.status = response.status;
     error.data = data;
@@ -205,6 +209,7 @@ async function loadAccountData(accountId) {
   window.SDocsCloudAccountSelection.remember(localStorage, accountId);
   var suffix = '?account_id=' + encodeURIComponent(accountId);
   var data = await jsonRequest('/api/cloud/v1/account' + suffix);
+  cloudState.singlePlan = Boolean(data.single_plan);
   cloudState.account = data.account;
   cloudState.accounts = data.accounts || [];
   cloudState.user = data.user;
@@ -261,7 +266,7 @@ async function checkCloudDocument() {
     var headData = await jsonRequest('/api/cloud/v1/documents/' + encodeURIComponent(documentId)
       + '/head?known_revision_id=' + encodeURIComponent(S.cloudDocument.current_revision_id));
     if (!S.cloudDocument || S.cloudDocument.id !== documentId) return null;
-    if (headData.document.current_revision_id === S.cloudDocument.current_revision_id) {
+    if (headData.document.current_revision_id === S.cloudDocument.current_revision_id && (!headData.document.workspace_id || headData.document.workspace_id === S.cloudDocument.workspace_id)) {
       return headData.document;
     }
     if (currentMarkdown() !== cloudLastSavedMarkdown) {
@@ -271,6 +276,7 @@ async function checkCloudDocument() {
     var data = await jsonRequest('/api/cloud/v1/documents/' + encodeURIComponent(documentId));
     if (!S.cloudDocument || S.cloudDocument.id !== documentId) return null;
     S.cloudDocument = Object.assign({}, S.cloudDocument, data.document);
+    if (cloudState.account && cloudState.account.id !== data.document.workspace_id) await loadAccountData(data.document.workspace_id);
     cloudState.permission = data.permission || cloudState.permission;
     applyCloudMarkdown(data.document.markdown, data.document.filename);
     cloudLastSavedMarkdown = currentMarkdown();
@@ -346,6 +352,8 @@ function cloudRow() {
       (cloudState.permission.member_user_ids || []).length > 1);
     row.innerHTML = '<span class="fic-label">Cloud</span>'
       + '<div class="sdoc-cloud-lab-row-main"><div class="sdoc-cloud-lab-pills">'
+      + (cloudState.accounts.length > 1 ? '<button class="sdoc-cloud-lab-access sdoc-cloud-library-pill" type="button" data-cloud-open="library" aria-label="Library: '
+        + escapeHtml(cloudState.account && cloudState.account.name || 'Library') + '"><span class="sdoc-cloud-library-icon" style="color:' + window.SDocsCloudAccountSelection.color(S.cloudDocument.workspace_id) + '">' + LIBRARY_SVG + '</span><span>' + escapeHtml(cloudState.account && cloudState.account.name || 'Library') + '</span></button>' : '')
       + '<button class="sdoc-cloud-lab-access" type="button" data-cloud-open="access"'
       + ' title="' + escapeHtml(permissionNames()) + '">' + (many ? USERS_SVG : USER_SVG)
       + '<span>' + escapeHtml(permissionLabel()) + '</span></button>'
@@ -657,7 +665,7 @@ function accessPanelHtml() {
   var canManage = cloudState.permission && cloudState.permission.can_manage;
   var presets = '<button type="button" data-cloud-preset="only"' + (!canManage ? ' disabled' : '')
     + '>' + USER_SVG + 'Only you</button>';
-  if (cloudState.account && cloudState.account.kind === 'team') {
+  if (cloudState.account && (cloudState.singlePlan || cloudState.account.kind === 'team')) {
     presets += '<button type="button" data-cloud-preset="everyone"' + (!canManage ? ' disabled' : '')
       + '>' + USERS_SVG + 'Everyone</button>';
   }
@@ -715,18 +723,73 @@ function tagsPanelHtml() {
       + '<div class="sdoc-cloud-lab-suggestions">' + suggestions + '</div></section>';
 }
 
+function libraryPanelHtml() {
+  if (!librarySettings) return '<p class="sdoc-cloud-lab-help">Loading libraries...</p>';
+  var current = S.cloudDocument.workspace_id;
+  var choices = librarySettings.libraries.map(function (library) {
+    var chosen = (selectedLibrary || current) === library.id;
+    return '<button class="sdoc-cloud-lab-member' + (chosen ? ' selected' : '') + '" type="button" data-library-choice="' + escapeHtml(library.id) + '">'
+      + '<span class="sdoc-cloud-library-icon" style="color:' + window.SDocsCloudAccountSelection.color(library.id) + '">' + LIBRARY_SVG + '</span>'
+      + '<span class="sdoc-cloud-lab-member-copy"><strong>' + escapeHtml(library.name) + '</strong><span>' + (library.id === current ? 'Current library' : '') + '</span></span></button>';
+  }).join('');
+  var canMove = cloudState.permission && cloudState.permission.can_manage && selectedLibrary && selectedLibrary !== current;
+  var destination = librarySettings.libraries.find(function (library) { return library.id === selectedLibrary; });
+  var machines = librarySettings.machines.map(function (machine) {
+    return '<label class="sdoc-cloud-library-machine">' + escapeHtml(machine.display_name) + '<select data-library-machine="' + escapeHtml(machine.id) + '"><option value="">Ask when needed</option>'
+      + librarySettings.libraries.map(function (library) { return '<option value="' + escapeHtml(library.id) + '"' + (machine.default_library_id === library.id ? ' selected' : '') + '>' + escapeHtml(library.name) + '</option>'; }).join('') + '</select></label>';
+  }).join('');
+  return '<section class="sdoc-cloud-lab-section"><div class="sdoc-cloud-lab-section-title">This document</div><div class="sdoc-cloud-lab-members">' + choices + '</div>'
+    + (canMove ? '<p class="sdoc-cloud-lab-help">Move this document and its history to ' + escapeHtml(destination.name) + '. Its link stays the same. Access will be reset to Only you; people in the old library will lose access.</p><button type="button" class="sdoc-cloud-library-move">Move document</button>' : '')
+    + (!cloudState.permission || !cloudState.permission.can_manage ? '<p class="sdoc-cloud-lab-help">Only the person who created this document can move it.</p>' : '')
+    + '</section><section class="sdoc-cloud-lab-section"><div class="sdoc-cloud-lab-section-title">Default for new documents</div>'
+    + (machines || '<p class="sdoc-cloud-lab-help">Connect a computer to set its default library.</p>')
+    + '<p class="sdoc-cloud-lab-help">Applies to new documents from that computer. Existing documents stay in their libraries. A library specified by you or your project takes priority.</p></section>';
+}
+
 function renderCloudPanel() {
   var panel = ensureCloudPanel();
   panel.dataset.cloudPanel = cloudState.panel;
-  panel.querySelector('[data-cloud-panel-title]').textContent = cloudState.panel === 'tags' ? 'Tags' : 'Access';
+  panel.querySelector('[data-cloud-panel-title]').textContent = cloudState.panel === 'library' ? 'Library' : cloudState.panel === 'tags' ? 'Tags' : 'Access';
   var body = panel.querySelector('.sdoc-cloud-lab-panel-body');
-  body.innerHTML = (cloudState.panel === 'tags' ? tagsPanelHtml() : accessPanelHtml())
+  body.innerHTML = (cloudState.panel === 'library' ? libraryPanelHtml() : cloudState.panel === 'tags' ? tagsPanelHtml() : accessPanelHtml())
     + (cloudState.status ? '<p class="sdoc-cloud-lab-status" aria-live="polite">'
       + escapeHtml(cloudState.status) + '</p>' : '');
   wireCloudPanel(body);
 }
 
 function wireCloudPanel(body) {
+  body.querySelectorAll('[data-library-choice]').forEach(function (button) {
+    button.disabled = cloudState.busy;
+    button.addEventListener('click', function () { selectedLibrary = button.dataset.libraryChoice; renderCloudPanel(); });
+  });
+  body.querySelectorAll('[data-library-machine]').forEach(function (select) {
+    select.addEventListener('change', async function () {
+      select.disabled = true;
+      try {
+        await jsonRequest('/api/cloud/v1/cli/credentials/' + encodeURIComponent(select.dataset.libraryMachine) + '/library-default', {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ workspace_id: select.value || null }) });
+        librarySettings = await jsonRequest('/api/cloud/v1/library-settings');
+        cloudState.status = 'Default library updated.';
+      } catch (_) { cloudState.status = 'The default library could not be updated.'; }
+      renderCloudPanel();
+    });
+  });
+  var move = body.querySelector('.sdoc-cloud-library-move');
+  if (move) { move.disabled = cloudState.busy; move.addEventListener('click', async function () {
+    if (cloudState.busy) return;
+    cloudState.busy = true; renderCloudPanel();
+    try {
+      await flushCloudSave();
+      var moved = await jsonRequest('/api/cloud/v1/documents/' + encodeURIComponent(S.cloudDocument.id) + '/library', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ workspace_id: selectedLibrary, expected_head_revision_id: S.cloudDocument.current_revision_id }) });
+      S.cloudDocument = moved.document; cloudState.permission = moved.permission;
+      await loadAccountData(moved.document.workspace_id);
+      cloudState.status = 'Document moved. Access is Only you.';
+    } catch (_) { cloudState.status = 'The document could not be moved. Reload and try again.'; }
+    cloudState.busy = false; refreshRow(); renderCloudPanel();
+  }); }
+
   body.querySelectorAll('[data-cloud-preset]').forEach(function (button) {
     button.addEventListener('click', function () {
       var everyone = button.getAttribute('data-cloud-preset') === 'everyone';
@@ -821,7 +884,12 @@ async function saveTags(tags) {
 }
 
 function openCloudPanel(kind) {
-  cloudState.panel = kind === 'tags' ? 'tags' : 'access';
+  cloudState.panel = kind === 'library' ? 'library' : kind === 'tags' ? 'tags' : 'access';
+  if (kind === 'library') {
+    selectedLibrary = S.cloudDocument && S.cloudDocument.workspace_id; librarySettings = null;
+    jsonRequest('/api/cloud/v1/library-settings').then(function (data) { librarySettings = data; if (cloudState.panel === 'library') renderCloudPanel(); })
+      .catch(function () { cloudState.status = 'Libraries could not be loaded.'; renderCloudPanel(); });
+  }
   cloudState.status = '';
   renderCloudPanel();
   document.body.classList.add('cloud-lab-mode', 'mobile-cloud-lab-open');

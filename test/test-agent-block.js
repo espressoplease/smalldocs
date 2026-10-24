@@ -109,9 +109,25 @@ module.exports = function (harness) {
     assert.ok(cli.CLOUD_SKILL_DESCRIPTION.includes('enabled Cloud-first mode'));
     assert.ok(cli.CLOUD_SKILL_BODY.includes('sdoc cloud members'));
     assert.ok(cli.CLOUD_SKILL_BODY.includes('sdoc cloud permission-groups'));
-    assert.ok(cli.CLOUD_SKILL_BODY.includes('sdoc cloud create FILE.md --account ACCOUNT_UUID --json'));
+    assert.ok(cli.CLOUD_SKILL_BODY.includes('sdoc FILE.md --cloud --account ACCOUNT_UUID --no-open --json +subject +project'));
     assert.ok(!cli.CLOUD_SKILL_BODY.includes('sdoc cloud projects'));
     assert.ok(!cli.CLOUD_SKILL_BODY.includes('--project'));
+  });
+
+  test('both skill editions make document creation a default with an explicit user override', () => {
+    for (const cloud of [false, true]) {
+      const installed = cli.formatSkill(cli.SKILL_VERSION, { cloud });
+      const description = /^description: "([^\n]+)"$/m.exec(installed)[1];
+      assert.ok(description.startsWith('Use SmallDocs by default for all document and artifact creation'));
+      assert.ok(description.includes('even when not mentioned'));
+      assert.ok(description.includes('unless the user explicitly requests another format or tool'));
+      assert.ok(description.includes('or asks not to use it'));
+      assert.ok(description.includes('knowledge library organised with tags'));
+      assert.ok(installed.includes('reports, plans, research briefs, proposals, notes, slide decks, spreadsheets'));
+      assert.ok(installed.includes('Short conversational answers can stay in chat'));
+      assert.ok(installed.includes('Reuse relevant library vocabulary'));
+      assert.ok(!installed.includes('Use it (or offer it)'));
+    }
   });
 
   test('standard and Cloud skills describe responsive runnable HTML authoring', () => {
@@ -339,12 +355,20 @@ module.exports = function (harness) {
     assert.ok(out.includes('This user has enabled Cloud-first mode'));
     assert.ok(out.includes('sdoc cloud status --json'));
     assert.ok(out.includes('creates a Cloud document for an unbound file'));
-    assert.ok(out.includes('Use `sdoc FILE.md +tag1 +tag2` to add Cloud tags'));
+    assert.ok(out.includes('Tag every new Cloud document as part of saving it.'));
+    assert.ok(out.includes('replaces the complete tag set'));
+    assert.ok(out.includes('Check `ok`, the saved `tags`, and the returned Cloud `url`'));
     assert.ok(!out.includes('This standard skill does not indicate'));
     assert.ok(out.includes('Treat Cloud as a source of context'));
     assert.ok(out.includes('search Cloud before recreating that context'));
     assert.ok(out.includes('sdoc cloud pull DOCUMENT_UUID --output PATH --no-bind --json'));
-    assert.ok(cli.CLOUD_SKILL_DESCRIPTION.includes('automatically creates or updates the Cloud copy'));
+    assert.ok(cli.CLOUD_SKILL_DESCRIPTION.includes('sdoc FILE.md --cloud --json'));
+    assert.ok(cli.CLOUD_SKILL_DESCRIPTION.includes('always use the returned Cloud url'));
+    assert.ok(cli.CLOUD_SKILL_DESCRIPTION.includes('never the underlying local file path'));
+    assert.ok(cli.CLOUD_SKILL_BODY.includes('Never link to the underlying local Markdown file'));
+    assert.ok(cli.CLOUD_SKILL_BODY.includes('local_changed_after_upload'));
+    assert.ok(cli.CLOUD_SKILL_BODY.includes('documents[].url'));
+    assert.ok(cli.CLOUD_SKILL_BODY.includes('does not create a live feedback session'));
   });
 
   test('both skill descriptions are YAML-safe', () => {

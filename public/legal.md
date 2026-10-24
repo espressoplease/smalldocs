@@ -5,7 +5,7 @@ description: The terms that apply to SmallDocs, encrypted short links, and Small
 
 # Terms of Service
 
-**Last updated: 24 August 2026**
+**Last updated: 24 October 2026**
 
 These terms are an agreement between you and **Odd Solutions Ltd**, a private limited company registered in England and Wales under company number 16186575. Odd Solutions Ltd operates SmallDocs. In these terms, "SmallDocs", "we", "us", and "our" mean Odd Solutions Ltd.
 
@@ -42,6 +42,8 @@ You are responsible for your content and for having the rights and permissions n
 ## 4. Subscriptions, prices, and tax
 
 SmallDocs Cloud subscriptions are billed monthly in advance and renew automatically until cancelled. The price, currency, included storage, billing unit, and applicable tax are shown before payment. Team subscriptions are billed for active human members. Connected machines and agents acting under a human account are not separate paid seats.
+
+The free trial lasts one calendar month and does not require payment details. After the trial ends, access continues for seven days with a subscription reminder. After that extra week, a subscription is required to open, create, update, or search Cloud documents. Creating additional libraries does not restart the trial.
 
 Stripe processes payment details. We do not receive or store full card numbers. You authorise us and Stripe to collect each recurring payment until cancellation.
 

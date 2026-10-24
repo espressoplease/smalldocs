@@ -68,7 +68,7 @@ async function installAdminApi(page, options) {
   return calls;
 }
 
-test('an individual account hides account, team, and project controls', async ({ page }) => {
+test('an individual account shows its library label and hides team and project controls', async ({ page }) => {
   await page.setViewportSize({ width: 1000, height: 900 });
   const calls = await installAdminApi(page, {
     kind: 'personal',
@@ -76,7 +76,8 @@ test('an individual account hides account, team, and project controls', async ({
   });
   await page.goto('/public/cloud-admin.html');
   await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible();
-  await expect(page.locator('#account-switcher')).toBeHidden();
+  await expect(page.locator('#account-switcher')).toBeVisible();
+  await expect(page.locator('#account-switcher-button')).toBeDisabled();
   await expect(page.getByRole('button', { name: 'People' })).toBeHidden();
   await expect(page.getByText('Projects', { exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Connected machines' })).toBeVisible();
@@ -173,7 +174,8 @@ test('Team Cloud keeps invitations and domains in People without project control
   await expect(page.getByRole('heading', { name: 'People' })).toBeVisible();
   await expect(page.getByText('Projects', { exact: true })).toHaveCount(0);
   await expect(page.getByText(/project access/i)).toHaveCount(0);
-  await expect(page.locator('#account-switcher')).toBeHidden();
+  await expect(page.locator('#account-switcher')).toBeVisible();
+  await expect(page.locator('#account-switcher-button')).toBeDisabled();
   await expect(page.getByText('Olivia Walker', { exact: true })).toBeVisible();
   await expect(page.getByText('Tom Smith', { exact: true })).toBeVisible();
   const avatar = page.locator('.avatar').first();
@@ -235,7 +237,7 @@ test('a team admin cannot delete the team', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Delete team' })).toBeHidden();
 });
 
-test('account switcher appears only when there is something to switch to', async ({ page }) => {
+test('account switcher enables switching when multiple libraries exist', async ({ page }) => {
   await installAdminApi(page, {
     kind: 'personal',
     workspaces: [
@@ -298,12 +300,13 @@ test('Cloud settings navigation and panels fit a phone viewport', async ({ page 
   expect(tabsBox.x + tabsBox.width).toBeLessThanOrEqual(390);
   expect(initialMainBox.y).toBeGreaterThanOrEqual(44);
   await expect(page.getByRole('button', { name: 'Connected machines' })).toContainText('Machines');
-  const tabs = await Promise.all(['Overview', 'People', 'Connected machines', 'Billing'].map(name =>
-    page.getByRole('button', { name }).boundingBox()));
+  const tabs = await Promise.all(['Install', 'Overview', 'People', 'Connected machines', 'Billing'].map(name =>
+    page.getByRole('button', { name, exact: true }).boundingBox()));
   expect(Math.abs(tabs[0].y - tabs[1].y)).toBeLessThan(2);
   expect(tabs[2].y).toBeGreaterThanOrEqual(tabs[0].y + tabs[0].height);
   expect(Math.abs(tabs[2].y - tabs[3].y)).toBeLessThan(2);
-  for (const panelName of ['Overview', 'People', 'Connected machines', 'Billing']) {
+  expect(tabs[4].y).toBeGreaterThanOrEqual(tabs[2].y + tabs[2].height);
+  for (const panelName of ['Install', 'Overview', 'People', 'Connected machines', 'Billing']) {
     await expect(page.getByRole('button', { name: panelName })).toHaveCSS('border-top-width', '1px');
   }
   await expect(page.getByRole('button', { name: 'Overview' }))
@@ -315,7 +318,7 @@ test('Cloud settings navigation and panels fit a phone viewport', async ({ page 
   }));
   expect(tabWidths.scroll).toBeLessThanOrEqual(tabWidths.client);
 
-  for (const panelName of ['Overview', 'People', 'Connected machines', 'Billing']) {
+  for (const panelName of ['Install', 'Overview', 'People', 'Connected machines', 'Billing']) {
     await page.getByRole('button', { name: panelName }).click();
     const geometry = await page.evaluate(() => ({
       viewportWidth: window.innerWidth,

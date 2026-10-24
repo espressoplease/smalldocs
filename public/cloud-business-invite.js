@@ -223,7 +223,7 @@
       method: 'PATCH',
       credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ first_name: firstName.value.trim(), last_name: lastName.value.trim() })
+      body: JSON.stringify({ first_name: firstName.value.trim(), last_name: lastName.value.trim(), return_to: location.pathname + location.search })
     }).then(readResponse).then(function (profileResult) {
       if (profileResult.response.status === 401) {
         showOnly(authCard);
@@ -307,8 +307,16 @@
       return;
     }
     if (!token) {
-      document.getElementById('prototype-status').textContent =
-        'This invitation link is incomplete. Ask the sender for a new link.';
+      document.querySelector('.invite-intro').hidden = true;
+      document.querySelector('.invite-overview').hidden = true;
+      document.getElementById('return-row').hidden = true;
+      document.getElementById('choice-view').hidden = true;
+      document.getElementById('auth-title').textContent = 'Invitation unavailable';
+      document.getElementById('auth-copy').textContent = 'This invitation link is incomplete. Ask the sender for a new link.';
+      document.getElementById('prototype-status').textContent = '';
+      var recovery = document.createElement('p'); recovery.className = 'auth-footer';
+      var link = document.createElement('a'); link.href = '/cloud/sign-in'; link.textContent = 'Sign in to SmallDocs';
+      recovery.appendChild(link); authCard.appendChild(recovery);
       return;
     }
     loadProfile();

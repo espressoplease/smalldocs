@@ -7,15 +7,16 @@ const io = require('./io');
 const credentialStore = require('./cloud-credentials');
 const bindings = require('./cloud-bindings');
 const SDocYaml = require('../shared/sdocs-yaml.js');
+const searchQuery = require('../shared/sdocs-search-query.js');
 
 const EXIT = { unexpected: 1, invalid_request: 2, login_required: 3,
   resource_unavailable: 4, account_required: 4, account_selection_required: 4,
-  permission_denied: 4, revision_conflict: 5,
+  permission_denied: 4, terms_acceptance_required: 4, revision_conflict: 5,
   idempotency_mismatch: 5,
   unsafe_local_state: 6, base_revision_unavailable: 6, target_too_old: 6, rate_limited: 7,
-  search_limit_reached: 7, temporary_service_failure: 7, billing_not_configured: 7,
+  search_limit_reached: 7, search_index_building: 7, temporary_service_failure: 7, billing_not_configured: 7,
   authentication_not_configured: 7, cloud_storage_not_configured: 7,
-  subscription_required: 4, subscription_read_only: 4, payment_grace_expired: 4,
+  subscription_required: 4, subscription_read_only: 4, payment_grace_expired: 4, trial_payment_required: 4,
   storage_limit_exceeded: 4, project_limit_reached: 4, member_limit_reached: 4,
   file_too_large: 2 };
 
@@ -25,6 +26,72 @@ Cloud stores selected Markdown documents with search, revisions, member access,
 and cross-device CLI and browser access. Run \`sdoc setup --cloud --yes\` to make
 ordinary \`sdoc FILE.md\` opens create or update the Cloud document first.
 
+BUILD A TAGGED LIBRARY OF KNOWLEDGE
+
+The installed SmallDocs skill makes SmallDocs the default for documents and
+artifacts, even when the user does not name it. Follow an explicit request for
+another format or tool, or an instruction not to use SmallDocs.
+Each document builds a searchable knowledge library organised with tags.
+
+Tag every new Cloud document as part of saving it. Choose tags that describe
+its subject, project, or purpose so humans and agents can find it later.
+Inspect cloud tags --account LIBRARY_UUID --json, or reuse relevant vocabulary
+already discovered there during this task. Keep existing spelling and introduce
+a new tag when the library's vocabulary does not describe the content.
+Preserve relevant tags when updating. Check ok, tags, and url in the save result.
+
+SAVE, OPEN, AND LINK IN CHAT
+
+  sdoc FILE.md --cloud --json +subject +project
+  sdoc FILE.md --cloud --account ACCOUNT_UUID --json +subject +project
+  sdoc FILE.md --cloud --no-open --json +subject +project
+
+The authenticated CLI uploads first, then opens the same Cloud URL returned
+in url. The local Markdown is the editable working copy. Its binding keeps
+the document ID stable across edits; successful saves advance the revision.
+An unchanged file does not create another revision. --no-open still saves
+and returns the URL. The browser needs its own signed-in session and access.
+
+When linking a SmallDoc in chat, always use the returned Cloud url. Never
+link to the underlying local file, a file:// URL, or a local Markdown path.
+Do not invent a URL or present an upload failure as a saved document.
+With --json, check ok and the exit status before using url. If
+local_changed_after_upload is true, the latest local changes were not included
+in this save; run the command again to save them.
+
+Create, pull, push, and restore also return url in JSON. List and search
+results include documents[].url, so existing documents can be linked without
+uploading them again. The URL identifies a document; it does not grant access.
+Feedback and bridge commands still use local live sessions. A Cloud URL does
+not turn those sessions into Cloud-backed feedback.
+
+LIBRARIES AND COMPUTER DEFAULTS
+
+  sdoc cloud libraries --json
+  sdoc cloud library-default --json
+  sdoc cloud library-default LIBRARY_UUID --json
+  sdoc cloud library-default clear --json
+  sdoc cloud move DOCUMENT_UUID --account LIBRARY_UUID --dry-run --json
+  sdoc cloud move DOCUMENT_UUID --account LIBRARY_UUID --json
+
+A library is the membership boundary. A paid subscription covers a person across
+libraries; payment never grants access to someone else's documents. A computer
+default applies only to new unbound documents from this authenticated CLI connection.
+An explicit --account takes priority. Existing file bindings keep their library.
+When there are several libraries and no established destination, ask the user.
+Never use the last library viewed in a browser as the CLI destination.
+Moving preserves the document URL and revision history, resets access to Only you,
+and removes access for old-library members. Only the document's creator can move it.
+Review the destination with --dry-run before moving documents on a user's behalf.
+
+STARS
+
+  sdoc cloud star DOCUMENT_UUID --json
+  sdoc cloud unstar DOCUMENT_UUID --json
+
+Stars belong to you and persist in the browser and CLI. They do not change
+access. Add --starred to cloud search or cloud ls to search your starred documents.
+
 DISCOVER AND READ
 
   sdoc cloud status --json
@@ -32,24 +99,33 @@ DISCOVER AND READ
   sdoc cloud search "incident response" --json
   sdoc cloud search "authentication" --tag engineering --limit 10 --json
   sdoc cloud ls --shared-with-me --json
+  sdoc cloud ls --starred --json
+  sdoc cloud read DOCUMENT_ID --json
   sdoc cloud pull DOCUMENT_UUID --output /tmp/reference.md --no-bind --json
 
-Search is case-insensitive substring matching across document titles,
-filenames, tags, and current Markdown. It is not semantic search. Start with a
-specific phrase, then try a shorter phrase or an existing tag if needed.
-Multiple --tag values require every listed tag.
+Search finds all query words across document titles, filenames, tags, and current
+Markdown. Use inner double quotes for a phrase, OR for alternatives, NOT to
+exclude, and a trailing * for a word prefix. Multiple --tag values require every
+listed tag. Run sdoc cloud search --help for the full query and filter reference.
 
-With --json, search returns documents[]. Each result includes its id, title,
+With --json, search returns documents[]. Each result includes its id, url, title,
 tags, current revision metadata, and matches[]. A match reports field, line,
-and snippet. Search does not return the full Markdown. Use pull to retrieve a
-result. --no-bind makes that output a read-only reference from the CLI's point
+and snippet. Search does not return the full Markdown. Use read to retrieve a
+result on stdout without a local file or binding. With pull, --no-bind makes that output a read-only reference from the CLI's point
 of view, so a later push will not update the Cloud document by accident.
 
 UPDATE AN EXISTING DOCUMENT
 
   sdoc cloud pull DOCUMENT_UUID --output ./plan.md --json
   # Edit ./plan.md with normal file tools.
+  sdoc cloud push ./plan.md --dry-run --json
   sdoc cloud push ./plan.md --json
+
+Run sdoc cloud push --help for previews, conflict protection, verification and recovery.
+Account can_write is a legacy creation capability. can_create_document names
+that capability explicitly. write_entitlement describes billing, while each
+document permission.can_edit describes access to edit that document. A member
+can edit a shared document even without a default project for new documents.
 
 A normal pull binds the local path to the Cloud document and revision. Push
 uses that binding. Inspect merge_classification, combined,
@@ -58,12 +134,16 @@ Cloud may combine work saved by another writer since the pull.
 
 CREATE, ORGANIZE, AND SHARE ACCESS
 
-  sdoc cloud create PATH [--account UUID] --json
+  sdoc PATH --cloud --no-open --json +subject +project
   sdoc cloud tag DOCUMENT_UUID --tag TAG [--tag TAG ...] --json
-  sdoc cloud access DOCUMENT_UUID [--only-you | --everyone | --member USER_UUID ...] --json
+  sdoc cloud access DOCUMENT_UUID [--only-you | --everyone | --member USER_ID ...] --json
   sdoc cloud members [--account UUID] --json
   sdoc cloud permission-groups [--account UUID] --json
-  sdoc cloud notify DOCUMENT_UUID [--document DOCUMENT_UUID ...] --member USER_UUID ... [--note TEXT] --json
+  sdoc cloud notify DOCUMENT_UUID [--document DOCUMENT_UUID ...] --member USER_ID ... [--note TEXT] --json
+
+Normal saves with +tag add to the document's existing tags without editing the
+local file. cloud tag replaces the complete set; include tags you intend to keep.
+Run cloud tag --help for examples and cloud tags --help for library vocabulary.
 
 Notification sends a message to existing account members. It does not grant
 access or create a user. List members and set access deliberately before
@@ -71,7 +151,7 @@ notifying them.
 
 HISTORY AND DELETION
 
-  sdoc cloud history DOCUMENT_UUID --json
+  sdoc cloud history DOCUMENT_UUID --diffs --json
   sdoc cloud restore DOCUMENT_UUID --revision REVISION_UUID --json
   sdoc cloud delete DOCUMENT_UUID --base-revision UUID --json
   sdoc cloud deleted --json
@@ -84,9 +164,288 @@ CONNECTION
   sdoc cloud logout
   sdoc cloud status [--account UUID]
 
-Use --account UUID with account-scoped discovery, creation, listing, or search
-when status reports more than one account. Add --json to any command for one
-machine-readable JSON object on stdout.`;
+After login, run sdoc cloud status --json. The status result includes origin,
+so you can verify which service is connected. With one library, new documents
+use it automatically. With several libraries, ask the user which to use, then
+set sdoc cloud library-default LIBRARY_UUID --json or pass --account UUID.
+If account_required is returned, open setup_url on the same service, finish
+profile and library setup, then retry. A staging-bound CLI already has its
+server address; it does not need an SDOCS_CLOUD_URL override.
+
+Search and listing span accessible libraries unless --account UUID narrows them.
+Use --account UUID for account-scoped discovery or a known creation destination.
+Add --json to any command for one machine-readable JSON object on stdout.`;
+
+const CLOUD_TAG_HELP = `SmallDocs Cloud tags
+
+Build a tagged library of knowledge. Tag every new document with meaningful
+subjects, projects, or purposes so humans and agents can find it later.
+Reuse relevant existing vocabulary and keep its spelling. Add a new tag when
+the existing vocabulary does not describe the content. Preserve relevant tags
+when updating. Read-only research does not change source documents or their tags.
+
+DISCOVER LIBRARY VOCABULARY
+
+  sdoc cloud tags --account LIBRARY_UUID --json
+
+Lists tags by frequency within documents you can access in that library.
+With one library, --account can be omitted. Reuse relevant tags already
+discovered during this task instead of fetching the same inventory again.
+
+SAVE A DOCUMENT OR ADD CLOUD TAGS
+
+  sdoc api-design.md --cloud --json +payments +idempotency +api-design
+  sdoc api-design.md --cloud --no-open --json +payments +idempotency +api-design
+
+These saves add Cloud tags and preserve existing ones. The local Markdown is
+not changed by +tags. Include --account LIBRARY_UUID when selecting a new
+document's destination. Existing file bindings keep their library.
+Check ok, tags, and the returned Cloud url before linking the document.
+Use this tagged save workflow for routine creation; cloud create is the
+lower-level upload command and does not apply +tag arguments.
+
+REPLACE THE COMPLETE TAG SET ON AN EXISTING DOCUMENT
+
+  sdoc cloud read DOCUMENT_UUID --json
+  sdoc cloud tag DOCUMENT_UUID --tag payments --tag idempotency --tag api-design --json
+
+cloud tag replaces all tags with the repeated --tag values. Include every
+existing tag you intend to keep. It changes Cloud tags without changing
+document access. The JSON result includes the saved revision and tags.
+To find documents again, use cloud search --tag payments --tag idempotency --json.
+`;
+
+const CLOUD_CREATE_HELP = `SmallDocs Cloud create
+
+  sdoc cloud create FILE.md [--account LIBRARY_UUID] --json
+
+Uploads the Markdown working copy and binds it to the returned Cloud document.
+Later saves of that bound file update the same document. The JSON result
+includes document_id, revision_id, tags, and url.
+
+For routine creation with selected tags, use the save workflow below.
+
+` + CLOUD_TAG_HELP;
+
+const CLOUD_SEARCH_HELP = `SmallDocs Cloud search
+
+  sdoc cloud search [QUERY ...] [FILTERS] --json
+  sdoc cloud ls [FILTERS] --json
+
+QUERY
+
+  sdoc cloud search incident response --json
+  sdoc cloud search '"incident response"' --json
+  sdoc cloud search '(incident OR outage) AND NOT exercise' --json
+  sdoc cloud search 'title:rollout OR body:migrat*' --json
+  sdoc cloud search 'incident response' --literal --json
+
+Plain words require every word, anywhere in the searched fields. Search is
+case-insensitive. Inner double quotes preserve a phrase; shell quotes alone
+only keep an argument together. A trailing * matches word prefixes. Operators
+are AND, OR, and NOT; parentheses group clauses. NOT binds before AND, which
+binds before OR. Adjacent clauses imply AND. Prefix a term or phrase with
+title:, filename:, body:, or tags: to search that field. Explicit field prefixes
+apply to their own terms; --field limits unqualified text. --literal searches the
+whole supplied text as a substring, including punctuation and operator words.
+Quoted phrases require adjacent normalized words in one field, ignoring
+punctuation and line breaks. Literal queries verify indexed candidates
+and can take longer than indexed words or phrases. This is text search; it does not infer synonyms. Use OR to supply alternatives.
+NOT excludes a lexical match. It cannot decide whether a document supports,
+contradicts, or merely discusses an idea. Read the sources for those judgments.
+--word-forms expands English singular/plural forms of unquoted words; phrases
+and literal queries keep their matching rules.
+
+FILTERS
+
+  --account UUID             Search one library; omitted means all accessible
+  --tag TAG                  Require this exact tag; repeat for all tags
+  --any-tag TAG              Require any of these exact tags; repeat
+  --exclude-tag TAG          Exclude documents carrying this tag; repeat
+  --author USER_ID|me           Document creator; repeated values mean any
+  --mine                     Same as --author me
+  --updated-by USER_ID|me       Author of the current revision; repeat for any
+  --starred                  Documents you have starred in the CLI or browser
+  --shared-with-me           Accessible documents created by somebody else
+  --document UUID            Restrict to these document IDs; repeat
+  --documents-file PATH      Add document IDs from a file, one per line
+  --field FIELD              Search title, filename, body, or tags; repeat
+  --created-after ISO_DATE   Lower creation-time bound
+  --created-before ISO_DATE  Upper creation-time bound
+  --updated-after ISO_DATE   Lower modification-time bound
+  --updated-before ISO_DATE  Upper modification-time bound
+  --sort ORDER               relevance, updated_desc, or created_desc
+  --limit N                  Page size, 1 to 100; default 50
+  --cursor TOKEN             Continue with the returned next_cursor
+  --pages N                  Fetch up to N pages; default 1
+  --all                      Follow pages until exhausted
+  --max-results N            Cap returned documents; preserve continuation
+  --compact                  Shorter documents[] JSON; keep evidence and IDs
+  --word-forms               Expand English singular/plural word forms
+  --facets [LIST]            Counts for tags,authors,libraries; comma-separated
+  --facet-limit N            Maximum entries per requested facet; default 50
+  --match-limit N            Evidence snippets per result, 0 to 100; default 5
+  --query-file PATH          Read a search request JSON object
+  --literal                  Treat query text as one literal substring
+  --json                     Emit one JSON object
+  --help                     Show this reference without signing in
+
+Filter groups combine with AND. Repeated authors, revision authors, document
+IDs, and fields mean any within their group. Text is optional when browsing by
+metadata. Dates accept ISO 8601. Bounds are inclusive. A date without a time
+covers the UTC day: after starts at midnight and before ends at 23:59:59.999.
+Use members --account LIBRARY_UUID --json to resolve a person's user ID. Author
+means creator, while updated-by means the writer of the current revision.
+Word and phrase queries default to relevance. Literal and metadata-only searches
+default to updated_desc. Stars belong to the signed-in person, are shared with
+the browser, and do not change document permissions. Use cloud star DOCUMENT_UUID
+or cloud unstar DOCUMENT_UUID to update them.
+
+  sdoc cloud search --tag engineering --any-tag rollout --any-tag migration --json
+  sdoc cloud search 'deadline' --author me --updated-after 2026-01-01 --json
+  sdoc cloud search 'decision' --shared-with-me --facets --limit 10 --json
+  sdoc cloud search 'security' --document UUID_A --document UUID_B --json
+  sdoc cloud ls --tag planning --sort updated_desc --limit 20 --json
+
+RESULTS AND PAGINATION
+
+Check ok before reading documents[]. Each result includes id, url, title,
+filename, tags, library, author, current revision metadata, score, and matches[].
+Evidence identifies its field and snippet, with a source line for Markdown.
+Use total_count, has_more, and next_cursor to distinguish an empty result from
+another page. --pages N and --all fetch multiple pages; --max-results caps the
+returned count. complete, stopped_reason, pages_fetched, returned_count, and
+started_from_cursor describe the collected result. A capped result retains its
+next_cursor. Later-page failures return ok:false with partial_result.
+--compact preserves IDs, title, tags, score, snippets, and all paging/facet
+metadata while omitting other document metadata. Facets count matching documents
+before pagination. Counts and evidence include only documents the signed-in person can currently access.
+
+Repeat the same query, filters, and sort with --cursor NEXT_CURSOR. A cursor
+does not grant access. Do not infer completeness from the first page. Search
+does not return full Markdown; read a result on stdout with:
+
+  sdoc cloud read DOCUMENT_ID --json
+
+read returns markdown and the Cloud URL without a local file or binding. Use
+sdoc cloud pull DOCUMENT_ID --output PATH --no-bind when a local reference file is useful.
+Cite documents[].url without changing document access. Search and listing do not change permissions.
+
+REPRODUCIBLE REQUESTS
+
+--query-file reads the HTTP search request shape: expression (a query AST) or
+query (a literal substring), tags, tags_any, tags_none, author_user_ids,
+updated_by_user_ids, document_ids, fields, workspace_id, shared_with_me, starred_only,
+created_after, created_before, updated_after, updated_before, sort, limit,
+cursor, facets, facet_limit, match_limit, and word_forms. CLI scalar options
+override file values; repeated filters add values. A positional query replaces the file's
+expression or query. --documents-file adds IDs to the document_ids subset.
+See ${constants.DEFAULT_URL}/cloud-search for the AST and JSON examples.
+
+RECOVERY
+
+On no matches, broaden a word with a prefix, add an OR alternative, or remove
+one narrow filter. Inspect --facets or cloud tags --account UUID --json for
+existing vocabulary. Fix invalid query syntax, or use --literal for punctuation
+and operator words. On search_limit_reached or rate_limited, wait for
+retry_after_ms or Retry-After and retry. Narrower text or metadata filters do
+not reset a request budget. login_required needs cloud login; an
+invalid cursor needs the original query and filters or a fresh first page.
+An empty result does not establish that an inaccessible document does not exist.
+`;
+
+const CLOUD_READ_HELP = `SmallDocs Cloud read
+
+  sdoc cloud read DOCUMENT_ID --json
+  sdoc cloud read DOCUMENT_ID
+
+Read the current authorized document without a local file or binding.
+Add --revision REVISION_ID to read a retained older revision.
+With --json, the result includes markdown, url, document_id, revision_id,
+revision_number, title, filename, and tags. Without --json, stdout contains
+the Markdown exactly as stored. Reading does not change content or permissions.
+
+Use sdoc cloud pull DOCUMENT_ID --output PATH --no-bind for a local reference file, or pull
+without --no-bind when you intend to edit and push the document. Read a historical
+revision on stdout with cloud read DOCUMENT_ID --revision REVISION_UUID --json.
+Use cloud diff DOCUMENT_ID --from REVISION_ID --json to compare it with the head.
+`;
+
+const CLOUD_UPDATE_HELP = `SmallDocs Cloud document updates
+
+  sdoc cloud pull DOCUMENT_ID --output ./plan.md --json
+  sdoc cloud push ./plan.md --dry-run --json
+  sdoc cloud push ./plan.md --json
+
+For a save that must match a reviewed head:
+
+  sdoc cloud push ./plan.md --if-current REVIEWED_HEAD_ID --json
+
+Pull binds a working file to a document ID and revision. Editing a differently
+named local file does not rename the Cloud document. Push preserves permissions.
+For an unbound working copy, pass both --document ID and --base-revision ID.
+
+--dry-run compares against the current Cloud head without saving a revision,
+changing the working file, or changing bindings. Its JSON includes markdown,
+would_change, current_revision_id, merge_classification, conflicts and hashes.
+A preview describes the observed head; another writer can change it afterwards.
+Pass that current_revision_id as --if-current to refuse a save after further
+changes. --reject-conflicts refuses overlapping edits while allowing independent
+edits to merge. A refusal returns revision_conflict (exit 5), current_revision_id
+and conflict details.
+
+By default, independent edits merge and both overlapping passages are saved.
+combined:true and overlapping_edits_preserved:true identify that outcome.
+The result can contain contradictory statements or invalid structured content.
+Use history --diffs to inspect each retained change and read to verify the save.
+No review step is imposed by the default save.
+
+A save receipt includes revision_id, merged_from_revision_id, saved_sha256,
+merge_classification, conflicts and the canonical Cloud url. sha256 describes
+the local working copy; saved_sha256 describes the stored Markdown. A merged
+save can differ from the uploaded file. If local_changed_after_upload is true,
+the later local edit was not saved. Push does not replace that local edit.
+An unchanged working file is checked online: no_local_changes:true does not
+mean Cloud is unchanged. Inspect cloud_matches_local and remote_changed_since_pull.
+
+Verify the committed content and any merged work:
+
+  sdoc cloud read DOCUMENT_ID --revision SAVED_REVISION_ID --json
+  sdoc cloud diff DOCUMENT_ID --from BASE_REVISION_ID --to SAVED_REVISION_ID --json
+  sdoc cloud access DOCUMENT_ID --json
+
+Read returns Markdown and its SHA-256 without creating a file or binding.
+Diff returns changed, added_lines, removed_lines and line-based hunks, with
+before/after text and context. Omitting --to compares with the current head.
+Access without change flags reads sharing settings. To change access, use
+access DOCUMENT_ID --only-you, --everyone, or --member USER_ID (repeatable).
+Document permissions apply
+to current content, old revisions, comparisons, previews and saves.
+
+HISTORY AND RECOVERY
+
+  sdoc cloud history DOCUMENT_ID --diffs --json
+  sdoc cloud read DOCUMENT_ID --revision REVISION_ID --json
+  sdoc cloud restore DOCUMENT_ID --revision REVISION_ID --dry-run --json
+  sdoc cloud restore DOCUMENT_ID --revision REVISION_ID --base-revision REVIEWED_HEAD_ID --json
+
+History --diffs adds a before/after diff for each retained change, alongside
+its revision, author IDs and timestamp. A pruned parent is marked unavailable.
+Every save retains a revision. All revisions are kept for 90 days, and the
+current revision is always kept. Revisions older than 90 days may be deleted.
+
+Restore creates a new revision containing the entire older document. For a
+single-field repair, read the older revision, edit that field in a pull of the
+current document, then push. This preserves unrelated newer changes. Restore
+--dry-run returns the proposed Markdown, diff and observed base_revision_id.
+Use that ID with --base-revision for a reviewed restore. If the head changes,
+restore refuses the write. Failed or retried saves keep an idempotency key;
+retrying the same operation after a lost response does not duplicate it.
+
+If a file changes during pull, it is not overwritten. If access is revoked,
+keep the local work and report the failure; do not broaden permissions to save.
+Resolve ambiguous targets or incompatible intended edits with the user.
+`;
 
 const CLOUD_OVERVIEW = `SmallDocs Cloud
 
@@ -112,10 +471,19 @@ class CloudCommandError extends Error {
 }
 
 function origin() {
-  return String(process.env.SDOCS_CLOUD_URL || constants.DEFAULT_URL).replace(/\/$/, '');
+  return String(constants.resolveCloudOrigin()).replace(/\/$/, '');
+}
+
+function documentUrl(client, documentId) {
+  const url = new URL('/docs', client.origin);
+  url.searchParams.set('cloud-document', documentId);
+  return url.toString();
 }
 
 function entitlementFailure(code, status, cloudOrigin) {
+  if (code === 'trial_payment_required') return { code,
+    message: 'Your free trial and extra week have ended. Open the subscription page to continue.',
+    action: 'subscribe', billing_url: cloudOrigin + '/cloud/subscribe' };
   if (code === 'read_only') code = 'subscription_read_only';
   if (status !== 402 && !['subscription_required', 'subscription_read_only',
     'payment_grace_expired'].includes(code)) return null;
@@ -133,7 +501,7 @@ function entitlementFailure(code, status, cloudOrigin) {
 class CloudClient {
   constructor(options) {
     options = options || {};
-    this.origin = options.origin || origin();
+    this.origin = constants.resolveCloudOrigin(options.origin);
     this.credentials = options.credentials || credentialStore;
     this.fetch = options.fetch || global.fetch;
   }
@@ -143,7 +511,8 @@ class CloudClient {
 
   async raw(endpoint, options) {
     let response;
-    try { response = await this.fetch(this.origin + endpoint, options || {}); }
+    try { response = await this.fetch(this.origin + endpoint, constants.INSTALLATION_CHANNEL
+      ? Object.assign({}, options, { redirect: 'manual' }) : options || {}); }
     catch (error) {
       throw new CloudCommandError('temporary_service_failure',
         'Could not reach SmallDocs Cloud.', { cause: error && error.message });
@@ -162,8 +531,20 @@ class CloudClient {
       body: JSON.stringify({ refresh_token: credential.refresh_token }),
     });
     if (!result.response.ok) {
-      this.credentials.remove(this.origin);
-      throw new CloudCommandError('login_required', 'Cloud login has expired or was revoked.');
+      if (result.data.error === 'terms_acceptance_required') {
+        throw new CloudCommandError('terms_acceptance_required',
+          'Open ' + this.origin + '/cloud/terms for the human to review and accept the updated Terms, then retry.',
+          Object.assign({}, result.data, { acceptance_url: this.origin + '/cloud/terms',
+            http_status: result.response.status }));
+      }
+      if (result.response.status === 401 || ['invalid_token', 'token_reuse', 'login_required',
+        'authentication_required', 'user_disabled'].includes(result.data.error)) {
+        this.credentials.remove(this.origin);
+        throw new CloudCommandError('login_required', 'Cloud login has expired or was revoked.');
+      }
+      throw new CloudCommandError(result.data.error === 'rate_limited' ? 'rate_limited' : 'temporary_service_failure',
+        'Cloud could not refresh the login. Your saved credential is unchanged. Retry this command.',
+        Object.assign({}, result.data, { http_status: result.response.status }));
     }
     const next = { credential_id: result.data.credential_id, user_id: result.data.user_id,
       access_token: result.data.access_token, access_token_expires_at: result.data.access_token_expires_at,
@@ -199,16 +580,33 @@ class CloudClient {
         }).join(', ');
         message = 'Choose an account with --account.' + (choices ? ' Available: ' + choices : '');
       } else if (result.data.error === 'account_required') {
-        message = 'Set up SmallDocs Cloud before using this command.';
+        const setupUrl = this.origin + '/cloud/start';
+        message = 'Finish library setup at ' + setupUrl + ', then retry this command.';
+        result.data.setup_url = setupUrl;
+        result.data.origin = this.origin;
+        result.data.next_action = 'Open setup_url, finish your profile and library setup, then retry.';
+      } else if (result.data.error === 'terms_acceptance_required') {
+        result.data.acceptance_url = this.origin + '/cloud/terms';
+        message = 'Open ' + result.data.acceptance_url + ' for the human to review and accept the updated Terms, then retry.';
       }
       throw new CloudCommandError(result.data.error || 'temporary_service_failure',
         message, Object.assign({}, result.data, { http_status: result.response.status }));
     }
+    this.subscription = result.data.subscription || this.subscription;
     return result.data;
   }
 }
 
 function emit(opts, command, value, human) {
+  const subscription = opts.subscriptionSource && opts.subscriptionSource();
+  if (subscription) {
+    value = Object.assign({}, value, { subscription, notices: subscription.notices || [] });
+    if (human && subscription.notices && subscription.notices.length) {
+      human += '\n' + subscription.notices.map(notice => notice.message).join('\n') +
+        '\nSubscribe: ' + subscription.subscribe_url + '\nFeedback: ' + subscription.feedback_url;
+    }
+  }
+  if (opts.silent) return value;
   if (opts.jsonFlag) process.stdout.write(JSON.stringify(Object.assign({ ok: true, command }, value)) + '\n');
   else process.stdout.write((human || JSON.stringify(value, null, 2)) + '\n');
   return value;
@@ -216,6 +614,7 @@ function emit(opts, command, value, human) {
 
 function skillInstallCommand(originValue, cloud) {
   const edition = cloud ? 'cloud' : 'standard';
+  if (constants.INSTALLATION_CHANNEL) return 'sdoc setup --' + edition + ' --yes';
   return 'npx skills@latest add ' + originValue + '/agent-skills/' + edition + ' --global';
 }
 
@@ -240,7 +639,8 @@ async function login(opts, client) {
   if (client.loadCredential()) {
     try {
       const me = await client.authenticated('/api/cloud/v1/me');
-      return emit(opts, 'cloud.login', { user: me.user, already_logged_in: true,
+      return emit(opts, 'cloud.login', { user: me.user, already_logged_in: true, origin: client.origin,
+        next_action: 'sdoc cloud status --json',
         skill_mode: 'cloud', skill_install_command: installCommand,
         cloud_first_setup_command: setupCommand },
         'Already signed in as ' + (me.user.email || me.user.id) + '.\n' +
@@ -252,6 +652,7 @@ async function login(opts, client) {
     body: JSON.stringify({ display_name: os.hostname() || 'SmallDocs CLI' }),
   });
   if (!issued.response.ok) throw new CloudCommandError(issued.data.error || 'temporary_service_failure');
+  if (constants.INSTALLATION_CHANNEL) constants.resolveCloudOrigin(issued.data.verification_uri_complete);
   process.stderr.write('Authorize this CLI at:\n' + issued.data.verification_uri_complete + '\nCode: ' + issued.data.user_code + '\n');
   if (!opts.noOpenFlag) io.openBrowser(issued.data.verification_uri_complete,
     (message) => process.stderr.write(message + '\n'));
@@ -268,7 +669,8 @@ async function login(opts, client) {
       access_token: polled.data.access_token, access_token_expires_at: polled.data.access_token_expires_at,
       refresh_token: polled.data.refresh_token };
     client.saveCredential(credential);
-    return emit(opts, 'cloud.login', { user_id: credential.user_id,
+    return emit(opts, 'cloud.login', { user_id: credential.user_id, origin: client.origin,
+      next_action: 'sdoc cloud status --json',
       credential_id: credential.credential_id, skill_mode: 'cloud',
       skill_install_command: installCommand,
       cloud_first_setup_command: setupCommand },
@@ -300,35 +702,16 @@ function filterTags(documents, tags) {
   return documents.filter((document) => wanted.every((tag) => (document.tags || []).includes(tag)));
 }
 
-function requestedLimit(value, fallback) {
+function requestedLimit(value, fallback, option) {
   if (value == null) return fallback;
   if (!Number.isSafeInteger(value) || value < 1) {
-    throw new CloudCommandError('invalid_request', '--limit must be a positive integer');
+    throw new CloudCommandError('invalid_request', (option || '--limit') + ' must be a positive integer');
   }
   return value;
 }
 
 async function list(opts, client) {
-  const target = requestedLimit(opts.limitFlag, 50);
-  const documents = [];
-  const seenCursors = new Set();
-  let cursor = null;
-  do {
-    const params = new URLSearchParams();
-    params.set('limit', String(Math.min(100, target - documents.length)));
-    if (opts.accountFlag) params.set('workspace_id', opts.accountFlag);
-    if (opts.sharedWithMeFlag) params.set('shared_with_me', '1');
-    if (cursor) params.set('cursor', cursor);
-    const response = await client.authenticated('/api/cloud/v1/documents?' + params.toString());
-    documents.push(...filterTags(response.documents || [], opts.tagFilters)
-      .slice(0, target - documents.length));
-    cursor = response.next_cursor || null;
-    if (cursor && seenCursors.has(cursor)) throw new CloudCommandError('temporary_service_failure',
-      'Cloud returned the same document cursor twice.');
-    if (cursor) seenCursors.add(cursor);
-  } while (documents.length < target && cursor);
-  emit(opts, 'cloud.ls', { documents, next_cursor: cursor }, documents.map((document) =>
-    document.id + '  ' + document.title + '  [' + (document.tags || []).join(', ') + ']').join('\n') || 'No Cloud documents.');
+  return discover(opts, client, 'cloud.ls');
 }
 
 async function notify(opts, client) {
@@ -337,7 +720,7 @@ async function notify(opts, client) {
   if (!documentIds.length || !recipientUserIds.length) {
     throw new CloudCommandError('invalid_request',
       'usage: sdoc cloud notify DOCUMENT_UUID [--document DOCUMENT_UUID ...] ' +
-      '--member USER_UUID ... [--note TEXT]');
+      '--member USER_ID ... [--note TEXT]');
   }
   const response = await client.authenticated('/api/cloud/v1/notifications', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -386,11 +769,17 @@ async function permissionGroups(opts, client) {
 async function access(opts, client) {
   const documentId = opts.extra;
   if (!documentId) throw new CloudCommandError('invalid_request',
-    'usage: sdoc cloud access DOCUMENT_UUID [--only-you | --everyone | --member USER_UUID ...]');
+    'usage: sdoc cloud access DOCUMENT_UUID [--only-you | --everyone | --member USER_ID ...]');
   const choices = Number(Boolean(opts.onlyYouFlag)) + Number(Boolean(opts.everyoneFlag))
     + Number(Boolean(opts.memberFlags && opts.memberFlags.length));
+  if (choices === 0) {
+    const response = await client.authenticated('/api/cloud/v1/documents/' + encodeURIComponent(documentId) + '/permission');
+    return emit(opts, 'cloud.access', { document_id: documentId, permission: response.permission });
+  }
   if (choices !== 1) throw new CloudCommandError('invalid_request',
     'choose one of --only-you, --everyone, or one or more --member values');
+  if (opts.dryRunFlag) throw new CloudCommandError('invalid_request',
+    '--dry-run is not supported for access changes. No changes were made.');
   const mode = opts.everyoneFlag ? 'everyone' : 'custom';
   const response = await client.authenticated('/api/cloud/v1/documents/' + encodeURIComponent(documentId)
     + '/permission', { method: 'PATCH', headers: { 'Content-Type': 'application/json' },
@@ -414,17 +803,204 @@ async function setTags(opts, client) {
   'Updated tags for ' + documentId + '.');
 }
 
+function readSearchFile(file, json) {
+  try {
+    const content = fs.readFileSync(path.resolve(file), 'utf8');
+    if (!json) return content.split(/\r?\n/).map((value) => value.trim()).filter(Boolean);
+    const value = JSON.parse(content);
+    if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('expected a JSON object');
+    return value;
+  } catch (error) {
+    throw new CloudCommandError('invalid_request', 'Could not read ' + file + ': ' + error.message);
+  }
+}
+
+function searchRequest(opts, client) {
+  const request = opts.queryFile ? readSearchFile(opts.queryFile, true) : {};
+  if (opts.extra != null && String(opts.extra).trim()) {
+    delete request.query;
+    delete request.expression;
+    delete request.mode;
+    if (opts.literalFlag) request.query = String(opts.extra);
+    else {
+      try { request.expression = searchQuery.parseQuery(String(opts.extra)); }
+      catch (error) {
+        throw new CloudCommandError('invalid_request', error.message +
+          ' Run sdoc cloud search --help for syntax, or use --literal for a substring.', error.details);
+      }
+    }
+  }
+  if (opts.literalFlag && request.query != null) request.mode = 'literal';
+  const scalarOptions = {
+    accountFlag: 'workspace_id', projectFlag: 'project_id', cursorFlag: 'cursor',
+    sortFlag: 'sort', createdAfterFlag: 'created_after', createdBeforeFlag: 'created_before',
+    updatedAfterFlag: 'updated_after', updatedBeforeFlag: 'updated_before',
+    facetLimitFlag: 'facet_limit', matchLimitFlag: 'match_limit',
+  };
+  for (const [option, field] of Object.entries(scalarOptions)) {
+    if (opts[option] != null) request[field] = opts[option];
+  }
+  const arrayOptions = { tagFilters: 'tags', anyTagFilters: 'tags_any',
+    excludeTagFilters: 'tags_none', authorFlags: 'author_user_ids',
+    updatedByFlags: 'updated_by_user_ids', documentFlags: 'document_ids', fieldFlags: 'fields' };
+  for (const [option, field] of Object.entries(arrayOptions)) {
+    if (opts[option] && opts[option].length) {
+      if (request[field] != null && !Array.isArray(request[field])) {
+        throw new CloudCommandError('invalid_request', field + ' must be an array');
+      }
+      request[field] = (request[field] || []).concat(opts[option]);
+    }
+  }
+  if (opts.mineFlag) {
+    if (request.author_user_ids != null && !Array.isArray(request.author_user_ids)) {
+      throw new CloudCommandError('invalid_request', 'author_user_ids must be an array');
+    }
+    request.author_user_ids = (request.author_user_ids || []).concat('me');
+  }
+  for (const field of ['author_user_ids', 'updated_by_user_ids']) {
+    if (!Array.isArray(request[field]) || !request[field].includes('me')) continue;
+    const credential = client.loadCredential && client.loadCredential();
+    if (!credential || !credential.user_id) throw new CloudCommandError('login_required',
+      'Run `sdoc cloud login` before using me as a user filter.');
+    request[field] = request[field].map((value) => value === 'me' ? credential.user_id : value);
+  }
+  if (opts.documentsFile) {
+    if (request.document_ids != null && !Array.isArray(request.document_ids)) {
+      throw new CloudCommandError('invalid_request', 'document_ids must be an array');
+    }
+    request.document_ids = (request.document_ids || []).concat(readSearchFile(opts.documentsFile, false));
+  }
+  if (opts.sharedWithMeFlag) request.shared_with_me = true;
+  if (opts.starredOnlyFlag) request.starred_only = true;
+  if (opts.wordFormsFlag) request.word_forms = true;
+  if (opts.facetsFlag) request.facets = opts.facetsFlag;
+  request.limit = requestedLimit(opts.limitFlag == null ? request.limit : opts.limitFlag, 50);
+  if (request.limit > 100) throw new CloudCommandError('invalid_request', '--limit must be between 1 and 100');
+  if (opts.file === 'ls' && request.sort == null) request.sort = 'updated_desc';
+  try { searchQuery.normalizeSearchRequest(request); }
+  catch (error) { throw new CloudCommandError('invalid_request', error.message, error.details); }
+  return request;
+}
+
+async function discover(opts, client, command) {
+  const request = searchRequest(opts, client);
+  if (opts.allFlag && opts.pagesFlag != null) throw new CloudCommandError('invalid_request',
+    'Choose --all or --pages N. --max-results may be used with either.');
+  const pageLimit = opts.allFlag ? Infinity : requestedLimit(opts.pagesFlag, 1, '--pages');
+  const maxResults = opts.maxResultsFlag == null ? Infinity : requestedLimit(opts.maxResultsFlag, Infinity, '--max-results');
+  const documents = [], positions = new Map(), seenCursors = new Set();
+  const startedFromCursor = Boolean(request.cursor);
+  if (request.cursor) seenCursors.add(request.cursor);
+  let pagesFetched = 0, response = null, stoppedReason = 'page_limit';
+  function resultFor(reason) {
+    const result = Object.assign({}, response || {}, {
+      documents: opts.compactFlag ? documents.map(compactSearchDocument) : documents,
+      next_cursor: response && response.next_cursor || null,
+      has_more: Boolean(response && (response.has_more || response.next_cursor)),
+      pages_fetched: pagesFetched, returned_count: documents.length,
+      started_from_cursor: startedFromCursor, complete: reason === 'complete', stopped_reason: reason,
+    });
+    delete result.ok;
+    return result;
+  }
+  do {
+    const pageRequest = Object.assign({}, request, { limit: Math.min(request.limit, maxResults - documents.length) });
+    try {
+      response = await client.authenticated('/api/cloud/v1/search', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(pageRequest),
+      });
+    } catch (error) {
+      if (pagesFetched) error.data = Object.assign({}, error.data, { partial_result: resultFor('request_failed') });
+      throw error;
+    }
+    pagesFetched++;
+    for (const value of response.documents || []) {
+      const document = Object.assign({}, value, { url: documentUrl(client, value.id) });
+      if (positions.has(document.id)) documents[positions.get(document.id)] = document;
+      else { positions.set(document.id, documents.length); documents.push(document); }
+    }
+    if (!response.has_more && !response.next_cursor) { stoppedReason = 'complete'; break; }
+    if (!response.next_cursor || seenCursors.has(response.next_cursor)) {
+      throw new CloudCommandError('temporary_service_failure', 'Cloud returned an invalid search continuation.',
+        { partial_result: resultFor('invalid_continuation') });
+    }
+    seenCursors.add(response.next_cursor);
+    if (documents.length >= maxResults) { stoppedReason = 'max_results'; break; }
+    request.cursor = response.next_cursor;
+  } while (pagesFetched < pageLimit);
+  const result = resultFor(stoppedReason);
+  let human = documents.map((document) => {
+    let line = document.id + '  ' + document.title;
+    if (document.library && document.library.name) line += '  [' + document.library.name + ']';
+    for (const match of document.matches || []) {
+      line += '\n  ' + match.field + (match.line ? ':' + match.line : '') + '  ' + match.snippet;
+    }
+    return line;
+  }).join('\n') || 'No matches.';
+  if (result.total_count != null) human += '\n' + result.total_count + ' matching documents.';
+  for (const [kind, entries] of Object.entries(result.facets || {})) {
+    if (!Array.isArray(entries) || !entries.length) continue;
+    human += '\n' + kind + ': ' + entries.map((item) =>
+      (item.tag || item.name || item.user_id || item.id) + ' (' + item.document_count + ')').join(', ');
+  }
+  if (result.has_more || result.next_cursor) human += '\nMore results: repeat this query with --cursor ' + result.next_cursor;
+  human += '\nReturned ' + result.returned_count + ' documents in ' + result.pages_fetched
+    + (result.pages_fetched === 1 ? ' page; ' : ' pages; ') + result.stopped_reason + '.';
+  return emit(opts, command, result, human);
+}
+
+function compactSearchDocument(document) {
+  const value = {};
+  for (const key of ['id', 'url', 'title', 'tags', 'workspace_id', 'created_by_user_id',
+    'updated_by_user_id', 'current_revision_id', 'starred', 'score', 'matches']) {
+    if (Object.hasOwn(document, key)) value[key] = document[key];
+  }
+  return value;
+}
+
 async function search(opts, client) {
-  if (!opts.extra) throw new CloudCommandError('invalid_request', 'usage: sdoc cloud search QUERY');
-  const limit = requestedLimit(opts.limitFlag, 50);
-  const response = await client.authenticated('/api/cloud/v1/search', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query: opts.extra, tags: opts.tagFilters, limit,
-      workspace_id: opts.accountFlag || undefined }),
+  return discover(opts, client, 'cloud.search');
+}
+
+async function setStar(opts, client, starred) {
+  if (!opts.extra) throw new CloudCommandError('invalid_request', 'usage: sdoc cloud ' + (starred ? 'star' : 'unstar') + ' DOCUMENT_UUID --json');
+  const result = await client.authenticated('/api/cloud/v1/documents/' + encodeURIComponent(opts.extra) + '/star', {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ starred }),
   });
-  const documents = response.documents || [];
-  emit(opts, 'cloud.search', { documents, next_cursor: null }, documents.map((document) =>
-    document.id + '  ' + document.title + '\n  ' + ((document.matches && document.matches[0] && document.matches[0].snippet) || '')).join('\n') || 'No matches.');
+  return emit(opts, 'cloud.' + (starred ? 'star' : 'unstar'), { document_id: result.document_id,
+    starred: result.starred, url: documentUrl(client, result.document_id) }, starred ? 'Document starred.' : 'Star removed.');
+}
+
+async function read(opts, client) {
+  if (!opts.extra) throw new CloudCommandError('invalid_request', 'usage: sdoc cloud read DOCUMENT_ID --json');
+  if (opts.outputPath || opts.noBindFlag) throw new CloudCommandError('invalid_request',
+    'read writes Markdown to stdout. Use cloud pull for a local file.');
+  const response = await client.authenticated('/api/cloud/v1/documents/' + encodeURIComponent(opts.extra)
+    + (opts.revisionFlag ? '/revisions/' + encodeURIComponent(opts.revisionFlag) : ''));
+  const document = response.document;
+  if (!document || typeof document.markdown !== 'string') throw new CloudCommandError('temporary_service_failure',
+    'Cloud returned an invalid document response.');
+  const value = { document_id: document.id, url: documentUrl(client, document.id),
+    revision_id: document.current_revision_id, revision_number: document.revision_number,
+    title: document.title, filename: document.filename, tags: document.tags,
+    workspace_id: document.workspace_id, permission: response.permission,
+    sha256: bindings.hash(document.markdown), markdown: document.markdown };
+  if (!opts.jsonFlag && !opts.silent) { process.stdout.write(document.markdown); return value; }
+  return emit(opts, 'cloud.read', value);
+}
+
+async function diff(opts, client) {
+  if (!opts.extra || !opts.fromRevisionFlag) throw new CloudCommandError('invalid_request',
+    'usage: sdoc cloud diff DOCUMENT_ID --from REVISION_ID [--to REVISION_ID] --json');
+  const endpoint = '/api/cloud/v1/documents/' + encodeURIComponent(opts.extra);
+  const before = await client.authenticated(endpoint + '/revisions/' + encodeURIComponent(opts.fromRevisionFlag));
+  const after = await client.authenticated(endpoint + (opts.toRevisionFlag
+    ? '/revisions/' + encodeURIComponent(opts.toRevisionFlag) : ''));
+  const result = { document_id: opts.extra, url: documentUrl(client, opts.extra),
+    from_revision_id: before.document.current_revision_id,
+    to_revision_id: after.document.current_revision_id,
+    diff: require('../shared/sdocs-text-diff').compare(before.document.markdown, after.document.markdown) };
+  return emit(opts, 'cloud.diff', result);
 }
 
 function requireFile(file) {
@@ -448,7 +1024,16 @@ async function create(opts, client) {
   const digest = bindings.hash(content);
   const credential = requireCredential(client);
   let pending = bindings.getPending(credential.user_id, file);
-  const destination = opts.accountFlag || 'default-account';
+  if (!pending || pending.operation !== 'create' || pending.sha256 !== digest) {
+    pending = { operation: 'create', destination: opts.accountFlag || 'unresolved-default', sha256: digest, idempotency_key: crypto.randomUUID() };
+    bindings.setPending(credential.user_id, file, pending);
+  }
+  let destination = opts.accountFlag || null;
+  if (!destination && pending && pending.operation === 'create' && pending.sha256 === digest && !['default-account', 'unresolved-default'].includes(pending.destination)) destination = pending.destination;
+  if (!destination) {
+    const selected = await client.authenticated('/api/cloud/v1/account');
+    destination = selected.account.id;
+  }
   if (!pending || pending.operation !== 'create' || pending.destination !== destination || pending.sha256 !== digest) {
     pending = { operation: 'create', destination, sha256: digest,
       idempotency_key: crypto.randomUUID() };
@@ -456,7 +1041,7 @@ async function create(opts, client) {
   }
   const response = await client.authenticated('/api/cloud/v1/account/documents', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ account_id: opts.accountFlag,
+    body: JSON.stringify({ account_id: destination,
       filename: path.basename(file), markdown: content,
       idempotency_key: pending.idempotency_key }),
   });
@@ -465,12 +1050,18 @@ async function create(opts, client) {
     revision_id: document.current_revision_id, content_sha256: digest, updated_at: document.updated_at });
   bindings.cacheBase(credential.user_id, document.id, document.current_revision_id, content);
   bindings.clearPending(credential.user_id, file);
-  const localChanged = bindings.hash(fs.readFileSync(file)) !== digest;
+  const localChanged = localFileHash(file) !== digest;
   return emit(opts, 'cloud.create', { document_id: document.id, revision_id: document.current_revision_id,
+    url: documentUrl(client, document.id),
     revision_number: document.revision_number,
     account_id: response.account && response.account.id || opts.accountFlag || null, path: file,
     tags: document.tags, sha256: digest, binding_created: true,
     local_changed_after_upload: localChanged }, 'Created ' + document.id + (localChanged ? '; the local file changed again during upload.' : '.'));
+}
+
+function localFileHash(file) {
+  try { return bindings.hash(fs.readFileSync(file)); }
+  catch (error) { if (error.code === 'ENOENT') return null; throw error; }
 }
 
 function atomicFileWrite(file, content) {
@@ -508,10 +1099,17 @@ async function pull(opts, client) {
       throw new CloudCommandError('unsafe_local_state', 'the bound file has local changes; use --force to replace it');
     }
   }
+  const beforeHash = fs.existsSync(output) ? bindings.hash(fs.readFileSync(output)) : null;
+  const beforeBinding = JSON.stringify(existingBinding);
   const endpoint = '/api/cloud/v1/documents/' + encodeURIComponent(documentId)
     + (opts.revisionFlag ? '/revisions/' + encodeURIComponent(opts.revisionFlag) : '');
   const response = await client.authenticated(endpoint);
   const document = response.document;
+  const afterHash = fs.existsSync(output) ? bindings.hash(fs.readFileSync(output)) : null;
+  if (beforeHash !== afterHash || beforeBinding !== JSON.stringify(bindings.get(credential.user_id, output))) {
+    throw new CloudCommandError('unsafe_local_state',
+      'The output file or its binding changed during download. The local file was not replaced.');
+  }
   atomicFileWrite(output, document.markdown);
   const digest = bindings.hash(document.markdown);
   if (!opts.noBindFlag) {
@@ -520,7 +1118,10 @@ async function pull(opts, client) {
     bindings.cacheBase(credential.user_id, document.id, document.current_revision_id, document.markdown);
   }
   emit(opts, 'cloud.pull', { document_id: document.id, revision_id: document.current_revision_id,
+    url: documentUrl(client, document.id),
     revision_number: document.revision_number, path: output, tags: document.tags,
+    title: document.title, filename: document.filename, workspace_id: document.workspace_id,
+    permission: response.permission,
     sha256: digest, binding_created: !opts.noBindFlag }, 'Pulled ' + document.id + ' to ' + output + '.');
 }
 
@@ -539,12 +1140,22 @@ async function push(opts, client) {
     throw new CloudCommandError('unsafe_local_state',
       'file is not bound; provide both --document and --base-revision');
   }
+  const bindingBeforeUpload = JSON.stringify(bindings.get(credential.user_id, file));
   const localContent = fs.readFileSync(file, 'utf8');
   const digest = bindings.hash(localContent);
-  if (binding.content_sha256 === digest) {
+  if (binding.content_sha256 === digest && !opts.dryRunFlag && !opts.ifCurrentFlag) {
+    const response = await client.authenticated('/api/cloud/v1/documents/' + encodeURIComponent(binding.document_id));
+    const current = response.document;
+    if (!current || typeof current.markdown !== 'string') throw new CloudCommandError('temporary_service_failure',
+      'Cloud did not return the current document.');
     return emit(opts, 'cloud.push', { document_id: binding.document_id,
-      base_revision_id: binding.revision_id, revision_id: binding.revision_id,
-      sha256: digest, no_change: true }, 'No changes to push.');
+      url: documentUrl(client, binding.document_id),
+      base_revision_id: binding.revision_id, revision_id: current.current_revision_id,
+      revision_number: current.revision_number, title: current.title, filename: current.filename,
+      workspace_id: current.workspace_id, sha256: digest, saved_sha256: bindings.hash(current.markdown),
+      no_change: true, no_local_changes: true, cloud_matches_local: current.markdown === localContent,
+      remote_changed_since_pull: current.current_revision_id !== binding.revision_id },
+    'No local changes to push.' + (current.markdown === localContent ? '' : ' Cloud has newer changes; pull to read them.'));
   }
   const targetMarkdown = bindings.readBase(credential.user_id, binding.document_id,
     binding.revision_id);
@@ -559,20 +1170,33 @@ async function push(opts, client) {
     }
   }
   const uploadDigest = bindings.hash(content);
+  const request = { target_revision_id: binding.revision_id,
+    target_markdown: targetMarkdown == null ? undefined : targetMarkdown,
+    markdown: content, reject_conflicts: Boolean(opts.rejectConflictsFlag),
+    expected_current_revision_id: opts.ifCurrentFlag || undefined };
+  if (opts.dryRunFlag) {
+    const response = await client.authenticated('/api/cloud/v1/documents/' + encodeURIComponent(binding.document_id) + '/revisions/preview', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(request),
+    });
+    return emit(opts, 'cloud.push', Object.assign({}, response.document, { dry_run: true,
+      document_id: binding.document_id, url: documentUrl(client, binding.document_id),
+      base_revision_id: binding.revision_id, path: file, proposed_sha256: uploadDigest }),
+    'Preview only. No changes saved.\n' + JSON.stringify(response.document, null, 2));
+  }
   let pending = bindings.getPending(credential.user_id, file);
-  if (!pending || pending.document_id !== binding.document_id || pending.base_revision_id !== binding.revision_id || pending.sha256 !== uploadDigest) {
+  const requestHash = bindings.hash(JSON.stringify(request));
+  if (!pending || pending.document_id !== binding.document_id || pending.base_revision_id !== binding.revision_id || pending.sha256 !== uploadDigest || pending.request_sha256 !== requestHash) {
     pending = { document_id: binding.document_id, base_revision_id: binding.revision_id,
-      sha256: uploadDigest, idempotency_key: crypto.randomUUID() };
+      sha256: uploadDigest, request_sha256: requestHash, idempotency_key: crypto.randomUUID() };
     bindings.setPending(credential.user_id, file, pending);
   }
   const response = await client.authenticated('/api/cloud/v1/documents/' + encodeURIComponent(binding.document_id) + '/revisions', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ target_revision_id: binding.revision_id,
-      target_markdown: targetMarkdown == null ? undefined : targetMarkdown,
-      filename: path.basename(file), markdown: content, idempotency_key: pending.idempotency_key }),
+    body: JSON.stringify(Object.assign(request, { idempotency_key: pending.idempotency_key })),
   });
   const document = response.document;
-  const localChanged = bindings.hash(fs.readFileSync(file)) !== digest;
+  const bindingChanged = bindingBeforeUpload !== JSON.stringify(bindings.get(credential.user_id, file));
+  const localChanged = localFileHash(file) !== digest || bindingChanged;
   const savedContent = typeof document.markdown === 'string' ? document.markdown : content;
   let savedLocalContent = savedContent;
   if (opts.cloudFirst) {
@@ -595,15 +1219,24 @@ async function push(opts, client) {
   bindings.cacheBase(credential.user_id, document.id, document.current_revision_id, savedContent);
   bindings.clearPending(credential.user_id, file);
   return emit(opts, 'cloud.push', { document_id: document.id, base_revision_id: binding.revision_id,
+    url: documentUrl(client, document.id),
     revision_id: document.current_revision_id, revision_number: document.revision_number,
-    tags: document.tags, sha256: savedDigest, no_change: false,
+    title: document.title, filename: document.filename, workspace_id: document.workspace_id,
+    tags: document.tags, sha256: savedDigest, saved_sha256: bindings.hash(savedContent),
+    no_change: document.revision_created === false || (document.revision_created == null && document.merge_classification === 'noop'),
+    revision_created: document.revision_created, metadata_changed: Boolean(document.metadata_changed),
+    merged_from_revision_id: document.merged_from_revision_id,
+    conflicts: document.conflicts || [],
+    overlapping_edits_preserved: Boolean(document.combined),
     merge_classification: document.merge_classification || 'clean',
     combined: Boolean(document.combined),
     comment_id_remaps: document.comment_id_remaps || [],
     local_updated_from_cloud: localUpdated,
+    binding_changed_during_upload: bindingChanged,
     local_changed_after_upload: localChanged }, 'Pushed revision ' + document.revision_number
       + (localChanged ? '; the local file changed again during upload.'
-        : localUpdated ? ' and updated the local file with Cloud changes.' : '.'));
+        : localUpdated ? ' and updated the local file with Cloud changes.' : '.')
+      + (document.combined ? '\nBoth overlapping edits were saved. Use cloud history --diffs to inspect the changes.' : ''));
 }
 
 function isMarkdownFile(file) {
@@ -640,11 +1273,13 @@ async function addCloudTags(documentId, requestedTags, client, local) {
     bindings.cacheBase(local.credential.user_id, documentId,
       response.document.current_revision_id, response.document.markdown);
   }
-  process.stdout.write('Updated Cloud tags for ' + documentId + '.\n');
+  if (!local || !local.silent) process.stdout.write('Updated Cloud tags for ' + documentId + '.\n');
   return response.document;
 }
 
 async function autoSyncOpen(opts, dependencies) {
+  if (opts.dryRunFlag) throw new CloudCommandError('invalid_request',
+    'Use cloud push PATH --dry-run to preview an existing document. No changes were made.');
   if (!opts.file || !isMarkdownFile(opts.file)) return { synced: false };
   const client = dependencies && dependencies.client || new CloudClient();
   const accountId = opts.accountFlag || dependencies && dependencies.accountId || null;
@@ -656,12 +1291,47 @@ async function autoSyncOpen(opts, dependencies) {
     accountFlag: accountId,
     jsonFlag: false,
     cloudFirst: true,
+    silent: Boolean(dependencies && dependencies.silent),
   });
   const result = binding ? await push(syncOpts, client) : await create(syncOpts, client);
   const tagged = await addCloudTags(result.document_id, opts.addTags, client,
-    { credential, file });
+    { credential, file, silent: syncOpts.silent });
   return { synced: true, documentId: result.document_id,
-    revisionId: tagged && tagged.current_revision_id || result.revision_id, created: !binding };
+    revisionId: tagged && tagged.current_revision_id || result.revision_id, created: !binding,
+    tags: tagged && tagged.tags || result.tags || [],
+    localChangedAfterUpload: Boolean(result.local_changed_after_upload) };
+}
+
+async function openCloudDocument(opts, dependencies) {
+  dependencies = dependencies || {};
+  let client;
+  try {
+    client = dependencies.client || new CloudClient(opts.url
+      ? { origin: new URL(opts.url).origin } : undefined);
+    opts.subscriptionSource = () => client.subscription;
+    const saved = await autoSyncOpen(opts, {
+      client, accountId: dependencies.accountId, silent: true,
+    });
+    if (!saved.synced) throw new CloudCommandError('invalid_request',
+      'Cloud opens require a Markdown file.');
+    const canonicalUrl = documentUrl(client, saved.documentId);
+    if (!opts.noOpenFlag) {
+      (dependencies.openBrowser || io.openBrowser)(canonicalUrl,
+        (message) => process.stderr.write(message + '\n'));
+    }
+    return emit(opts, 'cloud.open', {
+      document_id: saved.documentId, revision_id: saved.revisionId,
+      url: canonicalUrl, created: saved.created, tags: saved.tags,
+      local_changed_after_upload: saved.localChangedAfterUpload,
+    }, canonicalUrl + (saved.localChangedAfterUpload
+      ? '\nThe local file changed during upload. Run sdoc again to save the latest changes.' : ''));
+  } catch (error) {
+    if (error.code === 'trial_payment_required' && !opts.noOpenFlag && client) {
+      (dependencies.openBrowser || io.openBrowser)(client.origin + '/cloud/subscribe',
+        (message) => process.stderr.write(message + '\n'));
+    }
+    fail(opts, 'cloud.open', error);
+  }
 }
 
 async function history(opts, client) {
@@ -682,8 +1352,26 @@ async function history(opts, client) {
       'Cloud returned the same revision cursor twice.');
     if (cursor) seenCursors.add(cursor);
   } while (cursor);
-  emit(opts, 'cloud.history', { document_id: documentId, revisions,
-    next_cursor: null }, revisions.map((revision) =>
+  if (opts.diffsFlag) {
+    const content = new Map();
+    for (const revision of revisions) {
+      const response = await client.authenticated('/api/cloud/v1/documents/' + encodeURIComponent(documentId)
+        + '/revisions/' + encodeURIComponent(revision.id));
+      content.set(revision.id, response.document.markdown);
+    }
+    for (const revision of revisions) {
+      const parent = revision.parent_revision_id;
+      if (parent && !content.has(parent)) {
+        revision.diff_available = false;
+        revision.diff_unavailable_reason = 'parent_not_retained';
+      } else {
+        revision.diff_available = true;
+        revision.diff = require('../shared/sdocs-text-diff').compare(parent ? content.get(parent) : '', content.get(revision.id));
+      }
+    }
+  }
+  emit(opts, 'cloud.history' , { document_id: documentId, revisions,
+    next_cursor: null }, opts.diffsFlag ? undefined : revisions.map((revision) =>
     revision.revision_number + '  ' + revision.id + '  ' + revision.created_at).join('\n') || 'No revisions.');
 }
 
@@ -698,11 +1386,25 @@ async function restore(opts, client) {
   if (!current || !current.current_revision_id) {
     throw new CloudCommandError('temporary_service_failure', 'Cloud did not return the current document revision.');
   }
+  if (opts.dryRunFlag) {
+    const historical = await client.authenticated('/api/cloud/v1/documents/' + encodeURIComponent(documentId)
+      + '/revisions/' + encodeURIComponent(sourceRevisionId));
+    if (opts.baseRevisionFlag && opts.baseRevisionFlag !== current.current_revision_id) {
+      throw new CloudCommandError('revision_conflict', 'The document changed since the reviewed revision.',
+        { document_id: documentId, base_revision_id: opts.baseRevisionFlag, current_revision_id: current.current_revision_id });
+    }
+    return emit(opts, 'cloud.restore', { dry_run: true, document_id: documentId,
+      url: documentUrl(client, documentId), base_revision_id: current.current_revision_id,
+      restored_from_revision_id: sourceRevisionId, markdown: historical.document.markdown,
+      sha256: bindings.hash(historical.document.markdown),
+      diff: require('../shared/sdocs-text-diff').compare(current.markdown, historical.document.markdown) },
+    'Preview only. No changes saved.');
+  }
   const credential = client.loadCredential();
   const pendingResource = documentId + ':' + sourceRevisionId;
   let pending = bindings.getOperationPending(credential.user_id, 'restore', pendingResource);
-  if (!pending) {
-    pending = { expected_head_revision_id: current.current_revision_id,
+  if (!pending || (opts.baseRevisionFlag && pending.expected_head_revision_id !== opts.baseRevisionFlag)) {
+    pending = { expected_head_revision_id: opts.baseRevisionFlag || current.current_revision_id,
       idempotency_key: crypto.randomUUID() };
     bindings.setOperationPending(credential.user_id, 'restore', pendingResource, pending);
   }
@@ -724,6 +1426,7 @@ async function restore(opts, client) {
   bindings.clearOperationPending(credential.user_id, 'restore', pendingResource);
   const document = response.document;
   emit(opts, 'cloud.restore', { document_id: document.id,
+    url: documentUrl(client, document.id),
     base_revision_id: baseRevisionId,
     restored_from_revision_id: document.restored_from_revision_id || sourceRevisionId,
     revision_id: document.current_revision_id,
@@ -769,6 +1472,33 @@ async function undeleteDocument(opts, client) {
     tags: document.tags }, 'Restored ' + document.id + '.');
 }
 
+async function libraries(opts, client) {
+  const data = await client.authenticated('/api/cloud/v1/library-settings');
+  emit(opts, 'cloud.libraries', { libraries: data.libraries }, data.libraries.map(library => library.name + ' (' + library.id + ')').join('\n'));
+}
+async function libraryDefault(opts, client) {
+  const credential = requireCredential(client);
+  let data;
+  if (!opts.extra) data = await client.authenticated('/api/cloud/v1/cli/library-default');
+  else data = await client.authenticated('/api/cloud/v1/cli/credentials/' + encodeURIComponent(credential.credential_id) + '/library-default', {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ workspace_id: opts.extra === 'clear' ? null : opts.extra }) });
+  emit(opts, 'cloud.library-default', data, data.workspace_id ? 'Default library: ' + data.workspace_id : 'No default library. Ask when several libraries are available.');
+}
+async function move(opts, client) {
+  if (!opts.extra || !opts.accountFlag) throw new CloudCommandError('invalid_request', 'usage: sdoc cloud move DOCUMENT_UUID --account LIBRARY_UUID [--dry-run] --json');
+  const current = await client.authenticated('/api/cloud/v1/documents/' + encodeURIComponent(opts.extra));
+  const settings = await client.authenticated('/api/cloud/v1/library-settings');
+  const destination = settings.libraries.find(library => library.id === opts.accountFlag);
+  if (!destination) throw new CloudCommandError('resource_unavailable', 'The destination library is unavailable.');
+  if (!current.permission || !current.permission.can_manage) throw new CloudCommandError('permission_denied', 'Only the document creator can move it.');
+  if (opts.dryRunFlag) return emit(opts, 'cloud.move', { dry_run: true, document_id: opts.extra,
+    destination, access_after_move: 'only_you', url: documentUrl(client, opts.extra) }, 'Move ' + current.document.title + ' to ' + destination.name + '. Access will become Only you.');
+  const data = await client.authenticated('/api/cloud/v1/documents/' + encodeURIComponent(opts.extra) + '/library', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ workspace_id: opts.accountFlag, expected_head_revision_id: current.document.current_revision_id }) });
+  emit(opts, 'cloud.move', { document_id: data.document.id, workspace_id: data.document.workspace_id,
+    permission: data.permission, url: documentUrl(client, data.document.id) }, 'Moved to ' + destination.name + '. Access is Only you.\n' + documentUrl(client, data.document.id));
+}
+
 async function status(opts, client) {
   const query = opts.accountFlag ? '?account_id=' + encodeURIComponent(opts.accountFlag) : '';
   const me = await client.authenticated('/api/cloud/v1/account' + query);
@@ -793,12 +1523,29 @@ function overview(opts, client) {
 async function runCloudCommand(opts, dependencies) {
   const action = String(opts.file || 'overview').toLowerCase();
   const command = 'cloud.' + action;
-  const client = dependencies && dependencies.client || new CloudClient();
   try {
-    if (opts.helpFlag || action === 'help') return process.stdout.write(CLOUD_HELP + '\n');
+    const client = dependencies && dependencies.client || new CloudClient();
+    opts.subscriptionSource = () => client.subscription;
+    const management = require('./cloud-management');
+    if (opts.helpFlag || action === 'help') return process.stdout.write(
+      (management.ACTIONS.includes(action) ? management.HELP : (action === 'search' || action === 'ls') ? CLOUD_SEARCH_HELP : action === 'read' ? CLOUD_READ_HELP
+        : ['tag', 'tags'].includes(action) ? CLOUD_TAG_HELP : action === 'create' ? CLOUD_CREATE_HELP
+        : ['push', 'pull', 'diff', 'history', 'restore', 'access'].includes(action) ? CLOUD_UPDATE_HELP : CLOUD_HELP + '\n' + management.HELP) + '\n');
+    if (opts.searchArgumentErrors && opts.searchArgumentErrors.length) {
+      throw new CloudCommandError('invalid_request', opts.searchArgumentErrors.join('; '));
+    }
+    if (opts.dryRunFlag && !['push', 'restore', 'move', 'read', 'search', 'ls', 'history', 'diff',
+      'status', 'tags', 'members', 'permission-groups', 'libraries', 'overview'].includes(action)) {
+      throw new CloudCommandError('invalid_request', '--dry-run is not supported for cloud ' + action + '. No changes were made.');
+    }
     if (action === 'overview') return overview(opts, client);
+    if (management.ACTIONS.includes(action)) return await management.run(opts, client,
+      { emit, CloudCommandError, openBrowser: dependencies && dependencies.openBrowser || io.openBrowser });
     if (action === 'login') return await login(opts, client);
     if (action === 'logout') return await logout(opts, client);
+    if (action === 'libraries') return await libraries(opts, client);
+    if (action === 'library-default') return await libraryDefault(opts, client);
+    if (action === 'move') return await move(opts, client);
     if (action === 'status') return await status(opts, client);
     if (action === 'members') return await members(opts, client);
     if (action === 'tags') return await tags(opts, client);
@@ -808,6 +1555,9 @@ async function runCloudCommand(opts, dependencies) {
     if (action === 'tag') return await setTags(opts, client);
     if (action === 'ls') return await list(opts, client);
     if (action === 'search') return await search(opts, client);
+    if (action === 'star' || action === 'unstar') return await setStar(opts, client, action === 'star');
+    if (action === 'read') return await read(opts, client);
+    if (action === 'diff') return await diff(opts, client);
     if (action === 'create') return await create(opts, client);
     if (action === 'pull') return await pull(opts, client);
     if (action === 'push') return await push(opts, client);
@@ -822,5 +1572,5 @@ async function runCloudCommand(opts, dependencies) {
   }
 }
 
-module.exports = { CloudClient, CloudCommandError, runCloudCommand, autoSyncOpen, filterTags, origin,
-  EXIT, CLOUD_HELP, CLOUD_OVERVIEW, entitlementFailure, skillInstallCommand };
+module.exports = { CloudClient, CloudCommandError, runCloudCommand, autoSyncOpen, openCloudDocument, filterTags, origin, CLOUD_TAG_HELP, CLOUD_CREATE_HELP,
+  EXIT, CLOUD_HELP, CLOUD_SEARCH_HELP, CLOUD_UPDATE_HELP, CLOUD_OVERVIEW, entitlementFailure, skillInstallCommand, searchRequest };

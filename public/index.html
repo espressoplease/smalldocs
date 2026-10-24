@@ -31,6 +31,7 @@
   if (location.pathname === '/embed') document.documentElement.classList.add('sdocs-embed');
   if (/^\/s\/[A-Za-z0-9_-]{1,32}$/.test(location.pathname)) document.documentElement.classList.add('sdocs-short-link-visit');
 </script>
+<link rel="stylesheet" href="/public/css/cloud-pills.css">
 <link rel="stylesheet" href="/public/css/tokens.css">
 <link rel="stylesheet" href="/public/css/sidebar-shared.css">
 <link rel="stylesheet" href="/public/css/layout.css">
@@ -70,6 +71,7 @@ __EMBED_STYLES__
     data-sdocs-sidebar-shell data-primary-template="_sd_sidebar_primary"
     data-id-prefix="_sd_sidebar" data-row-class="doc-site-action" data-nav-class="doc-site-nav"
     data-brand-id="_sd_toolbar-brand" data-responsive-brand data-status-id="_sd_status-text"
+    data-legacy-library="__DOCUMENT_LEGACY_LIBRARY__"
     data-cloud-authenticated="__DOCUMENT_CLOUD_AUTHENTICATED__"
     data-cloud-terms-accepted="__DOCUMENT_CLOUD_TERMS_ACCEPTED__"></aside>
 

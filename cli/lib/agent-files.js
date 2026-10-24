@@ -20,6 +20,7 @@ const {
   formatSkill,
   readSkillVersion,
   readSkillEdition,
+  readSkillOrigin,
   canonicalSkillDir,
   canonicalSkillFile,
   resolveSkillAgents,
@@ -29,7 +30,7 @@ const {
   removeBlockContent,
 } = require('./agent-block');
 
-const { AGENT_CHANGES_URL } = require('./constants');
+const { AGENT_CHANGES_URL, INSTALLATION_CHANNEL } = require('./constants');
 
 const IS_WIN = process.platform === 'win32';
 
@@ -139,7 +140,9 @@ function refreshCanonicalSkill(home, opts = {}) {
       error: 'existing canonical SKILL.md is not managed by SmallDocs; left untouched',
     };
   }
-  if (currentVersion === SKILL_VERSION && currentEdition === desiredEdition) {
+  const desiredOrigin = INSTALLATION_CHANNEL ? INSTALLATION_CHANNEL.origin : null;
+  if (currentVersion === SKILL_VERSION && currentEdition === desiredEdition &&
+      readSkillOrigin(existing) === desiredOrigin) {
     return { changed: false, reason: 'current', path: file };
   }
   if (currentVersion !== null && currentVersion > SKILL_VERSION) {

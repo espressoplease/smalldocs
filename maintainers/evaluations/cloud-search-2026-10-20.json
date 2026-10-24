@@ -1,0 +1,344 @@
+{
+  "evaluated_on": "2026-10-20",
+  "environment": {
+    "node": "v22.18.0",
+    "platform": "darwin",
+    "architecture": "arm64",
+    "key_provider": "local AES encryption, without network KMS calls"
+  },
+  "oracle": {
+    "pass": true,
+    "evidence": {
+      "accepted_source_cases": 9,
+      "rejected_mutation_cases": 12
+    },
+    "result_truth": "separate corpus facts, scenario predicates and permission manifest",
+    "production_parser_or_tokenizer_used_for_expected_answers": false,
+    "evidence_truth": "authorized raw fields and enumerated literal query witnesses from corpus recipe"
+  },
+  "correctness": {
+    "documents": 1200,
+    "plaintext_bytes": 651714,
+    "access": "mixed document and workspace permissions",
+    "cases": 138,
+    "authored_cases": 38,
+    "seeded_generated_cases": 100,
+    "pages": 623,
+    "expected_document_appearances": 17050,
+    "returned_document_appearances": 17050,
+    "minimum_precision": 1,
+    "minimum_recall": 1,
+    "duplicate_count": 0,
+    "counts_and_tag_author_library_facets_exact_on_every_page": true,
+    "evidence_provenance": {
+      "documents": 17050,
+      "documents_with_positive_evidence": 10053,
+      "snippets": 10863,
+      "highlights": 14819
+    },
+    "failed_cases": 0
+  },
+  "security": {
+    "cases": 9,
+    "results": [
+      {
+        "id": "blind-index-at-rest",
+        "pass": true,
+        "tables_checked": 6,
+        "plaintext_needles": [
+          "classifiedcanary",
+          "headlinebeacon",
+          "incident response"
+        ]
+      },
+      {
+        "id": "hidden-data-influence",
+        "pass": true,
+        "injected_private_documents": 13
+      },
+      {
+        "id": "revoke-between-pages",
+        "pass": true
+      },
+      {
+        "id": "revoke-during-decryption",
+        "pass": true
+      },
+      {
+        "id": "revoke-through-second-connection",
+        "pass": true
+      },
+      {
+        "id": "key-failure-is-atomic",
+        "pass": true
+      },
+      {
+        "id": "current-revision-lifecycle",
+        "pass": true
+      },
+      {
+        "id": "membership-revocation",
+        "pass": true
+      },
+      {
+        "id": "legacy-index-rebuild",
+        "pass": true,
+        "explicit_batches": 1,
+        "decrypted_revisions": 311
+      }
+    ]
+  },
+  "http": {
+    "assertions": 15,
+    "results": [
+      {
+        "id": "http-authorized-counts-facets-snippets",
+        "pass": true
+      },
+      {
+        "id": "changed-signature",
+        "pass": true
+      },
+      {
+        "id": "changed-position",
+        "pass": true
+      },
+      {
+        "id": "truncated-token",
+        "pass": true
+      },
+      {
+        "id": "oversized-token",
+        "pass": true
+      },
+      {
+        "id": "changed-query",
+        "pass": true
+      },
+      {
+        "id": "changed-expression",
+        "pass": true
+      },
+      {
+        "id": "changed-tags",
+        "pass": true
+      },
+      {
+        "id": "changed-excluded-tags",
+        "pass": true
+      },
+      {
+        "id": "changed-authors",
+        "pass": true
+      },
+      {
+        "id": "changed-document-subset",
+        "pass": true
+      },
+      {
+        "id": "changed-field-scope",
+        "pass": true
+      },
+      {
+        "id": "changed-sort",
+        "pass": true
+      },
+      {
+        "id": "changed-principal",
+        "pass": true
+      },
+      {
+        "id": "http-cursor-rechecks-revoked-access",
+        "pass": true
+      }
+    ],
+    "failed_cases": 0
+  },
+  "benchmark": {
+    "documents": 100000,
+    "plaintext_bytes": 52693057,
+    "access": "all documents visible across three libraries",
+    "definition": "Existing encrypted fixture, no seeding and no in-memory corpus/oracle generation",
+    "store_open_ms_without_corpus_generation": 769.22,
+    "peak_rss_bytes": 973881344,
+    "assertion_scope": "Final repetition of each query: exact independent total and aggregate author/library facet counts",
+    "queries": [
+      {
+        "kind": "broad",
+        "samples": 7,
+        "minimum_ms": 2300.04,
+        "median_ms": 2337.34,
+        "p95_ms": 3855.96,
+        "maximum_ms": 3855.96,
+        "first_query_ms": 3855.96,
+        "samples_ms": [
+          3855.96,
+          2323.62,
+          2377.43,
+          2301.69,
+          2300.04,
+          2417.84,
+          2337.34
+        ],
+        "total_count": 100000,
+        "expected_total": 100000,
+        "returned_documents": 100
+      },
+      {
+        "kind": "rare",
+        "samples": 7,
+        "minimum_ms": 1650.55,
+        "median_ms": 1658.41,
+        "p95_ms": 1737.46,
+        "maximum_ms": 1737.46,
+        "first_query_ms": 1683.3,
+        "samples_ms": [
+          1683.3,
+          1737.46,
+          1652.41,
+          1653.63,
+          1692.83,
+          1650.55,
+          1658.41
+        ],
+        "total_count": 101,
+        "expected_total": 101,
+        "returned_documents": 100
+      },
+      {
+        "kind": "phrase",
+        "samples": 7,
+        "minimum_ms": 1829.54,
+        "median_ms": 1835.16,
+        "p95_ms": 1919.24,
+        "maximum_ms": 1919.24,
+        "first_query_ms": 1919.24,
+        "samples_ms": [
+          1919.24,
+          1833.01,
+          1835.16,
+          1896.51,
+          1829.54,
+          1830.32,
+          1895.3
+        ],
+        "total_count": 12501,
+        "expected_total": 12501,
+        "returned_documents": 100
+      },
+      {
+        "kind": "prefix",
+        "samples": 7,
+        "minimum_ms": 2487.45,
+        "median_ms": 3163.46,
+        "p95_ms": 4075.25,
+        "maximum_ms": 4075.25,
+        "first_query_ms": 3615.47,
+        "samples_ms": [
+          3615.47,
+          3163.46,
+          3411.22,
+          2487.45,
+          2698.3,
+          4075.25,
+          2718.44
+        ],
+        "total_count": 100000,
+        "expected_total": 100000,
+        "returned_documents": 100
+      }
+    ],
+    "cold_process": {
+      "startup_ms": 224,
+      "query_ms": 2669,
+      "total_count": 100000,
+      "returned_documents": 100,
+      "decrypted_revisions": 100,
+      "evidence_provenance": {
+        "documents": 100,
+        "documents_with_positive_evidence": 100,
+        "snippets": 100,
+        "highlights": 100
+      },
+      "definition": "fresh Node process and CloudStore; operating-system disk cache is retained",
+      "startup_definition": "store opening plus evaluator corpus-manifest construction"
+    },
+    "pagination_boundaries": {
+      "id": "large-pagination-boundaries",
+      "pass": true,
+      "total_count": 100000,
+      "continuation_source": "independent manifest timestamps and IDs; no production cursor arithmetic",
+      "samples": [
+        {
+          "offset": 0,
+          "returned_documents": 100,
+          "precision": 1,
+          "recall_within_page": 1,
+          "milliseconds": 2311,
+          "evidence_provenance": {
+            "documents": 100,
+            "documents_with_positive_evidence": 100,
+            "snippets": 100,
+            "highlights": 100
+          }
+        },
+        {
+          "offset": 37,
+          "returned_documents": 100,
+          "precision": 1,
+          "recall_within_page": 1,
+          "milliseconds": 2293,
+          "evidence_provenance": {
+            "documents": 100,
+            "documents_with_positive_evidence": 100,
+            "snippets": 100,
+            "highlights": 100
+          }
+        },
+        {
+          "offset": 50003,
+          "returned_documents": 100,
+          "precision": 1,
+          "recall_within_page": 1,
+          "milliseconds": 2314,
+          "evidence_provenance": {
+            "documents": 100,
+            "documents_with_positive_evidence": 100,
+            "snippets": 100,
+            "highlights": 100
+          }
+        },
+        {
+          "offset": 99923,
+          "returned_documents": 77,
+          "precision": 1,
+          "recall_within_page": 1,
+          "milliseconds": 2267,
+          "evidence_provenance": {
+            "documents": 77,
+            "documents_with_positive_evidence": 77,
+            "snippets": 77,
+            "highlights": 77
+          }
+        }
+      ]
+    }
+  },
+  "reproduction": [
+    "node scripts/search-eval/test-oracle.js",
+    "node scripts/search-eval/run.js --documents 1200 --random-cases 100 --page-size 31 --repetitions 1 --output correctness.json",
+    "node scripts/search-eval/http-run.js --output http.json",
+    "node scripts/search-eval/probe.js --fixture RETAINED_FIXTURE --kinds broad,rare,phrase,prefix --repetitions 7 --output probe.json",
+    "node scripts/search-eval/run.js --cold-probe RETAINED_FIXTURE",
+    "largePagination(openFixture(RETAINED_FIXTURE), createAdapter(context)) exported from scripts/search-eval/run.js"
+  ],
+  "limits": [
+    "Correctness uses explicit AST requests; separate parser unit tests cover query-string syntax.",
+    "The 100000-document scaling fixture grants visibility to every document. Mixed document/library ACLs and adversarial revocations are exercised in the 1200-document fixture.",
+    "The 100000-document fixture contains about 54 MB of Markdown, not 100000 multi-megabyte documents.",
+    "The large fixture checks first pages and four independent pagination boundaries, not exhaustive 100000-document pagination recall.",
+    "The fresh-process measurement retains the operating-system disk cache. Startup includes evaluator corpus-manifest construction.",
+    "Seven samples make p95 equal to the largest sample. Timings are measurements of this machine, not a deployment service-level guarantee.",
+    "The plaintext-canary scan covers all derived cloud_search tables in the correctness fixture, not other database tables or every possible plaintext value."
+  ]
+}

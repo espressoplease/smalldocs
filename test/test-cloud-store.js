@@ -695,12 +695,14 @@ module.exports = function(harness) {
       document = restored;
     });
 
-    await testAsync('revision pruning keeps three recent restore points for at most 90 days', async () => {
+    await testAsync('revision pruning retains all revisions within 90 days despite legacy count caps', async () => {
       let retainedDocument = await store.createDocument({
         userId: owner, projectId: personal.projectId, filename: 'retention.md',
         markdown: '# Retention 1', idempotencyKey: 'create-retention',
       });
-      for (let number = 2; number <= 5; number += 1) {
+      const firstRevisionId = retainedDocument.current_revision_id;
+      const createdAtMs = clock;
+      for (let number = 2; number <= 12; number += 1) {
         clock += 1000;
         retainedDocument = await store.saveRevision({
           userId: owner, documentId: retainedDocument.id,
@@ -709,24 +711,56 @@ module.exports = function(harness) {
           idempotencyKey: 'save-retention-' + number,
         });
       }
-      const recent = store.pruneRevisions({ documentId: retainedDocument.id, keepPrevious: 3,
-        retainAfterMs: clock - 90 * 24 * 60 * 60 * 1000 });
-      assert.strictEqual(recent.deleted_count, 1);
-      assert.strictEqual(recent.retained_count, 4);
-      assert.strictEqual(recent.oldest_retained_previous_created_at_ms, clock - 3000);
+      for (const legacyCount of [3, 0]) {
+        const recent = store.pruneRevisions({ documentId: retainedDocument.id,
+          keepPrevious: legacyCount, retainAfterMs: clock - 90 * 24 * 60 * 60 * 1000 });
+        assert.strictEqual(recent.deleted_count, 0);
+        assert.strictEqual(recent.retained_count, 12);
+        assert.strictEqual(recent.oldest_retained_previous_created_at_ms, createdAtMs);
+      }
       assert.deepStrictEqual(store.listRevisions({ userId: owner, documentId: retainedDocument.id })
-        .map((revision) => revision.revision_number), [5, 4, 3, 2]);
+        .map((revision) => revision.revision_number), [12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1]);
+      assert.strictEqual((await store.getDocument({ userId: owner,
+        documentId: retainedDocument.id, revisionId: firstRevisionId })).markdown, '# Retention 1');
+      assert.throws(() => store.listRevisions({ userId: outsider, documentId: retainedDocument.id }),
+        error => error.code === 'resource_unavailable');
+      await assert.rejects(() => store.getDocument({ userId: outsider, documentId: retainedDocument.id,
+        revisionId: firstRevisionId }), error => error.code === 'resource_unavailable');
+
+      const boundary = store.pruneRevisions({ documentId: retainedDocument.id,
+        retainAfterMs: createdAtMs });
+      assert.strictEqual(boundary.deleted_count, 0);
+      const afterBoundary = store.pruneRevisions({ documentId: retainedDocument.id,
+        retainAfterMs: createdAtMs + 1 });
+      assert.strictEqual(afterBoundary.deleted_count, 1);
+      const remaining = store.listRevisions({ userId: owner, documentId: retainedDocument.id });
+      const oldest = remaining[remaining.length - 1];
+      assert.strictEqual(oldest.revision_number, 2);
+      assert.strictEqual(oldest.parent_revision_id, firstRevisionId);
+      await assert.rejects(() => store.getDocument({ userId: owner, documentId: retainedDocument.id,
+        revisionId: firstRevisionId }), error => error.code === 'resource_unavailable');
+      assert.strictEqual((await store.getDocument({ userId: owner, documentId: retainedDocument.id,
+        revisionId: oldest.id })).markdown, '# Retention 2');
 
       clock += 90 * 24 * 60 * 60 * 1000 + 1;
-      const expired = store.pruneRevisions({ documentId: retainedDocument.id, keepPrevious: 3,
+      const expired = store.pruneRevisions({ documentId: retainedDocument.id,
         retainAfterMs: clock - 90 * 24 * 60 * 60 * 1000 });
-      assert.strictEqual(expired.deleted_count, 3);
+      assert.strictEqual(expired.deleted_count, 10);
       assert.strictEqual(expired.retained_count, 1);
       assert.strictEqual(expired.oldest_retained_previous_created_at_ms, null);
       assert.deepStrictEqual(store.listRevisions({ userId: owner, documentId: retainedDocument.id })
-        .map((revision) => revision.revision_number), [5]);
+        .map((revision) => revision.revision_number), [12]);
       assert.strictEqual((await store.getDocument({ userId: owner,
-        documentId: retainedDocument.id })).revision_number, 5);
+        documentId: retainedDocument.id })).revision_number, 12);
+    });
+
+    await testAsync('revision pruning validates timestamps before changing history', async () => {
+      const count = store.db.prepare('SELECT COUNT(*) AS n FROM cloud_document_revisions').get().n;
+      for (const retainAfterMs of [-1, NaN, Infinity, 1.5]) {
+        assert.throws(() => store.pruneRevisions({ documentId: document.id, retainAfterMs }),
+          error => error.code === 'invalid_request');
+      }
+      assert.strictEqual(store.db.prepare('SELECT COUNT(*) AS n FROM cloud_document_revisions').get().n, count);
     });
 
     await testAsync('the document owner keeps edit access when a legacy project role changes', async () => {
@@ -1102,6 +1136,12 @@ module.exports = function(harness) {
         assert.strictEqual(managedStore.db.prepare(
           'SELECT COUNT(*) AS count FROM cloud_notification_batches').get().count,
         notificationCount);
+        await assert.rejects(managedStore.createDocument({
+          userId: 'managed-user', projectId: workspace.projectId,
+          filename: 'managed.md', markdown: '# Managed\n\nEncrypted asynchronously.',
+          idempotencyKey: 'managed-create',
+        }), (error) => error.code === 'temporary_service_failure');
+        kmsUnavailable = false;
         const replayed = await managedStore.createDocument({
           userId: 'managed-user', projectId: workspace.projectId,
           filename: 'managed.md', markdown: '# Managed\n\nEncrypted asynchronously.',
@@ -1109,6 +1149,8 @@ module.exports = function(harness) {
         });
         assert.strictEqual(replayed.id, created.id);
         assert.strictEqual(replayed.current_revision_id, created.current_revision_id);
+        managedProvider.clearCache();
+        kmsUnavailable = true;
         await assert.rejects(managedStore.createDocument({
           userId: 'managed-user', projectId: workspace.projectId,
           filename: 'changed.md', markdown: '# Changed', idempotencyKey: 'managed-create',

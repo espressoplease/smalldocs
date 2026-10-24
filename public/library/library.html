@@ -8,12 +8,13 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/public/css/cloud-pills.css">
 <link rel="stylesheet" href="/public/library/library.css">
 <link rel="stylesheet" href="/public/css/sidebar-shared.css">
 <link rel="stylesheet" href="/public/css/site-sidebar.css">
 __CLOUD_LIBRARY_STYLES__
 </head>
-<body data-cloud-authenticated="__CLOUD_AUTHENTICATED__" data-cloud-terms-accepted="__CLOUD_TERMS_ACCEPTED__" data-sdocs-site-page="library">
+<body data-legacy-library="__CLOUD_LEGACY_LIBRARY__" data-cloud-authenticated="__CLOUD_AUTHENTICATED__" data-cloud-terms-accepted="__CLOUD_TERMS_ACCEPTED__" data-sdocs-site-page="library">
   <div class="topbar">
     <a class="brand" href="/" aria-label="SmallDocs home">
       <span class="brand-full">SmallDocs</span>
@@ -153,6 +154,12 @@ __CLOUD_LIBRARY_STYLES__
         </button>
         <button class="facet-button" data-facet="agent" aria-expanded="false">
           agent <svg class="chev" viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <button class="facet-button" data-facet="author" aria-expanded="false" hidden>
+          Created by <svg class="chev" viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <button class="facet-button" data-facet="updatedBy" aria-expanded="false" hidden>
+          Updated by <svg class="chev" viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
         <button class="facet-button" data-facet="since" aria-expanded="false">
           when <svg class="chev" viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
