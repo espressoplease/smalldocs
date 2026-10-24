@@ -106,6 +106,38 @@ test('Cloud rows show their creator and only a different latest editor, and both
   await expect(page.locator('#chips-row .filter-chip')).toHaveCount(0);
 });
 
+for (const width of [390, 1440]) {
+  test('person icon colours stay distinct and consistent across rows, filters and reloads at ' + width, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    const handoff = await createDocument('bob', 'Colour handoff');
+    await editDocument('member', handoff, '# Colour handoff\n\nAlice updated the handoff.');
+    const member = await createDocument('member', 'Colour notes');
+    await openLibrary(page);
+    await expect(row(page, member).locator('.cloud-library-person')).toHaveText('Alice Chen');
+    const iconColor = locator => locator.locator('svg').evaluate(icon => getComputedStyle(icon).color);
+    const creator = row(page, handoff).locator('[data-person-facet="author"]');
+    const updater = row(page, handoff).locator('[data-person-facet="updatedBy"]');
+    const bobColor = await iconColor(creator), aliceColor = await iconColor(updater);
+    expect(bobColor).not.toBe(aliceColor);
+    expect(await iconColor(row(page, member).locator('.cloud-library-person'))).toBe(aliceColor);
+    for (const pill of [creator, updater]) {
+      const colors = await pill.evaluate(button => [getComputedStyle(button).color, getComputedStyle(button.querySelector('span')).color]);
+      expect(colors[0]).toBe(colors[1]);
+      expect(await pill.getAttribute('style')).toBeNull();
+    }
+    await page.screenshot({ path: test.info().outputPath('person-colours-' + width + '.png'), fullPage: true });
+    await choosePerson(page, 'updatedBy', 'member');
+    expect(await iconColor(personChoice(page, 'member'))).toBe(aliceColor);
+    expect(await iconColor(personChoice(page, 'bob'))).toBe(bobColor);
+    expect(await iconColor(row(page, handoff).locator('[data-person-facet="updatedBy"]'))).toBe(aliceColor);
+    await page.reload();
+    await expect(row(page, member).locator('.cloud-library-person')).toHaveText('Alice Chen');
+    expect(await iconColor(row(page, handoff).locator('[data-person-facet="author"]'))).toBe(bobColor);
+    expect(await iconColor(row(page, member).locator('.cloud-library-person'))).toBe(aliceColor);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  });
+}
+
 test('documents and searches do not wait for tags or members, and typing does not restart filter requests', async ({ page }) => {
   const document = await createDocument('bob', 'Release notes', { tags: ['release'] });
   const held = {};

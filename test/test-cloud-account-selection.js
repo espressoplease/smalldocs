@@ -42,4 +42,14 @@ module.exports = function(harness) {
       'Analytical Engines');
     assert.strictEqual(selection.initials('Ada Lovelace'), 'AL');
   });
+
+  test('people colours reuse the library palette without collisions or roster-order changes', () => {
+    const ids = ['a', 'g', 'm', 's', 'y', 'A', 'G', 'M'];
+    assert.strictEqual(selection.color('a'), selection.color('g'));
+    const colors = selection.colorMap(ids);
+    assert.strictEqual(new Set(colors.values()).size, ids.length);
+    assert.deepStrictEqual(colors, selection.colorMap(ids.slice().reverse()));
+    assert.deepStrictEqual(colors, selection.colorMap(ids.concat(ids)));
+    assert.strictEqual(selection.colorMap(['a']).get('a'), selection.color('a'));
+  });
 };

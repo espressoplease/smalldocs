@@ -196,6 +196,15 @@ function pathPrefixOptions() {
 }
 
 const CLOUD_PERSON_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></svg>';
+let cloudColorPeople = null, cloudColorCount = 0, cloudPersonColors = new Map();
+function cloudPersonIcon(id) {
+  if (cloudColorPeople !== STATE.cloudPeople || cloudColorCount !== STATE.cloudPeople.size) {
+    cloudColorPeople = STATE.cloudPeople; cloudColorCount = STATE.cloudPeople.size;
+    cloudPersonColors = window.SDocsCloudAccountSelection.colorMap(STATE.cloudPeople.keys());
+  }
+  const color = cloudPersonColors.get(id) || window.SDocsCloudAccountSelection.color(id);
+  return CLOUD_PERSON_ICON.replace('<svg ', '<svg style="color:' + color + '" ');
+}
 function cloudPersonLabel(id) {
   const person = STATE.cloudPeople.get(id);
   if (person && person.is_you) return 'You';
@@ -481,7 +490,7 @@ function renderFacetPanel() {
   panel.querySelector('.syntax-hint').hidden = !!def.people;
   if (def.people) {
     container.innerHTML = opts.map(option => '<button class="sdoc-cloud-lab-access cloud-library-person-option" type="button" data-person-choice="' + escHtml(option.value)
-      + '" aria-pressed="' + (chipState(openFacet, option.value) === 'include') + '">' + CLOUD_PERSON_ICON + '<span>' + escHtml(option.label) + '</span></button>').join('');
+      + '" aria-pressed="' + (chipState(openFacet, option.value) === 'include') + '">' + cloudPersonIcon(option.value) + '<span>' + escHtml(option.label) + '</span></button>').join('');
     container.querySelectorAll('[data-person-choice]').forEach(button => button.addEventListener('click', () => {
       toggleIncludeChip(openFacet, button.dataset.personChoice); renderAll();
     }));
@@ -618,7 +627,7 @@ function cloudPersonPills(entry) {
     const label = cloudPersonLabel(id), title = FACET_DEFS[facet].title + ' ' + label;
     return '<button class="sdoc-cloud-lab-access cloud-library-person" type="button" data-cloud-person="' + escHtml(id)
       + '" data-person-facet="' + facet + '" title="' + escHtml(title) + '" aria-label="Filter: ' + escHtml(title)
-      + '">' + CLOUD_PERSON_ICON + '<span>' + escHtml(prefix + label) + '</span></button>';
+      + '">' + cloudPersonIcon(id) + '<span>' + escHtml(prefix + label) + '</span></button>';
   }
   return pill(entry.authorId, 'author', '') + (entry.updatedById && entry.updatedById !== entry.authorId
     ? pill(entry.updatedById, 'updatedBy', 'Updated by ') : '');

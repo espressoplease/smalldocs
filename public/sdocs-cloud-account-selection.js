@@ -47,13 +47,30 @@
       .toUpperCase();
   }
 
-  function color(id) {
-    var palette = ['#2563eb', '#0f766e', '#9333ea', '#b45309', '#be123c', '#0369a1'];
+  var palette = ['#2563eb', '#0f766e', '#9333ea', '#b45309', '#be123c', '#0369a1'];
+  function colorHash(id) {
     var hash = 0;
     String(id || '').split('').forEach(function (character) { hash = ((hash * 31) + character.charCodeAt(0)) >>> 0; });
-    return palette[hash % palette.length];
+    return hash;
+  }
+  function color(id) {
+    return palette[colorHash(id) % palette.length];
+  }
+  function colorMap(ids) {
+    var colors = new Map(), used = new Set();
+    Array.from(new Set(ids)).sort().forEach(function (id) {
+      var hash = colorHash(id), attempt = 0, value = color(id);
+      while (used.has(value)) {
+        attempt++;
+        value = attempt < palette.length ? palette[(hash + attempt) % palette.length]
+          : 'hsl(' + ((hash + attempt * 137.508) % 360).toFixed(3) + ', 65%, 40%)';
+      }
+      colors.set(id, value); used.add(value);
+    });
+    return colors;
   }
   exports.color = color;
+  exports.colorMap = colorMap;
   exports.STORAGE_KEY = STORAGE_KEY;
   exports.storedId = storedId;
   exports.remember = remember;
