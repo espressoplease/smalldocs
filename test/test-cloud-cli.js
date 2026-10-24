@@ -1346,6 +1346,28 @@ module.exports = function(harness) {
       assert.ok(body.message.includes('retry'));
     });
 
+    await testAsync('refresh preserves credentials for Terms acceptance and temporary failures', async () => {
+      for (const [status, error, expected] of [[403, 'terms_acceptance_required', 'terms_acceptance_required'],
+        [503, 'temporary_service_failure', 'temporary_service_failure'], [429, 'rate_limited', 'rate_limited']]) {
+        let removed = false;
+        const client = new CloudClient({ origin: 'https://cloud.test',
+          credentials: { remove() { removed = true; } },
+          fetch: async () => ({ ok: false, status, json: async () => ({ ok: false, error }) }) });
+        await assert.rejects(() => client.refresh({ refresh_token: 'unchanged' }), failure =>
+          failure.code === expected && (error !== 'terms_acceptance_required' || failure.data.acceptance_url === 'https://cloud.test/cloud/terms'));
+        assert.strictEqual(removed, false);
+      }
+    });
+
+    await testAsync('refresh removes a credential only when authorization is rejected', async () => {
+      let removed = false;
+      const client = new CloudClient({ origin: 'https://cloud.test',
+        credentials: { remove() { removed = true; } },
+        fetch: async () => ({ ok: false, status: 401, json: async () => ({ ok: false, error: 'invalid_token' }) }) });
+      await assert.rejects(() => client.refresh({ refresh_token: 'revoked' }), failure => failure.code === 'login_required');
+      assert.strictEqual(removed, true);
+    });
+
     await testAsync('cloud push emits one stable JSON error for a read-only subscription', async () => {
       fs.writeFileSync(source, '# Release\nChanged again');
       const result = await captureStreams(() => runCloudCommand({ file: 'push', extra: source,

@@ -531,8 +531,20 @@ class CloudClient {
       body: JSON.stringify({ refresh_token: credential.refresh_token }),
     });
     if (!result.response.ok) {
-      this.credentials.remove(this.origin);
-      throw new CloudCommandError('login_required', 'Cloud login has expired or was revoked.');
+      if (result.data.error === 'terms_acceptance_required') {
+        throw new CloudCommandError('terms_acceptance_required',
+          'Open ' + this.origin + '/cloud/terms for the human to review and accept the updated Terms, then retry.',
+          Object.assign({}, result.data, { acceptance_url: this.origin + '/cloud/terms',
+            http_status: result.response.status }));
+      }
+      if (result.response.status === 401 || ['invalid_token', 'token_reuse', 'login_required',
+        'authentication_required', 'user_disabled'].includes(result.data.error)) {
+        this.credentials.remove(this.origin);
+        throw new CloudCommandError('login_required', 'Cloud login has expired or was revoked.');
+      }
+      throw new CloudCommandError(result.data.error === 'rate_limited' ? 'rate_limited' : 'temporary_service_failure',
+        'Cloud could not refresh the login. Your saved credential is unchanged. Retry this command.',
+        Object.assign({}, result.data, { http_status: result.response.status }));
     }
     const next = { credential_id: result.data.credential_id, user_id: result.data.user_id,
       access_token: result.data.access_token, access_token_expires_at: result.data.access_token_expires_at,

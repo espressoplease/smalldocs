@@ -15,12 +15,16 @@ Date: 24 October 2026. Branch: codex/homepage-next-review. Target: Cloud staging
 
 ## Validation
 
-The full Node suite passes 1,850 tests, including real-server and real-CLI integration, setup migrations, exact trial boundaries, paid coverage, warning-week invitation acceptance, billing recovery, user preference isolation, final-owner protection and retained content after an old deletion job runs.
+The full Node suite passes 1,852 tests, including real-server and real-CLI integration, setup migrations, exact trial boundaries, paid coverage, warning-week invitation acceptance, billing recovery, user preference isolation, final-owner protection and retained content after an old deletion job runs.
 
 The browser checks cover 61 scenarios across account management, library pagination, people filters, stars and the one-plan flow. One fixture shutdown timed out after its page assertions passed; the isolated retry and the final 17-scenario management suite passed. Desktop and 390px mobile feedback/payment pages were inspected. Headless checks use isolated data and capture mail; no real invitation was sent.
 
-Skill v40 and CLI 1.20.0-rc.10 are installed in the local staging runtime and experiment folder. Skill validation passes. Refresh preserves credentials, bindings and the computer's library default. Public skill history includes both exact edition bodies.
+Skill v40 and CLI 1.20.0-rc.11 are installed in the local staging runtime and experiment folder. Skill validation passes. Refresh preserves credentials, bindings and the computer's library default. Public skill history includes both exact edition bodies.
 
 ## Release checks
 
 Before staging deployment, preserve a coordinated state backup. Verify the deployed commit, authenticated billing state, cutoff and recovery responses, subscription links, old-user preference migration and service health. Confirm production release and configuration hashes are unchanged. A real card payment is not part of automated verification; existing Checkout and webhook tests use a local Stripe fixture.
+
+## Login recovery found during staging verification
+
+Refreshing an expired access token after a Terms update returned a Terms acceptance error. The old CLI treated every failed refresh as revocation and deleted its saved credential. Refresh now preserves credentials for Terms acceptance, rate limits and temporary server failures; only rejected authorization clears them. Regression tests cover all four paths. The local staging installation needs one browser authorization because the first live check encountered that old behaviour before the fix.
