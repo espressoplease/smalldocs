@@ -1336,6 +1336,16 @@ module.exports = function(harness) {
       assert.ok(result.stderr.includes('Subscribe: https://cloud.test/cloud#pricing'));
     });
 
+    await testAsync('Cloud Terms recovery points to the installed origin for human acceptance', async () => {
+      const result = await captureStreams(() => runCloudCommand({ file: 'status', jsonFlag: true },
+        { client: entitlementClient('terms_acceptance_required', 403) }));
+      const body = JSON.parse(result.stdout);
+      assert.strictEqual(result.exitCode, 4);
+      assert.strictEqual(body.acceptance_url, 'https://cloud.test/cloud/terms');
+      assert.ok(body.message.includes('human'));
+      assert.ok(body.message.includes('retry'));
+    });
+
     await testAsync('cloud push emits one stable JSON error for a read-only subscription', async () => {
       fs.writeFileSync(source, '# Release\nChanged again');
       const result = await captureStreams(() => runCloudCommand({ file: 'push', extra: source,
@@ -1455,6 +1465,24 @@ module.exports = function(harness) {
       }));
       assert.strictEqual(result.exitCode, 3);
       assert.strictEqual(JSON.parse(result.stdout).error, 'login_required');
+    });
+
+    await testAsync('Cloud open launches payment after the trial, while no-open remains headless', async () => {
+      const file = path.join(dir, 'payment-cloud.md');
+      fs.writeFileSync(file, '# Unchanged local work');
+      const client = { origin: fakeClient.origin, loadCredential: () => account,
+        async authenticated() { throw Object.assign(new Error('Subscribe to continue.'),
+          { code: 'trial_payment_required' }); } };
+      const opened = [];
+      for (const noOpenFlag of [false, true]) {
+        const result = await captureStreams(() => openCloudDocument({ file, jsonFlag: true, noOpenFlag }, {
+          client, openBrowser: url => opened.push(url),
+        }));
+        assert.strictEqual(result.exitCode, 4);
+        assert.strictEqual(JSON.parse(result.stdout).error, 'trial_payment_required');
+        assert.strictEqual(fs.readFileSync(file, 'utf8'), '# Unchanged local work');
+      }
+      assert.deepStrictEqual(opened, [fakeClient.origin + '/cloud/subscribe']);
     });
 
     await testAsync('Cloud open warns when a file changes during upload', async () => {

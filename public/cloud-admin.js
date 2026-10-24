@@ -52,7 +52,7 @@
     try {
       return await request(path);
     } catch (error) {
-      if (error.code === 'subscription_required') return fallback;
+      if (['subscription_required', 'trial_payment_required'].includes(error.code)) return fallback;
       throw error;
     }
   }
@@ -368,6 +368,9 @@
       byId('billing-price').textContent = window.SDocsCloudPricing.primaryAmount('standard', window.SDocsCloudPricing.currentCurrency()) + ' / person / month';
       if (billing && billing.legacy_price) byId('billing-price').textContent = 'Your existing subscription rate is unchanged. View your current price in Stripe.';
       if (billing && !billing.trialEndsAtMs) byId('billing-status').textContent = billing.covered ? 'Your subscription is covered.' : 'Subscribe, or ask a library administrator to cover your subscription.';
+      if (billing && billing.effectiveStatus === 'trial') byId('billing-status').textContent = 'Free until ' + formatDateTime(billing.trialEndsAtMs) + '. Cloud access continues for seven more days after the trial ends.';
+      if (billing && billing.effectiveStatus === 'trial_warning') byId('billing-status').textContent = 'Your trial has ended. Subscribe by ' + formatDateTime(billing.trialPaywallAtMs) + ' to keep using SmallDocs.';
+      if (billing && billing.effectiveStatus === 'payment_required') byId('billing-status').textContent = 'Your free trial and extra week have ended. Subscribe to continue using SmallDocs.';
       byId('billing-usage').textContent = billing && billing.sponsored_seats ? 'Your billing account covers ' + billing.sponsored_seats + ' people across your libraries.' : 'One paid subscription per person, across libraries.';
       byId('subscribe-row').hidden = Boolean(billing && billing.covered && !billing.trialEndsAtMs);
       byId('manage-billing').hidden = !(billing && billing.canManagePayment);
@@ -685,6 +688,19 @@
         byId('delete-workspace').textContent = 'Delete library';
         byId('workspace-lifecycle').querySelector('strong').textContent = 'Delete library';
       }
+      var preference = byId('legacy-library');
+      preference.checked = Boolean(state.me.legacy_library_enabled);
+      preference.addEventListener('change', async function () {
+        preference.disabled = true;
+        try {
+          await mutation('PATCH', '/me/preferences', { legacy_library_enabled: preference.checked });
+          state.me.legacy_library_enabled = preference.checked;
+          byId('library-preference-status').textContent = 'Saved. Navigation updates when you open another page.';
+        } catch (_) {
+          preference.checked = !preference.checked;
+          byId('library-preference-status').textContent = 'Your preference could not be saved. Try again.';
+        } finally { preference.disabled = false; }
+      });
       state.workspaces = responses[1].workspaces || [];
       state.credentials = responses[2].credentials || [];
       if (state.singlePlan) setupLibraries();

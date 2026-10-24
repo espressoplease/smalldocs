@@ -47,6 +47,8 @@ Run `sdoc cloud login`, complete authorization in the browser, then run `sdoc cl
 
 After you connect SmallDocs Cloud, run `sdoc setup --cloud --yes`. The Cloud edition has the same `smalldocs` name, so agents do not see two overlapping SmallDocs skills. In Cloud-first mode, `sdoc FILE.md` creates or updates the Cloud document before opening it. List your libraries with `sdoc cloud libraries --json`. Use `sdoc cloud library-default LIBRARY_UUID --json` to select the default for new documents from this connected computer. An explicit `--account UUID` takes priority; existing documents keep their bindings.
 
+The Cloud CLI also handles billing status, invitations and member removal. Run `sdoc cloud billing --help` for the reference. Document saves return subscription notices during the seven days after a free trial ends. After that extra week, Cloud access requires a subscription. `sdoc cloud subscribe` opens the payment page for you to complete. `sdoc cloud settings billing` opens subscription management, and `sdoc cloud settings preferences` lets you show the previous local-library navigation.
+
 The Cloud skill treats tagging as part of every new document. Agents reuse relevant vocabulary from the destination library, choose tags that describe the document's subject, project, or purpose, and check the saved tags before returning its Cloud link. For example, `sdoc api-design.md --cloud --json +payments +idempotency +api-design` saves a tagged document without changing the local file's tags. Run `sdoc cloud tag --help` for the tagging reference.
 
 `npx skills@latest` currently requires Node 22.20 or newer. `sdoc setup` remains the built-in fallback and also removes the always-on SmallDocs block written by older CLI releases:

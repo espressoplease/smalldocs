@@ -63,13 +63,13 @@ module.exports = function (h) {
         assert.strictEqual(status.data.quantity, 1);
         const saved = await create('missing', libraries[0].id, 'free-trial-write');
         assert.strictEqual(saved.status, 201, JSON.stringify(saved));
-        billing.db.prepare('UPDATE cloud_billing_personal_trials SET ends_at_ms=? WHERE user_id=?').run(Date.now() - 1, users.missing.id);
+        billing.db.prepare('UPDATE cloud_billing_personal_trials SET ends_at_ms=? WHERE user_id=?').run(Date.now() - 8 * 86400000, users.missing.id);
         await api('missing', '/cloud/admin?panel=billing');
         const expired = await api('missing', '/api/cloud/billing/subscription');
         assert.strictEqual(expired.data.trial_active, false);
         assert.ok(expired.data.trial_ends_at_ms < Date.now());
         assert.strictEqual((await create('missing', libraries[0].id, 'expired-trial-write')).status, 402);
-        assert.strictEqual((await api('missing', '/api/cloud/v1/documents/' + saved.data.document.id)).status, 200);
+        assert.strictEqual((await api('missing', '/api/cloud/v1/documents/' + saved.data.document.id)).status, 402);
         assert.strictEqual(billing.db.prepare('SELECT COUNT(*) AS n FROM cloud_billing_personal_trials WHERE user_id=?').get(users.missing.id).n, 1);
       });
       await testAsync('subscription summary requires authentication and does not reveal another user billing', async () => {
@@ -220,7 +220,7 @@ module.exports = function (h) {
         // Simulate ended personal coverage without an active paid subscription.
         const oldSubscription = billing.getSubscription(single.account(own).id);
         billing.upsertSubscription({ ...oldSubscription, status: 'canceled' });
-        billing.db.prepare('UPDATE cloud_billing_personal_trials SET ends_at_ms=? WHERE user_id=?').run(Date.now() - 1, users.josh.id);
+        billing.db.prepare('UPDATE cloud_billing_personal_trials SET ends_at_ms=? WHERE user_id=?').run(Date.now() - 8 * 86400000, users.josh.id);
         single.claim(users.josh.id, library);
         assert.strictEqual(single.entitlements(users.josh.id, library).access.write, false);
         billing.db.prepare('UPDATE cloud_billing_personal_trials SET ends_at_ms=? WHERE user_id=?').run(existing, users.josh.id);

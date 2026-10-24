@@ -79,6 +79,8 @@ function parseArgs(argv) {
   let sharedWithMeFlag = false;
   let starredOnlyFlag = false;
   let noteText = null;
+  let roleFlag = null;
+  let ratingFlag = null;
   const memberFlags = [];
   const documentFlags = [];
   const tagFilters = [];
@@ -177,6 +179,8 @@ function parseArgs(argv) {
       continue;
     }
 
+    if (arg === '--role') { roleFlag = args[++i]; continue; }
+    if (arg === '--rating') { ratingFlag = Number(args[++i]); continue; }
     if (arg === '--url') { url = args[++i]; continue; }
     if (arg === '--section' || arg === '-s') { section = args[++i]; continue; }
     if (arg === '--source') { sourceFlag = args[++i]; continue; }
@@ -288,7 +292,7 @@ function parseArgs(argv) {
     projectFlag, accountFlag, outputPath, revisionFlag, documentFlag, baseRevisionFlag,
     ifCurrentFlag, rejectConflictsFlag, fromRevisionFlag, toRevisionFlag,
     limitFlag, noOpenFlag, noBindFlag, forceFlag, tagFilters,
-    everyoneFlag, onlyYouFlag, sharedWithMeFlag, starredOnlyFlag, noteText, memberFlags, documentFlags,
+    everyoneFlag, onlyYouFlag, sharedWithMeFlag, starredOnlyFlag, noteText, roleFlag, ratingFlag, memberFlags, documentFlags,
     addTags, annotations, files,
   }, discovery);
 }

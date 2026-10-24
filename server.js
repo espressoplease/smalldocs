@@ -367,7 +367,7 @@ function billingJobAnchor(subscription, type, availableAtMs) {
 function scheduleBillingLifecycleJobs(change) {
   if (!cloudJobs || !cloudStore || !change || !change.after) return;
   const subscription = change.after;
-  if (cloudSinglePlan && cloudSinglePlan.db.prepare('SELECT 1 FROM cloud_single_accounts WHERE id=?').get(subscription.workspaceId)) return;
+  if (cloudSinglePlan) return;
   const owners = cloudStore.listWorkspaceOwnerUserIds(subscription.workspaceId);
   const immediateAtMs = subscription.providerEventCreatedMs || subscription.updatedAtMs;
   for (const type of cloudBillingLifecycle.transitionTypes(change.before, subscription)) {
@@ -479,6 +479,8 @@ async function processCloudJob(job) {
     return;
   }
   if (job.type === 'billing_state_email') {
+    // These legacy notices describe workspace billing and automatic deletion.
+    if (cloudSinglePlan) return;
     if (!cloudStore || !cloudAuth || !cloudBilling) {
       throw Object.assign(new Error('temporary_service_failure'),
         { code: 'temporary_service_failure' });
@@ -511,6 +513,8 @@ async function processCloudJob(job) {
     return;
   }
   if (job.type === 'billing_retention_expire') {
+    // Unpaid libraries are retained until a new deletion policy is agreed.
+    if (cloudSinglePlan) return;
     if (!cloudStore || !cloudBilling) return;
     const subscription = cloudBilling.getSubscription(job.payload.workspaceId);
     if (!cloudBillingLifecycle.billingEventApplies(subscription, job.payload, Date.now())) return;
@@ -756,6 +760,12 @@ function getClientIp(req) {
 }
 
 function sendJson(res, status, obj, extraHeaders) {
+  if (res.cloudSubscription && obj && typeof obj === 'object' &&
+      (status < 400 || obj.error === 'trial_payment_required')) {
+    const subscription = res.cloudSubscription();
+    obj = Object.assign({}, obj, { subscription });
+    if (subscription.notices.length) obj.notices = subscription.notices;
+  }
   const headers = Object.assign(
     { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
     extraHeaders || {}
@@ -1075,6 +1085,7 @@ function homepageNavigation(req) {
 
   return {
     authenticated: Boolean(authenticated),
+    legacyLibrary: !SINGLE_PLAN_ENABLED || Boolean(authenticated && authenticated.user.legacyLibraryEnabled),
     termsAccepted: Boolean(authenticated && cloudTermsAccepted(authenticated.user)),
     menuBefore,
     menuAfter,
@@ -1097,7 +1108,8 @@ function documentNavigation(req) {
     authenticated: navigation.authenticated,
     termsAccepted: navigation.termsAccepted,
     substitutions: {
-      '__DOCUMENT_LIBRARY_HREF__': '/library',
+      '__DOCUMENT_LIBRARY_HREF__': navigation.legacyLibrary ? '/library' : '/library?scope=cloud',
+      '__DOCUMENT_LEGACY_LIBRARY__': navigation.legacyLibrary ? 'true' : 'false',
       '__DOCUMENT_CLOUD_AUTHENTICATED__': navigation.authenticated ? 'true' : 'false',
       '__DOCUMENT_CLOUD_TERMS_ACCEPTED__': navigation.termsAccepted ? 'true' : 'false',
       '__DOCUMENT_NAV_MENU_HIDDEN__': navigation.authenticated ? '' : 'hidden',
@@ -1156,6 +1168,7 @@ function cloudApiError(res, error) {
     personal_workspace_cannot_be_deleted: 409,
     subscription_required: 402,
     subscription_read_only: 402,
+    trial_payment_required: 402,
     payment_grace_expired: 402,
     file_too_large: 413,
     storage_limit_exceeded: 409,
@@ -1218,6 +1231,24 @@ function cloudApiError(res, error) {
   sendJson(res, statuses[code] || 500, body, retry);
 }
 
+function cloudSubscriptionState(userId) {
+  const { applyTrialPolicy, trialStatus } = require('./lib/cloud-trial-policy');
+  const own = cloudSinglePlan.ownAccount(userId);
+  const sponsor = cloudSinglePlan.coverage(userId);
+  const payer = sponsor && cloudSinglePlan.hasSponsoredMembership(userId, sponsor.account_id)
+    ? sponsor.account_id : own && own.id;
+  const original = cloudBilling.db.prepare('SELECT ends_at_ms FROM cloud_billing_personal_trials WHERE user_id=?').get(userId);
+  const access = applyTrialPolicy(cloudBilling.computeEntitlements(payer || '__none__'),
+    cloudBilling.now(), original && original.ends_at_ms);
+  return trialStatus(access, cloudBilling.now(), CLOUD_AUTH_PUBLIC_ORIGIN);
+}
+
+function redirectForTrialPayment(res, authenticated) {
+  if (!cloudSinglePlan || !authenticated.ok || cloudSubscriptionState(authenticated.user.id).phase !== 'payment_required') return false;
+  res.writeHead(303, { Location: '/cloud/subscribe', 'Cache-Control': 'no-store' });
+  res.end(); return true;
+}
+
 function cloudApiPrincipal(req, res) {
   if (!cloudStore) {
     sendJson(res, 503, { ok: false, error: 'cloud_storage_not_configured' });
@@ -1236,6 +1267,7 @@ function cloudApiPrincipal(req, res) {
       acceptance_url: '/cloud/terms' });
     return null;
   }
+  if (cloudSinglePlan) res.cloudSubscription = () => cloudSubscriptionState(authenticated.user.id);
   return { user: authenticated.user, credential: authenticated.credential || null,
     session: authenticated.session || null };
 }
@@ -1246,6 +1278,10 @@ function requireRecentBrowser(principal) {
       Date.now() - principal.session.createdAtMs > maxAgeMs) {
     throw Object.assign(new Error('recent_auth_required'), { code: 'recent_auth_required' });
   }
+}
+
+function requireAccountManager(principal) {
+  if (!principal.credential) requireRecentBrowser(principal);
 }
 
 function cloudApiMutationAllowed(req, res) {
@@ -1365,12 +1401,25 @@ function redirectForCloudSetup(res, authenticated, returnTo) {
   res.end(); return true;
 }
 
+function requireCloudInvitationRate(req, userId, workspaceId) {
+  const sourceRate = cloudAuth.consumeRateLimit({ action: 'cloud_invitation_source',
+    key: getClientIp(req), limit: Number(process.env.CLOUD_INVITATION_SOURCE_LIMIT) || 30,
+    windowMs: Number(process.env.CLOUD_INVITATION_SOURCE_WINDOW_MS) || 60 * 60 * 1000 });
+  const workspaceRate = cloudAuth.consumeRateLimit({ action: 'cloud_invitation_workspace',
+    key: userId + ':' + workspaceId,
+    limit: Number(process.env.CLOUD_INVITATION_WORKSPACE_LIMIT) || 100,
+    windowMs: Number(process.env.CLOUD_INVITATION_WORKSPACE_WINDOW_MS) || 24 * 60 * 60 * 1000 });
+  if (!sourceRate.allowed || !workspaceRate.allowed) {
+    throw Object.assign(new Error('rate_limited'), { code: 'rate_limited' });
+  }
+}
+
 function requireInvitationEntitlement(userId, workspaceId) {
   if (!cloudSinglePlan) return requireCloudEntitlement(userId, workspaceId, 'add_member');
   const account = cloudSinglePlan.resolveLibrary(workspaceId);
   const covered = cloudSinglePlan.coverage(userId);
-  const canJoin = account && cloudBilling.computeEntitlements(account.id).access.write ||
-    covered && cloudSinglePlan.hasSponsoredMembership(userId, covered.account_id) && cloudBilling.computeEntitlements(covered.account_id).access.write;
+  const canJoin = account && cloudSinglePlan.subscriptionAccess(account.id).access.write ||
+    covered && cloudSinglePlan.hasSponsoredMembership(userId, covered.account_id) && cloudSinglePlan.subscriptionAccess(covered.account_id).access.write;
   if (!canJoin) throw Object.assign(new Error('subscription_required'), { code: 'subscription_required' });
 }
 
@@ -1428,6 +1477,7 @@ function cloudUserProfile(user, email) {
     id: user.id,
     first_name: user.firstName,
     last_name: user.lastName,
+    legacy_library_enabled: user.legacyLibraryEnabled,
   };
   if (email !== undefined) profile.email = email;
   return profile;
@@ -1586,6 +1636,20 @@ async function handleCloudApi(req, res, url) {
     const principal = cloudApiPrincipal(req, res);
     if (!principal || !cloudApiMutationAllowed(req, res)) return;
     const user = principal.user;
+    if (req.method === 'POST' && pathname === base + '/trial-feedback') {
+      if (!cloudBilling) throw Object.assign(new Error('billing_not_configured'), { code: 'billing_not_configured' });
+      const body = await cloudAuthHttp.readJson(req);
+      if (typeof body.comment !== 'string' || !body.comment.trim() || body.comment.length > 10000) {
+        throw Object.assign(new Error('invalid_request'), { code: 'invalid_request' });
+      }
+      const feedback = cloudBilling.recordTrialFeedback({ userId: user.id, comment: body.comment, rating: body.rating });
+      sendJson(res, 200, { ok: true, feedback });
+      return;
+    }
+    if (cloudSinglePlan && /^\/api\/cloud\/v1\/(?:documents|search|projects|account\/(?:documents|tags|permission-groups))(?:\/|$)/.test(pathname) &&
+        cloudSubscriptionState(user.id).phase === 'payment_required') {
+      throw Object.assign(new Error('trial_payment_required'), { code: 'trial_payment_required' });
+    }
     const credentialId = principal.credential && principal.credential.id;
 
     if (req.method === 'GET' && pathname === base + '/cli/device-authorizations/lookup') {
@@ -1795,6 +1859,12 @@ async function handleCloudApi(req, res, url) {
         single_plan: SINGLE_PLAN_ENABLED, user: cloudUserProfile(user, identity ? identity.verifiedEmail : null) });
       return;
     }
+    if (req.method === 'PATCH' && pathname === base + '/me/preferences') {
+      const body = await cloudAuthHttp.readJson(req);
+      const updated = cloudAuth.updateLibraryPreference(user.id, body.legacy_library_enabled);
+      sendJson(res, 200, { ok: true, user: cloudUserProfile(updated) });
+      return;
+    }
     if (req.method === 'PATCH' && pathname === base + '/me') {
       const body = await cloudAuthHttp.readJson(req);
       const updated = cloudAuth.updateUserProfile({ userId: user.id,
@@ -1914,13 +1984,14 @@ async function handleCloudApi(req, res, url) {
       return;
     }
     if (req.method === 'POST' && pathname === base + '/account/invitations') {
-      requireRecentBrowser(principal);
+      requireAccountManager(principal);
       const body = await cloudAuthHttp.readJson(req);
       const context = await cloudAccountContext(user.id, body.account_id || null);
       const selected = context.selected;
       if ((!cloudSinglePlan && selected.workspace.kind !== 'team') || !selected.defaultProject) {
         throw Object.assign(new Error('permission_denied'), { code: 'permission_denied' });
       }
+      requireCloudInvitationRate(req, user.id, selected.workspace.id);
       requireCloudEntitlement(user.id, selected.workspace.id, 'manage');
       const invitation = await cloudStore.createInvitation({
         userId: user.id, workspaceId: selected.workspace.id, email: body.email,
@@ -1935,13 +2006,14 @@ async function handleCloudApi(req, res, url) {
           accountName: selected.workspace.name } });
       sendJson(res, 201, { ok: true, invitation: { id: invitation.id,
         email: invitation.email, role: invitation.role,
-        expires_at: new Date(invitation.expiresAtMs).toISOString() } });
+        expires_at: new Date(invitation.expiresAtMs).toISOString(),
+        notification_scheduled: Boolean(cloudJobs), accept_url: acceptUrl } });
       return;
     }
     const accountInvitationMatch = pathname.match(
       /^\/api\/cloud\/v1\/account\/invitations\/([^/]+)$/);
     if (accountInvitationMatch && req.method === 'DELETE') {
-      requireRecentBrowser(principal);
+      requireAccountManager(principal);
       const body = await cloudAuthHttp.readJson(req);
       const context = await cloudAccountContext(user.id, body.account_id || null);
       if ((!cloudSinglePlan && context.selected.workspace.kind !== 'team')) {
@@ -2069,17 +2141,8 @@ async function handleCloudApi(req, res, url) {
       return;
     }
     if (workspaceInvitationsMatch && req.method === 'POST') {
-      requireRecentBrowser(principal);
-      const sourceRate = cloudAuth.consumeRateLimit({ action: 'cloud_invitation_source',
-        key: getClientIp(req), limit: Number(process.env.CLOUD_INVITATION_SOURCE_LIMIT) || 30,
-        windowMs: Number(process.env.CLOUD_INVITATION_SOURCE_WINDOW_MS) || 60 * 60 * 1000 });
-      const workspaceRate = cloudAuth.consumeRateLimit({ action: 'cloud_invitation_workspace',
-        key: user.id + ':' + workspaceInvitationsMatch[1],
-        limit: Number(process.env.CLOUD_INVITATION_WORKSPACE_LIMIT) || 100,
-        windowMs: Number(process.env.CLOUD_INVITATION_WORKSPACE_WINDOW_MS) || 24 * 60 * 60 * 1000 });
-      if (!sourceRate.allowed || !workspaceRate.allowed) {
-        throw Object.assign(new Error('rate_limited'), { code: 'rate_limited' });
-      }
+      requireAccountManager(principal);
+      requireCloudInvitationRate(req, user.id, workspaceInvitationsMatch[1]);
       const body = await cloudAuthHttp.readJson(req);
       requireCloudEntitlement(user.id, workspaceInvitationsMatch[1], 'manage');
       const invitation = await cloudStore.createInvitation({
@@ -2120,7 +2183,7 @@ async function handleCloudApi(req, res, url) {
     const workspaceInvitationMatch = pathname.match(
       /^\/api\/cloud\/v1\/workspaces\/([^/]+)\/invitations\/([^/]+)$/);
     if (workspaceInvitationMatch && req.method === 'DELETE') {
-      requireRecentBrowser(principal);
+      requireAccountManager(principal);
       const invitation = cloudStore.revokeWorkspaceInvitation({
         userId: user.id, workspaceId: workspaceInvitationMatch[1],
         invitationId: workspaceInvitationMatch[2],
@@ -2130,7 +2193,7 @@ async function handleCloudApi(req, res, url) {
     }
     const workspaceMemberMatch = pathname.match(/^\/api\/cloud\/v1\/workspaces\/([^/]+)\/members\/([^/]+)$/);
     if (workspaceMemberMatch && req.method === 'DELETE') {
-      requireRecentBrowser(principal);
+      requireAccountManager(principal);
       cloudStore.removeWorkspaceMember({ actorUserId: user.id,
         workspaceId: workspaceMemberMatch[1], userId: workspaceMemberMatch[2] });
       const seatChangeId = crypto.randomUUID();
@@ -3094,7 +3157,7 @@ const server = http.createServer((req, res) => {
     const trial = cloudBilling.db.prepare('SELECT ends_at_ms FROM cloud_billing_personal_trials WHERE user_id=?').get(userId);
     const trialEnd = coverage && coverage.trialEndsAtMs
       ? Math.min(coverage.trialEndsAtMs, trial ? trial.ends_at_ms : Infinity) : trial && trial.ends_at_ms;
-    sendJson(res, 200, { ok: true, email: verifiedCloudEmail(userId),
+    sendJson(res, 200, { ok: true, ...cloudSubscriptionState(userId), email: verifiedCloudEmail(userId),
       trial_ends_at_ms: trialEnd || null,
       trial_active: Boolean(trialEnd && cloudBilling.now() < trialEnd && !subscription),
       subscription_status: subscription ? subscription.status : null,
@@ -3239,6 +3302,7 @@ const server = http.createServer((req, res) => {
     const cloudNavigation = homepageNavigation(req);
     serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'cloud.html'), {
       '__CLOUD_AUTHENTICATED__': cloudNavigation.authenticated ? 'true' : 'false',
+      '__CLOUD_LEGACY_LIBRARY__': cloudNavigation.legacyLibrary ? 'true' : 'false',
       '__CLOUD_TERMS_ACCEPTED__': cloudNavigation.termsAccepted ? 'true' : 'false',
     }, {
       'Cache-Control': CLOUD_DEPLOYMENT.publicEnabled ? 'private, no-store' : 'no-cache',
@@ -3438,6 +3502,17 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  if (pathname === '/cloud/trial-feedback') {
+    const session = cloudAuthSession(req);
+    if (!session.ok) {
+      res.writeHead(303, { Location: '/cloud/sign-in?return=%2Fcloud%2Ftrial-feedback', 'Cache-Control': 'no-store' });
+      res.end(); return;
+    }
+    if (redirectForCloudTerms(res, session, pathname)) return;
+    serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'cloud-trial-feedback.html'), null, { 'Cache-Control': 'no-store' });
+    return;
+  }
+
   if (pathname === '/cloud/subscribe') {
     if (!SINGLE_PLAN_ENABLED) { sendJson(res, 404, { ok: false, error: 'resource_unavailable' }); return; }
     const authenticated = cloudAuthSession(req);
@@ -3487,7 +3562,9 @@ const server = http.createServer((req, res) => {
     }
     serveCloudAdmin();
     function serveCloudAdmin() {
-      serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'cloud-admin.html'), null, {
+      serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'cloud-admin.html'), {
+        '__CLOUD_LEGACY_LIBRARY__': !SINGLE_PLAN_ENABLED || authenticated.user.legacyLibraryEnabled ? 'true' : 'false',
+      }, {
         'Cache-Control': 'no-store',
         'X-Content-Type-Options': 'nosniff',
         'X-Frame-Options': 'DENY',
@@ -3587,6 +3664,15 @@ const server = http.createServer((req, res) => {
   // from the query string and fetches everything from there; no data
   // crosses this server.
   if (pathname === '/library') {
+    if (SINGLE_PLAN_ENABLED && !url.searchParams.has('scope') && !['agent', 'force', 'demo'].some(key => url.searchParams.has(key))) {
+      const session = cloudAuthSession(req);
+      if (!session.ok || !session.user.legacyLibraryEnabled) {
+        url.searchParams.set('scope', 'cloud');
+        res.writeHead(303, { Location: '/library?' + url.searchParams.toString(), 'Cache-Control': 'no-store' });
+        res.end(); return;
+      }
+    }
+
     if (!CLOUD_DEPLOYMENT.publicEnabled && url.searchParams.get('scope') === 'cloud') {
       res.writeHead(302, { Location: '/library', 'Cache-Control': 'no-store' });
       res.end();
@@ -3596,6 +3682,7 @@ const server = http.createServer((req, res) => {
       const authenticated = cloudAuthSession(req);
       if (redirectForCloudTerms(res, authenticated, pathname + url.search)) return;
       if (redirectForCloudSetup(res, authenticated, pathname + url.search)) return;
+      if (redirectForTrialPayment(res, authenticated)) return;
     }
     const csp = [
       "default-src 'self'",
@@ -3613,6 +3700,7 @@ const server = http.createServer((req, res) => {
     const libraryNavigation = homepageNavigation(req);
     serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'library', 'library.html'), {
       '__CLOUD_AUTHENTICATED__': libraryNavigation.authenticated ? 'true' : 'false',
+      '__CLOUD_LEGACY_LIBRARY__': libraryNavigation.legacyLibrary ? 'true' : 'false',
       '__CLOUD_TERMS_ACCEPTED__': libraryNavigation.termsAccepted ? 'true' : 'false',
       '__CLOUD_LIBRARY_STYLES__': CLOUD_DEPLOYMENT.publicEnabled
         ? '<link rel="stylesheet" href="/public/library/cloud-library-prototype.css">' : '',
@@ -3658,6 +3746,7 @@ const server = http.createServer((req, res) => {
     const connectNavigation = homepageNavigation(req);
     serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'connect.html'), {
       '__CLOUD_AUTHENTICATED__': connectNavigation.authenticated ? 'true' : 'false',
+      '__CLOUD_LEGACY_LIBRARY__': connectNavigation.legacyLibrary ? 'true' : 'false',
       '__CLOUD_TERMS_ACCEPTED__': connectNavigation.termsAccepted ? 'true' : 'false',
       '__CLOUD_CONNECT_LIBRARY_SWITCHER__': CLOUD_DEPLOYMENT.publicEnabled
         ? '<div class="library-onboarding-nav"><nav class="library-scope connect-library-scope" aria-label="Library location">' +
@@ -3687,6 +3776,7 @@ const server = http.createServer((req, res) => {
     const rescuedNavigation = homepageNavigation(req);
     serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'library', 'rescued.html'), {
       '__CLOUD_AUTHENTICATED__': rescuedNavigation.authenticated ? 'true' : 'false',
+      '__CLOUD_LEGACY_LIBRARY__': rescuedNavigation.legacyLibrary ? 'true' : 'false',
       '__CLOUD_TERMS_ACCEPTED__': rescuedNavigation.termsAccepted ? 'true' : 'false',
     }, {
       'Cache-Control': CLOUD_DEPLOYMENT.publicEnabled ? 'private, no-store' : 'no-cache',
@@ -4126,6 +4216,7 @@ const server = http.createServer((req, res) => {
       const authenticated = cloudAuthSession(req);
       if (redirectForCloudTerms(res, authenticated, pathname + url.search)) return;
       if (redirectForCloudSetup(res, authenticated, pathname + url.search)) return;
+      if (redirectForTrialPayment(res, authenticated)) return;
     }
     const documentNav = documentNavigation(req);
     const nonce = crypto.randomBytes(16).toString('base64');

@@ -26,7 +26,8 @@ body {
   color: var(--text);
 }
 
-button, input { font: inherit; }
+button, input, textarea, select { font: inherit; }
+textarea.text-input { resize: vertical; }
 a { color: var(--blue); }
 a:hover { text-decoration: none; }
 [hidden] { display: none !important; }

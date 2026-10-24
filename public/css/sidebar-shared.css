@@ -505,3 +505,5 @@
   stroke-linejoin: round;
   color: var(--text-3, #a8a29e);
 }
+
+body[data-legacy-library="false"] .library-scope, [data-legacy-library="false"] .sdocs-sidebar-section-library, .sdocs-sidebar-top-row[hidden] { display: none; }

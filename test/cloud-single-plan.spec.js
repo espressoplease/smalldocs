@@ -101,9 +101,9 @@ test('expired trial offers payment with a readable error and retains the library
   f.billing.db.prepare('UPDATE cloud_billing_personal_trials SET ends_at_ms=? WHERE user_id=?').run(Date.now() - 1, f.users.josh.id);
   await page.goto(f.origin + '/cloud/subscribe');
   await expect(page.locator('#subscription-state')).toContainText('Your free trial has ended');
-  await page.getByRole('button', { name: 'Continue to payment' }).click();
+  await page.getByRole('button', { name: 'Subscribe now' }).click();
   await expect(page.locator('#subscribe-status')).toContainText('Payment could not be opened');
-  await expect(page.getByRole('button', { name: 'Continue to payment' })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Subscribe now' })).toBeEnabled();
 });
 test('paid accounts cannot accidentally start a second subscription from the page', async ({ page }) => {
   await login(page, 'returning');
@@ -118,7 +118,8 @@ test('paid accounts cannot accidentally start a second subscription from the pag
 test('first sign-in through the library starts a free trial instead of offering a plan', async ({ page }) => {
   await login(page, 'gmail');
   await page.goto(f.origin + '/library?scope=cloud');
-  await expect(page.getByRole('heading', { name: 'Install SmallDocs', exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/library\?scope=cloud/);
+  await expect(page.locator('.sdocs-site-sidebar').getByRole('link', { name: 'Library', exact: true })).toBeVisible();
   await expect(page).not.toHaveURL(/subscribe|checkout/);
   expect((await f.store.listWorkspaces(f.users.gmail.id)).length).toBe(1);
   const summary = await f.api('gmail', '/api/cloud/billing/subscription');

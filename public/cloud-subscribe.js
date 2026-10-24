@@ -7,6 +7,7 @@
     if (response.status === 401) { location.assign('/cloud/sign-in?return=%2Fcloud%2Fsubscribe'); return; }
     if (!response.ok) throw new Error();
     var data = await response.json();
+    var subscription = data.subscription || data;
     byId('subscription-identity').textContent = data.email;
     var paid = data.subscription_status && data.subscription_status !== 'canceled';
     var covered = data.covered_elsewhere;
@@ -16,7 +17,16 @@
       byId('continue-trial').hidden = false;
       return;
     }
-    if (data.trial_active) {
+    if (subscription.phase === 'trial_warning') {
+      byId('subscription-state').textContent = 'Your free trial has ended. You can keep using SmallDocs until ' + new Date(subscription.paywall_starts_at_ms).toLocaleString(undefined, { day: 'numeric', month: 'long', year: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }) + '. Subscribe before then to keep access.';
+      byId('continue-trial').hidden = false;
+      button.textContent = 'Subscribe now';
+    } else if (subscription.phase === 'payment_required') {
+      byId('subscription-title').textContent = 'Subscribe to continue';
+      byId('subscription-state').textContent = 'Your free trial and extra week have ended. Subscribe to open, create, and update your Cloud documents.';
+      byId('continue-trial').hidden = true;
+      button.textContent = 'Subscribe';
+    } else if (data.trial_active) {
       byId('subscription-state').textContent = 'Your free trial ends on ' + new Date(data.trial_ends_at_ms).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' }) + '. No payment details are needed. You will not be charged automatically.';
       byId('continue-trial').hidden = false;
       button.textContent = 'Subscribe now';

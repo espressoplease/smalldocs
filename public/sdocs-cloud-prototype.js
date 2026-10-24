@@ -186,6 +186,7 @@ async function jsonRequest(url, options) {
   var response = await fetch(url, Object.assign({ credentials: 'same-origin' }, options || {}));
   var data = await response.json().catch(function () { return {}; });
   if (!response.ok) {
+    if (data.error === 'trial_payment_required') location.assign('/cloud/subscribe');
     var error = new Error(data.error || 'request_failed');
     error.status = response.status;
     error.data = data;

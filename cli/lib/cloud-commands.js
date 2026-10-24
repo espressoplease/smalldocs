@@ -11,12 +11,12 @@ const searchQuery = require('../shared/sdocs-search-query.js');
 
 const EXIT = { unexpected: 1, invalid_request: 2, login_required: 3,
   resource_unavailable: 4, account_required: 4, account_selection_required: 4,
-  permission_denied: 4, revision_conflict: 5,
+  permission_denied: 4, terms_acceptance_required: 4, revision_conflict: 5,
   idempotency_mismatch: 5,
   unsafe_local_state: 6, base_revision_unavailable: 6, target_too_old: 6, rate_limited: 7,
   search_limit_reached: 7, search_index_building: 7, temporary_service_failure: 7, billing_not_configured: 7,
   authentication_not_configured: 7, cloud_storage_not_configured: 7,
-  subscription_required: 4, subscription_read_only: 4, payment_grace_expired: 4,
+  subscription_required: 4, subscription_read_only: 4, payment_grace_expired: 4, trial_payment_required: 4,
   storage_limit_exceeded: 4, project_limit_reached: 4, member_limit_reached: 4,
   file_too_large: 2 };
 
@@ -481,6 +481,9 @@ function documentUrl(client, documentId) {
 }
 
 function entitlementFailure(code, status, cloudOrigin) {
+  if (code === 'trial_payment_required') return { code,
+    message: 'Your free trial and extra week have ended. Open the subscription page to continue.',
+    action: 'subscribe', billing_url: cloudOrigin + '/cloud/subscribe' };
   if (code === 'read_only') code = 'subscription_read_only';
   if (status !== 402 && !['subscription_required', 'subscription_read_only',
     'payment_grace_expired'].includes(code)) return null;
@@ -570,15 +573,27 @@ class CloudClient {
         result.data.setup_url = setupUrl;
         result.data.origin = this.origin;
         result.data.next_action = 'Open setup_url, finish your profile and library setup, then retry.';
+      } else if (result.data.error === 'terms_acceptance_required') {
+        result.data.acceptance_url = this.origin + '/cloud/terms';
+        message = 'Open ' + result.data.acceptance_url + ' for the human to review and accept the updated Terms, then retry.';
       }
       throw new CloudCommandError(result.data.error || 'temporary_service_failure',
         message, Object.assign({}, result.data, { http_status: result.response.status }));
     }
+    this.subscription = result.data.subscription || this.subscription;
     return result.data;
   }
 }
 
 function emit(opts, command, value, human) {
+  const subscription = opts.subscriptionSource && opts.subscriptionSource();
+  if (subscription) {
+    value = Object.assign({}, value, { subscription, notices: subscription.notices || [] });
+    if (human && subscription.notices && subscription.notices.length) {
+      human += '\n' + subscription.notices.map(notice => notice.message).join('\n') +
+        '\nSubscribe: ' + subscription.subscribe_url + '\nFeedback: ' + subscription.feedback_url;
+    }
+  }
   if (opts.silent) return value;
   if (opts.jsonFlag) process.stdout.write(JSON.stringify(Object.assign({ ok: true, command }, value)) + '\n');
   else process.stdout.write((human || JSON.stringify(value, null, 2)) + '\n');
@@ -1277,9 +1292,11 @@ async function autoSyncOpen(opts, dependencies) {
 
 async function openCloudDocument(opts, dependencies) {
   dependencies = dependencies || {};
+  let client;
   try {
-    const client = dependencies.client || new CloudClient(opts.url
+    client = dependencies.client || new CloudClient(opts.url
       ? { origin: new URL(opts.url).origin } : undefined);
+    opts.subscriptionSource = () => client.subscription;
     const saved = await autoSyncOpen(opts, {
       client, accountId: dependencies.accountId, silent: true,
     });
@@ -1297,6 +1314,10 @@ async function openCloudDocument(opts, dependencies) {
     }, canonicalUrl + (saved.localChangedAfterUpload
       ? '\nThe local file changed during upload. Run sdoc again to save the latest changes.' : ''));
   } catch (error) {
+    if (error.code === 'trial_payment_required' && !opts.noOpenFlag && client) {
+      (dependencies.openBrowser || io.openBrowser)(client.origin + '/cloud/subscribe',
+        (message) => process.stderr.write(message + '\n'));
+    }
     fail(opts, 'cloud.open', error);
   }
 }
@@ -1492,10 +1513,12 @@ async function runCloudCommand(opts, dependencies) {
   const command = 'cloud.' + action;
   try {
     const client = dependencies && dependencies.client || new CloudClient();
+    opts.subscriptionSource = () => client.subscription;
+    const management = require('./cloud-management');
     if (opts.helpFlag || action === 'help') return process.stdout.write(
-      ((action === 'search' || action === 'ls') ? CLOUD_SEARCH_HELP : action === 'read' ? CLOUD_READ_HELP
+      (management.ACTIONS.includes(action) ? management.HELP : (action === 'search' || action === 'ls') ? CLOUD_SEARCH_HELP : action === 'read' ? CLOUD_READ_HELP
         : ['tag', 'tags'].includes(action) ? CLOUD_TAG_HELP : action === 'create' ? CLOUD_CREATE_HELP
-        : ['push', 'pull', 'diff', 'history', 'restore', 'access'].includes(action) ? CLOUD_UPDATE_HELP : CLOUD_HELP) + '\n');
+        : ['push', 'pull', 'diff', 'history', 'restore', 'access'].includes(action) ? CLOUD_UPDATE_HELP : CLOUD_HELP + '\n' + management.HELP) + '\n');
     if (opts.searchArgumentErrors && opts.searchArgumentErrors.length) {
       throw new CloudCommandError('invalid_request', opts.searchArgumentErrors.join('; '));
     }
@@ -1504,6 +1527,8 @@ async function runCloudCommand(opts, dependencies) {
       throw new CloudCommandError('invalid_request', '--dry-run is not supported for cloud ' + action + '. No changes were made.');
     }
     if (action === 'overview') return overview(opts, client);
+    if (management.ACTIONS.includes(action)) return await management.run(opts, client,
+      { emit, CloudCommandError, openBrowser: dependencies && dependencies.openBrowser || io.openBrowser });
     if (action === 'login') return await login(opts, client);
     if (action === 'logout') return await logout(opts, client);
     if (action === 'libraries') return await libraries(opts, client);

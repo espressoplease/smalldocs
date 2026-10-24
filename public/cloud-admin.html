@@ -170,7 +170,7 @@
   @media(prefers-color-scheme:dark) { :root{--bg:#1C1A17;--surface:#211F1D;--surface-2:#252320;--text:#E7E5E2;--text-2:#A8A29E;--text-3:#77716B;--border:#3D3935;--border-2:#332F2B;--blue:#3B82F6;--blue-2:#17233A;--green:#4ADE80;--red:#FCA5A5}.notice{background:#17233A;border-color:#284B80;color:#BFDBFE} }
 </style>
 </head>
-<body data-sdocs-site-page="settings" data-cloud-authenticated="true" data-cloud-terms-accepted="true">
+<body data-legacy-library="__CLOUD_LEGACY_LIBRARY__" data-sdocs-site-page="settings" data-cloud-authenticated="true" data-cloud-terms-accepted="true">
 <div class="shell">
   <main class="main">
     <header class="settings-head">
@@ -190,6 +190,7 @@
       <button class="nav active" data-panel="overview"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>Overview</button>
       <button class="nav" data-panel="people" hidden><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><path d="M16 3.128a4 4 0 0 1 0 7.744"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><circle cx="9" cy="7" r="4"/></svg>People</button>
       <button class="nav" data-panel="machines" aria-label="Connected machines"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg><span class="nav-label-full">Connected machines</span><span class="nav-label-short">Machines</span></button>
+      <button class="nav" data-panel="preferences">Preferences</button>
       <button class="nav" data-panel="billing"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>Billing</button>
     </nav>
     <section class="panel" id="panel-libraries" hidden>
@@ -212,6 +213,14 @@
         <p class="description">Approve the machine in your browser when prompted. Then ask your agent to create a SmallDoc.</p><p class="description" id="install-destination-note"></p></div></div>
       <p id="install-copy-status" role="status"></p>
       <p><a id="install-machines-link" href="/cloud/admin?panel=machines">View connected machines</a> · <a id="install-library-link" href="/library?scope=cloud">Open library</a> · <a id="install-team-link" href="/cloud/start?choose=1">Join or create a team</a></p>
+    </section>
+    <section class="panel" id="panel-preferences" hidden>
+      <div class="page-head"><div><h2>Preferences</h2><p class="description">Choose your library navigation.</p></div></div>
+      <div class="card"><div class="install-content">
+        <label><input id="legacy-library" type="checkbox"> Show local library</label>
+        <p class="description">Keep the local and Cloud libraries as separate navigation items.</p>
+        <p class="form-status" id="library-preference-status" role="status"></p>
+      </div></div>
     </section>
     <section class="panel" id="panel-overview">
       <div class="page-head"><div><h2 id="overview-name">Overview</h2><p class="description" id="overview-description">Your Cloud documents and billing.</p></div></div>

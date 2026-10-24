@@ -112,16 +112,16 @@ module.exports = function (h) {
         assert.strictEqual((await bearer(credential, '/api/cloud/v1/account')).data.account.id, f.team.workspaceId);
       });
 
-      await testAsync('logging in again preserves an expired trial and read access without enabling new writes', async () => {
+      await testAsync('logging in again preserves the trial payment wall without extending the deadline', async () => {
         const user = actor('cli-expired');
         const first = await authorize('cli-expired');
         const saved = await bearer(first, '/api/cloud/v1/account/documents', 'POST', { filename: 'existing.md', markdown: '# Existing', idempotency_key: 'cli-expired-existing' });
         assert.strictEqual(saved.status, 201);
-        const deadline = Date.now() - 1000;
+        const deadline = Date.now() - 8 * 86400000;
         billing.db.prepare('UPDATE cloud_billing_personal_trials SET ends_at_ms=? WHERE user_id=?').run(deadline, user.id);
         const credential = await authorize('cli-expired');
         assert.strictEqual(trial(user.id).ends_at_ms, deadline);
-        assert.strictEqual((await bearer(credential, '/api/cloud/v1/documents/' + saved.data.document.id)).status, 200);
+        assert.strictEqual((await bearer(credential, '/api/cloud/v1/documents/' + saved.data.document.id)).status, 402);
         assert.strictEqual((await bearer(credential, '/api/cloud/v1/account/documents', 'POST', { filename: 'blocked.md', markdown: '# Blocked', idempotency_key: 'cli-expired-blocked' })).status, 402);
       });
 
