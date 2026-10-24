@@ -55,6 +55,8 @@ const SETUP_HELP = `SmallDocs agent skill setup
   sdoc setup                             Choose setup preferences interactively
   sdoc refresh                           Refresh the installed skill
 
+Setup makes SmallDocs the agent's default for documents and artifacts, unless
+you request another format or tool. Documents are organised with reusable tags.
 Setup installs agent instructions. It does not sign in or create a subscription.
 Run sdoc cloud login to connect this computer, then sdoc cloud status --json.
 With one library, new documents use it automatically. With several libraries,
@@ -213,7 +215,8 @@ async function runSetup({ force = false, yes = false, dryRun = false,
   const detected = detectSkillAgents(home, process.env);
 
   console.log('\n\u2728─────── SmallDocs setup ───────\u2728');
-  console.log('Install the SmallDocs skill so your coding agents know `sdoc`.\n');
+  console.log('Make SmallDocs your coding agents\' default for documents and artifacts.');
+  console.log('Requests for another format or tool take precedence.\n');
 
   if (detected.length > 0) {
     console.log('Detected: ' + detected.map(a => a.displayName).join(', '));
@@ -226,9 +229,9 @@ async function runSetup({ force = false, yes = false, dryRun = false,
     console.log('discovers ~/.agents/skills will pick up.');
   }
   console.log('\nYou can ask your agent things like:');
-  console.log('  "write up the plan and sdoc it to me"');
-  console.log('  "explain async/await to me in a sdoc"');
-  console.log('  "draft the release notes as a sdoc I can share"');
+  console.log('  "write up the rollout plan"');
+  console.log('  "make a research brief on async/await"');
+  console.log('  "draft the release notes for the team"');
 
   const RULE = '\u2550'.repeat(36);
   console.log(`\n${RULE} Skill body ${RULE}`);

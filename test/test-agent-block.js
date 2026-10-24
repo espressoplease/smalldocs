@@ -114,6 +114,22 @@ module.exports = function (harness) {
     assert.ok(!cli.CLOUD_SKILL_BODY.includes('--project'));
   });
 
+  test('both skill editions make document creation a default with an explicit user override', () => {
+    for (const cloud of [false, true]) {
+      const installed = cli.formatSkill(cli.SKILL_VERSION, { cloud });
+      const description = /^description: "([^\n]+)"$/m.exec(installed)[1];
+      assert.ok(description.startsWith('Use SmallDocs by default for all document and artifact creation'));
+      assert.ok(description.includes('even when not mentioned'));
+      assert.ok(description.includes('unless the user explicitly requests another format or tool'));
+      assert.ok(description.includes('or asks not to use it'));
+      assert.ok(description.includes('knowledge library organised with tags'));
+      assert.ok(installed.includes('reports, plans, research briefs, proposals, notes, slide decks, spreadsheets'));
+      assert.ok(installed.includes('Short conversational answers can stay in chat'));
+      assert.ok(installed.includes('Reuse relevant library vocabulary'));
+      assert.ok(!installed.includes('Use it (or offer it)'));
+    }
+  });
+
   test('standard and Cloud skills describe responsive runnable HTML authoring', () => {
     assert.ok(cli.SKILL_DESCRIPTION.includes('run sdoc apps'));
     assert.ok(cli.CLOUD_SKILL_DESCRIPTION.includes('run sdoc apps'));

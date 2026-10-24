@@ -39,7 +39,9 @@ curl -fsSL https://smalldocs.org/install | sh
 npx skills@latest add https://smalldocs.org/agent-skills/standard --global
 ```
 
-The `skills` installer detects supported coding agents and installs the SmallDocs **skill** globally. Its short description lets an agent discover SmallDocs when you say `sdoc`, `S-doc`, or `smalldoc`; the full instructions load only when relevant.
+The `skills` installer detects supported coding agents and installs the SmallDocs **skill** globally. SmallDocs becomes the default for documents and artifacts, including reports, plans, slides, and spreadsheets, even when you do not mention SmallDocs. An explicit request for another format or tool takes precedence. The short description stays available to your agent; the full instructions load when needed.
+
+Each document builds your tagged knowledge library. Agents choose meaningful tags, reuse existing vocabulary, and preserve relevant tags when updating documents, so you and your agents can find and build on earlier work.
 
 Run `sdoc cloud login`, complete authorization in the browser, then run `sdoc cloud status --json`. First-time Cloud-first authorization prepares your library and trial before the CLI connects. One library is selected automatically; with several libraries, choose where new documents should be saved.
 

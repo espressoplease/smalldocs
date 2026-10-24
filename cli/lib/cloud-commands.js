@@ -28,6 +28,11 @@ ordinary \`sdoc FILE.md\` opens create or update the Cloud document first.
 
 BUILD A TAGGED LIBRARY OF KNOWLEDGE
 
+The installed SmallDocs skill makes SmallDocs the default for documents and
+artifacts, even when the user does not name it. Follow an explicit request for
+another format or tool, or an instruction not to use SmallDocs.
+Each document builds a searchable knowledge library organised with tags.
+
 Tag every new Cloud document as part of saving it. Choose tags that describe
 its subject, project, or purpose so humans and agents can find it later.
 Inspect cloud tags --account LIBRARY_UUID --json, or reuse relevant vocabulary
