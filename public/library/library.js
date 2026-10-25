@@ -196,14 +196,12 @@ function pathPrefixOptions() {
 }
 
 const CLOUD_PERSON_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></svg>';
-let cloudColorPeople = null, cloudColorCount = 0, cloudPersonColors = new Map();
 function cloudPersonIcon(id) {
-  if (cloudColorPeople !== STATE.cloudPeople || cloudColorCount !== STATE.cloudPeople.size) {
-    cloudColorPeople = STATE.cloudPeople; cloudColorCount = STATE.cloudPeople.size;
-    cloudPersonColors = window.SDocsCloudAccountSelection.colorMap(STATE.cloudPeople.keys());
-  }
-  const color = cloudPersonColors.get(id) || window.SDocsCloudAccountSelection.color(id);
-  return CLOUD_PERSON_ICON.replace('<svg ', '<svg style="color:' + color + '" ');
+  const person = STATE.cloudPeople.get(id);
+  const user = window.SDocsCloudLibrary && window.SDocsCloudLibrary.user;
+  const color = window.SDocsCloudAccountSelection.personColor(id,
+    person && person.is_you || user && user.id === id);
+  return color ? CLOUD_PERSON_ICON.replace('<svg ', '<svg style="color:' + color + '" ') : CLOUD_PERSON_ICON;
 }
 function cloudPersonLabel(id) {
   const person = STATE.cloudPeople.get(id);

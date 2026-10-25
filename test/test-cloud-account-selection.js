@@ -43,13 +43,15 @@ module.exports = function(harness) {
     assert.strictEqual(selection.initials('Ada Lovelace'), 'AL');
   });
 
-  test('people colours reuse the library palette without collisions or roster-order changes', () => {
+  test('people colours depend only on identity and keep the current person neutral', () => {
     const ids = ['a', 'g', 'm', 's', 'y', 'A', 'G', 'M'];
     assert.strictEqual(selection.color('a'), selection.color('g'));
-    const colors = selection.colorMap(ids);
-    assert.strictEqual(new Set(colors.values()).size, ids.length);
-    assert.deepStrictEqual(colors, selection.colorMap(ids.slice().reverse()));
-    assert.deepStrictEqual(colors, selection.colorMap(ids.concat(ids)));
-    assert.strictEqual(selection.colorMap(['a']).get('a'), selection.color('a'));
+    const colors = ids.map(id => selection.personColor(id, false));
+    assert.strictEqual(new Set(colors).size, ids.length);
+    for (const id of ids) {
+      assert.strictEqual(selection.personColor(id), selection.personColor(id, false));
+      assert.strictEqual(selection.personColor(id, true), null);
+    }
+    assert.strictEqual(selection.personColor(null), null);
   });
 };

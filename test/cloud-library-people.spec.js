@@ -107,18 +107,27 @@ test('Cloud rows show their creator and only a different latest editor, and both
 });
 
 for (const width of [390, 1440]) {
-  test('person icon colours stay distinct and consistent across rows, filters and reloads at ' + width, async ({ page }) => {
+  test('person colours match sharing and library views while You stays neutral at ' + width, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
+    f.store.addWorkspaceMember({ actorUserId: f.users.bob.id, workspaceId: f.team.workspaceId,
+      userId: f.users.josh.id, role: 'member' });
+    f.store.grantProject({ actorUserId: f.users.bob.id, workspaceId: f.team.workspaceId,
+      projectId: f.team.projectId, userId: f.users.josh.id, role: 'editor' });
     const handoff = await createDocument('bob', 'Colour handoff');
     await editDocument('member', handoff, '# Colour handoff\n\nAlice updated the handoff.');
     const member = await createDocument('member', 'Colour notes');
+    const third = await createDocument('josh', 'Third contributor');
     await openLibrary(page);
     await expect(row(page, member).locator('.cloud-library-person')).toHaveText('Alice Chen');
-    const iconColor = locator => locator.locator('svg').evaluate(icon => getComputedStyle(icon).color);
+    const iconColor = locator => locator.locator('svg').first().evaluate(icon => getComputedStyle(icon).color);
     const creator = row(page, handoff).locator('[data-person-facet="author"]');
     const updater = row(page, handoff).locator('[data-person-facet="updatedBy"]');
     const bobColor = await iconColor(creator), aliceColor = await iconColor(updater);
+    const joshColor = await iconColor(row(page, third).locator('.cloud-library-person'));
     expect(bobColor).not.toBe(aliceColor);
+    expect(aliceColor).not.toBe(joshColor);
+    await expect(creator.locator('svg')).not.toHaveAttribute('style');
+    expect(await creator.evaluate(button => getComputedStyle(button).color)).toBe(bobColor);
     expect(await iconColor(row(page, member).locator('.cloud-library-person'))).toBe(aliceColor);
     for (const pill of [creator, updater]) {
       const colors = await pill.evaluate(button => [getComputedStyle(button).color, getComputedStyle(button.querySelector('span')).color]);
@@ -134,6 +143,28 @@ for (const width of [390, 1440]) {
     await expect(row(page, member).locator('.cloud-library-person')).toHaveText('Alice Chen');
     expect(await iconColor(row(page, handoff).locator('[data-person-facet="author"]'))).toBe(bobColor);
     expect(await iconColor(row(page, member).locator('.cloud-library-person'))).toBe(aliceColor);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+
+    await page.goto(f.origin + '/docs?cloud-document=' + handoff.id);
+    await expect.poll(() => page.evaluate(() => window.SDocs && window.SDocs.cloudDocument && window.SDocs.cloudDocument.id)).toBe(handoff.id);
+    await page.evaluate(() => window.SDocs.renderFileInfoCard());
+    await page.locator('[data-cloud-open="access"]').click();
+    const panel = page.locator('#_sd_cloud-lab-panel');
+    const sharedPerson = actor => panel.locator('[data-cloud-member="' + f.users[actor].id + '"]').locator('..');
+    await expect(sharedPerson('member')).toBeVisible();
+    expect(await iconColor(sharedPerson('member'))).toBe(aliceColor);
+    expect(await iconColor(sharedPerson('josh'))).toBe(joshColor);
+    const youIcon = sharedPerson('bob').locator('.sdoc-cloud-lab-avatar svg');
+    await expect(youIcon).not.toHaveAttribute('style');
+    expect(await iconColor(sharedPerson('bob'))).toBe(await sharedPerson('bob').locator('strong').evaluate(el => getComputedStyle(el).color));
+    await sharedPerson('member').click();
+    await expect(panel).toContainText('Access updated.');
+    await expect(panel.locator('[data-cloud-member="' + f.users.member.id + '"]')).not.toBeChecked();
+    expect(await iconColor(sharedPerson('member'))).toBe(aliceColor);
+    await page.screenshot({ path: test.info().outputPath('sharing-person-colours-' + width + '.png'), fullPage: true });
+    await page.evaluate(() => { document.documentElement.dataset.theme = 'dark'; });
+    await expect.poll(async () => (await iconColor(sharedPerson('bob'))) === (await sharedPerson('bob').locator('strong').evaluate(el => getComputedStyle(el).color))).toBe(true);
+    expect(await iconColor(sharedPerson('member'))).toBe(aliceColor);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   });
 }

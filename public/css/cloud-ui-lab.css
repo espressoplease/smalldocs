@@ -319,6 +319,8 @@ body.cloud-lab-mode #_sd_cloud-lab-panel {
 }
 
 .sdoc-cloud-lab-avatar.pending { color: var(--text-3); background: var(--bg-surface); border-style: dashed; }
+.sdoc-cloud-lab-avatar-person { color: var(--text); background: transparent; border-color: transparent; }
+.sdoc-cloud-lab-avatar-person svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .sdoc-cloud-lab-member-copy { min-width: 0; display: flex; flex: 1; flex-direction: column; gap: 2px; }
 .sdoc-cloud-lab-member-copy strong { color: var(--text); font-size: 11.5px; font-weight: 600; }
 .sdoc-cloud-lab-member-copy strong small {

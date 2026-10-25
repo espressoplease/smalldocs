@@ -651,10 +651,13 @@ function memberRow(member) {
   var checked = cloudState.permission && (cloudState.permission.mode === 'everyone' ||
     ids.indexOf(member.user_id) !== -1);
   var locked = member.is_you || !cloudState.permission || !cloudState.permission.can_manage;
+  var color = window.SDocsCloudAccountSelection.personColor(member.user_id,
+    member.is_you || cloudState.user && cloudState.user.id === member.user_id);
+  var icon = color ? USER_SVG.replace('<svg ', '<svg style="color:' + color + '" ') : USER_SVG;
   return '<label class="sdoc-cloud-lab-member' + (checked ? ' selected' : '') + '">'
     + '<input type="checkbox" data-cloud-member="' + escapeHtml(member.user_id) + '"'
     + (checked ? ' checked' : '') + (locked ? ' disabled' : '') + '>'
-    + '<span class="sdoc-cloud-lab-avatar">' + escapeHtml(member.initials) + '</span>'
+    + '<span class="sdoc-cloud-lab-avatar sdoc-cloud-lab-avatar-person">' + icon + '</span>'
     + '<span class="sdoc-cloud-lab-member-copy"><strong>' + escapeHtml(member.name)
     + (member.is_you ? ' <small>You</small>' : '') + '</strong><span>'
     + escapeHtml(member.email || '') + '</span></span>'

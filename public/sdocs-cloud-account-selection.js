@@ -56,21 +56,13 @@
   function color(id) {
     return palette[colorHash(id) % palette.length];
   }
-  function colorMap(ids) {
-    var colors = new Map(), used = new Set();
-    Array.from(new Set(ids)).sort().forEach(function (id) {
-      var hash = colorHash(id), attempt = 0, value = color(id);
-      while (used.has(value)) {
-        attempt++;
-        value = attempt < palette.length ? palette[(hash + attempt) % palette.length]
-          : 'hsl(' + ((hash + attempt * 137.508) % 360).toFixed(3) + ', 65%, 40%)';
-      }
-      colors.set(id, value); used.add(value);
-    });
-    return colors;
+  function personColor(id, isYou) {
+    if (!id || isYou) return null;
+    // Derive the hue from identity, never the current roster or selected access.
+    return 'hsl(' + ((colorHash(id) * 137.508) % 360).toFixed(3) + ', 65%, 40%)';
   }
   exports.color = color;
-  exports.colorMap = colorMap;
+  exports.personColor = personColor;
   exports.STORAGE_KEY = STORAGE_KEY;
   exports.storedId = storedId;
   exports.remember = remember;
