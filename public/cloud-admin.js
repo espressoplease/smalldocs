@@ -440,7 +440,7 @@
     state.workspace = workspace;
     byId('install-library-link').href = '/library?scope=cloud&workspace=' + encodeURIComponent(workspace.id);
     byId('install-destination-note').textContent = 'To save new documents to ' + accountName(workspace) + ', use --account ' + workspace.id + '.';
-    byId('install-prompt').textContent = byId('install-prompt').dataset.basePrompt + ' For new documents, select Cloud account ' + workspace.id + ' with --account ' + workspace.id + '. Preserve the account bindings of existing documents.';
+    renderInstall(workspace.id);
     window.SDocsCloudAccountSelection.remember(localStorage, workspace.id);
     var encoded = encodeURIComponent(workspace.id);
     var team = state.singlePlan || workspace.kind === 'team';
@@ -622,15 +622,15 @@
     });
   }
 
-  function setupInstall() {
+  function renderInstall(workspaceId) {
     var setup = window.SDocCliSetup;
-    var command = setup.installCommand(setup.isWindows());
-    var local = location.origin !== 'https://smalldocs.org';
-    var environment = local ? (setup.isWindows() ? '$env:SDOCS_CLOUD_URL="' + location.origin + '"' : 'export SDOCS_CLOUD_URL=' + location.origin) : '';
-    var login = 'sdoc cloud login';
-    byId('install-command').textContent = command + '\n' + 'sdoc setup --cloud --yes' + '\n' + (environment ? environment + '\n' : '') + login;
-    byId('install-prompt').textContent = 'Install SmallDocs using the instructions at https://smalldocs.org/sdoc. ' + (local ? 'Set SDOCS_CLOUD_URL to ' + location.origin + ' for all SmallDocs commands before connecting. ' : '') + 'Configure the Cloud-first skill with sdoc setup --cloud --yes, then run ' + login + '. Let me approve the connection in my browser. Use the Cloud URL returned by sdoc when linking documents in chat.';
-    byId('install-prompt').dataset.basePrompt = byId('install-prompt').textContent;
+    var instructions = setup.cloudInstructions({ origin: location.origin, workspaceId: workspaceId, windows: setup.isWindows() });
+    byId('install-command').textContent = instructions.commands;
+    byId('install-prompt').textContent = instructions.prompt;
+  }
+
+  function setupInstall() {
+    renderInstall();
     document.querySelectorAll('[data-install-copy]').forEach(function (button) {
       button.addEventListener('click', async function () {
         try { await navigator.clipboard.writeText(byId(button.dataset.installCopy).textContent); byId('install-copy-status').textContent = 'Copied'; }

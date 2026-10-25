@@ -19,13 +19,9 @@ for (const width of [320, 390, 1440]) {
           await expect(page.getByRole('link', { name: 'Use another email' })).toBeVisible();
           await expect(page.locator('#review-form')).toBeHidden();
         }
-        if (path === '/cloud/invite') {
+        if (path === '/cloud/invite' || path === '/cloud/business-invite') {
           // The protected route preserves the invitation through profile capture.
           await expect(page).toHaveURL(/cloud\/profile/);
-        }
-        if (path === '/cloud/business-invite') {
-          await expect(page.getByRole('heading', { name: 'Invitation unavailable' })).toBeVisible();
-          await expect(page.locator('#choice-view')).toBeHidden();
         }
         const card = page.locator('.auth-card').first();
         await expect(card).toBeVisible();

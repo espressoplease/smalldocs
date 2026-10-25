@@ -53,7 +53,10 @@
     return /win/i.test(plat) || /windows/i.test(nav.userAgent || "");
   }
 
-  function installCommand(win) {
+  function installCommand(win, origin) {
+    if (origin === 'https://cloud-staging.smalldocs.org') {
+      return win ? 'npm i -g ' + origin + '/cli/sdocs-dev.tgz' : 'curl -fsSL ' + origin + '/install | sh';
+    }
     return win
       ? "npm i -g sdocs-dev"
       : "curl -fsSL https://smalldocs.org/install | sh";
@@ -71,9 +74,39 @@
       : "curl -fsSL https://smalldocs.org/install | sh";
   }
 
+  function cloudInstructions(options) {
+    options = options || {};
+    var origin = options.origin || 'https://smalldocs.org';
+    var account = options.workspaceId || '';
+    var install = installCommand(options.windows, origin);
+    var environment = origin === 'https://smalldocs.org' ? '' : options.windows
+      ? '$env:SDOCS_CLOUD_URL="' + origin + '"' : 'export SDOCS_CLOUD_URL=' + origin;
+    var scope = account ? ' --account ' + account : '';
+    var setup = 'sdoc setup --cloud' + scope + ' --yes';
+    var status = 'sdoc cloud status' + scope + ' --json';
+    var commands = [install];
+    if (!options.windows) commands.push('export PATH="$HOME/.sdocs/bin:$PATH"');
+    if (environment) commands.push(environment);
+    commands.push('sdoc cloud login', setup, status);
+    var steps = [
+      'Install or update the SmallDocs CLI:\n   `' + install + '`',
+    ];
+    if (!options.windows) steps.push('Make sdoc available in this terminal:\n   `export PATH="$HOME/.sdocs/bin:$PATH"`');
+    if (environment) steps.push('Before running any sdoc command, set the Cloud server:\n   `' + environment + '`');
+    steps.push('Run `sdoc cloud login`. Let me approve this computer in my browser.',
+      'Install the SmallDocs skill' + (account ? ' and select this library for new documents' : '') + ':\n   `' + setup + '`',
+      'Confirm this computer can create documents:\n   `' + status + '`');
+    return {
+      commands: commands.join('\n'),
+      prompt: 'Set up SmallDocs Cloud for me.\n\n' + steps.map(function (step, index) { return (index + 1) + '. ' + step; }).join('\n') +
+        '\n\nUse SmallDocs by default for documents and artifacts, unless I request another format or tool. Reuse relevant library tags and save every new document with meaningful tags. Example: `sdoc report.md --cloud' + scope + ' --json +subject +project`. Replace the example tags with tags relevant to the document. Check that the save succeeded and the tags were saved. In chat, link to the returned Cloud URL. When updating a document, save it back to its current library.',
+    };
+  }
+
   exports.SETUP_PROMPT = SETUP_PROMPT;
   exports.isWindows = isWindows;
   exports.installCommand = installCommand;
   exports.upgradeCommand = upgradeCommand;
   exports.reinstallCommand = reinstallCommand;
+  exports.cloudInstructions = cloudInstructions;
 })(typeof module !== "undefined" && module.exports ? module.exports : (window.SDocCliSetup = {}));

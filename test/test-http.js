@@ -1178,34 +1178,11 @@ module.exports = function(harness) {
       await assertEveryAssetVersioned('/cloud/sign-in', v);
     });
 
-    await testAsync('GET /cloud/business-invite serves the private invitation page', async () => {
-      const r = await get(BASE + '/cloud/business-invite?preview=signin');
-      assert.strictEqual(r.status, 200);
-      assert.ok(r.body.includes('Your invitation'));
-      assert.ok(r.body.includes('Sign in to review your invitation and set up SmallDocs'));
-      assert.ok(r.body.includes('Your access'));
-      assert.ok(r.body.includes('check Billing in settings'));
-      assert.ok(!r.body.includes('$18'));
-      assert.ok(r.body.includes('Accept your invitation'));
-      assert.ok(r.body.includes('Install SmallDocs Cloud'));
-      assert.ok(r.body.includes('Copy install prompt'));
-      assert.ok(r.body.includes('sdoc setup --cloud --yes'));
-      assert.ok(r.body.includes('sdoc FILE.md'));
-      assert.ok(r.body.includes('Open a few SmallDocs'));
-      assert.ok(r.body.includes('href="/developers"'));
-      assert.ok(!r.body.includes('__CLOUD_TERMS_VERSION__'));
-      assert.ok(!r.body.includes('__CLOUD_TERMS_LABEL__'));
-      assert.ok(r.body.includes('<a class="provider-button provider-link" data-provider="google"'));
-      assert.ok(r.body.includes('<a hidden class="provider-button provider-link" data-provider="github"'));
+    await testAsync('old business invitation URLs use the normal library invitation flow', async () => {
+      const r = await get(BASE + '/cloud/business-invite?token=old-token&preview=signin');
+      assert.strictEqual(r.status, 303);
+      assert.strictEqual(r.headers.location, '/cloud/invite?token=old-token');
       assert.strictEqual(r.headers['cache-control'], 'no-store');
-      assert.strictEqual(r.headers['x-robots-tag'], 'noindex, nofollow');
-      assert.strictEqual(r.headers['x-frame-options'], 'DENY');
-      assert.ok(r.headers['content-security-policy'].includes("default-src 'none'"));
-    });
-
-    await testAsync('asset-versioning: /cloud/business-invite is versioned', async () => {
-      const v = JSON.parse((await get(BASE + '/version-check')).body).version;
-      await assertEveryAssetVersioned('/cloud/business-invite?preview=signin', v);
     });
 
     let googleOAuthState;
@@ -1244,7 +1221,7 @@ module.exports = function(harness) {
         encodeURIComponent(googleOAuthState) + '&error_description=' +
         encodeURIComponent('private provider detail'), { Cookie: googleOAuthCookie });
       assert.strictEqual(denied.status, 303);
-      assert.strictEqual(denied.headers.location, '/cloud/sign-in?error=oauth_denied');
+      assert.strictEqual(denied.headers.location, '/cloud/sign-in?error=oauth_denied&return=%2Fcloud%2Fadmin');
       assert.ok(!denied.headers.location.includes('private'));
       assert.ok(denied.headers['set-cookie'][0].includes('Max-Age=0'));
 

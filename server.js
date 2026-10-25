@@ -2893,19 +2893,20 @@ async function finishCloudOAuth(req, res, url, provider) {
       // Every authorization response consumes its transaction, including a
       // denial. Otherwise a denied state remains a second callback path until
       // expiry. Do not reflect provider descriptions into our redirect.
-      if (state) cloudOAuthTransactions.consume({ provider, state });
+      const transaction = cloudOAuthTransactions.consume({ provider, state });
       const publicError = providerError ? 'oauth_denied' : 'invalid_oauth_request';
-      res.writeHead(303, { Location: '/cloud/sign-in?error=' + publicError,
+      res.writeHead(303, { Location: '/cloud/sign-in?error=' + publicError + '&return=' + encodeURIComponent(transaction.returnTo),
         'Set-Cookie': clearBinding, 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' });
       res.end();
       return;
     }
     const completed = await adapter.callback({ state, code });
     const signedIn = cloudAuth.signInWithExternalIdentity(completed.identity);
-    if (!signedIn.user.firstName && !signedIn.user.lastName &&
-        completed.identity.firstName && completed.identity.lastName) {
+    if ((!signedIn.user.firstName || !signedIn.user.lastName) &&
+        (completed.identity.firstName || completed.identity.lastName)) {
       signedIn.user = cloudAuth.updateUserProfile({ userId: signedIn.user.id,
-        firstName: completed.identity.firstName, lastName: completed.identity.lastName });
+        firstName: signedIn.user.firstName || completed.identity.firstName || '',
+        lastName: signedIn.user.lastName || completed.identity.lastName || '', allowIncomplete: true });
     }
     const session = cloudAuth.createBrowserSession(signedIn.user.id);
     const continuation = await cloudSignInContinuation(signedIn.user, completed.returnTo);
@@ -3246,7 +3247,18 @@ const server = http.createServer((req, res) => {
   // CLI installer script: `curl -fsSL https://smalldocs.org/install | sh`.
   // Installs the `sdoc` command under ~/.sdocs without npm or root.
   if (pathname === '/install') {
+    if (CLOUD_DEPLOYMENT.mode === 'staging') {
+      const source = require('./lib/staging-cli-package').installer(
+        fs.readFileSync(path.join(__dirname, 'install.sh'), 'utf8'), require('./cli/package.json').version);
+      res.writeHead(200, { 'Content-Type': 'text/x-shellscript; charset=utf-8', 'Cache-Control': 'no-store' });
+      res.end(source); return;
+    }
     serveFile(req, res, path.join(__dirname, 'install.sh'), { 'Cache-Control': 'no-cache' });
+    return;
+  }
+
+  if (pathname === '/cli/sdocs-dev.tgz' && CLOUD_DEPLOYMENT.mode === 'staging') {
+    serveFile(req, res, path.join(__dirname, 'cli-artifacts', 'sdocs-dev.tgz'), { 'Cache-Control': 'no-store', 'Content-Type': 'application/gzip' });
     return;
   }
 
@@ -3346,7 +3358,7 @@ const server = http.createServer((req, res) => {
       res.writeHead(303, { Location: '/cloud/profile?return=' + encodeURIComponent(returnTo), 'Cache-Control': 'no-store' });
       res.end(); return;
     }
-    if (pathname === '/cloud/start' && (SINGLE_PLAN_ENABLED || url.searchParams.get('choose') !== '1')) {
+    if (pathname === '/cloud/start') {
       (async () => {
         try {
           const workspaces = await completeCloudOnboarding(authenticated.user);
@@ -3360,7 +3372,7 @@ const server = http.createServer((req, res) => {
         } catch (error) { serveCloudSetupError(res, error, url.searchParams.get('return')); }
       })(); return;
     }
-    serveHtmlWithRewrite(res, path.join(__dirname, 'public', pathname === '/cloud/start' ? 'cloud-start.html' : 'cloud-join-request.html'), null, {
+    serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'cloud-join-request.html'), null, {
       'Cache-Control': 'no-store', 'X-Frame-Options': 'DENY', 'Referrer-Policy': 'no-referrer',
       'Content-Security-Policy': "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
     });
@@ -3484,27 +3496,12 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // Private Business trial invitations use the normal email-bound workspace
-  // invitation token, with sign-in embedded as the first step. The preview
-  // query is inert and exists so the page can be reviewed without issuing an
-  // invitation.
+  // Old invitation links use the same acceptance screen as all library invites.
   if (pathname === '/cloud/business-invite') {
-    const hasCloudOAuth = Boolean(cloudGoogleOAuth || cloudGitHubOAuth);
-    serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'cloud-business-invite.html'), {
-      '__OAUTH_PROVIDERS_HIDDEN__': hasCloudOAuth ? '' : ' hidden',
-      '__GOOGLE_OAUTH_HIDDEN__': cloudGoogleOAuth ? '' : ' hidden',
-      '__GITHUB_OAUTH_HIDDEN__': cloudGitHubOAuth ? '' : ' hidden',
-      '__CLOUD_TERMS_VERSION__': CURRENT_TERMS_VERSION,
-      '__CLOUD_TERMS_LABEL__': CURRENT_TERMS_LABEL,
-    }, {
-      'Cache-Control': 'no-store',
-      'X-Content-Type-Options': 'nosniff',
-      'X-Frame-Options': 'DENY',
-      'Referrer-Policy': 'no-referrer',
-      'X-Robots-Tag': 'noindex, nofollow',
-      'Content-Security-Policy': "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'; object-src 'none'",
-    });
-    return;
+    const target = new URL('/cloud/invite', CLOUD_AUTH_PUBLIC_ORIGIN);
+    if (url.searchParams.get('token')) target.searchParams.set('token', url.searchParams.get('token'));
+    res.writeHead(303, { Location: target.pathname + target.search, 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' });
+    res.end(); return;
   }
 
   if (pathname === '/cloud/trial-feedback') {
@@ -3526,21 +3523,8 @@ const server = http.createServer((req, res) => {
     serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'cloud-subscribe.html'), null, { 'Cache-Control': 'no-store' }); return;
   }
   if (pathname === '/cloud/checkout') {
-    if (SINGLE_PLAN_ENABLED) { res.writeHead(303, { Location: '/cloud/subscribe', 'Cache-Control': 'no-store' }); res.end(); return; }
-    const authenticated = cloudAuthSession(req);
-    if (!authenticated.ok) {
-      res.writeHead(303, { Location: '/cloud/sign-in?return=' + encodeURIComponent(pathname + url.search),
-        'Cache-Control': 'no-store' });
-      res.end();
-      return;
-    }
-    if (redirectForCloudTerms(res, authenticated, pathname + url.search)) return;
-    serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'cloud-checkout.html'), null, {
-      'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'X-Frame-Options': 'DENY',
-      'Referrer-Policy': 'no-referrer',
-      'Content-Security-Policy': "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'; object-src 'none'",
-    });
-    return;
+    res.writeHead(303, { Location: SINGLE_PLAN_ENABLED ? '/cloud/subscribe' : '/cloud/admin', 'Cache-Control': 'no-store' });
+    res.end(); return;
   }
 
   if (pathname === '/cloud/admin') {

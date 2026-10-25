@@ -58,8 +58,6 @@ require('./test-skill-evals')(harness);
 require('./test-router')(harness);
 require('./test-update-check')(harness);
 require('./test-source')(harness);
-require('./test-business-invite-link')(harness);
-const runBusinessInviteCommand = require('./test-business-invite-command')(harness);
 require('./test-cloud-auth')(harness);
 require('./test-cloud-billing')(harness);
 require('./test-cloud-trial-policy')(harness);
@@ -93,7 +91,6 @@ const runCloudSearchIsolation = require('./test-cloud-search-isolation')(harness
 const runCloudLegacyReadIsolation = require('./test-cloud-legacy-read-isolation')(harness);
 const runCloudUpdatePreview = require('./test-cloud-update-preview')(harness);
 const runCloudCli = require('./test-cloud-cli')(harness);
-const runCloudCheckout = require('./test-cloud-checkout')(harness);
 const runCloudStagingSeed = require('./test-cloud-staging-seed')(harness);
 require('./test-library-tags')(harness);
 require('./test-library-ephemeral')(harness);
@@ -113,6 +110,7 @@ const runProductionMonitor = require('./test-production-monitor')(harness);
 const runTeams = require('./test-teams')(harness);
 const runEmail = require('./test-email')(harness);
 const runCloudAuthHttp = require('./test-cloud-auth-http')(harness);
+const runStagingCliPackage = require('./test-staging-cli-package')(harness);
 
 // ── HTTP tests (async, starts server) ──────────────
 const runHttp = require('./test-http')(harness);
@@ -121,7 +119,7 @@ const runLibraryServer = require('./test-library-server')(harness);
 
 (async () => {
   await runCloudDeploymentConfig();
-  await runBusinessInviteCommand();
+  await runStagingCliPackage();
   await runCloudKms();
   await runCloudAwsKms();
   await runCloudOAuth();
@@ -142,7 +140,6 @@ const runLibraryServer = require('./test-library-server')(harness);
   await runCloudLegacyReadIsolation();
   await runCloudUpdatePreview();
   await runCloudCli();
-  await runCloudCheckout();
   await runCloudStagingSeed();
   await runCloudSeatSync();
   await runBridge();

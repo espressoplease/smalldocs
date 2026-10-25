@@ -51,7 +51,7 @@ test('email signup verifies the delivered code, captures a profile and reaches I
   await form.locator('input[type=email]').fill('new-human@example.com');
   await form.getByRole('button', { name: 'Get install prompt' }).click();
   await expect(page).toHaveURL(/cloud\/sign-in/);
-  await page.locator('#email-form').getByRole('button').click();
+  await expect(page.locator('#code-view')).toBeVisible();
   await expect.poll(() => mail.messages.length).toBe(1);
   const text = decodeMimeParts(mail.messages[0]).map(part => part.body).join('\n');
   const code = text.match(/\b\d{6}\b/)[0];
@@ -101,4 +101,24 @@ test('email signup verifies the delivered code, captures a profile and reaches I
   await expect(page.getByText('A second revision.', { exact: true })).toBeVisible();
   await page.goto(f.origin + '/cloud/admin?panel=machines');
   await expect(page.locator('body')).toContainText('Robins laptop');
+});
+
+test('homepage email Log in verifies the code and opens the Library', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 900 });
+  await page.goto(f.origin + '/home-next');
+  await page.getByRole('link', { name: 'Log in', exact: true }).click();
+  await page.getByLabel('Email address', { exact: true }).fill('login-person@example.test');
+  await page.getByRole('button', { name: 'Email me a code', exact: true }).click();
+  await expect.poll(() => mail.messages.length).toBe(1);
+  const text = decodeMimeParts(mail.messages[0]).map(part => part.body).join('\n');
+  await page.locator('#code').fill(text.match(/\b\d{6}\b/)[0]);
+  await page.locator('#code-form').getByRole('button').click();
+  await expect(page).toHaveURL(/cloud\/terms/);
+  await page.getByRole('checkbox').check();
+  await page.getByRole('button', { name: /agree|continue/i }).click();
+  await expect(page).toHaveURL(/cloud\/profile/);
+  await page.getByLabel('First name').fill('Robin');
+  await page.getByLabel('Last name').fill('Walker');
+  await page.getByRole('button', { name: 'Continue', exact: true }).click();
+  await expect(page).toHaveURL(f.origin + '/library?scope=cloud');
 });

@@ -23,11 +23,8 @@ test('Cloud account forms keep text controls at 16px on mobile', async ({ page }
   await page.goto('/public/cloud-invite.html');
   await expectFontFloor(page, ['#invite-first-name', '#invite-last-name']);
 
-  await page.goto('/public/cloud-checkout.html');
-  await expectFontFloor(page, [
-    '#checkout-profile-first-name', '#checkout-profile-last-name',
-    '#checkout-workspace', '#checkout-team-name',
-  ]);
+  await page.goto('/public/cloud-profile.html');
+  await expectFontFloor(page, ['#profile-first', '#profile-last']);
 
   await page.goto('/public/cloud-admin.html', { waitUntil: 'domcontentloaded' });
   await expectFontFloor(page, ['#domain-input', '#invite-email']);

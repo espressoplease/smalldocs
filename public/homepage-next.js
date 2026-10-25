@@ -11,10 +11,27 @@
     event.preventDefault();
     link.parentElement.querySelector('.start-status').textContent = 'Google sign-in is unavailable right now. Use email to continue.';
   }));
-  document.querySelectorAll('[data-install-form]').forEach(form => form.addEventListener('submit', event => {
+  document.querySelectorAll('[data-install-form]').forEach(form => form.addEventListener('submit', async event => {
     event.preventDefault();
     if (!form.reportValidity()) return;
-    location.assign('/cloud/sign-in?return=%2Fcloud%2Fprofile&email=' + encodeURIComponent(form.elements.email.value.trim()));
+    const button = form.querySelector('button');
+    const status = form.parentElement.querySelector('.start-status');
+    const email = form.elements.email.value.trim();
+    button.disabled = true;
+    status.textContent = 'Sending code...';
+    try {
+      const response = await fetch('/api/cloud/auth/email/request', { method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, return_to: '/cloud/profile' }) });
+      const data = await response.json();
+      if (!response.ok) throw new Error();
+      location.assign('/cloud/sign-in?return=%2Fcloud%2Fprofile&email=' + encodeURIComponent(email) + '&challenge=' + encodeURIComponent(data.challenge_id));
+    } catch (_) {
+      status.textContent = document.body.dataset.googleEnabled === 'true'
+        ? 'The code could not be sent. Try again, or continue with Google.'
+        : 'The code could not be sent. Try again.';
+      button.disabled = false;
+    }
   }));
   const video = document.getElementById('intro-video');
   const play = document.querySelector('.intro-play');

@@ -1,5 +1,13 @@
 # Staging CLI installation
 
+## Hosted install
+
+Staging deployments build `/cli/sdocs-dev.tgz` from the same immutable release as the server. `https://cloud-staging.smalldocs.org/install` installs that package, including its staging channel metadata. Windows uses `npm i -g https://cloud-staging.smalldocs.org/cli/sdocs-dev.tgz`. Production `/install` continues to use npm latest. No npm publication is needed to test a staging release.
+
+Install settings uses the current origin before login and skill setup, selects the displayed library, and verifies Cloud status. Hosted staging packages keep automatic production upgrades disabled; their manual reinstall command uses the hosted staging installer.
+
+## Source install
+
 The maintainer installer copies the current source CLI runtime into an explicit installation directory. It includes uncommitted CLI changes, records a SHA-256 fingerprint of the copied runtime, and writes `cli/channel.json` inside the installed copy. It does not change the source package, authenticate, install agent skills, or edit shell startup files.
 
 Build into a temporary directory first:

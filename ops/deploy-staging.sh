@@ -70,6 +70,7 @@ sudo rm -f -- "$remote_archive"
 sudo mkdir -p "$release_dir/.git"
 printf '%s\n' "$release_commit" | sudo tee "$release_dir/.git/HEAD" >/dev/null
 sudo env PATH=/usr/local/bin:/usr/bin:/bin npm --prefix "$release_dir" ci --omit=dev
+sudo node "$release_dir/scripts/package-staging-cli.js" "$release_dir/cli-artifacts/sdocs-dev.tgz"
 sudo chown -R root:root "$release_dir"
 sudo chmod -R go-w "$release_dir"
 sudo systemd-analyze verify "$unit_source"

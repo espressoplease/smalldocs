@@ -15,7 +15,7 @@ for (const width of [390, 1440]) {
     await expect(page.locator('nav a')).toHaveCount(1);
     await expect(page.locator('nav details, nav button')).toHaveCount(0);
     const login = page.getByRole('link', { name: 'Log in', exact: true });
-    await expect(login).toHaveAttribute('href', '/connect?return=%2Flibrary');
+    await expect(login).toHaveAttribute('href', '/cloud/sign-in?return=%2Flibrary%3Fscope%3Dcloud');
     await expect.poll(() => login.evaluate(el => getComputedStyle(el).opacity)).toBe('1');
     expect(await page.evaluate(() => performance.now() - window.loginAtLoad.time)).toBeGreaterThanOrEqual(500);
     expect(await page.locator('h1').evaluate(el => el.getBoundingClientRect().top - window.loginAtLoad.headingTop)).toBe(0);
@@ -82,7 +82,7 @@ for (const width of [390, 1440]) {
     expect(await page.locator('.sample-group-heading').allTextContents()).toEqual(['For engineers:', 'For scientists:', 'For financiers:', 'For mathematicians:']);
     await expect(page.locator('.sample-preview')).toHaveCount(0);
     await expect(page.locator('[data-install-form]')).toHaveCount(3);
-    await expect(page.locator('.homepage-sales-link a[href="/connect?return=%2Flibrary"]')).toHaveCount(3);
+    await expect(page.locator('.homepage-sales-link a[href="/cloud/sign-in?return=%2Flibrary%3Fscope%3Dcloud"]')).toHaveCount(3);
     expect(await page.locator('.homepage-sales-link').allTextContents()).toEqual(Array(3).fill('or talk to sales (or log in)'));
     await expect(page.locator('#praise h2')).toHaveText('YPraise for SmallDocs on Hacker News');
     await expect(page.locator('#praise .hn-badge')).toBeVisible();
@@ -97,13 +97,15 @@ for (const width of [390, 1440]) {
 }
 for (let index = 0; index < 3; index++) {
   test('email signup ' + index + ' verifies the entered email before profile setup', async ({ page }) => {
+    await page.route('**/api/cloud/auth/email/request', route => route.fulfill({ status: 202, json: { ok: true, challenge_id: 'signup-code' } }));
+    await page.route('**/cloud/sign-in?**', route => route.fulfill({ path: require('path').join(__dirname, '../public/cloud-sign-in.html') }));
     await page.goto('/home-next');
     const form = page.locator('[data-install-form]').nth(index);
     await form.locator('input').fill('reader@example.com');
     await form.locator('button').click();
-    await expect(page).toHaveURL(/cloud\/sign-in\?return=%2Fcloud%2Fprofile&email=reader%40example.com$/);
-    await expect(page.locator('#email')).toHaveValue('reader@example.com');
-    await expect(page.locator('#return-label')).toBeVisible();
+    await expect(page).toHaveURL(/cloud\/sign-in\?return=%2Fcloud%2Fprofile&email=reader%40example.com&challenge=signup-code$/);
+    await expect(page.locator('#code-view')).toBeVisible();
+    await expect(page.locator('#sent-email')).toHaveText('reader@example.com');
   });
 }
 

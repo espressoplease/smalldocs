@@ -55,7 +55,7 @@ test('collects both names, accepts an invitation, and opens the invited team Ins
   await expect(page.getByRole('heading', { name: 'Install SmallDocs' })).toBeVisible();
   expect(requests).toEqual([
     { method: 'GET', path: '/me', body: null },
-    { method: 'PATCH', path: '/me', body: { first_name: 'Tom', last_name: 'Oakley' } },
+    { method: 'PATCH', path: '/me', body: { first_name: 'Tom', last_name: 'Oakley', return_to: '/public/cloud-invite.html?token=invite-token' } },
     { method: 'POST', path: '/accept', body: {} },
   ]);
 });

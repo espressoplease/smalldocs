@@ -141,7 +141,8 @@ module.exports = function (harness) {
           clientId: 'google-client', nonce: 'profile-nonce', now: () => clock, jwks: { keys: [jwk] },
         });
         assert.strictEqual(identity.verifiedEmail, 'a@example.com');
-        assert.strictEqual(identity.firstName, undefined);
+        assert.strictEqual(identity.firstName, profile.given_name || undefined);
+        assert.strictEqual(identity.lastName, undefined);
       }
     });
 

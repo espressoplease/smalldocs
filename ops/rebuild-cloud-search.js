@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
-const { createKeyProvider } = require('./issue-business-invite');
+const { createKeyProvider } = require('./cloud-key-provider');
 const { createCloudStore } = require('../lib/cloud-store');
 
 async function main() {
