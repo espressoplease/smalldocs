@@ -14,26 +14,18 @@
     byId('subscription-summary').hidden = Boolean(paid || covered);
     if (paid || covered) {
       byId('subscription-state').textContent = covered ? 'Your subscription is covered by another billing account.' : 'You already have a subscription. View payment details and subscription status in Billing.';
-      byId('continue-trial').hidden = false;
       return;
     }
     if (subscription.phase === 'trial_warning') {
       byId('subscription-state').textContent = 'Your free trial has ended. You can keep using SmallDocs until ' + new Date(subscription.paywall_starts_at_ms).toLocaleString(undefined, { day: 'numeric', month: 'long', year: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }) + '. Subscribe before then to keep access.';
-      byId('continue-trial').hidden = false;
-      button.textContent = 'Subscribe now';
     } else if (subscription.phase === 'payment_required') {
       byId('subscription-title').textContent = 'Subscribe to continue';
       byId('subscription-state').textContent = 'Your free trial and extra week have ended. Subscribe to open, create, and update your Cloud documents.';
-      byId('continue-trial').hidden = true;
-      button.textContent = 'Subscribe';
     } else if (data.trial_active) {
-      byId('subscription-state').textContent = 'Your free trial ends on ' + new Date(data.trial_ends_at_ms).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' }) + '. No payment details are needed. You will not be charged automatically.';
-      byId('continue-trial').hidden = false;
-      button.textContent = 'Subscribe now';
-      button.className = 'provider-button';
+      byId('subscription-state').textContent = 'Your free trial ends on ' + new Date(data.trial_ends_at_ms).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' }) + '.';
     } else {
-      byId('subscription-state').textContent = data.trial_ends_at_ms ? ((data.trial_ends_at_ms <= Date.now() ? 'Your free trial has ended. ' : '') + 'Subscribe to continue saving documents. You can still read your existing documents.') : 'Your library includes a month free. Continue to set it up without payment details.';
-      if (!data.trial_ends_at_ms) { byId('continue-trial').hidden = false; return; }
+      byId('subscription-state').textContent = data.trial_ends_at_ms ? ((data.trial_ends_at_ms <= Date.now() ? 'Your free trial has ended. ' : '') + 'Subscribe to continue saving documents. You can still read your existing documents.') : 'Your library includes a month free. Open your library to get started.';
+      if (!data.trial_ends_at_ms) return;
     }
     byId('subscription-quantity').hidden = false;
     byId('subscription-quantity').textContent = data.quantity === 1 ? 'Your subscription will cover you.' : 'Your subscription will cover ' + data.quantity + ' people, including you. People already covered by a paid subscription are not added to your bill.';

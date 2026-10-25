@@ -41,12 +41,14 @@ for(const width of [390,1440]) {
     f.billing.db.prepare('UPDATE cloud_billing_personal_trials SET ends_at_ms=? WHERE user_id=?').run(Date.now()-1000,f.users.josh.id);
     await page.goto(f.origin+'/cloud/subscribe');
     await expect(page.locator('#subscription-state')).toContainText('Your free trial has ended');
-    await expect(page.locator('#continue-trial')).toBeVisible();
+    await expect(page.getByRole('button',{name:'Subscribe',exact:true})).toHaveClass('primary-button');
+    await expect(page.locator('.primary-button:visible')).toHaveCount(1);
+    await expect(page.getByRole('link',{name:'Back to library',exact:true})).toHaveAttribute('href','/library?scope=cloud');
     f.billing.db.prepare('UPDATE cloud_billing_personal_trials SET ends_at_ms=? WHERE user_id=?').run(Date.now()-TRIAL_WARNING_MS-1000,f.users.josh.id);
     await page.goto(f.origin+'/library?scope=cloud');
     await expect(page).toHaveURL(f.origin+'/cloud/subscribe');
     await expect(page.getByRole('heading',{name:'Subscribe to continue',exact:true})).toBeVisible();
-    await expect(page.locator('#continue-trial')).toBeHidden();
+    await expect(page.locator('.primary-button:visible')).toHaveCount(1);
     await expect(page.getByRole('button',{name:'Subscribe',exact:true})).toBeEnabled();
     await expect(page.getByRole('link',{name:'Share feedback on your trial'})).toBeVisible();
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
