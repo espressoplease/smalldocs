@@ -59,6 +59,7 @@ require('./test-router')(harness);
 require('./test-update-check')(harness);
 require('./test-source')(harness);
 require('./test-cloud-auth')(harness);
+require('./test-cloud-auth-linking')(harness);
 require('./test-cloud-billing')(harness);
 require('./test-cloud-trial-policy')(harness);
 require('./test-cloud-manual-access')(harness);

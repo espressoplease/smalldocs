@@ -187,11 +187,15 @@ let cloudAuth = null;
 let cloudOAuthTransactions = null;
 let cloudGoogleOAuth = null;
 let cloudGitHubOAuth = null;
+let cloudIdentityLinking = null;
 if (CLOUD_AUTH_PEPPER) {
   const { createAuthStore } = require('./lib/cloud-auth');
   cloudAuth = createAuthStore({
     dbPath: process.env.CLOUD_AUTH_DB || path.join(__dirname, 'cloud_auth.db'),
     pepper: CLOUD_AUTH_PEPPER,
+  });
+  cloudIdentityLinking = new (require('./lib/cloud-auth-linking').IdentityLinking)(cloudAuth, {
+    recentAuthMs: Number(process.env.CLOUD_RECENT_AUTH_MS) || 30 * 60 * 1000,
   });
   const { createOAuthTransactionStore, createGoogleOAuth, createGitHubOAuth } = require('./lib/cloud-oauth');
   cloudOAuthTransactions = createOAuthTransactionStore({
@@ -1861,7 +1865,9 @@ async function handleCloudApi(req, res, url) {
     if (req.method === 'GET' && pathname === base + '/me') {
       const identity = user.identities.find((item) => item.verifiedEmail) || null;
       sendJson(res, 200, { ok: true,
-        single_plan: SINGLE_PLAN_ENABLED, user: cloudUserProfile(user, identity ? identity.verifiedEmail : null) });
+        single_plan: SINGLE_PLAN_ENABLED, google_enabled: Boolean(cloudGoogleOAuth),
+        sign_in_methods: user.identities.map(item => ({ provider: item.provider, email: item.verifiedEmail })),
+        user: cloudUserProfile(user, identity ? identity.verifiedEmail : null) });
       return;
     }
     if (req.method === 'PATCH' && pathname === base + '/me/preferences') {
@@ -2748,12 +2754,21 @@ async function handleCloudEmailRequest(req, res) {
       sendJson(res, 503, { ok: false, error: 'email_delivery_not_configured' });
       return;
     }
-    const issued = cloudAuth.issueEmailCode({ email: body.email, ip: getClientIp(req) });
+    const tokens = cloudLinkTokens(req);
+    let email = body.email;
+    if (body.link_google && body.link_email) return sendJson(res, 400, { ok: false, error: 'invalid_request' });
+    if (body.link_google) {
+      email = cloudIdentityLinking.context(tokens.pending, tokens.session).identity.verifiedEmail;
+    }
+    if (body.link_email) cloudIdentityLinking.recentSession(tokens.session);
+    const issued = cloudAuth.issueEmailCode({ email, ip: getClientIp(req),
+      ...(body.link_email ? { purpose: 'link', sessionToken: tokens.session } : {}) });
+    if (body.link_google) cloudIdentityLinking.setChallenge(tokens.pending, tokens.session, issued.requestId);
     if (CLOUD_AUTH_DEV_LOG_CODES) {
       console.log('[cloud-auth-code] ' + issued.requestId + ' ' + issued.code);
     } else {
       const message = emailTemplates.signInCode({ code: issued.code, expiresMinutes: 10 });
-      const delivered = await teamsNotify.sendTo(body.email, message.subject,
+      const delivered = await teamsNotify.sendTo(email, message.subject,
         message.text, message.html);
       if (!delivered.ok) {
         sendJson(res, 503, { ok: false, error: 'email_delivery_failed' });
@@ -2771,6 +2786,7 @@ async function handleCloudEmailRequest(req, res) {
       return sendJson(res, 400, { ok: false, error: 'invalid_request' });
     }
     if (error.code === 'rate_limited') return sendJson(res, 429, { ok: false, error: 'rate_limited' });
+    if (['link_expired', 'authentication_required', 'recent_auth_required'].includes(error.code)) return sendJson(res, 401, { ok: false, error: error.code });
     sendJson(res, 500, { ok: false, error: 'temporary_service_failure' });
   }
 }
@@ -2786,8 +2802,10 @@ async function handleCloudEmailVerify(req, res) {
       windowMs: 15 * 60 * 1000,
     });
     if (!rate.allowed) return sendJson(res, 429, { ok: false, error: 'rate_limited' });
-    const result = cloudAuth.consumeEmailCode({ requestId: body.challenge_id, code: body.code });
-    if (!result.ok) return sendJson(res, 400, { ok: false, error: 'invalid_or_expired_code' });
+    const result = cloudAuth.consumeEmailCode({ requestId: body.challenge_id, code: body.code,
+      sessionToken: cloudLinkTokens(req).session });
+    if (!result.ok) return sendJson(res, result.reason === 'identity_in_use' ? 409 : 400, { ok: false,
+      error: result.reason === 'identity_in_use' ? 'identity_in_use' : 'invalid_or_expired_code' });
     const session = cloudAuth.createBrowserSession(result.user.id);
     const continuation = await cloudSignInContinuation(result.user, body.return_to);
     const secure = new URL(CLOUD_AUTH_PUBLIC_ORIGIN).protocol === 'https:';
@@ -2800,6 +2818,7 @@ async function handleCloudEmailVerify(req, res) {
   } catch (error) {
     if (error.code === 'payload_too_large') return sendJson(res, 413, { ok: false, error: error.code });
     if (error.code === 'invalid_json') return sendJson(res, 400, { ok: false, error: 'invalid_request' });
+    if (error.code === 'account_link_required') return sendJson(res, 409, { ok: false, error: 'account_link_required' });
     sendJson(res, 500, { ok: false, error: 'temporary_service_failure' });
   }
 }
@@ -2849,6 +2868,17 @@ function beginCloudOAuth(req, res, url, provider) {
       key: getClientIp(req), limit: 30, windowMs: 15 * 60 * 1000 });
     if (!rate.allowed) return sendJson(res, 429, { ok: false, error: 'rate_limited' });
     const started = adapter.begin({ returnTo: url.searchParams.get('return_to') });
+    if (url.searchParams.get('link') === '1') {
+      if (provider !== 'google') throw new Error('unsupported link provider');
+      try {
+        cloudIdentityLinking.createContext({ token: new URL(started.authorizationUrl).searchParams.get('state'),
+          sessionToken: cloudLinkTokens(req).session,
+          returnTo: '/cloud/admin?panel=preferences' });
+      } catch (_) {
+        res.writeHead(303, { Location: '/cloud/sign-in?return=' + encodeURIComponent(url.pathname + url.search), 'Cache-Control': 'no-store' });
+        res.end(); return;
+      }
+    }
     const secure = new URL(CLOUD_AUTH_PUBLIC_ORIGIN).protocol === 'https:';
     res.writeHead(303, { Location: started.authorizationUrl, 'Cache-Control': 'no-store',
       'Referrer-Policy': 'no-referrer',
@@ -2868,6 +2898,62 @@ function cloudOAuthBindingCookie(provider, state, options) {
   if (secure) parts.push('Secure');
   if (Number.isInteger(options.maxAge) && options.maxAge >= 0) parts.push('Max-Age=' + options.maxAge);
   return parts.join('; ');
+}
+
+function cloudLinkTokens(req) {
+  const secure = new URL(CLOUD_AUTH_PUBLIC_ORIGIN).protocol === 'https:';
+  const cookies = cloudAuthHttp.parseCookies(req.headers.cookie);
+  return { session: cloudAuthHttp.sessionTokenFromCookies(req.headers.cookie, secure),
+    pending: cookies[(secure ? '__Host-sdocs_oauth_' : 'sdocs_oauth_') + 'link'], secure };
+}
+
+function applyGoogleProfile(result, identity) {
+  if ((!result.user.firstName || !result.user.lastName) && (identity.firstName || identity.lastName)) {
+    result.user = cloudAuth.updateUserProfile({ userId: result.user.id,
+      firstName: result.user.firstName || identity.firstName || '',
+      lastName: result.user.lastName || identity.lastName || '', allowIncomplete: true });
+  }
+  return result;
+}
+
+async function handleCloudIdentityLink(req, res, url) {
+  if (!cloudAuthReady(res) || (req.method !== 'GET' && !cloudAuthPostAllowed(req, res))) return;
+  const tokens = cloudLinkTokens(req);
+  try {
+    if (req.method === 'GET') {
+      if (url.searchParams.get('email') === '1') {
+        const session = cloudIdentityLinking.recentSession(tokens.session);
+        sendJson(res, 200, { ok: true, add_email: true, account_email: verifiedCloudEmail(session.user.id) });
+      } else {
+        const row = cloudIdentityLinking.context(tokens.pending, tokens.session);
+        sendJson(res, 200, { ok: true, email: row.identity.verifiedEmail,
+          needs_email: !row.identity.emailAuthoritative,
+          account_email: row.target_user_id ? verifiedCloudEmail(row.target_user_id) : null });
+      }
+      return;
+    }
+    const rate = cloudAuth.consumeRateLimit({ action: 'identity_link_verify', key: getClientIp(req), limit: 20, windowMs: 15 * 60 * 1000 });
+    if (!rate.allowed) return sendJson(res, 429, { ok: false, error: 'rate_limited' });
+    const body = await cloudAuthHttp.readJson(req);
+    const row = cloudIdentityLinking.context(tokens.pending, tokens.session);
+    const result = cloudIdentityLinking.complete(tokens.pending, tokens.session, body);
+    if (!result.ok) return sendJson(res, 400, { ok: false, error: 'invalid_or_expired_code' });
+    applyGoogleProfile(result, row.identity);
+    const session = cloudAuth.createBrowserSession(result.user.id);
+    const continuation = await cloudSignInContinuation(result.user, result.returnTo);
+    sendJson(res, 200, { ok: true, ...continuation }, { 'Set-Cookie': [
+      cloudAuthHttp.sessionCookie(session.token, { secure: tokens.secure, maxAge: Math.floor((session.expiresAtMs - Date.now()) / 1000) }),
+      cloudOAuthBindingCookie('link', '', { secure: tokens.secure, maxAge: 0 }),
+    ] });
+  } catch (error) {
+    if (error.code === 'payload_too_large') return sendJson(res, 413, { ok: false, error: error.code });
+    if (error.code === 'invalid_json') return sendJson(res, 400, { ok: false, error: 'invalid_request' });
+    if (error.code === 'identity_in_use') return sendJson(res, 409, { ok: false, error: error.code });
+    if (['link_expired', 'recent_auth_required', 'authentication_required', 'invalid_user'].includes(error.code)) {
+      return sendJson(res, 401, { ok: false, error: error.code });
+    }
+    sendJson(res, 500, { ok: false, error: 'temporary_service_failure' });
+  }
 }
 
 async function finishCloudOAuth(req, res, url, provider) {
@@ -2901,13 +2987,18 @@ async function finishCloudOAuth(req, res, url, provider) {
       return;
     }
     const completed = await adapter.callback({ state, code });
-    const signedIn = cloudAuth.signInWithExternalIdentity(completed.identity);
-    if ((!signedIn.user.firstName || !signedIn.user.lastName) &&
-        (completed.identity.firstName || completed.identity.lastName)) {
-      signedIn.user = cloudAuth.updateUserProfile({ userId: signedIn.user.id,
-        firstName: signedIn.user.firstName || completed.identity.firstName || '',
-        lastName: signedIn.user.lastName || completed.identity.lastName || '', allowIncomplete: true });
+    const intent = cloudIdentityLinking.finishIntent(state, cloudLinkTokens(req).session);
+    if (provider === 'google' && (intent || !completed.identity.emailAuthoritative)) {
+      const token = cloudIdentityLinking.createContext({ identity: completed.identity,
+        sessionToken: intent ? cloudLinkTokens(req).session : null,
+        returnTo: intent ? intent.return_to : completed.returnTo });
+      res.writeHead(303, { Location: '/cloud/link', 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer',
+        'Set-Cookie': [clearBinding, cloudOAuthBindingCookie('link', token, { secure, maxAge: 600 })] });
+      res.end(); return;
     }
+    const signedIn = applyGoogleProfile(provider === 'google'
+      ? cloudIdentityLinking.signInGoogle(completed.identity)
+      : cloudAuth.signInWithExternalIdentity(completed.identity), completed.identity);
     const session = cloudAuth.createBrowserSession(signedIn.user.id);
     const continuation = await cloudSignInContinuation(signedIn.user, completed.returnTo);
     res.writeHead(303, { Location: continuation.return_to,
@@ -3101,6 +3192,10 @@ const server = http.createServer((req, res) => {
   if (req.method === 'POST' && pathname === '/api/install-interest') {
     handleTeamsInterestPost(req, res, true);
     return;
+  }
+
+  if (pathname === '/api/cloud/auth/link' && ['GET', 'POST'].includes(req.method)) {
+    handleCloudIdentityLink(req, res, url); return;
   }
 
   if (req.method === 'POST' && pathname === '/api/cloud/auth/email/request') {
@@ -3328,6 +3423,13 @@ const server = http.createServer((req, res) => {
       'X-Frame-Options': 'DENY',
     });
     return;
+  }
+
+  if (pathname === '/cloud/link' || pathname === '/cloud/link-email') {
+    serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'cloud-link.html'), null, {
+      'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer', 'X-Frame-Options': 'DENY',
+      'Content-Security-Policy': "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; font-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
+    }); return;
   }
 
   if (pathname === '/cloud/sign-in') {

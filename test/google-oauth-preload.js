@@ -14,7 +14,8 @@ global.fetch = async function (url, options) {
     const encode = value => Buffer.from(JSON.stringify(value)).toString('base64url');
     const content = encode({ alg: 'RS256', kid: keys.jwk.kid }) + '.' + encode({
       iss: 'https://accounts.google.com', aud: process.env.GOOGLE_OAUTH_CLIENT_ID,
-      sub: identity.email, email: identity.email, email_verified: true,
+      sub: identity.subject || identity.email, email: identity.email, email_verified: true,
+      ...(identity.hd ? { hd: identity.hd } : {}),
       given_name: identity.first, family_name: identity.last, nonce: identity.nonce,
       exp: Math.floor(Date.now() / 1000) + 300,
     });

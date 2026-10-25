@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Connect a sign-in method</title><link rel="stylesheet" href="/public/css/cloud-sign-in.css"></head>
+<body>
+<header class="header"><a class="brand" href="/">SmallDocs</a><span class="nav-sep">/</span><span class="nav-label">Account</span></header>
+<main class="auth-shell"><section class="auth-card" aria-labelledby="link-title">
+<div class="auth-heading"><div class="auth-mark" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-2 2M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l2-2"/></svg></div><div><h1 id="link-title">Connect a sign-in method</h1><p id="link-intro">Checking your details...</p></div></div>
+<div class="auth-summary" id="link-account" hidden><p id="link-account-label"></p></div>
+<form id="link-form" hidden>
+<div id="link-email-field" hidden><label for="link-email">Email address</label><input class="text-input" id="link-email" type="email" autocomplete="email" placeholder="you@example.com"></div>
+<div id="link-code-field" hidden><label for="link-code">Six-digit code</label><input class="text-input code-input" id="link-code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000"></div>
+<p class="field-error" id="link-error" role="alert"></p>
+<button class="primary-button" id="link-submit" type="submit">Continue</button>
+</form>
+<p class="auth-status" id="link-status" role="status" aria-live="polite"></p>
+<p class="resend-row" id="link-resend-row" hidden><button id="link-resend" type="button">Send another code</button></p>
+<p class="auth-footer"><a href="/cloud/admin?panel=preferences">Back to settings</a> · <a href="/cloud/sign-in?return=%2Fcloud%2Fadmin%3Fpanel%3Dpreferences">Sign in</a></p>
+</section></main><script src="/public/cloud-link.js" defer></script>
+</body></html>

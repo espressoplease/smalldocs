@@ -236,7 +236,7 @@ module.exports = function(harness) {
       const issue = auth.issueEmailCode({
         email: 'linked@example.com', purpose: 'link', sessionToken: session.token,
       });
-      const result = auth.consumeEmailCode({ requestId: issue.requestId, code: issue.code });
+      const result = auth.consumeEmailCode({ requestId: issue.requestId, code: issue.code, sessionToken: session.token });
       assert.strictEqual(result.ok, true);
       assert.strictEqual(result.user.id, googleUser.id);
       assert.ok(result.user.identities.some((identity) => identity.provider === 'email'));
@@ -247,9 +247,9 @@ module.exports = function(harness) {
       const issue = auth.issueEmailCode({
         email: 'new@example.com', purpose: 'link', sessionToken: session.token,
       });
-      const result = auth.consumeEmailCode({ requestId: issue.requestId, code: issue.code });
+      const result = auth.consumeEmailCode({ requestId: issue.requestId, code: issue.code, sessionToken: session.token });
       assert.deepStrictEqual(result, { ok: false, reason: 'identity_in_use' });
-      assert.strictEqual(auth.consumeEmailCode({ requestId: issue.requestId, code: issue.code }).reason,
+      assert.strictEqual(auth.consumeEmailCode({ requestId: issue.requestId, code: issue.code, sessionToken: session.token }).reason,
         'already_used');
       assert.strictEqual(auth.getUser(emailUser.id).identities[0].subject, 'new@example.com');
     });

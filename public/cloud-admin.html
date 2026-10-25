@@ -215,7 +215,9 @@
       <p><a id="install-machines-link" href="/cloud/admin?panel=machines">View connected machines</a> · <a id="install-library-link" href="/library?scope=cloud">Open library</a> · <a id="install-team-link" href="/cloud/start?choose=1">Join or create a team</a></p>
     </section>
     <section class="panel" id="panel-preferences" hidden>
-      <div class="page-head"><div><h2>Preferences</h2><p class="description">Choose your library navigation.</p></div></div>
+      <div class="page-head"><div><h2>Preferences</h2><p class="description">Manage sign-in methods and library navigation.</p></div></div>
+      <div class="card"><div class="card-head"><div><h2>Sign-in methods</h2><p>Use Google or an email code to open the same account.</p></div></div>
+        <div class="install-content"><div id="sign-in-methods"></div><p><a class="btn" id="connect-google" hidden href="/api/cloud/auth/oauth/google?link=1&amp;return_to=%2Fcloud%2Fadmin%3Fpanel%3Dpreferences">Connect Google</a> <a class="btn" href="/cloud/link-email">Add an email address</a></p></div></div>
       <div class="card"><div class="install-content">
         <label><input id="legacy-library" type="checkbox"> Show local library</label>
         <p class="description">Keep the local and Cloud libraries as separate navigation items.</p>

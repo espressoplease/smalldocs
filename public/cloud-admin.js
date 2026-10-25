@@ -679,6 +679,13 @@
       ]);
       state.singlePlan = Boolean(responses[0].single_plan);
       state.me = responses[0].user || null;
+      byId('connect-google').hidden = !responses[0].google_enabled;
+      byId('sign-in-methods').replaceChildren();
+      (responses[0].sign_in_methods || []).forEach(function (method) {
+        var line = document.createElement('p');
+        line.textContent = (method.provider === 'google' ? 'Google' : method.provider === 'email' ? 'Email code' : method.provider) + ': ' + method.email;
+        byId('sign-in-methods').appendChild(line);
+      });
       document.querySelector('[data-panel="libraries"]').hidden = !state.singlePlan;
       if (state.singlePlan) {
         byId('install-team-link').textContent = 'Manage libraries';

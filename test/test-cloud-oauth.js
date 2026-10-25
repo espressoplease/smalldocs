@@ -123,7 +123,7 @@ module.exports = function (harness) {
       const result = await google.callback({ state: url.searchParams.get('state'), code: 'google-code' });
       assert.deepStrictEqual(result.identity, {
         provider: 'google', subject: 'google-user-123', verifiedEmail: 'person@example.com',
-        firstName: 'Alex', lastName: 'Rivera',
+        firstName: 'Alex', lastName: 'Rivera', emailAuthoritative: false,
       });
       const exchange = Object.fromEntries(new URLSearchParams(calls[0].body));
       assert.ok(exchange.code_verifier);
@@ -143,6 +143,20 @@ module.exports = function (harness) {
         assert.strictEqual(identity.verifiedEmail, 'a@example.com');
         assert.strictEqual(identity.firstName, profile.given_name || undefined);
         assert.strictEqual(identity.lastName, undefined);
+      }
+    });
+
+    await testAsync('Google authority requires Gmail or a verified hosted-domain claim', async () => {
+      for (const [email, hd, authoritative] of [
+        ['a@gmail.com', undefined, true], ['a@company.test', 'company.test', true],
+        ['a@company.test', undefined, false], ['a@company.test', ' ', false],
+        ['a@gmail.com.attacker.test', undefined, false],
+      ]) {
+        const token = signJwt(keys.privateKey, kid, { iss: 'accounts.google.com', aud: 'google-client',
+          exp: Math.floor(clock / 1000) + 60, nonce: 'authority', email_verified: true, sub: 'subject', email, hd });
+        const identity = await verifyGoogleIdToken(token, { clientId: 'google-client', nonce: 'authority',
+          now: () => clock, jwks: { keys: [jwk] } });
+        assert.strictEqual(identity.emailAuthoritative, authoritative, email);
       }
     });
 

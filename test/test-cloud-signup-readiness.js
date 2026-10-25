@@ -143,7 +143,7 @@ module.exports = function (h) {
       // provider signature, nonce and PKCE checks have their own adapter tests.
       const source = fs.readFileSync(path.join(__dirname, '../server.js'), 'utf8');
       const context = { URL, Date, Number, Boolean, String, require: require('module').createRequire(path.join(__dirname, '../server.js')),
-        cloudAuth: f.auth, cloudStore: f.store, cloudBilling: f.billing, cloudSinglePlan: single, SINGLE_PLAN_ENABLED: true,
+        cloudAuth: f.auth, cloudIdentityLinking: new (require('../lib/cloud-auth-linking').IdentityLinking)(f.auth), cloudStore: f.store, cloudBilling: f.billing, cloudSinglePlan: single, SINGLE_PLAN_ENABLED: true,
         CLOUD_AUTH_PUBLIC_ORIGIN: f.origin, CURRENT_TERMS_VERSION: terms, cloudAuthHttp: require('../cloud/auth/http'),
         verifiedCloudEmail: id => f.auth.getUser(id).identities.find(identity => identity.verifiedEmail).verifiedEmail,
         cloudAuthReady: () => true, getClientIp: () => 'oauth-readiness-test',
@@ -152,10 +152,10 @@ module.exports = function (h) {
       vm.createContext(context);
       vm.runInContext(source.slice(source.indexOf('function cloudTermsAccepted('), source.indexOf('const HOMEPAGE_NAV_ICONS')) +
         source.slice(source.indexOf('function cloudOnboardingDestination('), source.indexOf('function requireInvitationEntitlement(')) +
-        source.slice(source.indexOf('async function finishCloudOAuth('), source.indexOf('async function handleCloudTermsAcceptance(')), context);
+        source.slice(source.indexOf('function cloudLinkTokens('), source.indexOf('async function handleCloudTermsAcceptance(')), context);
       async function google(key, target) {
         context.cloudGoogleOAuth = { callback: async () => ({ identity: { provider: 'google', subject: key,
-          verifiedEmail: key + '@example.test', firstName: 'Google', lastName: 'Person' }, returnTo: target }) };
+          verifiedEmail: key + '@example.test', emailAuthoritative: true, firstName: 'Google', lastName: 'Person' }, returnTo: target }) };
         const response = { writeHead(status, headers) { this.status = status; this.headers = headers; }, end() {} };
         await context.finishCloudOAuth({ headers: { cookie: 'sdocs_oauth_google=bound-state' } }, response,
           new URL(f.origin + '/api/cloud/auth/oauth/google/callback?state=bound-state&code=provider-code'), 'google');
