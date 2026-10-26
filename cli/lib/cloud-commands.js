@@ -498,6 +498,20 @@ function entitlementFailure(code, status, cloudOrigin) {
     action: 'manage_billing', billing_url: cloudOrigin + '/cloud/admin' };
 }
 
+const refreshQueues = new WeakMap();
+async function coordinateRefresh(client, action) {
+  if (client.credentials === credentialStore) {
+    const name = 'refresh-' + crypto.createHash('sha256').update(client.origin).digest('hex');
+    return require('./file-lock').withLock(path.join(credentialStore.cloudDir(), name), action);
+  }
+  let origins = refreshQueues.get(client.credentials);
+  if (!origins) { origins = new Map(); refreshQueues.set(client.credentials, origins); }
+  const previous = origins.get(client.origin) || Promise.resolve();
+  const next = previous.catch(() => {}).then(action);
+  origins.set(client.origin, next);
+  try { return await next; } finally { if (origins.get(client.origin) === next) origins.delete(client.origin); }
+}
+
 class CloudClient {
   constructor(options) {
     options = options || {};
@@ -526,9 +540,24 @@ class CloudClient {
   }
 
   async refresh(credential) {
+    return coordinateRefresh(this, () => this.refreshLocked(credential));
+  }
+
+  async refreshLocked(credential) {
+    const current = typeof this.credentials.load === 'function' ? this.loadCredential() : credential;
+    if (current && current.refresh_token !== credential.refresh_token &&
+        Date.parse(current.access_token_expires_at || 0) > Date.now() + 30000) return current;
+    if (!current && typeof this.credentials.load === 'function') {
+      throw new CloudCommandError('login_required', 'Run `sdoc cloud login`.');
+    }
+    credential = current || credential;
+    if (!credential.refresh_request_id) {
+      credential = { ...credential, refresh_request_id: crypto.randomBytes(32).toString('base64url') };
+      if (typeof this.credentials.save === 'function') this.saveCredential(credential);
+    }
     const result = await this.raw('/api/cloud/v1/cli/token/refresh', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refresh_token: credential.refresh_token }),
+      body: JSON.stringify({ refresh_token: credential.refresh_token, refresh_request_id: credential.refresh_request_id }),
     });
     if (!result.response.ok) {
       if (result.data.error === 'terms_acceptance_required') {

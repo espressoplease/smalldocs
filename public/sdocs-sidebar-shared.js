@@ -154,13 +154,16 @@
       section.setAttribute('data-subscription-status', status.phase);
       var trial = status.phase === 'trial';
       var warning = status.phase === 'trial_warning';
+      var paymentIssue = ['past_due_grace', 'past_due', 'read_only'].includes(status.phase);
       var end = trial ? status.trial_ends_at_ms : status.paywall_starts_at_ms;
       var now = Date.now();
       var heading = document.createElement('div');
       heading.className = 'sdocs-sidebar-subscription-heading';
       var label = document.createElement('strong');
       label.textContent = trial ? 'Free trial' : warning ? 'Trial ended'
-        : status.phase === 'payment_required' ? 'Subscription required' : 'Subscription inactive';
+        : status.phase === 'payment_required' ? 'Subscription required'
+        : status.phase === 'past_due_grace' ? 'Payment needs attention'
+        : paymentIssue || status.phase === 'canceled' ? 'Read-only access' : 'Subscription inactive';
       heading.appendChild(label);
       if ((trial || warning) && Number.isFinite(end)) {
         var days = Math.max(0, Math.ceil((end - now) / 86400000));
@@ -189,8 +192,8 @@
       }
       var link = document.createElement('a');
       link.className = 'sdocs-sidebar-subscribe';
-      link.href = status.subscribe_url || '/cloud/subscribe';
-      link.textContent = 'Subscribe';
+      link.href = paymentIssue ? status.billing_url || '/cloud/admin?panel=billing' : status.subscribe_url || '/cloud/subscribe';
+      link.textContent = paymentIssue ? 'Update billing' : 'Subscribe';
       section.appendChild(link);
       if ((warning || status.phase === 'payment_required') && status.feedback_url) {
         var feedback = document.createElement('a');

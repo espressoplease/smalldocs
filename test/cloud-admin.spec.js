@@ -45,7 +45,7 @@ async function installAdminApi(page, options) {
     if (path === '/api/cloud/v1/account/invitations' && method === 'POST') {
       const body = request.postDataJSON();
       const invitation = { id: 'invite-new', email: body.email, role: body.role || 'member',
-        expires_at: '2026-08-26T12:00:00.000Z' };
+        expires_at: '2026-08-26T12:00:00.000Z', notification_scheduled: true, accept_url: 'http://localhost:3000/cloud/invite?token=fixture' };
       invitations = [invitation].concat(invitations);
       return route.fulfill({ status: 201, json: { ok: true, invitation } });
     }
@@ -367,7 +367,8 @@ test('team members can invite an allowed company email without admin controls', 
   await expect(page.getByRole('radiogroup', { name: 'Invitation role' })).toBeHidden();
   await page.getByPlaceholder('name@company.com').fill('tom@smalldocs.org');
   await page.getByRole('button', { name: 'Send invitation' }).click();
-  await expect(page.locator('#invite-status')).toHaveText('Invitation sent to tom@smalldocs.org.');
+  await expect(page.locator('#invite-status')).toContainText('Invitation created. An email will be sent to tom@smalldocs.org.');
+  await expect(page.locator('#invite-status a')).toHaveAttribute('href', /\/cloud\/invite\?token=/);
   expect(calls.some(call => call.method === 'GET'
     && call.path === '/api/cloud/v1/account/invitations')).toBe(false);
   const inviteCall = calls.find(call => call.method === 'POST'

@@ -102,7 +102,7 @@
   code { font-family: ui-monospace, 'JetBrains Mono', Menlo, Consolas, monospace; background: var(--surface-2); border: 1px solid var(--border-2); border-radius: 3px; padding: 1px 5px; font-size: 12px; }
   pre code { background: none; border: 0; padding: 0; font-size: inherit; }
 
-  .pricing { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 17px 0 12px; }
+  .pricing { display: grid; grid-template-columns: 1fr; gap: 12px; margin: 17px 0 12px; }
   .plan { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: 8px; padding: 19px; background: var(--surface); }
   .plan-name { color: var(--text-2); font-size: 12px; font-weight: 600; }
   .price { display: flex; align-items: baseline; gap: 5px; margin: 8px 0 14px; }
@@ -160,19 +160,19 @@
   <div class="header-actions">
     <a href="#pricing">Pricing</a>
     <a href="#security">Security</a>
-    <a class="primary" href="/cloud/checkout?plan=personal">Subscribe</a>
+    <a class="primary" href="/cloud/subscribe">Subscribe</a>
   </div>
 </div>
 
 <main class="content">
   <p class="eyebrow">SmallDocs Cloud</p>
   <h1>Keep your SmallDocs and Markdown files available to your team and agents</h1>
-  <p class="lead">Add the files you choose to Cloud. Open and search them from any device, share access with a team, and let authenticated agents read and update them.</p>
+  <p class="lead">Save documents to your library. Open and search them from any device, share selected documents with people you invite, and let connected agents read and update them.</p>
   <div class="hero-actions">
-    <a class="button primary" href="/cloud/checkout?plan=personal">Subscribe</a>
+    <a class="button primary" href="/cloud/subscribe">Subscribe</a>
     <a class="button" href="#how-it-works">See how it works</a>
   </div>
-  <p class="local-note">Local SmallDocs remains free and does not require an account. A file enters Cloud only when you add it.</p>
+  <p class="local-note">Your account includes one free calendar month. Sign in to get your install instructions.</p>
 
   <h2>One library, two kinds of access</h2>
   <div class="audiences">
@@ -215,41 +215,26 @@ sdoc cloud restore DOCUMENT_UUID --revision REVISION_UUID</code></pre>
   <section id="pricing">
     <h2>Pricing</h2>
     <div class="pricing">
-      <section class="plan" data-cloud-plan="personal">
-        <p class="plan-name">Personal Cloud</p>
-        <p class="price"><strong data-cloud-price-primary>£4</strong><span>per month</span></p>
+      <section class="plan" data-cloud-plan="standard">
+        <p class="plan-name">All features</p>
+        <p class="price"><strong data-cloud-price-primary>£4</strong><span>per person, per month</span></p>
         <p class="currency-prices" data-cloud-price-alternatives>$5 USD or €5 EUR</p>
         <ul>
-          <li>Documents private to you</li>
-          <li>Browser and mobile access</li>
-          <li>CLI and agent access</li>
-          <li>Search, tags, and three previous revisions for up to 90 days</li>
-          <li>1 GB total Cloud storage</li>
-          <li>Markdown files up to 10 MB</li>
+          <li>Documents private to you until you share them</li>
+          <li>Browser, mobile, CLI, and agent access</li>
+          <li>Search, tags, and all revisions from the last 90 days</li>
+          <li>Shared libraries, permission groups, and member invitations</li>
+          <li>5 GB Cloud storage and Markdown files up to 10 MB</li>
           <li>No document-count limit</li>
         </ul>
-        <a class="button primary" href="/cloud/checkout?plan=personal">Subscribe to Personal</a>
-      </section>
-      <section class="plan" data-cloud-plan="team">
-        <p class="plan-name">Team Cloud</p>
-        <p class="price"><strong data-cloud-price-primary>£7</strong><span>per member, per month</span></p>
-        <p class="currency-prices" data-cloud-price-alternatives>$9 USD or €8 EUR</p>
-        <ul>
-          <li>Everything in Personal</li>
-          <li>Shared tags and permission groups</li>
-          <li>Member and admin roles</li>
-          <li>Member invitations and removal</li>
-          <li>5 GB shared Cloud storage</li>
-          <li>No document-count limit</li>
-        </ul>
-        <a class="button primary" href="/cloud/checkout?plan=team">Subscribe to Team</a>
+        <a class="button primary" href="/cloud/subscribe">Subscribe</a>
       </section>
     </div>
-    <p class="billing-note">Payment is collected when you subscribe. Subscriptions renew monthly until cancelled. The workspace owner counts as a member. Agents do not count as paid members. GBP and EUR prices include applicable tax. Tax may be added to USD prices at checkout.</p>
+    <p class="billing-note">Payment is collected when you subscribe. Subscriptions renew monthly until cancelled. A paid subscription covers a person across their libraries. You pay for yourself and people you sponsor. People already covered by an active paid subscription elsewhere are not added to your bill. Connected agents do not count as paid people. GBP and EUR prices include applicable tax. Tax may be added to USD prices at checkout.</p>
     <div class="security-card">
       <h3>What happens when I cancel?</h3>
-      <p>You can keep editing through the period you have paid for. The account then becomes read-only, so you can still open and export documents. Cloud documents are permanently deleted 30 days after the paid period ends unless you restart the subscription.</p>
-      <p>If a payment fails, editing remains available for seven days. The account then becomes read-only. Cloud documents are permanently deleted 60 days after the failed payment unless payment is recovered.</p>
+      <p>You can keep editing through the period you have paid for. The account then becomes read-only, so you can still open and export documents. Cancellation does not automatically delete your documents.</p>
+      <p>If a payment fails, editing remains available for seven days. The account then becomes read-only. Failed payment does not automatically delete your documents.</p>
     </div>
   </section>
 
@@ -285,22 +270,22 @@ sdoc cloud restore DOCUMENT_UUID --revision REVISION_UUID</code></pre>
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
         How search works
       </h3>
-      <p>After checking document access, SmallDocs decrypts authorized current documents in application memory for the duration of the search. It does not maintain a plaintext or keyword search index. Queries, document text, and result snippets are excluded from application logs.</p>
+      <p>Search filters an index of keyed terms by document access. Matching content is decrypted to check results and produce snippets. Document metadata is decrypted in application memory when needed to display or filter results. Access is checked again before results are returned. Queries, document text, and result snippets are excluded from application logs.</p>
       <p>The server still learns that a user searched, which account was searched, document sizes, timestamps, and which documents were opened.</p>
     </div>
 
   </section>
 
   <section class="closing">
-    <h2>Add the document you are already reading</h2>
-    <p>Open a Markdown file with SmallDocs, then select <strong>Add to Cloud</strong> in its file information table.</p>
-    <a class="button primary" href="/cloud/checkout?plan=personal">Subscribe</a>
+    <h2>Start your library</h2>
+    <p>Sign in to get your install instructions, then ask your agent to create a document.</p>
+    <a class="button primary" href="/cloud/subscribe">Subscribe</a>
   </section>
 </main>
 
 <div class="statusbar">
   <span style="margin-left:auto; display:flex; align-items:center; gap:4px; flex-wrap:wrap; justify-content:flex-end">
-    <span>Local SmallDocs remains free</span>
+    <span>SmallDocs</span>
     &middot; <span data-trust-status>Open source: <a href="/trust" target="_blank" rel="noopener">verify server</a></span>
     &middot; <a href="https://github.com/espressoplease/smalldocs" target="_blank" rel="noopener">GitHub</a>
     &middot; <a href="/privacy" target="_blank" rel="noopener">Privacy</a>

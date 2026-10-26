@@ -5,7 +5,7 @@ description: What SmallDocs receives, why it is processed, where it is stored, a
 
 # Privacy Notice
 
-**Last updated: 24 August 2026**
+**Last updated: 26 October 2026**
 
 This notice explains how **Odd Solutions Ltd**, company number 16186575, handles personal data when it operates SmallDocs. Odd Solutions Ltd is the controller for account, service, support, security, and billing records. For document content uploaded by a Team customer, the customer may be the controller and Odd Solutions Ltd may act as its processor.
 
@@ -19,7 +19,7 @@ SmallDocs handles documents differently depending on the feature you choose.
 
 ### Local documents
 
-When you run `sdoc file.md`, the command line tool reads the file, compresses it, and puts it after the `#` in a SmallDocs URL. Browsers do not send that URL fragment to the web server. Rendering happens in the browser. We receive the normal request for the application files, but not the document content in the fragment.
+In local mode, when you run `sdoc file.md`, the command line tool reads the file, compresses it, and puts it after the `#` in a SmallDocs URL. Browsers do not send that URL fragment to the web server. Rendering happens in the browser. We receive the normal request for the application files, but not the document content in the fragment.
 
 Bridge mode connects the browser to a process bound to your computer's loopback address. The bridge can access only the files explicitly opened for that session. The SmallDocs page is trusted by the bridge, so a compromise of the served application could affect an open Bridge file.
 
@@ -31,7 +31,7 @@ An encrypted short link uploads encrypted document bytes to SmallDocs. The serve
 
 Cloud stores selected documents for access across authorised people and connected machines. Document bodies, titles, filenames, tags, and revision metadata are encrypted at rest. SmallDocs manages the encryption keys and can decrypt an authorised document in application memory to render, search, edit, merge, export, and notify about it. Cloud is not end-to-end encrypted or zero knowledge.
 
-Access checks run before a Cloud document is decrypted. Search decrypts authorised current documents in memory for that request. We do not keep a plaintext keyword index. Search text, document text, and result snippets are excluded from application logs.
+Access checks run before a Cloud document is decrypted. Search uses a permission-filtered index of keyed terms and positions. The database does not store plaintext search terms. Document metadata is decrypted in application memory when needed to display or filter results. Matching content may be decrypted to check matches and produce snippets. The index reveals term equality, frequency, word order, and some character relationships within a project. Access is checked again before results are returned. Search text, document text, and result snippets are excluded from application logs.
 
 ## Personal data we process
 
@@ -42,7 +42,7 @@ Access checks run before a Cloud document is decrypted. Search decrypts authoris
 | Account name, membership, roles, invitation address, approved email domains, permission groups, and audit events | Provide Team access controls and show administrative history | Contract and legitimate interests in account security and dispute handling |
 | Encrypted document data and operational metadata such as identifiers, sizes, revision times, and access events | Store, retrieve, search, edit, merge, back up, and recover Cloud documents | Contract. For Team content, the customer may determine the lawful basis |
 | Billing contact, Stripe customer and subscription identifiers, plan, seat quantity, invoice and payment status, tax state, and retention dates | Take payment, calculate entitlement, manage cancellation, and keep accounting records | Contract and legal obligation |
-| Recipient address, notification choice, subject, delivery state, and optional note | Send sign-in, invitation, sharing, billing, and deletion messages | Contract and legitimate interests in delivering and securing the service |
+| Recipient address, notification choice, subject, delivery state, and optional note | Send sign-in, invitation, sharing, and billing messages | Contract and legitimate interests in delivering and securing the service |
 | Support requests, business enquiries, and correspondence | Respond to a request and keep a record of the response | Contract or steps requested before a contract, and legitimate interests in support |
 | Coarse visit information described below | Understand whether the public reader is used and detect a stale application version | Legitimate interests in operating and improving the service |
 | Security and operational events, provider request identifiers, counts, latency, disk use, job age, and failure codes | Detect abuse, diagnose incidents, reconcile providers, and recover the service | Legitimate interests in security and reliability |
@@ -70,9 +70,9 @@ Some providers operate internationally. Where UK personal data is transferred ou
 - Sign-in codes are valid for 10 minutes and allow no more than 5 attempts. Only a keyed hash of a code is stored.
 - Browser sessions expire after 30 days unless revoked earlier. Command line access tokens expire after 15 minutes; the longer-lived connected-machine credential remains until revoked or the account is deleted.
 - Active Cloud account and membership records are kept while needed to provide the account. A verified identity can remain after the last subscription ends so the person can sign in, export retained data, recover a subscription, or exercise data rights.
-- Cloud keeps the current revision and up to 3 previous revisions. Previous revisions are retained for no more than 90 days.
+- Cloud keeps the current revision and all previous revisions from the last 90 days. The current revision remains available after that period.
 - A deleted Cloud document can normally be restored for 30 days before permanent deletion from the active database.
-- After cancellation, Cloud data is scheduled for deletion 30 days after the paid period ends. After a failed payment, it is scheduled for deletion 60 days after the failed payment.
+- Trial expiry, cancellation, and failed payment do not automatically delete Cloud documents. A future change to this retention policy will be communicated before it takes effect.
 - Team administrative events are kept with the account and removed when the account is permanently purged, unless a record must be retained for a legal claim or security investigation.
 - Encrypted production backups are created nightly. Local archives are kept for 7 days. Off-site archives are protected from early deletion for 30 days by S3 Object Lock, then removed through an asynchronous lifecycle process. An archive can remain for slightly longer than 31 days. Deleted ciphertext can remain until the applicable backup archive expires.
 - Encrypted short links expire after 365 days without a successful access.

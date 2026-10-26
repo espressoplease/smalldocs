@@ -5,7 +5,7 @@ description: The terms that apply to SmallDocs, encrypted short links, and Small
 
 # Terms of Service
 
-**Last updated: 24 October 2026**
+**Last updated: 26 October 2026**
 
 These terms are an agreement between you and **Odd Solutions Ltd**, a private limited company registered in England and Wales under company number 16186575. Odd Solutions Ltd operates SmallDocs. In these terms, "SmallDocs", "we", "us", and "our" mean Odd Solutions Ltd.
 
@@ -41,7 +41,7 @@ You are responsible for your content and for having the rights and permissions n
 
 ## 4. Subscriptions, prices, and tax
 
-SmallDocs Cloud subscriptions are billed monthly in advance and renew automatically until cancelled. The price, currency, included storage, billing unit, and applicable tax are shown before payment. Team subscriptions are billed for active human members. Connected machines and agents acting under a human account are not separate paid seats.
+SmallDocs Cloud subscriptions are billed monthly in advance and renew automatically until cancelled. The price, currency, included storage, billing unit, and applicable tax are shown before payment. One paid subscription covers a person across their libraries. You pay for yourself and people you sponsor. A person already covered by an active paid subscription elsewhere is not added to your bill. Connected machines and agents acting under a human account are not separate paid seats.
 
 The free trial lasts one calendar month and does not require payment details. After the trial ends, access continues for seven days with a subscription reminder. After that extra week, a subscription is required to open, create, update, or search Cloud documents. Creating additional libraries does not restart the trial.
 
@@ -51,11 +51,11 @@ We may change prices or included allowances for a future billing period. We will
 
 ## 5. Cancellation, refunds, and failed payments
 
-You can cancel through Cloud settings. Cancellation stops future renewal. Editing remains available until the end of the period already paid for. The account then becomes read-only so documents can still be opened and exported. Cloud documents are scheduled for permanent deletion 30 days after the paid period ends unless the subscription is restored.
+You can cancel through Cloud settings. Cancellation stops future renewal. Editing remains available until the end of the period already paid for. The account then becomes read-only so documents can still be opened and exported. Cancellation does not automatically delete Cloud documents.
 
-For a first Personal subscription bought as a consumer, you may request a full refund within 14 days of purchase by emailing [hi@smalldocs.org](mailto:hi@smalldocs.org). Other statutory refund rights are not affected.
+For a first subscription bought as a consumer, you may request a full refund within 14 days of purchase by emailing [hi@smalldocs.org](mailto:hi@smalldocs.org). Other statutory refund rights are not affected.
 
-If a payment fails, editing remains available for 7 days. The account then becomes read-only. Cloud documents are scheduled for permanent deletion 60 days after the failed payment unless payment is recovered.
+If a payment fails, editing remains available for 7 days. The account then becomes read-only. Failed payment does not automatically delete Cloud documents.
 
 The [Cancellation and Refund Policy](/cancellation) explains the steps and data windows.
 

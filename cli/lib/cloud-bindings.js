@@ -2,13 +2,21 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const credentials = require('./cloud-credentials');
+const { withLockSync } = require('./file-lock');
 
 function bindingsFile() { return path.join(credentials.cloudDir(), 'bindings.json'); }
 function pendingFile() { return path.join(credentials.cloudDir(), 'pending.json'); }
 function basesDir() { return path.join(credentials.cloudDir(), 'bases'); }
 
 function read(file) {
-  try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch (_) { return {}; }
+  try {
+    const value = JSON.parse(fs.readFileSync(file, 'utf8'));
+    if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Invalid CLI state');
+    return value;
+  } catch (error) {
+    if (error.code === 'ENOENT') return {};
+    throw Object.assign(new Error('Could not read SmallDocs Cloud state. The existing file was preserved: ' + file), { code: 'temporary_service_failure' });
+  }
 }
 
 function canonical(file) {
@@ -22,25 +30,28 @@ function canonical(file) {
 function key(accountId, file) { return accountId + '\0' + canonical(file); }
 function get(accountId, file) { return read(bindingsFile())[key(accountId, file)] || null; }
 
-function set(accountId, file, binding) {
-  const values = read(bindingsFile());
-  values[key(accountId, file)] = { ...binding, account_id: accountId, path: canonical(file) };
-  credentials.atomicWrite(bindingsFile(), values);
-  return values[key(accountId, file)];
+function update(file, change) {
+  return withLockSync(file, () => {
+    const values = read(file);
+    const result = change(values);
+    credentials.atomicWrite(file, values);
+    return result;
+  });
 }
-
+function set(accountId, file, binding) {
+  return update(bindingsFile(), values => {
+    const record = { ...binding, account_id: accountId, path: canonical(file) };
+    values[key(accountId, file)] = record;
+    return record;
+  });
+}
 function getPending(accountId, file) { return read(pendingFile())[key(accountId, file)] || null; }
 function setPending(accountId, file, value) {
-  const values = read(pendingFile());
-  values[key(accountId, file)] = value;
-  credentials.atomicWrite(pendingFile(), values);
+  return update(pendingFile(), values => { values[key(accountId, file)] = value; });
 }
 function clearPending(accountId, file) {
-  const values = read(pendingFile());
-  delete values[key(accountId, file)];
-  credentials.atomicWrite(pendingFile(), values);
+  return update(pendingFile(), values => { delete values[key(accountId, file)]; });
 }
-
 function operationKey(accountId, operation, resourceId) {
   return accountId + '\0operation:' + operation + '\0' + resourceId;
 }
@@ -48,14 +59,10 @@ function getOperationPending(accountId, operation, resourceId) {
   return read(pendingFile())[operationKey(accountId, operation, resourceId)] || null;
 }
 function setOperationPending(accountId, operation, resourceId, value) {
-  const values = read(pendingFile());
-  values[operationKey(accountId, operation, resourceId)] = value;
-  credentials.atomicWrite(pendingFile(), values);
+  return update(pendingFile(), values => { values[operationKey(accountId, operation, resourceId)] = value; });
 }
 function clearOperationPending(accountId, operation, resourceId) {
-  const values = read(pendingFile());
-  delete values[operationKey(accountId, operation, resourceId)];
-  credentials.atomicWrite(pendingFile(), values);
+  return update(pendingFile(), values => { delete values[operationKey(accountId, operation, resourceId)]; });
 }
 
 function hash(content) { return crypto.createHash('sha256').update(content).digest('hex'); }

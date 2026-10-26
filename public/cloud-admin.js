@@ -28,12 +28,19 @@
 
   async function request(path, options) {
     var response = await fetch(apiPath(path), Object.assign({ credentials: 'same-origin' }, options || {}));
-    if (response.status === 401) {
+    var data = null;
+    try { data = await response.json(); } catch (_) {}
+    if (response.status === 401 && (!data || data.error !== 'recent_auth_required')) {
       location.href = '/cloud/sign-in?return=' + encodeURIComponent(location.pathname + location.search);
       throw new Error('login_required');
     }
-    var data = null;
-    try { data = await response.json(); } catch (_) {}
+    if (data && data.error === 'recent_auth_required') {
+      var box = byId('page-error');
+      box.replaceChildren(document.createTextNode('Sign in again to continue. Your changes are still on this page. '));
+      var link = element('a', '', 'Sign in');
+      link.href = '/cloud/sign-in?return=' + encodeURIComponent(location.pathname + location.search);
+      link.target = '_blank'; link.rel = 'noopener'; box.appendChild(link); box.classList.add('visible');
+    }
     if (!response.ok) {
       var error = new Error(data && data.error ? data.error : 'request_failed');
       error.code = data && data.error;
@@ -59,6 +66,7 @@
 
   function humanError(error) {
     var messages = {
+      recent_auth_required: 'Sign in again using the link above, then retry this action.',
       permission_denied: 'Your account role does not allow this action.',
       resource_unavailable: 'This item is no longer available.',
       active_subscription_requires_cancellation: 'Cancel the team subscription in Billing before deleting it.',
@@ -368,6 +376,9 @@
       byId('billing-price').textContent = window.SDocsCloudPricing.primaryAmount('standard', window.SDocsCloudPricing.currentCurrency()) + ' / person / month';
       if (billing && billing.legacy_price) byId('billing-price').textContent = 'Your existing subscription rate is unchanged. View your current price in Stripe.';
       if (billing && !billing.trialEndsAtMs) byId('billing-status').textContent = billing.covered ? 'Your subscription is covered.' : 'Subscribe, or ask a library administrator to cover your subscription.';
+      if (billing && billing.effectiveStatus === 'past_due_grace') byId('billing-status').textContent = 'Payment needs attention. You can keep saving until ' + formatDateTime(billing.graceEndsAtMs) + '. Update your payment details in Billing.';
+      if (billing && ['past_due', 'read_only'].includes(billing.effectiveStatus)) byId('billing-status').textContent = 'Your subscription is read-only. You can open and export documents. Update Billing to save changes.';
+      if (billing && billing.effectiveStatus === 'canceled') byId('billing-status').textContent = 'Your subscription has ended. You can open and export your documents. Subscribe again to save changes.';
       if (billing && billing.effectiveStatus === 'trial') byId('billing-status').textContent = 'Free until ' + formatDateTime(billing.trialEndsAtMs) + '. Cloud access continues for seven more days after the trial ends.';
       if (billing && billing.effectiveStatus === 'trial_warning') byId('billing-status').textContent = 'Your trial has ended. Subscribe by ' + formatDateTime(billing.trialPaywallAtMs) + ' to keep using SmallDocs.';
       if (billing && billing.effectiveStatus === 'payment_required') byId('billing-status').textContent = 'Your free trial and extra week have ended. Subscribe to continue using SmallDocs.';
@@ -526,12 +537,16 @@
     var role = selectedInviteRole();
     setFormBusy(form, true);
     try {
-      await mutation('POST', '/account/invitations', {
+      var result = await mutation('POST', '/account/invitations', {
         account_id: state.workspace.id, email: email, role: role,
       });
       form.reset();
       updateInviteRoleCopy();
-      status.textContent = 'Invitation sent to ' + email + '.';
+      status.replaceChildren(document.createTextNode(result.invitation.notification_scheduled
+        ? 'Invitation created. An email will be sent to ' + email + '. '
+        : 'Invitation created. Share this link with ' + email + ': '));
+      var inviteLink = element('a', '', 'Invitation link');
+      inviteLink.href = result.invitation.accept_url; status.appendChild(inviteLink);
       await loadWorkspace(state.workspace.id);
     } catch (error) {
       status.textContent = humanError(error);
@@ -658,11 +673,17 @@
         location.assign('/cloud/admin?panel=install&workspace_id=' + encodeURIComponent(result.workspace.workspaceId));
       } catch (_) { byId('library-create-status').textContent = 'The library could not be created. Try again.'; button.disabled = false; }
     };
-    request('/onboarding').then(function (data) { byId('library-request-form').hidden = !data.company_domain; }).catch(function () {});
+    request('/onboarding').then(function (data) {
+      byId('library-request-form').hidden = !data.company_domain;
+      var select = byId('library-request-email'); select.replaceChildren();
+      (data.company_emails || []).forEach(function (email) {
+        var option = element('option', '', email); option.value = email; select.appendChild(option);
+      });
+    }).catch(function () {});
     byId('library-request-form').onsubmit = async function (event) {
       event.preventDefault(); var button = this.querySelector('button'); button.disabled = true;
       try {
-        var result = await mutation('POST', '/join-requests', { consented: byId('library-request-consent').checked, note: byId('library-request-note').value });
+        var result = await mutation('POST', '/join-requests', { email: byId('library-request-email').value, consented: byId('library-request-consent').checked, note: byId('library-request-note').value });
         byId('library-request-url').value = result.request.handoff_url; byId('library-request-url').hidden = false;
         byId('library-request-status').textContent = 'Send this link to your library administrator. Nothing has been sent automatically.';
       } catch (_) { byId('library-request-status').textContent = 'The request could not be created. Try again.'; }

@@ -133,3 +133,17 @@ test.describe('reader navigation with the service worker', () => {
     await expect(page.locator('.sdocs-sidebar-subscription')).toContainText('23 days left');
   });
 });
+
+for (const phase of ['past_due_grace', 'past_due', 'read_only']) {
+  test(phase + ' offers billing recovery instead of another subscription', async ({ page }) => {
+    await signIn(page);
+    await page.route('**/api/cloud/billing/subscription', route => route.fulfill({ json: {
+      phase, billing_url: f.origin + '/cloud/admin?panel=billing', subscribe_url: f.origin + '/cloud/subscribe',
+    } }));
+    await page.goto(f.origin + '/docs');
+    const summary = page.locator('.sdocs-sidebar-subscription');
+    await expect(summary).toContainText(phase === 'past_due_grace' ? 'Payment needs attention' : 'Read-only access');
+    await expect(summary.getByRole('link', { name: 'Update billing', exact: true })).toHaveAttribute('href', f.origin + '/cloud/admin?panel=billing');
+    await expect(summary.getByRole('link', { name: 'Subscribe', exact: true })).toHaveCount(0);
+  });
+}

@@ -46,7 +46,7 @@ for (const width of [390, 1440]) {
 }
 
 test('email signup verifies the delivered code, captures a profile and reaches Install with one library', async ({ page }) => {
-  await page.goto(f.origin + '/home-next');
+  await page.goto(f.origin + '/');
   const form = page.locator('[data-install-form]').first();
   await form.locator('input[type=email]').fill('new-human@example.com');
   await form.getByRole('button', { name: 'Get install prompt' }).click();
@@ -105,7 +105,7 @@ test('email signup verifies the delivered code, captures a profile and reaches I
 
 test('homepage email Log in verifies the code and opens the Library', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 900 });
-  await page.goto(f.origin + '/home-next');
+  await page.goto(f.origin + '/');
   await page.getByRole('link', { name: 'Log in', exact: true }).click();
   await page.getByLabel('Email address', { exact: true }).fill('login-person@example.test');
   await page.getByRole('button', { name: 'Email me a code', exact: true }).click();

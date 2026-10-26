@@ -371,8 +371,9 @@ function billingJobAnchor(subscription, type, availableAtMs) {
 function scheduleBillingLifecycleJobs(change) {
   if (!cloudJobs || !cloudStore || !change || !change.after) return;
   const subscription = change.after;
-  if (cloudSinglePlan) return;
-  const owners = cloudStore.listWorkspaceOwnerUserIds(subscription.workspaceId);
+  const billingOwner = cloudSinglePlan && cloudSinglePlan.db.prepare('SELECT owner_user_id FROM cloud_single_accounts WHERE id=?').get(subscription.workspaceId);
+  const owners = cloudSinglePlan ? (billingOwner ? [billingOwner.owner_user_id] : [])
+    : cloudStore.listWorkspaceOwnerUserIds(subscription.workspaceId);
   const immediateAtMs = subscription.providerEventCreatedMs || subscription.updatedAtMs;
   for (const type of cloudBillingLifecycle.transitionTypes(change.before, subscription)) {
     for (const ownerUserId of owners) {
@@ -383,6 +384,7 @@ function scheduleBillingLifecycleJobs(change) {
   }
   for (const event of cloudBillingLifecycle.scheduledBillingEvents(
     subscription, CLOUD_BILLING_POLICY)) {
+    if (cloudSinglePlan && ['deletion_warning', 'retention_expire'].includes(event.type)) continue;
     const payload = billingJobPayload(subscription, event.type, event.availableAtMs, null);
     if (event.type === 'retention_expire') {
       enqueueCloudJob({ type: 'billing_retention_expire',
@@ -483,15 +485,17 @@ async function processCloudJob(job) {
     return;
   }
   if (job.type === 'billing_state_email') {
-    // These legacy notices describe workspace billing and automatic deletion.
-    if (cloudSinglePlan) return;
+    if (cloudSinglePlan && job.payload.type === 'deletion_warning') return;
     if (!cloudStore || !cloudAuth || !cloudBilling) {
       throw Object.assign(new Error('temporary_service_failure'),
         { code: 'temporary_service_failure' });
     }
     let subscription = cloudBilling.getSubscription(job.payload.workspaceId);
     if (!cloudBillingLifecycle.billingEventApplies(subscription, job.payload, Date.now())) return;
-    const context = await cloudStore.getWorkspaceBillingContext(job.payload.workspaceId);
+    const billingOwner = cloudSinglePlan && cloudSinglePlan.db.prepare('SELECT owner_user_id FROM cloud_single_accounts WHERE id=?').get(job.payload.workspaceId);
+    const context = cloudSinglePlan
+      ? billingOwner && { name: 'your SmallDocs subscription', ownerUserIds: [billingOwner.owner_user_id] }
+      : await cloudStore.getWorkspaceBillingContext(job.payload.workspaceId);
     if (!context || !context.ownerUserIds.includes(job.payload.recipientUserId)) return;
     const recipient = verifiedCloudEmail(job.payload.recipientUserId);
     if (!recipient) return;
@@ -504,7 +508,8 @@ async function processCloudJob(job) {
       accountName: context.name,
       accessEndsAt: formatBillingDate(job.payload.type === 'payment_failed'
         ? subscription.graceEndsAtMs : subscription.currentPeriodEndMs),
-      deletionDate: formatBillingDate(subscription.retentionEndsAtMs),
+      retainDocuments: Boolean(cloudSinglePlan),
+      deletionDate: cloudSinglePlan ? '' : formatBillingDate(subscription.retentionEndsAtMs),
       billingUrl: CLOUD_AUTH_PUBLIC_ORIGIN + '/cloud/admin?panel=billing&workspace_id=' +
         encodeURIComponent(subscription.workspaceId),
       termsUrl: CLOUD_AUTH_PUBLIC_ORIGIN + '/legal',
@@ -1198,6 +1203,10 @@ function cloudApiError(res, error) {
     temporary_service_failure: 503,
   };
   const body = { ok: false, error: code };
+  if (code === 'recent_auth_required') {
+    body.message = 'Sign in again to continue. Your changes have not been submitted.';
+    body.sign_in_url = '/cloud/sign-in';
+  }
   if (code === 'account_selection_required' && Array.isArray(error.accounts)) {
     body.accounts = error.accounts;
   }
@@ -1452,7 +1461,17 @@ function cloudMarkdownBytes(markdown) {
   return bytes;
 }
 
+const seatSyncQueues = new Map();
 async function syncTeamSeatQuantity(workspaceId, seatChangeId) {
+  const account = cloudSinglePlan && (cloudSinglePlan.account(workspaceId) || cloudSinglePlan.db.prepare('SELECT * FROM cloud_single_accounts WHERE id=?').get(workspaceId));
+  const accountId = account ? account.id : workspaceId;
+  const prior = seatSyncQueues.get(accountId) || Promise.resolve();
+  const next = prior.catch(() => {}).then(() => syncTeamSeatQuantityLocked(accountId, seatChangeId));
+  seatSyncQueues.set(accountId, next);
+  try { return await next; } finally { if (seatSyncQueues.get(accountId) === next) seatSyncQueues.delete(accountId); }
+}
+
+async function syncTeamSeatQuantityLocked(workspaceId, seatChangeId) {
   const changeId = String(seatChangeId || '').trim();
   if (!changeId) throw new Error('seat synchronization change ID is required');
   const account = cloudSinglePlan && (cloudSinglePlan.account(workspaceId) || cloudSinglePlan.db.prepare('SELECT * FROM cloud_single_accounts WHERE id=?').get(workspaceId));
@@ -1497,6 +1516,12 @@ function verifiedCloudEmail(userId) {
   try { user = cloudAuth.getUser(userId); } catch (_) {}
   const identity = user && user.identities.find((item) => item.verifiedEmail);
   return identity ? identity.verifiedEmail : null;
+}
+
+function verifiedCompanyEmails(userId) {
+  const { companyDomain } = require('./lib/cloud-join-requests');
+  const user = cloudAuth.getUser(userId);
+  return [...new Set(user.identities.map(item => item.verifiedEmail).filter(email => companyDomain(email)))];
 }
 
 function cloudActorLabel(userId) {
@@ -1589,8 +1614,10 @@ async function cloudAccountContext(userId, requestedId) {
 
 async function cloudJoinReview(user, token) {
   const row = cloudJoinRequests.resolve(token);
-  const requesterEmail = verifiedCloudEmail(row.user_id);
-  const reviewerEmail = verifiedCloudEmail(user.id);
+  const requesterEmail = verifiedCompanyEmails(row.user_id).find(email => (!row.email || row.email === email) &&
+    require('./lib/cloud-join-requests').companyDomain(email) === row.domain);
+  const reviewerEmail = verifiedCompanyEmails(user.id).find(email =>
+    require('./lib/cloud-join-requests').companyDomain(email) === row.domain);
   const { companyDomain } = require('./lib/cloud-join-requests');
   if (companyDomain(requesterEmail) !== row.domain || companyDomain(reviewerEmail) !== row.domain) {
     throw Object.assign(new Error('resource_unavailable'), { code: 'resource_unavailable' });
@@ -1635,7 +1662,7 @@ async function handleCloudApi(req, res, url) {
     if (req.method === 'POST' && pathname === base + '/cli/token/refresh') {
       if (!cloudAuthReady(res)) return;
       const body = await cloudAuthHttp.readJson(req);
-      const result = cloudAuth.refreshCliCredential({ refreshToken: body.refresh_token });
+      const result = cloudAuth.refreshCliCredential({ refreshToken: body.refresh_token, requestId: body.refresh_request_id });
       sendJson(res, 200, { ok: true, credential_id: result.credentialId, user_id: result.userId,
         access_token: result.accessToken, access_token_expires_at: new Date(result.accessExpiresAtMs).toISOString(),
         refresh_token: result.refreshToken, token_type: 'Bearer' });
@@ -1736,7 +1763,8 @@ async function handleCloudApi(req, res, url) {
       if (request && request.status === 'pending') request.handoff_url = CLOUD_AUTH_PUBLIC_ORIGIN + '/cloud/join-request?token=' + encodeURIComponent(cloudJoinRequests.token(row));
       sendJson(res, 200, { ok: true, user: cloudUserProfile(user, verifiedCloudEmail(user.id)),
         workspaces: await cloudStore.listWorkspaces(user.id),
-        company_domain: require('./lib/cloud-join-requests').companyDomain(verifiedCloudEmail(user.id)), request });
+        company_domain: require('./lib/cloud-join-requests').companyDomain(verifiedCompanyEmails(user.id)[0]),
+        company_emails: verifiedCompanyEmails(user.id), request });
       return;
     }
     if (req.method === 'POST' && pathname === base + '/onboarding/complete') {
@@ -1773,7 +1801,10 @@ async function handleCloudApi(req, res, url) {
       const body = await cloudAuthHttp.readJson(req);
       const rate = cloudAuth.consumeRateLimit({ action: 'join_request', key: user.id, limit: 10, windowMs: 60 * 60 * 1000 });
       if (!rate.allowed) throw Object.assign(new Error('rate_limited'), { code: 'rate_limited' });
-      const request = cloudJoinRequests.create({ userId: user.id, email: verifiedCloudEmail(user.id),
+      const companyEmails = verifiedCompanyEmails(user.id);
+      const email = body.email ? String(body.email).trim().toLowerCase() : companyEmails.length === 1 ? companyEmails[0] : null;
+      if (!email || !companyEmails.includes(email)) throw Object.assign(new Error('invalid_request'), { code: 'invalid_request' });
+      const request = cloudJoinRequests.create({ userId: user.id, email,
         consented: body.consented === true, note: body.note });
       request.handoff_url = CLOUD_AUTH_PUBLIC_ORIGIN + '/cloud/join-request?token=' + encodeURIComponent(request.token);
       delete request.token;
@@ -1808,7 +1839,8 @@ async function handleCloudApi(req, res, url) {
         beforeCommit: () => {
           cloudJoinRequests.resolve(body.token);
           const companyDomain = require('./lib/cloud-join-requests').companyDomain;
-          if (companyDomain(verifiedCloudEmail(user.id)) !== review.row.domain || companyDomain(verifiedCloudEmail(review.row.user_id)) !== review.row.domain) {
+          if (!verifiedCompanyEmails(user.id).some(email => companyDomain(email) === review.row.domain) ||
+              !verifiedCompanyEmails(review.row.user_id).includes(review.requesterEmail)) {
             throw Object.assign(new Error('resource_unavailable'), { code: 'resource_unavailable' });
           }
           requireCloudEntitlement(user.id, workspace.id, 'manage');
@@ -3062,13 +3094,15 @@ function readRawBody(req, limit) {
 }
 
 function stripeSubscriptionInput(subscription, eventCreatedMs, existing) {
-  return cloudBillingLifecycle.buildStripeSubscriptionUpdate({
+  const update = cloudBillingLifecycle.buildStripeSubscriptionUpdate({
     subscription,
     existing,
     eventCreatedMs,
     now: Number.isSafeInteger(eventCreatedMs) ? eventCreatedMs : Date.now(),
     policy: CLOUD_BILLING_POLICY,
   });
+  if (cloudSinglePlan) update.retentionEndsAtMs = null;
+  return update;
 }
 
 async function handleStripeWebhook(req, res) {
@@ -3114,10 +3148,15 @@ async function handleStripeWebhook(req, res) {
             if (owner) {
               cloudSinglePlan.db.prepare('UPDATE cloud_single_accounts SET standard_subscription_id=? WHERE id=?').run(after.providerSubscriptionId, after.workspaceId);
               cloudSinglePlan.db.prepare('DELETE FROM cloud_single_checkouts WHERE account_id=? AND operation_id=?').run(after.workspaceId, event.data.object.metadata.single_checkout_operation_id || '');
+              changedSponsors.push(after.workspaceId);
               const previousSponsor = cloudSinglePlan.coverage(owner.owner_user_id);
               if (previousSponsor && previousSponsor.account_id !== after.workspaceId) changedSponsors.push(previousSponsor.account_id);
               cloudSinglePlan.db.prepare('INSERT INTO cloud_single_sponsors VALUES (?, ?, ?) ON CONFLICT(user_id) DO UPDATE SET account_id=excluded.account_id, source_workspace_id=excluded.source_workspace_id').run(owner.owner_user_id, after.workspaceId, after.workspaceId);
             }
+          }
+          if (cloudSinglePlan && metadata.single_plan === 'true' && after.providerSubscriptionId === event.data.object.id && after.initialPaymentPending && after.status === 'canceled') {
+            cloudSinglePlan.db.prepare('DELETE FROM cloud_single_checkouts WHERE account_id=? AND operation_id=?')
+              .run(after.workspaceId, metadata.single_checkout_operation_id || '');
           }
           const change = { before: existing, after };
           scheduleBillingLifecycleJobs(change);
@@ -3126,9 +3165,15 @@ async function handleStripeWebhook(req, res) {
       }
       return null;
     });
-    for (const accountId of changedSponsors) {
-      try { await syncTeamSeatQuantity(accountId, event.id); } catch (_) {}
+    if (cloudSinglePlan && event.type.startsWith('customer.subscription.')) {
+      const metadata = event.data.object.metadata || {};
+      const current = metadata.workspace_id && cloudBilling.getSubscription(metadata.workspace_id);
+      if (metadata.single_plan === 'true' && current && current.providerSubscriptionId === event.data.object.id && current.status === 'active') changedSponsors.push(current.workspaceId);
+    }
+    for (const accountId of new Set(changedSponsors)) {
+      // Enqueue before the provider call so an interrupted response can be retried.
       scheduleTeamSeatSync(accountId, event.id);
+      try { await syncTeamSeatQuantity(accountId, event.id); } catch (_) {}
     }
     sendJson(res, 200, { received: true });
   } catch (error) {
@@ -3258,10 +3303,12 @@ const server = http.createServer((req, res) => {
     const trial = cloudBilling.db.prepare('SELECT ends_at_ms FROM cloud_billing_personal_trials WHERE user_id=?').get(userId);
     const trialEnd = coverage && coverage.trialEndsAtMs
       ? Math.min(coverage.trialEndsAtMs, trial ? trial.ends_at_ms : Infinity) : trial && trial.ends_at_ms;
-    sendJson(res, 200, { ok: true, ...cloudSubscriptionState(userId), email: verifiedCloudEmail(userId),
+    const subscriptionState = cloudSubscriptionState(userId);
+    sendJson(res, 200, { ok: true, ...subscriptionState, email: verifiedCloudEmail(userId),
       trial_ends_at_ms: trialEnd || null,
-      trial_active: Boolean(trialEnd && cloudBilling.now() < trialEnd && !subscription),
+      trial_active: subscriptionState.phase === 'trial',
       subscription_status: subscription ? subscription.status : null,
+      payment_pending: Boolean(subscription && subscription.initialPaymentPending && subscription.status !== 'canceled'),
       covered_elsewhere: Boolean(sponsor && (!account || sponsor.account_id !== account.id) && coverage && coverage.access.write
         && cloudBilling.getSubscription(sponsor.account_id)),
       quantity: account ? cloudSinglePlan.seatCount(account.id) : 1 });
@@ -3381,7 +3428,7 @@ const server = http.createServer((req, res) => {
   if (pathname === '/' || pathname === '/home' || pathname === '/home-next') {
     const homepageNav = homepageNavigation(req);
     serveHtmlWithRewrite(res, path.join(__dirname, 'public',
-      pathname === '/home-next' ? 'homepage-next.html' : 'homepage.html'),
+      pathname === '/home-next' || SINGLE_PLAN_ENABLED ? 'homepage-next.html' : 'homepage.html'),
       {
         ...homepageNav.substitutions,
         '__HOME_CLOUD_AUTHENTICATED__': homepageNav.authenticated ? 'true' : 'false',
