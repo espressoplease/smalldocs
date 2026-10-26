@@ -9,6 +9,10 @@ body.sdocs-site-shell.sdocs-sidebar-ready {
               color .2s ease;
 }
 
+@media (min-width: 769px) and (max-width: 950px) {
+  body.sdocs-site-shell:not(.sdocs-sidebar-ready) { --sdocs-sidebar-current-width: 52px; }
+}
+
 body.sdocs-site-shell > .topbar,
 body.sdocs-site-shell > .header,
 body.sdocs-site-shell > .statusbar {
@@ -41,6 +45,7 @@ body.sdocs-site-shell .library-onboarding-nav {
     min-height: 0;
     padding: 0;
   }
+  body.sdocs-site-shell:not(:has(> .sdocs-site-mobilebar)) { padding-top: 44px; }
   body.sdocs-site-shell > .shell { min-height: 0; }
 
   body.sdocs-site-shell::after {

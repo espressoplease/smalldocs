@@ -233,7 +233,6 @@ async function loadCloudDocument(id) {
     cloudState.permission = data.permission || null;
     if (data.document.workspace_id) {
       cloudState.account = { id: data.document.workspace_id };
-      await loadAccountData(data.document.workspace_id).catch(function () {});
     }
     S._isDefaultState = false;
     S._loadingDocument = true;
@@ -246,6 +245,7 @@ async function loadCloudDocument(id) {
     cloudSaveBlocked = false;
     if (S.refreshCommentIdentity) S.refreshCommentIdentity();
     if (S.setMode) S.setMode('read', true);
+    if (data.document.workspace_id) loadAccountData(data.document.workspace_id).catch(function () {});
   } catch (error) {
     if (error.status === 401) {
       location.href = '/cloud/sign-in?return=' +

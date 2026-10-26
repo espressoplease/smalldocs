@@ -461,6 +461,8 @@
         returnTo: window.location.pathname + window.location.search,
       });
     });
+    var marker = document.querySelector('[data-legacy-library]');
+    if (marker) applyLibraryPreference(marker.dataset.legacyLibrary !== 'false');
   }
 
   exports.icons = icons;

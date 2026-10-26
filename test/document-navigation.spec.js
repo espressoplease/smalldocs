@@ -459,26 +459,23 @@ test('connected Local Library uses indexed documents and excludes the open file'
   ]);
 });
 
-test('connected Cloud Library loads paginated documents and links directly to them', async ({ page }) => {
+test('Cloud sidebar uses bounded recent and related searches and opens relevant documents by default', async ({ page }) => {
   const requests = [];
-  await page.route('**/api/cloud/v1/documents?**', route => {
-    const url = new URL(route.request().url());
-    requests.push(url.search);
-    if (!url.searchParams.get('cursor')) return route.fulfill({ json: {
-      documents: [
-        { id: 'cloud-current', title: 'Open Cloud document', filename: 'open.md', tags: ['design'], updated_at: '2026-08-28T12:00:00Z' },
-        { id: 'cloud-related', title: 'Cloud design notes', filename: 'design.md', tags: ['design'], updated_at: '2026-08-27T12:00:00Z' },
-      ],
-      next_cursor: 'page-2',
-    } });
+  await page.route('**/api/cloud/v1/search', route => {
+    const request = route.request().postDataJSON();
+    requests.push(request);
+    const documents = [
+      { id: 'cloud-current', title: 'Open Cloud document', filename: 'open.md', tags: ['design'], updated_at: '2026-08-28T12:00:00Z' },
+      { id: 'cloud-related', title: 'Cloud design notes', filename: 'design.md', tags: ['design'], updated_at: '2026-08-27T12:00:00Z' },
+      { id: 'cloud-recent', title: 'Cloud release notes', filename: 'release.md', tags: ['release'], updated_at: '2026-08-26T12:00:00Z' },
+    ];
     return route.fulfill({ json: {
-      documents: [
-        { id: 'cloud-recent', title: 'Cloud release notes', filename: 'release.md', tags: ['release'], updated_at: '2026-08-26T12:00:00Z' },
-      ],
-      next_cursor: null,
+      documents: request.tags_any ? documents.slice(0, 2) : documents,
+      total_count: 100000, next_cursor: 'not-needed-for-a-sidebar-preview',
     } });
   });
   await page.goto('/docs');
+  await page.waitForFunction(() => window.SDocs._appReady);
   await page.evaluate(() => {
     const sidebar = document.getElementById('_sd_sidebar');
     sidebar.dataset.cloudAuthenticated = 'true';
@@ -487,16 +484,15 @@ test('connected Cloud Library loads paginated documents and links directly to th
     window.SDocs.sidebarRefresh();
   });
 
-  await page.getByText('Cloud library', { exact: true }).click();
   const panel = page.locator('#_sd_sidebar_cloud_connected');
   const shared = panel.getByRole('button', { name: 'Shared tags 1', exact: true });
   const recent = panel.getByRole('button', { name: 'Recent 2', exact: true });
   await expect(shared).toBeVisible();
   await expect(recent).toBeVisible();
   expect(requests).toHaveLength(2);
-  expect(requests[0]).toContain('workspace_id=account-1');
-  expect(requests[1]).toContain('cursor=page-2');
-  await shared.click();
+  expect(requests.every(request => request.workspace_id === 'account-1' && request.limit === 11 && !request.cursor)).toBe(true);
+  expect(requests[1].tags_any).toEqual(['design']);
+  await expect(shared).toHaveAttribute('aria-expanded', 'true');
   const related = page.locator('#_sd_sidebar_cloud_tag_groups').getByText('Cloud design notes', { exact: true });
   await expect(related).toHaveAttribute('href', '/docs?cloud-document=cloud-related');
   await expect(panel.getByText('Open Cloud document', { exact: true })).toHaveCount(0);
@@ -522,7 +518,7 @@ test('library loading failures provide recovery actions', async ({ page }) => {
   await expect(localStatus).toBeHidden();
   await expect(page.locator('#_sd_sidebar_local_recent_count')).toHaveText('0');
 
-  await page.route('**/api/cloud/v1/documents?**', route => route.fulfill({ status: 401, json: {
+  await page.route('**/api/cloud/v1/search', route => route.fulfill({ status: 401, json: {
     ok: false, error: 'authentication_required',
   } }));
   await page.evaluate(() => {

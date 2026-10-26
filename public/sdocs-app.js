@@ -1664,7 +1664,9 @@ var _defaultMdPath = _defaultMetaEl && _defaultMetaEl.content;
 // Guard against the server-side template placeholder leaking through
 // (e.g. a stale service-worker cache serving an older index.html).
 if (!_defaultMdPath || _defaultMdPath.charAt(0) !== '/') _defaultMdPath = '/public/sdoc.md';
-var _defaultReady = fetch(_defaultMdPath).then(function(r) { return r.text(); }).then(function(t) { DEFAULT_MD = t; });
+var _defaultReady = new URLSearchParams(window.location.search).has('cloud-document')
+  ? Promise.resolve()
+  : fetch(_defaultMdPath).then(function(r) { return r.text(); }).then(function(t) { DEFAULT_MD = t; });
 
 // ── Register on SDocs for cross-module access ──────────
 
@@ -2022,6 +2024,9 @@ S.Sources.register({
 });
 
 (async function () {
+  if (document.readyState === 'loading') {
+    await new Promise(function (resolve) { document.addEventListener('DOMContentLoaded', resolve, { once: true }); });
+  }
   await _defaultReady;
   if (!document.documentElement.classList.contains('sdocs-embed')) {
     var source = S.Sources.select();
