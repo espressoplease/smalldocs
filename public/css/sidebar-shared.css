@@ -228,6 +228,88 @@
   overflow: hidden;
 }
 
+.sdocs-sidebar-subscription {
+  flex: 0 0 auto;
+  margin: 16px 9px 0;
+  color: var(--text-2, #57534e);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.sdocs-sidebar-subscription-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 3px 8px;
+}
+
+.sdocs-sidebar-subscription-heading strong {
+  color: var(--text, #1c1917);
+  font-weight: 600;
+}
+
+.sdocs-sidebar-subscription-heading > span {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.sdocs-sidebar-subscription-progress {
+  height: 4px;
+  margin-top: 9px;
+  overflow: hidden;
+  border-radius: 10px;
+  background: var(--bg-surface, #f1ede8);
+}
+
+.sdocs-sidebar-subscription-progress > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent, #2563eb);
+  transition: width .3s cubic-bezier(.4,0,.2,1), background-color .3s ease;
+}
+
+.sdocs-sidebar-subscription[data-subscription-status="trial_warning"] .sdocs-sidebar-subscription-progress > span {
+  background: #b45309;
+}
+
+.sdocs-sidebar-subscribe {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  margin-top: 10px;
+  padding: 6px 10px;
+  border: 1px solid var(--border, #d4cfc9);
+  border-radius: 6px;
+  background: var(--bg-input, #fff);
+  color: var(--text, #1c1917);
+  font-weight: 500;
+  text-decoration: none;
+  transition: background-color .18s ease, border-color .18s ease, color .18s ease;
+}
+
+.sdocs-sidebar-subscribe:hover {
+  border-color: var(--border-strong, #a8a29e);
+  background: var(--bg, #faf9f7);
+}
+
+.sdocs-sidebar-subscribe:focus-visible,
+.sdocs-sidebar-trial-feedback:focus-visible {
+  outline: 2px solid var(--accent, #2563eb);
+  outline-offset: 3px;
+}
+
+.sdocs-sidebar-trial-feedback {
+  display: block;
+  width: fit-content;
+  margin-top: 8px;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 .sdocs-sidebar-shell .sdocs-sidebar-footer {
   font-size: 11px;
   margin-top: 12px;
@@ -432,6 +514,7 @@
   body.sdocs-sidebar-collapsed .sdocs-sidebar-account-link > span,
   body.sdocs-sidebar-collapsed .sdocs-sidebar-row-chevron,
   body.sdocs-sidebar-collapsed .sdocs-sidebar-expander,
+  body.sdocs-sidebar-collapsed .sdocs-sidebar-subscription,
   body.sdocs-sidebar-collapsed .sdocs-sidebar-status,
   body.sdocs-sidebar-collapsed .sdocs-sidebar-legal,
   body.sdocs-sidebar-collapsed .sdocs-sidebar-footer-link:not(.sdocs-sidebar-account-link) {

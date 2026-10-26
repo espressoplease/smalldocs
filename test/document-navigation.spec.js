@@ -744,15 +744,12 @@ test('expanded short-link sections keep row height and scroll the whole sidebar'
   await expect(page.getByText('Private by design', { exact: true })).toBeVisible();
 });
 
-test('Renderer SDK expansion links to the live integration guide', async ({ page }) => {
+test('reader sidebar omits the SDK option and loaded-file message', async ({ page }) => {
   await page.goto('/docs');
-  await page.getByText('Renderer SDK', { exact: true }).click();
-
-  await expect(page.getByText('Render agent-generated Markdown as rich, interactive documents inside your application with configurable styling.', { exact: true })).toBeVisible();
-  const guide = page.locator('#_sd_sidebar_sdk_panel').getByRole('link', { name: 'Open SDK guide', exact: true });
-  await expect(guide).toBeVisible();
-  await expect(guide).toHaveAttribute('href', '/developers');
-  await expect(guide).toHaveClass(/sdocs-sidebar-cta/);
+  await page.evaluate(() => window.SDocs.loadText('# A small clearing\n\nA quiet morning.', 'A Small Clearing.md'));
+  await expect(page.locator('#_sd_sidebar [data-sidebar-section="sdk"]')).toHaveCount(0);
+  await expect(page.locator('#_sd_status-text')).toBeEmpty();
+  await expect(page.locator('#_sd_sidebar')).not.toContainText('Loaded:');
 });
 
 test('desktop document shell uses a sidebar and full-width action rail', async ({ page }) => {
@@ -940,7 +937,7 @@ test('non-scrolling expanded sections stay tight and do not cast a shadow', asyn
   expect(boundary.nextTop - boundary.panelBottom).toBeLessThanOrEqual(4);
 });
 
-test('sidebar rows and expanded content use one normal-case font size', async ({ page }) => {
+test('sidebar rows and expanded content share typography with a smaller footer', async ({ page }) => {
   await page.setViewportSize({ width: 1200, height: 800 });
   await page.goto('/docs?sidebar=preview');
   await page.locator('#_sd_btn-library').click();
@@ -955,7 +952,6 @@ test('sidebar rows and expanded content use one normal-case font size', async ({
       '.sdocs-sidebar-subitem',
       '.sdocs-sidebar-preview-entry',
       '.sdocs-sidebar-tag',
-      '.sdocs-sidebar-footer > a',
     ];
     return selectors.map(selector => {
       const target = element.querySelector(selector);
@@ -965,5 +961,6 @@ test('sidebar rows and expanded content use one normal-case font size', async ({
   });
   expect(styles.every(style => style.fontSize === '13px')).toBe(true);
   expect(styles.every(style => style.textTransform === 'none')).toBe(true);
+  await expect(page.locator('.sdocs-sidebar-footer > a').first()).toHaveCSS('font-size', '11px');
   await expect(page.locator('.sdocs-sidebar-legal')).toHaveCSS('font-size', '11px');
 });

@@ -33,7 +33,7 @@ test('Library and supporting text pages share the desktop navigation shell', asy
 test('expandable site navigation stays closed until selected', async ({ page }) => {
   await page.goto('/public/library/library.html?demo=1');
   const capabilities = page.locator('[data-sidebar-section="capabilities"]');
-  const sdk = page.locator('[data-sidebar-section="sdk"]');
+  await expect(page.locator('[data-sidebar-section="sdk"]')).toHaveCount(0);
 
   await expect(capabilities.locator('.sdocs-sidebar-top-row')).toHaveAttribute('aria-expanded', 'false');
   await expect(capabilities.getByRole('link', { name: 'View homepage' })).toBeHidden();
@@ -55,10 +55,6 @@ test('expandable site navigation stays closed until selected', async ({ page }) 
     .toHaveAttribute('href', '/runnable-html');
   await expect(capabilities.getByRole('link', { name: 'Walkthroughs' }))
     .toHaveAttribute('href', '/docs#sec=document-walkthroughs');
-  await expect(sdk.locator('.sdocs-sidebar-top-row')).toHaveAttribute('aria-expanded', 'false');
-  await sdk.locator('.sdocs-sidebar-top-row').click();
-  await expect(sdk.getByRole('link', { name: 'Open SDK guide' }))
-    .toHaveAttribute('href', '/developers');
 });
 
 test('Library and reader sidebars share capability and footer content', async ({ page }) => {

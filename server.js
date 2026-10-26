@@ -1237,10 +1237,15 @@ function cloudSubscriptionState(userId) {
   const sponsor = cloudSinglePlan.coverage(userId);
   const payer = sponsor && cloudSinglePlan.hasSponsoredMembership(userId, sponsor.account_id)
     ? sponsor.account_id : own && own.id;
-  const original = cloudBilling.db.prepare('SELECT ends_at_ms FROM cloud_billing_personal_trials WHERE user_id=?').get(userId);
+  const original = cloudBilling.db.prepare('SELECT starts_at_ms, ends_at_ms FROM cloud_billing_personal_trials WHERE user_id=?').get(userId);
   const access = applyTrialPolicy(cloudBilling.computeEntitlements(payer || '__none__'),
     cloudBilling.now(), original && original.ends_at_ms);
-  return trialStatus(access, cloudBilling.now(), CLOUD_AUTH_PUBLIC_ORIGIN);
+  const status = trialStatus(access, cloudBilling.now(), CLOUD_AUTH_PUBLIC_ORIGIN);
+  const trial = status.trial_ends_at_ms && original && original.ends_at_ms === status.trial_ends_at_ms
+    ? original : status.trial_ends_at_ms && cloudBilling.db.prepare(
+      'SELECT starts_at_ms FROM cloud_billing_personal_trials WHERE workspace_id=? AND ends_at_ms=?'
+    ).get(payer, status.trial_ends_at_ms);
+  return { ...status, trial_starts_at_ms: trial ? trial.starts_at_ms : null };
 }
 
 function redirectForTrialPayment(res, authenticated) {

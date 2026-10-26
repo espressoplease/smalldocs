@@ -119,6 +119,17 @@ self.addEventListener('fetch', function (e) {
     return;
   }
 
+  // Reader navigation reflects the current account. Retain the anonymous
+  // reader shell as an offline fallback for fragment documents.
+  if (url.origin === self.location.origin && (url.pathname === '/docs' || url.pathname.indexOf('/s/') === 0)) {
+    e.respondWith(freshFetch(e.request).catch(function () {
+      return caches.match(e.request).then(function (cached) {
+        return cached || caches.match('/docs');
+      });
+    }));
+    return;
+  }
+
   // Google Fonts: cache-first (they're immutable)
   if (url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com') {
     e.respondWith(

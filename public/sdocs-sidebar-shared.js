@@ -5,7 +5,6 @@
     local: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V5"/><path d="M8 19V7"/><path d="M12 19V4"/><path d="m16 5 4 14"/></svg>',
     cloud: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>',
     capabilities: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2v20"/><path d="m4.93 4.93 14.14 14.14"/><path d="M2 12h20"/><path d="m19.07 4.93-14.14 14.14"/></svg>',
-    sdk: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 9-3 3 3 3"/><path d="m16 9 3 3-3 3"/><path d="m14 5-4 14"/></svg>',
     signIn: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 21a8 8 0 0 1 13.292-6"/><circle cx="10" cy="8" r="5"/><path d="m16 19 2 2 4-4"/></svg>',
     shield: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-8 9-4.5-1.5-8-4-8-9V5l8-3 8 3z"/><path d="m9 12 2 2 4-4"/></svg>',
     github: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3v12"/><path d="M18 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M15 6a9 9 0 0 0-9 9"/><path d="M18 15v6"/><path d="M21 18h-6"/></svg>',
@@ -24,8 +23,6 @@
     { label: 'Formatting', href: '/docs#sec=formatting' },
     { label: 'Code', href: '/docs#sec=code' },
   ];
-
-  var sdkDescription = 'Render agent-generated Markdown as rich, interactive documents inside your application with configurable styling.';
 
   function capabilitiesHtml(className, ctaClassName) {
     var homepage = '<a class="' + (ctaClassName || className) + '" href="/home" ' +
@@ -74,9 +71,6 @@
       'data-sdocs-shared-capabilities>' +
       capabilitiesHtml('sdocs-sidebar-subitem',
         'sdocs-sidebar-library-row sdocs-sidebar-library-open') + '</div>';
-    var sdkContent = '<div class="sdocs-sidebar-preview"><p class="sdocs-sidebar-explainer">' +
-      sdkDescription + '</p><a class="sdocs-sidebar-cta" href="/developers">' +
-      'Open SDK guide</a></div>';
     return sectionHtml({
       id: 'capabilities',
       idPrefix: idPrefix,
@@ -85,14 +79,6 @@
       label: 'Capabilities',
       dataHref: '/docs#sec=formatting',
       content: capabilityContent,
-    }) + sectionHtml({
-      id: 'sdk',
-      idPrefix: idPrefix,
-      rowClass: rowClass,
-      icon: icons.sdk,
-      label: 'Renderer SDK',
-      dataHref: '/developers',
-      content: sdkContent,
     });
   }
 
@@ -158,29 +144,60 @@
       if (!response.ok) return;
       var data = await response.json();
       var status = data.subscription || data;
+      var previous = sidebar.querySelector('[data-subscription-status]');
+      if (previous) previous.remove();
       if (status.phase === 'active') return;
+      var footer = sidebar.querySelector('.sdocs-sidebar-footer');
+      if (!footer) return;
       var section = document.createElement('div');
-      section.className = 'sdocs-sidebar-preview';
+      section.className = 'sdocs-sidebar-subscription';
       section.setAttribute('data-subscription-status', status.phase);
+      var trial = status.phase === 'trial';
+      var warning = status.phase === 'trial_warning';
+      var end = trial ? status.trial_ends_at_ms : status.paywall_starts_at_ms;
+      var now = Date.now();
+      var heading = document.createElement('div');
+      heading.className = 'sdocs-sidebar-subscription-heading';
+      var label = document.createElement('strong');
+      label.textContent = trial ? 'Free trial' : warning ? 'Trial ended'
+        : status.phase === 'payment_required' ? 'Subscription required' : 'Subscription inactive';
+      heading.appendChild(label);
+      if ((trial || warning) && Number.isFinite(end)) {
+        var days = Math.max(0, Math.ceil((end - now) / 86400000));
+        var remaining = document.createElement('span');
+        remaining.textContent = days + (days === 1 ? ' day' : ' days') + (warning ? ' of access left' : ' left');
+        heading.appendChild(remaining);
+        section.title = (trial ? 'Trial ends ' : 'Cloud access ends ') + new Date(end).toLocaleString(undefined,
+          { day: 'numeric', month: 'long', year: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' });
+      }
+      section.appendChild(heading);
+      var start = trial ? status.trial_starts_at_ms : status.trial_ends_at_ms;
+      if ((trial || warning) && Number.isFinite(start) && Number.isFinite(end) && end > start) {
+        var percent = Math.max(0, Math.min(100, (end - now) / (end - start) * 100));
+        var progress = document.createElement('div');
+        progress.className = 'sdocs-sidebar-subscription-progress';
+        progress.setAttribute('role', 'meter');
+        progress.setAttribute('aria-label', trial ? 'Free trial remaining' : 'Cloud access remaining');
+        progress.setAttribute('aria-valuemin', '0');
+        progress.setAttribute('aria-valuemax', '100');
+        progress.setAttribute('aria-valuenow', String(Math.round(percent)));
+        progress.setAttribute('aria-valuetext', remaining.textContent);
+        var fill = document.createElement('span');
+        fill.style.width = percent + '%';
+        progress.appendChild(fill);
+        section.appendChild(progress);
+      }
       var link = document.createElement('a');
-      link.className = 'sdocs-sidebar-footer-link';
+      link.className = 'sdocs-sidebar-subscribe';
       link.href = status.subscribe_url || '/cloud/subscribe';
       link.textContent = 'Subscribe';
       section.appendChild(link);
-      if (status.phase === 'trial_warning' || status.phase === 'payment_required') {
-        var note = document.createElement('p');
-        note.className = 'sdocs-sidebar-explainer';
-        note.textContent = status.phase === 'trial_warning'
-          ? 'Your trial has ended. Subscribe by ' + new Date(status.paywall_starts_at_ms).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }) + ' to keep using SmallDocs.'
-          : 'Subscribe to continue using SmallDocs.';
-        section.appendChild(note);
+      if ((warning || status.phase === 'payment_required') && status.feedback_url) {
         var feedback = document.createElement('a');
-        feedback.className = 'sdocs-sidebar-footer-link'; feedback.href = status.feedback_url;
+        feedback.className = 'sdocs-sidebar-trial-feedback'; feedback.href = status.feedback_url;
         feedback.textContent = 'Share feedback'; section.appendChild(feedback);
       }
-      var anchor = sidebar.querySelector('[data-sidebar-section="cloud"]') ||
-        sidebar.querySelector('a[href="/library?scope=cloud"]');
-      if (anchor) anchor.after(section);
+      footer.before(section);
     } catch (_) { /* Navigation stays usable when billing status is unavailable. */ }
   }
 
@@ -448,7 +465,6 @@
 
   exports.icons = icons;
   exports.capabilities = capabilities;
-  exports.sdkDescription = sdkDescription;
   exports.capabilitiesHtml = capabilitiesHtml;
   exports.topRowHtml = topRowHtml;
   exports.sectionHtml = sectionHtml;
@@ -469,6 +485,6 @@
 
 if (typeof document !== 'undefined') {
   window.SDocsSidebarShared.hydrate(document);
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', window.SDocsSidebarShared.bindSubscriptionUi, { once: true });
+  if (document.readyState !== 'complete') document.addEventListener('DOMContentLoaded', window.SDocsSidebarShared.bindSubscriptionUi, { once: true });
   else window.SDocsSidebarShared.bindSubscriptionUi();
 }

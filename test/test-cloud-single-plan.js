@@ -60,6 +60,7 @@ module.exports = function (h) {
         assert.strictEqual(status.status, 200);
         assert.strictEqual(status.data.trial_active, true);
         assert.strictEqual(status.data.trial_ends_at_ms, trial.ends_at_ms);
+        assert.strictEqual(status.data.trial_starts_at_ms, trial.starts_at_ms);
         assert.strictEqual(status.data.quantity, 1);
         const saved = await create('missing', libraries[0].id, 'free-trial-write');
         assert.strictEqual(saved.status, 201, JSON.stringify(saved));
