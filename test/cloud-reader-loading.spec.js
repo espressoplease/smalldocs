@@ -34,7 +34,7 @@ test('empty and single-document libraries stay closed, including when others hav
   await expect(page.locator('#_sd_sidebar')).not.toContainText('Private member document');
 });
 
-test('multiple documents open related titles automatically and respect a later user choice', async ({ page }) => {
+test('multiple documents open Library with its subsections collapsed and respect later user choices', async ({ page }) => {
   const current = await document('josh', 'Current document', ['design']);
   const related = await document('josh', 'Related document', ['design']);
   const requests = [];
@@ -42,16 +42,34 @@ test('multiple documents open related titles automatically and respect a later u
   await page.goto(f.origin + '/docs?cloud-document=' + current.id);
   const trigger = page.locator('[data-sidebar-section="cloud"] > button');
   await expect(trigger).toHaveAttribute('aria-expanded', 'true');
-  await expect(page.locator('#_sd_sidebar_cloud_tag_groups').getByRole('link', { name: 'Related document', exact: true }))
-    .toHaveAttribute('href', '/docs?cloud-document=' + related.id);
+  const shared = page.locator('#_sd_sidebar_cloud_shared_section > button');
+  const recent = page.locator('#_sd_sidebar_cloud_recent_section > button');
+  const relatedLink = page.locator('#_sd_sidebar_cloud_tag_groups').getByRole('link', { name: 'Related document', exact: true });
+  await expect(shared).toHaveAttribute('aria-expanded', 'false');
+  await expect(recent).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.locator('#_sd_sidebar_cloud_shared_count')).toHaveText('1');
+  await expect(relatedLink).toHaveAttribute('href', '/docs?cloud-document=' + related.id);
+  await expect(page.locator('#_sd_sidebar_cloud_shared_content')).toHaveCSS('height', '0px');
+  await expect(page.locator('#_sd_sidebar_cloud_shared_content')).toHaveCSS('opacity', '0');
   expect(requests).toHaveLength(2);
   expect(requests.every(request => request.workspace_id === workspace && request.limit === 11)).toBe(true);
+  await shared.click();
+  await expect(page.locator('#_sd_sidebar_cloud_shared_content')).toHaveCSS('opacity', '1');
+  await expect(relatedLink).toBeVisible();
+  await page.evaluate(() => window.SDocs.sidebarRefresh());
+  await expect(shared).toHaveAttribute('aria-expanded', 'true');
+  await expect(recent).toHaveAttribute('aria-expanded', 'false');
+  await recent.click();
+  await expect(shared).toHaveAttribute('aria-expanded', 'false');
+  await expect(recent).toHaveAttribute('aria-expanded', 'true');
+  await page.evaluate(() => window.SDocs.sidebarRefresh());
+  await expect(recent).toHaveAttribute('aria-expanded', 'true');
   await trigger.click();
   await page.evaluate(() => window.SDocs.sidebarRefresh());
   await expect(trigger).toHaveAttribute('aria-expanded', 'false');
 });
 
-test('without related tags, recent documents open inside the mobile menu without opening the drawer', async ({ page }) => {
+test('without related tags, Recent stays collapsed inside the mobile menu until opened', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const current = await document('josh', 'Current document', ['design']);
   await document('josh', 'Recent document', ['release']);
@@ -60,7 +78,15 @@ test('without related tags, recent documents open inside the mobile menu without
   await expect(trigger).toHaveAttribute('aria-expanded', 'true');
   await expect(page.locator('#_sd_sidebar')).toBeHidden();
   await page.getByRole('button', { name: 'Open SmallDocs menu', exact: true }).click();
-  await expect(page.locator('#_sd_sidebar_cloud_recent').getByRole('link', { name: 'Recent document', exact: true })).toBeVisible();
+  const recent = page.locator('#_sd_sidebar_cloud_recent_section > button');
+  const recentLink = page.locator('#_sd_sidebar_cloud_recent').getByRole('link', { name: 'Recent document', exact: true });
+  await expect(recent).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.locator('#_sd_sidebar_cloud_recent_count')).toHaveText('1');
+  await expect(page.locator('#_sd_sidebar_cloud_recent_content')).toHaveCSS('height', '0px');
+  await expect(page.locator('#_sd_sidebar_cloud_recent_content')).toHaveCSS('opacity', '0');
+  await recent.click();
+  await expect(page.locator('#_sd_sidebar_cloud_recent_content')).toHaveCSS('opacity', '1');
+  await expect(recentLink).toBeVisible();
 });
 
 test('Cloud navigation is correct before the renderer and billing checks finish loading', async ({ page }) => {

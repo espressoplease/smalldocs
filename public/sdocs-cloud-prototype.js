@@ -261,6 +261,7 @@ async function loadCloudDocument(id) {
 
 async function checkCloudDocument() {
   if (!S.cloudDocument || cloudSaveBlocked || cloudSavePromise || document.hidden) return null;
+  if (S.commentsUi && S.commentsUi.hasDraft && S.commentsUi.hasDraft()) return null;
   var documentId = S.cloudDocument.id;
   try {
     var headData = await jsonRequest('/api/cloud/v1/documents/' + encodeURIComponent(documentId)
@@ -275,6 +276,7 @@ async function checkCloudDocument() {
     }
     var data = await jsonRequest('/api/cloud/v1/documents/' + encodeURIComponent(documentId));
     if (!S.cloudDocument || S.cloudDocument.id !== documentId) return null;
+    if (S.commentsUi && S.commentsUi.hasDraft && S.commentsUi.hasDraft()) return null;
     S.cloudDocument = Object.assign({}, S.cloudDocument, data.document);
     if (cloudState.account && cloudState.account.id !== data.document.workspace_id) await loadAccountData(data.document.workspace_id);
     cloudState.permission = data.permission || cloudState.permission;

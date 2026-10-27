@@ -134,7 +134,55 @@ function slideComments(slideIndex) {
   if (!sdc) return [];
   return sdc.getComments((S() && S().currentMeta) || {})
     .map(sdc.normalizeComment)
-    .filter(function (c) { return c && c.kind === 'slide' && c.slide === slideIndex; });
+    .filter(function (c) { return c && c.kind === 'slide'; })
+    .map(function (c) {
+      var target = resolveSlideTarget(c);
+      if (target.index !== slideIndex) return null;
+      var copy = Object.assign({}, c);
+      if (target.shapes && target.shapes.length === 1) { copy.shape = target.shapes[0]; delete copy.shapes; }
+      else if (target.shapes && target.shapes.length) { copy.shapes = target.shapes; delete copy.shape; }
+      return copy;
+    }).filter(Boolean);
+}
+
+function resolveSlideTarget(c) {
+  if (c.anchor_status === 'orphaned' || c.anchor_status === 'ambiguous') return { index: -1, status: c.anchor_status };
+  var root = S() && S().renderedEl;
+  var slides = root ? Array.prototype.slice.call(root.querySelectorAll('.sdoc-slide[data-dsl]')) : [];
+  var entries = slides.map(function (el) {
+    return { source: el.getAttribute('data-dsl'), rects: computeHitRects(el.getAttribute('data-dsl')),
+      index: parseInt(el.getAttribute('data-slide-index'), 10) };
+  });
+  if (c.document_hash && c.document_hash === SDC().documentFingerprint(S().currentBody)) {
+    var original = entries.filter(function (entry) { return entry.index === c.slide; })[0];
+    if (original && shapesOf(c).every(function (shape) { return original.rects.some(function (rect) { return rect.shapeIdx === shape; }); })) {
+      return { index: original.index, shapes: shapesOf(c), status: 'attached' };
+    }
+  }
+  var exact = c.slide_source ? entries.filter(function (entry) { return entry.source === c.slide_source; }) : [];
+  var candidates = exact.length ? exact : entries;
+  var wanted = Array.isArray(c.shape_texts) && c.shape_texts.length ? c.shape_texts
+    : (shapesOf(c).length === 1 && c.slide_text ? [c.slide_text] : []);
+  var found = [], ambiguous = exact.length > 1;
+  candidates.forEach(function (entry) {
+    if (wanted.length) {
+      var indices = [];
+      for (var i = 0; i < wanted.length; i++) {
+        var matches = entry.rects.filter(function (rect) { return rect.label === wanted[i]; });
+        if (matches.length !== 1) { if (matches.length > 1) ambiguous = true; return; }
+        indices.push(matches[0].shapeIdx);
+      }
+      found.push({ index: entry.index, shapes: indices });
+    } else if (exact.length || (c.slide_text && slideLeadText(entry.rects) === c.slide_text) ||
+        (!c.slide_source && !c.slide_text && entry.index === c.slide)) {
+      var indices = shapesOf(c);
+      if (indices.every(function (index) { return entry.rects.some(function (rect) { return rect.shapeIdx === index; }); })) {
+        found.push({ index: entry.index, shapes: indices });
+      }
+    }
+  });
+  return found.length === 1 ? Object.assign({ status: 'attached' }, found[0])
+    : { index: -1, status: found.length > 1 || ambiguous ? 'ambiguous' : 'orphaned' };
 }
 
 function iconBtn(svg, label, cls, onClick) {
@@ -190,6 +238,10 @@ function makeSlideCard(c, ordinal, ctx) {
     if (S().syncAll) S().syncAll('comment');
   });
   card.appendChild(del);
+  var ui = S() && S().commentsUi;
+  if (ui && ui.appendThreadDetails) ui.appendThreadDetails(card, c, {
+    onChange: function () { if (ctx && ctx.wrap) afterChange(ctx); },
+  });
 
   card.addEventListener('click', function (e) {
     if (e.target.closest('.sdoc-icon-btn')) return;
@@ -343,7 +395,9 @@ function openGroupComposer(ctx, idxs) {
     targetLabel: idxs.length + ' elements · ' + joined,
     onSave: function (text) {
       var res = SDC().addSlideComment(S().currentMeta || {}, {
-        slide: ctx.slideIndex, shapes: idxs, slide_text: joined,
+        slide: ctx.slideIndex, shapes: idxs, slide_text: joined, slide_source: ctx.dsl,
+        shape_texts: idxs.map(function (index) { return lm[index] || ('element ' + index); }),
+        document_hash: SDC().documentFingerprint(S().currentBody),
       }, { author: p.author, color: p.color, at: new Date().toISOString(), text: text });
       S().currentMeta = res.meta;
       pending = null;
@@ -517,6 +571,8 @@ function openElementComposer(ctx, rect) {
     onSave: function (text) {
       var res = SDC().addSlideComment(S().currentMeta || {}, {
         slide: ctx.slideIndex, shape: rect.shapeIdx, slide_text: rect.label,
+        slide_source: ctx.dsl, shape_texts: [rect.label],
+        document_hash: SDC().documentFingerprint(S().currentBody),
       }, { author: p.author, color: p.color, at: new Date().toISOString(), text: text });
       S().currentMeta = res.meta;
       afterChange(ctx);
@@ -537,7 +593,8 @@ function openSlideComposer(ctx, rects) {
     targetLabel: 'whole slide',
     onSave: function (text) {
       var res = SDC().addSlideComment(S().currentMeta || {}, {
-        slide: ctx.slideIndex, slide_text: slideLeadText(rects || computeHitRects(ctx.dsl)),
+        slide: ctx.slideIndex, slide_text: slideLeadText(rects || computeHitRects(ctx.dsl)), slide_source: ctx.dsl,
+        document_hash: SDC().documentFingerprint(S().currentBody),
       }, { author: p.author, color: p.color, at: new Date().toISOString(), text: text });
       S().currentMeta = res.meta;
       afterChange(ctx);
@@ -607,12 +664,22 @@ function renderInline() {
     var ctx = inlineCtxFor(slideEl);
     if (ctx) buildLayer(ctx);
   });
+  var comments = SDC().getComments(S().currentMeta || {}).filter(function (c) { return c && c.kind === 'slide'; });
+  comments.forEach(function (raw, ordinal) {
+    var c = SDC().normalizeComment(raw), target = c && resolveSlideTarget(c);
+    if (!target || target.index >= 0) return;
+    var card = makeSlideCard(c, ordinal + 1, null);
+    card.classList.add('sdoc-card-orphaned', 'sdoc-slide-orphan');
+    var badge = document.createElement('span'); badge.className = 'sdoc-card-orphan-badge';
+    badge.textContent = target.status === 'ambiguous' ? 'anchor ambiguous' : 'anchor lost';
+    card.appendChild(badge); S().renderedEl.appendChild(card);
+  });
 }
 
 function stripInline() {
   if (!S() || !S().renderedEl) return;
   var root = S().renderedEl;
-  root.querySelectorAll('.sdoc-slide-hit-layer, .sdoc-slide-comment-btn, .sdoc-slide-comment-list').forEach(function (n) {
+  root.querySelectorAll('.sdoc-slide-hit-layer, .sdoc-slide-comment-btn, .sdoc-slide-comment-list, .sdoc-slide-orphan').forEach(function (n) {
     if (n.parentNode) n.parentNode.removeChild(n);
   });
   // Any open composer that lives between slides.

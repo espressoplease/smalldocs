@@ -87,6 +87,8 @@ function parseArgs(argv) {
   const addTags = [];
   const annotations = [];
   const discovery = { searchArgumentErrors: [] };
+  const cloudContent = { cloudContentArgumentErrors: [] };
+  const cloudComments = { cloudCommentsArgumentErrors: [] };
   const searchQueryParts = [];
   let searchEndOfOptions = false;
   // Multi-file code walkthrough: every source-code positional is collected
@@ -99,6 +101,74 @@ function parseArgs(argv) {
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
+
+    if (subcommand === 'cloud' && file === 'comments') {
+      const scalarOptions = { '--status': 'commentStatusFlag', '--id': 'commentIdFlag',
+        '--limit': 'commentLimitFlag', '--cursor': 'commentCursorFlag', '--revision': 'revisionFlag',
+        '--context': 'commentContextFlag', '--reply': 'commentReplyFlag', '--note': 'noteText',
+        '--base-revision': 'baseRevisionFlag', '--text': 'commentTextFlag', '--quote': 'commentQuoteFlag',
+        '--section': 'section', '--lines': 'linesFlag', '--author': 'commentAuthorFlag', '--pages': 'commentPagesFlag' };
+      const booleanOptions = { '--json': 'jsonFlag', '--resolve': 'commentResolveFlag',
+        '--reopen': 'commentReopenFlag', '--delete': 'commentDeleteFlag', '--add': 'commentAddFlag', '--reattach': 'commentReattachFlag', '--dry-run': 'dryRunFlag',
+        '--all': 'commentAllFlag', '--help': 'helpFlag', '-h': 'helpFlag' };
+      const equals = arg.indexOf('=');
+      const option = equals > 0 ? arg.slice(0, equals) : arg;
+      if (scalarOptions[option]) {
+        const value = equals > 0 ? arg.slice(equals + 1) : args[i + 1];
+        if (value == null || (equals < 0 && value.startsWith('--'))) {
+          cloudComments.cloudCommentsArgumentErrors.push(option + ' requires a value');
+        } else {
+          cloudComments[scalarOptions[option]] = value;
+          if (equals < 0) i++;
+        }
+        continue;
+      }
+      if (booleanOptions[arg]) { cloudComments[booleanOptions[arg]] = true; continue; }
+      if (arg.startsWith('-')) {
+        cloudComments.cloudCommentsArgumentErrors.push('unknown option: ' + arg + '. Run sdoc cloud comments --help.');
+        continue;
+      }
+      if (extra === null) extra = arg;
+      else cloudComments.cloudCommentsArgumentErrors.push('unexpected argument: ' + arg);
+      continue;
+    }
+
+    // Read and edit use literal text and one document positional. In
+    // particular, an empty --new value means deletion, and +text is text.
+    if (subcommand === 'cloud' && (file === 'read' || file === 'edit')) {
+      const scalarOptions = file === 'read'
+        ? { '--revision': 'revisionFlag', '--lines': 'linesFlag', '--section': 'section',
+          '-s': 'section', '--output': 'outputPath', '-o': 'outputPath' }
+        : { '--old': 'oldTextFlag', '--new': 'newTextFlag', '--edits-file': 'editsFileFlag', '--edits': 'editsJsonFlag',
+          '--patch-file': 'patchFileFlag', '--section': 'section', '--lines': 'linesFlag',
+          '--occurrence': 'occurrenceFlag', '--base-revision': 'baseRevisionFlag',
+          '--if-current': 'ifCurrentFlag' };
+      const booleanOptions = file === 'read'
+        ? { '--json': 'jsonFlag', '--outline': 'outlineFlag', '--help': 'helpFlag',
+          '-h': 'helpFlag', '--dry-run': 'dryRunFlag', '--no-bind': 'noBindFlag' }
+        : { '--json': 'jsonFlag', '--all-matches': 'allMatchesFlag', '--dry-run': 'dryRunFlag',
+          '--reject-conflicts': 'rejectConflictsFlag', '--help': 'helpFlag', '-h': 'helpFlag' };
+      const equals = arg.indexOf('=');
+      const option = equals > 0 ? arg.slice(0, equals) : arg;
+      if (scalarOptions[option]) {
+        const value = equals > 0 ? arg.slice(equals + 1) : args[i + 1];
+        if (value == null || (equals < 0 && value.startsWith('--'))) {
+          cloudContent.cloudContentArgumentErrors.push(option + ' requires a value');
+        } else {
+          cloudContent[scalarOptions[option]] = value;
+          if (equals < 0) i++;
+        }
+        continue;
+      }
+      if (booleanOptions[arg]) { cloudContent[booleanOptions[arg]] = true; continue; }
+      if (arg.startsWith('-')) {
+        cloudContent.cloudContentArgumentErrors.push('unknown option: ' + arg + '. Run sdoc cloud ' + file + ' --help.');
+        continue;
+      }
+      if (extra === null) extra = arg;
+      else cloudContent.cloudContentArgumentErrors.push('unexpected argument: ' + arg);
+      continue;
+    }
 
     // Cloud discovery has its own option grammar. Preserve every query token
     // and report misspelled options through the command's JSON error envelope.
@@ -294,7 +364,7 @@ function parseArgs(argv) {
     limitFlag, noOpenFlag, noBindFlag, forceFlag, tagFilters,
     everyoneFlag, onlyYouFlag, sharedWithMeFlag, starredOnlyFlag, noteText, roleFlag, ratingFlag, memberFlags, documentFlags,
     addTags, annotations, files,
-  }, discovery);
+  }, discovery, cloudContent, cloudComments);
 }
 
 async function readContent(file) {

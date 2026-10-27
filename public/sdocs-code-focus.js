@@ -1033,7 +1033,13 @@
   }
   // Load just this block's notes into the working set.
   function loadComments() {
-    comments = readCode().filter(function (c) { return c && c.block === blockId; });
+    comments = readCode().filter(function (c) {
+      if (!c) return false;
+      var target = S.commentsUi && S.commentsUi._resolveCodeBlock ? S.commentsUi._resolveCodeBlock(c) : null;
+      if (!target) return c.block === blockId;
+      return target.block ? blockIdFor(target.block) === blockId
+        : c.block === blockId || (!c.block && blockId === 'pre:0');
+    });
   }
   // Every comment on the open block, ANY kind: code kinds for this block, prose
   // inline comments whose quote lands in the source, and a block comment for
@@ -1043,11 +1049,34 @@
     for (var i = 0; i < all.length; i++) {
       var c = all[i];
       if (!c) continue;
-      if ((c.kind === 'line' || c.kind === 'method' || c.kind === 'token') && c.block === blockId) out.push(c);
-      else if (c.kind === 'inline' && c.quote && (!c.block || c.block === blockId) && lineOfQuote(c.quote) >= 0) out.push(c);
-      else if (c.kind === 'block' && c.block === blockId) out.push(c);
+      if (isCodeKind(c) && comments.some(function (note) { return note.id === c.id; })) out.push(c);
+      else if (c.kind === 'inline' && c.quote && proseBelongsToBlock(c)) out.push(c);
+      else if (c.kind === 'block' && blockNoteBelongs(c)) out.push(c);
     }
     return out;
+  }
+
+  function proseBelongsToBlock(c) {
+    if (S.commentsUi && S.commentsUi._resolveAnchor) {
+      var target = S.commentsUi._resolveAnchor(c, readerRoot());
+      if (target && target.range) {
+        var node = target.range.startContainer;
+        var pre = (node.nodeType === 1 ? node : node.parentElement).closest('pre');
+        return pre && blockIdFor(pre) === blockId;
+      }
+      return c.block === blockId;
+    }
+    return !c.block || c.block === blockId;
+  }
+
+  function blockNoteBelongs(c) {
+    var ui = S.commentsUi;
+    if (ui && ui._findBlockById && !c.anchor_status) {
+      var unchanged = c.document_hash && c.document_hash === window.SDocComments.documentFingerprint(S.currentBody);
+      var target = ui._findBlockById(c.block, readerRoot(), unchanged ? null : c.block_text);
+      if (target) return target.tagName === 'PRE' && blockIdFor(target) === blockId;
+    }
+    return c.block === blockId;
   }
   // Persist the full comment list back into the document and re-encode (so notes
   // travel), preserving prose comments, then refresh this block's working set.
@@ -1951,9 +1980,17 @@
     // highlight" from a previous tab's in-flight callback (or a close/reopen).
     var token = openToken;
     Promise.resolve(S.processHighlight(holder)).then(function () {
-      if (openToken !== token || !linesEl) return; // switched tab / closed meanwhile
       var hl = code.innerHTML;
-      if (hl && hl.indexOf('<span') >= 0) renderRows(splitHighlightedLines(hl));
+      function applyHighlight() {
+        if (openToken !== token || !linesEl) return;
+        // A late syntax upgrade must not replace a draft or reply the reader
+        // has already started. Apply it once the existing composer closes.
+        if (linesEl.querySelector('.sdoc-cc-composer, .sdoc-thread-composer')) {
+          setTimeout(applyHighlight, 100); return;
+        }
+        if (hl && hl.indexOf('<span') >= 0) renderRows(splitHighlightedLines(hl));
+      }
+      applyHighlight();
     });
   }
 
@@ -2129,7 +2166,8 @@
   function commentsByLine() {
     var map = {};
     comments.forEach(function (c) {
-      var ln = CC ? CC.resolveLine(c, srcLines) : c.line;
+      var target = S.commentsUi && S.commentsUi._resolveCodeBlock ? S.commentsUi._resolveCodeBlock(c) : null;
+      var ln = target && !target.block ? -1 : (CC ? CC.resolveLine(c, srcLines) : c.line);
       (map[ln] = map[ln] || []).push(c);
     });
     return map;
@@ -2139,6 +2177,7 @@
   // prior DOM first, so it is safe to call after any row rebuild or mutation.
   function renderThreads() {
     if (!linesEl) return;
+    if (linesEl.querySelector('.sdoc-thread-composer')) return;
     var old = linesEl.querySelectorAll('.sdoc-cc-thread, .sdoc-cc-orphans, .sdoc-cl-copyc, .sdoc-cc-pill');
     for (var k = 0; k < old.length; k++) old[k].remove();
     var marked = linesEl.querySelectorAll('.sdoc-cc-has-comment, .sdoc-cc-method-marked');
@@ -2188,7 +2227,8 @@
         anchor.insertAdjacentElement('afterend', thread);
         anchor = thread;
         if (c.kind === 'token' && c.quote) {
-          markQuoteInRow(row, c.quote, (CC ? CC.sanitizeColor(c.color) : c.color) || lineColor, c.id);
+          markQuoteInRow(row, c.quote, (CC ? CC.sanitizeColor(c.color) : c.color) || lineColor, c.id, null,
+            CC ? CC.resolveQuote(c, srcLines[ln]).start : undefined);
         }
       });
     });
@@ -2196,33 +2236,58 @@
     // Parity: also show prose inline comments that fall in this block's source,
     // so a comment made in the reader on code text appears here too. Same shape:
     // a precise mark over the phrase plus a card below the line, editable here.
+    var proseOrphans = [];
     if (window.SDocComments) {
       var prose = window.SDocComments.getComments(S.currentMeta).filter(function (c) {
-        return c && c.kind === 'inline' && c.quote && (!c.block || c.block === blockId);
+        return c && c.kind === 'inline' && c.quote && proseBelongsToBlock(c);
       });
       for (var p = 0; p < prose.length; p++) {
         var pc = prose[p];
-        var pln = lineOfQuote(pc.quote);
-        if (pln < 0) continue;
+        var pln = CC.resolveAnyLine(pc, srcLines);
+        if (pln < 0) { proseOrphans.push(pc); continue; }
         var prow = linesEl.querySelector('.sdoc-cl-row[data-ln="' + pln + '"]');
         if (!prow) continue;
-        markQuoteInRow(prow, pc.quote, (CC ? CC.sanitizeColor(pc.color) : pc.color), pc.id);
+        var quoteStart = inlineQuoteOffset(pc);
+        var parts = pc.quote.split('\n');
+        for (var q = 0; q < parts.length; q++) {
+          var quoteRow = linesEl.querySelector('.sdoc-cl-row[data-ln="' + (pln + q) + '"]');
+          if (quoteRow && parts[q]) markQuoteInRow(quoteRow, parts[q], (CC ? CC.sanitizeColor(pc.color) : pc.color), pc.id, null, q ? 0 : quoteStart);
+        }
         var pcard = buildCard(pc, pln);
+        if (parts.length > 1) prow = linesEl.querySelector('.sdoc-cl-row[data-ln="' + (pln + parts.length - 1) + '"]') || prow;
         var pafter = prow, pnext = prow.nextElementSibling;
         while (pnext && pnext.classList.contains('sdoc-cc-thread')) { pafter = pnext; pnext = pnext.nextElementSibling; }
         pafter.insertAdjacentElement('afterend', pcard);
       }
     }
 
+    if (window.SDocComments) {
+      window.SDocComments.getComments(S.currentMeta).filter(function (c) {
+        return c && c.kind === 'block' && blockNoteBelongs(c);
+      }).forEach(function (c) {
+        var unchanged = c.document_hash && c.document_hash === window.SDocComments.documentFingerprint(S.currentBody);
+        var target = S.commentsUi && S.commentsUi._findBlockById(c.block, readerRoot(), unchanged ? null : c.block_text);
+        if (c.anchor_status || !target) { proseOrphans.push(c); return; }
+        var last = linesEl.querySelector('.sdoc-cl-row[data-ln="' + (srcLines.length - 1) + '"]');
+        if (!last) return;
+        var card = buildCard(c, srcLines.length - 1);
+        var label = document.createElement('span'); label.className = 'sdoc-thread-status'; label.textContent = 'Whole block';
+        var body = card.querySelector('.sdoc-cc-card'); body.insertBefore(label, body.firstChild);
+        var after = last;
+        while (after.nextElementSibling && after.nextElementSibling.classList.contains('sdoc-cc-thread')) after = after.nextElementSibling;
+        after.insertAdjacentElement('afterend', card);
+      });
+    }
+
     // Orphaned comments: their anchor line is gone. Keep them reachable at the
     // bottom rather than dropping them silently.
-    var orphans = (byLine[-1] || []);
+    var orphans = (byLine[-1] || []).concat(proseOrphans);
     if (orphans.length) {
       var box = document.createElement('div');
       box.className = 'sdoc-cc-orphans';
       var head = document.createElement('div');
       head.className = 'sdoc-cc-orphans-head';
-      head.textContent = 'Comments whose lines are gone';
+      head.textContent = 'Comments whose anchors are missing or ambiguous';
       box.appendChild(head);
       orphans.forEach(function (c) { box.appendChild(buildCard(c, -1)); });
       linesEl.appendChild(box);
@@ -2434,6 +2499,7 @@
 
     var card = document.createElement('div');
     card.className = 'sdoc-cc-card';
+    if (c.color) card.style.setProperty('--sdoc-cc-color', CC ? CC.sanitizeColor(c.color) : c.color);
     var actions = readonly ? ''
       : '<span class="sdoc-cc-card-actions">'
       +   '<button type="button" class="sdoc-cc-iconbtn" data-cc="delete" title="Delete" aria-label="Delete comment">' + TRASH_ICON + '</button>'
@@ -2443,6 +2509,11 @@
       + '<span class="sdoc-cc-card-body"></span>'
       + actions);
     card.querySelector('.sdoc-cc-card-body').textContent = c.text || '';
+    if (S.commentsUi && S.commentsUi.appendThreadDetails) S.commentsUi.appendThreadDetails(card, c, {
+      readonly: !!readonly,
+      author: commentAuthor(),
+      onChange: function () { loadComments(); renderThreads(); },
+    });
     row.appendChild(card);
     return row;
   }
@@ -2452,7 +2523,7 @@
   // an existing card on save instead of adding a new comment.
   function openComposer(spec) {
     cancelComposer();
-    var anchorRow = linesEl.querySelector('.sdoc-cl-row[data-ln="' + spec.line + '"]');
+    var anchorRow = linesEl.querySelector('.sdoc-cl-row[data-ln="' + spec.line + '"]') || (spec.editId ? linesEl.lastElementChild : null);
     if (!anchorRow) return;
 
     var row = document.createElement('div');
@@ -2524,7 +2595,11 @@
     } else {
       var prefs = readCommentPrefs();
       var res = CC.addComment(allComments(), {
-        kind: spec.kind, block: blockId, line: spec.line, endLine: spec.endLine, quote: spec.quote, anchorText: spec.anchorText
+        kind: spec.kind, block: blockId, line: spec.line, endLine: spec.endLine, quote: spec.quote, anchorText: spec.anchorText,
+        block_text: rawText.trim(), document_hash: window.SDocComments.documentFingerprint(S.currentBody),
+        line_prefix: srcLines.slice(Math.max(0, spec.line - 2), spec.line).join('\n'),
+        line_suffix: srcLines.slice(spec.line + 1, spec.line + 3).join('\n'),
+        quote_prefix: spec.quote_prefix, quote_suffix: spec.quote_suffix, quote_offset: spec.quote_offset,
       }, { text: text, author: prefs.author, color: prefs.color });
       persistAll(res.list);
       navId = res.id;
@@ -2558,11 +2633,11 @@
   // code may be syntax-highlighted (the quote can span several token spans), so
   // wrap a DOM Range, falling back to extract+insert when surroundContents
   // refuses a boundary-crossing range.
-  function markQuoteInRow(row, quote, color, cid, className) {
+  function markQuoteInRow(row, quote, color, cid, className, offset) {
     var codeEl = row && row.querySelector('.sdoc-cl-code');
     if (!codeEl || !quote) return;
     var full = codeEl.textContent || '';
-    var at = full.indexOf(quote);
+    var at = typeof offset === 'number' ? offset : full.indexOf(quote);
     if (at < 0) return;
     var lo = at, hi = at + quote.length;
     var walker = document.createTreeWalker(codeEl, NodeFilter.SHOW_TEXT, null);
@@ -2601,7 +2676,7 @@
   // Delete any comment, routing to the store that owns its kind.
   function removeAnyComment(id) {
     var c = commentById(id);
-    if (c && c.kind === 'inline' && window.SDocComments) {
+    if (c && !isCodeKind(c) && window.SDocComments) {
       S.currentMeta = window.SDocComments.removeComment(S.currentMeta, id);
       if (S.syncAll) S.syncAll('comment');
       loadComments();
@@ -2612,7 +2687,7 @@
   // Update any comment's text, routing to the store that owns its kind.
   function updateAnyComment(id, text) {
     var c = commentById(id);
-    if (c && c.kind === 'inline' && window.SDocComments) {
+    if (c && !isCodeKind(c) && window.SDocComments) {
       S.currentMeta = window.SDocComments.updateComment(S.currentMeta, id, { text: text });
       if (S.syncAll) S.syncAll('comment');
       loadComments();
@@ -2621,12 +2696,13 @@
     }
   }
 
-  // First source line (0-based) that contains the phrase, or -1. Used to place a
-  // prose inline comment (quote-anchored) onto a line in this viewer.
-  function lineOfQuote(q) {
-    if (!q || !srcLines) return -1;
-    for (var i = 0; i < srcLines.length; i++) if (srcLines[i].indexOf(q) >= 0) return i;
-    return -1;
+  function inlineQuoteOffset(c) {
+    var source = srcLines.join('\n'), needle = (c.prefix || '') + c.quote + (c.suffix || '');
+    var at = source.indexOf(needle);
+    if (at >= 0) at += (c.prefix || '').length;
+    else at = source.indexOf(c.quote);
+    var before = source.slice(0, Math.max(0, at));
+    return before.length - (before.lastIndexOf('\n') + 1);
   }
 
   // The .sdoc-cl-code ancestor of a node, or null.
@@ -2670,7 +2746,9 @@
     if (!quote.trim()) { hideSelPopover(); return; }
     var ln = parseInt(row.getAttribute('data-ln'), 10);
     if (isNaN(ln)) { hideSelPopover(); return; }
-    pendingSel = { line: ln, quote: quote };
+    var before = document.createRange(); before.selectNodeContents(startCode); before.setEnd(range.startContainer, range.startOffset);
+    var after = document.createRange(); after.selectNodeContents(startCode); after.setStart(range.endContainer, range.endOffset);
+    pendingSel = { line: ln, quote: quote, quote_prefix: before.toString().slice(-60), quote_suffix: after.toString().slice(0, 60), quote_offset: before.toString().length };
     var rect = range.getBoundingClientRect();
     var btn = ensureSelPopover();
     if (modal && btn.parentNode !== modal) modal.appendChild(btn); // theme vars resolve from the modal
@@ -2682,7 +2760,8 @@
 
   function onSelComment() {
     if (!pendingSel) return;
-    var spec = { kind: 'token', line: pendingSel.line, quote: pendingSel.quote, anchorText: trimmed(pendingSel.line) };
+    var spec = { kind: 'token', line: pendingSel.line, quote: pendingSel.quote, anchorText: trimmed(pendingSel.line),
+      quote_prefix: pendingSel.quote_prefix, quote_suffix: pendingSel.quote_suffix, quote_offset: pendingSel.quote_offset };
     hideSelPopover();
     var sel = window.getSelection && window.getSelection();
     if (sel) sel.removeAllRanges();
@@ -2811,8 +2890,8 @@
   function startEdit(id) {
     var c = commentById(id);
     if (!c) return;
-    var ln = (c.kind === 'inline') ? lineOfQuote(c.quote) : (CC ? CC.resolveLine(c, srcLines) : c.line);
-    if (ln < 0) return;
+    var ln = CC ? CC.resolveAnyLine(c, srcLines) : c.line;
+    if (ln < 0 && !linesEl.querySelector('.sdoc-cc-thread[data-c="' + c.id + '"]')) return;
     openComposer({ kind: c.kind, line: ln, endLine: c.endLine, quote: c.quote, anchorText: c.anchorText, editId: id });
   }
 
@@ -2852,9 +2931,10 @@
   // Jump the nav cursor to the next/previous comment (in source order), open its
   // method/line into view, and flash it. delta of 0 re-focuses the current one.
   function navComment(delta) {
-    if (!comments.length) return;
-    var ordered = comments.slice().sort(function (a, b) {
-      var la = CC.resolveLine(a, srcLines), lb = CC.resolveLine(b, srcLines);
+    var visible = blockComments();
+    if (!visible.length) return;
+    var ordered = visible.slice().sort(function (a, b) {
+      var la = CC.resolveAnyLine(a, srcLines), lb = CC.resolveAnyLine(b, srcLines);
       return la - lb;
     });
     var idx = 0;
@@ -2862,7 +2942,7 @@
     idx = (idx + delta + ordered.length) % ordered.length;
     var c = ordered[idx];
     navId = c.id;
-    var ln = CC.resolveLine(c, srcLines);
+    var ln = c.kind === 'block' ? srcLines.length - 1 : CC.resolveAnyLine(c, srcLines);
     if (ln >= 0) {
       // Open any collapsed ancestor so the line is visible.
       revealLine(ln);
@@ -2873,6 +2953,9 @@
         flashThread(c.id);
         if (c.kind === 'method') highlightMethod(ln, c.endLine);
       }
+    } else {
+      var orphan = linesEl.querySelector('.sdoc-cc-thread[data-c="' + c.id + '"]');
+      if (orphan) { orphan.scrollIntoView({ block: 'center', behavior: 'smooth' }); flashThread(c.id); }
     }
     updateCommentChrome();
   }
@@ -2899,7 +2982,7 @@
   // little dot that marks the toggle when the file already carries notes.
   function updateCommentChrome() {
     if (!modal) return;
-    var count = comments.length;
+    var count = blockComments().length;
     var toggle = modal.querySelector('[data-act="comment"]');
     if (toggle) toggle.classList.toggle('has-notes', count > 0);
     // In the sub-bar: the note nav appears once there are notes; the "how to add"

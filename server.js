@@ -1163,6 +1163,14 @@ function cloudApiError(res, error) {
     : error && error.code ? error.code : 'temporary_service_failure';
   const statuses = {
     invalid_request: 400,
+    edit_no_match: 409,
+    edit_ambiguous: 409,
+    section_not_found: 409,
+    section_ambiguous: 409,
+    invalid_patch: 400,
+    overlapping_edits: 400,
+    comment_changed: 409,
+    comment_unavailable: 404,
     profile_required: 409,
     public_email_domain: 400,
     login_required: 401,
@@ -1226,12 +1234,24 @@ function cloudApiError(res, error) {
     body.target_revision_id = error.targetRevisionId;
     body.current_revision_id = error.currentRevisionId;
   }
+  if (code === 'comment_changed' || code === 'comment_unavailable') {
+    body.message = error.message;
+    body.document_id = error.documentId;
+    body.current_revision_id = error.currentRevisionId;
+    if (error.currentComment) body.current_comment = error.currentComment;
+  }
   if (code === 'terms_acceptance_required') {
     body.terms_version = CURRENT_TERMS_VERSION;
     body.terms_url = '/legal';
     body.acceptance_url = '/cloud/terms';
   }
   if (code === 'invalid_request' && error.details && error.details.field === 'search') {
+    body.message = error.message;
+    body.details = error.details;
+  }
+  if (['edit_no_match', 'edit_ambiguous', 'section_not_found', 'section_ambiguous',
+    'invalid_patch', 'overlapping_edits'].includes(code) ||
+    (code === 'invalid_request' && error.details && ['edit', 'comments'].includes(error.details.field))) {
     body.message = error.message;
     body.details = error.details;
   }
@@ -2604,6 +2624,138 @@ async function handleCloudApi(req, res, url) {
       return;
     }
 
+    const commentsMatch = pathname.match(/^\/api\/cloud\/v1\/documents\/([^/]+)\/comments$/);
+    if (commentsMatch && req.method === 'GET') {
+      const model = require('./lib/cloud-comments');
+      const documentId = commentsMatch[1];
+      const status = url.searchParams.get('status') || (url.searchParams.has('comment_id') ? 'all' : 'open');
+      const contextMode = url.searchParams.get('context') || 'snippet';
+      if (!['all', 'open', 'resolved'].includes(status) || !['none', 'snippet'].includes(contextMode)) {
+        throw Object.assign(new Error('Comment status must be open, resolved or all. Context must be none or snippet.'), { code: 'invalid_request', details: { field: 'comments' } });
+      }
+      const commentId = url.searchParams.get('comment_id') || null;
+      const author = url.searchParams.get('author');
+      if (author !== null && !author.trim()) throw Object.assign(new Error('Provide a comment author name or user ID.'), { code: 'invalid_request', details: { field: 'comments' } });
+      const scope = JSON.stringify({ endpoint: 'comments', user_id: user.id, document_id: documentId, status, context: contextMode, comment_id: commentId, author });
+      const cursor = url.searchParams.get('cursor') ? cloudCursor.decode(url.searchParams.get('cursor'), scope) : null;
+      const revisionId = url.searchParams.get('revision_id') || cursor && cursor.revision_id;
+      if (cursor && url.searchParams.get('revision_id') && cursor.revision_id !== revisionId) throw Object.assign(new Error('invalid cursor'), { code: 'invalid_request' });
+      const context = cloudStore.getDocumentContext({ userId: user.id, documentId });
+      requireCloudEntitlement(user.id, context.workspaceId, 'read');
+      const selectedRevisionId = revisionId || cloudStore.getDocumentHead({ userId: user.id, documentId }).current_revision_id;
+      const document = await cloudStore.getDocument({ userId: user.id, documentId, revisionId: selectedRevisionId });
+      cloudRequireDocumentRead(user.id, document, { source: context, revisionId: selectedRevisionId });
+      const state = model.snapshot(document.markdown);
+      if (commentId) model.find(state, commentId);
+      const matches = state.comments.filter(note => (!commentId || note.id === commentId) &&
+        (author === null || (author === 'me' ? note.author_user_id === user.id :
+          note.author_user_id === author || String(note.author || '').normalize('NFKC').toLowerCase() === author.trim().normalize('NFKC').toLowerCase())) &&
+        (status === 'all' || (note.resolved === true || note.resolved === 'true' ? 'resolved' : 'open') === status));
+      const limit = normalizeLimit(url.searchParams.get('limit'), 25, 100);
+      const start = cursor ? cursor.offset : 0;
+      if (!Number.isSafeInteger(start) || start < 0) throw Object.assign(new Error('invalid cursor'), { code: 'invalid_request' });
+      const page = matches.slice(start, start + limit);
+      const result = model.project(document, CLOUD_AUTH_PUBLIC_ORIGIN, { context: contextMode, comments: page });
+      result.document.current_revision_id = cloudStore.getDocumentHead({ userId: user.id, documentId }).current_revision_id;
+      result.permission = cloudStore.getDocumentPermission({ userId: user.id, documentId });
+      result.returned_count = page.length;
+      result.filtered_count = matches.length;
+      result.has_more = start + page.length < matches.length;
+      result.next_cursor = result.has_more ? cloudCursor.encode(scope, { revision_id: document.current_revision_id, offset: start + page.length }) : null;
+      sendJson(res, 200, { ok: true, ...result });
+      return;
+    }
+    const commentActionMatch = pathname.match(/^\/api\/cloud\/v1\/documents\/([^/]+)\/comments\/actions(\/preview)?$/);
+    if (commentActionMatch && req.method === 'POST') {
+      const body = await cloudAuthHttp.readJson(req, CLOUD_DOCUMENT_JSON_MAX_BYTES);
+      const documentId = commentActionMatch[1];
+      const context = cloudStore.getDocumentContext({ userId: user.id, documentId, requiredRole: 'editor' });
+      const entitlements = requireCloudEntitlement(user.id, context.workspaceId, 'store_revision');
+      const profile = cloudUserProfile(user);
+      const document = await cloudStore.actOnComment({ userId: user.id, documentId,
+        baseRevisionId: body.base_revision_id, preview: Boolean(commentActionMatch[2]),
+        operation: { action: body.action, comment_id: body.comment_id, expected_comment_sha256: body.expected_comment_sha256,
+          text: body.text, anchor: body.anchor },
+        actor: { user_id: user.id, display_name: [profile.first_name, profile.last_name].filter(Boolean).join(' ') || profile.email || 'user' },
+        idempotencyKey: body.idempotency_key, credentialId, maxMarkdownBytes: CLOUD_DOCUMENT_MAX_BYTES,
+        beforeCommit: detail => requireCloudEntitlement(user.id, context.workspaceId, 'store_revision', { fileBytes: detail.markdownBytes }),
+      });
+      if (!commentActionMatch[2]) scheduleRevisionPrune(document, entitlements);
+      const model = require('./lib/cloud-comments');
+      const selected = model.snapshot(document.markdown).comments.filter(note => note.id === document.comment_id);
+      const projected = model.project(document, CLOUD_AUTH_PUBLIC_ORIGIN, { comments: selected });
+      sendJson(res, commentActionMatch[2] ? 200 : 201, { ok: true, schema_version: 1,
+        document: projected.document, comment: projected.comments[0] || null,
+        action: document.action, comment_id: document.comment_id, base_revision_id: document.base_revision_id,
+        merged_from_revision_id: document.merged_from_revision_id,
+        revision_created: document.revision_created, preview: document.preview,
+        would_change: document.would_change, imported_footnote_comments: document.imported_footnote_comments,
+        ...(document.preview ? { proposed_sha256: document.content_sha256 } : { saved_sha256: document.content_sha256 }) });
+      return;
+    }
+    const contentMatch = pathname.match(/^\/api\/cloud\/v1\/documents\/([^/]+)\/content$/);
+    if (contentMatch && req.method === 'GET') {
+      const context = cloudStore.getDocumentContext({ userId: user.id, documentId: contentMatch[1] });
+      requireCloudEntitlement(user.id, context.workspaceId, 'read');
+      const revisionId = url.searchParams.get('revision_id') || undefined;
+      const document = await cloudStore.getDocument({ userId: user.id, documentId: contentMatch[1], revisionId });
+      cloudRequireDocumentRead(user.id, document, { source: context, revisionId });
+      const selector = {};
+      if (url.searchParams.has('lines')) selector.lines = url.searchParams.get('lines');
+      if (url.searchParams.has('section')) selector.section = url.searchParams.get('section');
+      if (url.searchParams.has('outline')) {
+        if (url.searchParams.get('outline') !== 'true') {
+          throw Object.assign(new Error('outline must be true'), { code: 'invalid_request', details: { field: 'edit' } });
+        }
+        selector.outline = true;
+      }
+      const selected = require('./cli/shared/sdocs-text-edit').select(document.markdown, selector);
+      const { markdown, ...metadata } = document;
+      sendJson(res, 200, { ok: true,
+        permission: cloudStore.getDocumentPermission({ userId: user.id, documentId: document.id }),
+        document: { ...metadata,
+        current_revision_id: cloudStore.getDocumentHead({ userId: user.id, documentId: document.id }).current_revision_id,
+        revision_id: document.current_revision_id,
+        url: CLOUD_AUTH_PUBLIC_ORIGIN + '/docs?cloud-document=' + encodeURIComponent(document.id),
+        sha256: crypto.createHash('sha256').update(markdown, 'utf8').digest('hex'),
+        ...(selector.outline ? { outline: selected.outline } : { markdown: selected.markdown }),
+        selection: { start_line: selected.start_line, end_line: selected.end_line, total_lines: selected.total_lines },
+      } });
+      return;
+    }
+    const editsMatch = pathname.match(/^\/api\/cloud\/v1\/documents\/([^/]+)\/edits(\/preview)?$/);
+    if (editsMatch && req.method === 'POST') {
+      const body = await cloudAuthHttp.readJson(req, CLOUD_DOCUMENT_JSON_MAX_BYTES);
+      if (typeof body.base_revision_id !== 'string' || !body.base_revision_id ||
+          (body.edits == null) === (body.patch == null)) {
+        throw Object.assign(new Error('Provide a base revision and either edits or patch.'), {
+          code: 'invalid_request', details: { field: 'edit' },
+        });
+      }
+      const context = cloudStore.getDocumentContext({ userId: user.id,
+        documentId: editsMatch[1], requiredRole: 'editor' });
+      const entitlements = requireCloudEntitlement(user.id, context.workspaceId, 'store_revision');
+      const input = { userId: user.id, documentId: editsMatch[1],
+        targetRevisionId: body.base_revision_id,
+        editRequest: body.edits != null ? { edits: body.edits } : { patch: body.patch },
+        expectedCurrentRevisionId: body.expected_current_revision_id,
+        rejectConflicts: body.reject_conflicts,
+        idempotencyKey: body.idempotency_key, credentialId,
+        maxMarkdownBytes: CLOUD_DOCUMENT_MAX_BYTES,
+        beforeCommit: (detail) => requireCloudEntitlement(user.id, context.workspaceId,
+          'store_revision', { fileBytes: detail.markdownBytes }),
+      };
+      const started = Date.now();
+      const document = editsMatch[2] ? await cloudStore.previewTargetRevision(input)
+        : await cloudStore.saveTargetRevision(input);
+      if (!editsMatch[2]) {
+        cloudCollaborationMetrics.recordTargetSave(document, Date.now() - started);
+        scheduleRevisionPrune(document, entitlements);
+      }
+      sendJson(res, editsMatch[2] ? 200 : 201, { ok: true,
+        document: require('./lib/cloud-edit-response').editReceipt(document, CLOUD_AUTH_PUBLIC_ORIGIN) });
+      return;
+    }
     const documentMatch = pathname.match(/^\/api\/cloud\/v1\/documents\/([^/]+)$/);
     if (documentMatch && req.method === 'GET') {
       const context = cloudStore.getDocumentContext({ userId: user.id, documentId: documentMatch[1] });

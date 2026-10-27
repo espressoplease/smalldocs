@@ -69,7 +69,7 @@ function codeCommentCountFor(blockId) {
   var n = 0;
   for (var i = 0; i < list.length; i++) {
     var c = list[i];
-    if (c && c.block === blockId && (c.kind === 'line' || c.kind === 'method' || c.kind === 'token')) n++;
+    if (c && codeCommentBlockFor(c) === blockId && (c.kind === 'line' || c.kind === 'method' || c.kind === 'token')) n++;
   }
   return n;
 }
@@ -79,9 +79,18 @@ function codeCommentColorFor(blockId) {
   if (!Array.isArray(list)) return '';
   for (var i = 0; i < list.length; i++) {
     var c = list[i];
-    if (c && c.block === blockId && (c.kind === 'line' || c.kind === 'method' || c.kind === 'token')) return c.color || '';
+    if (c && codeCommentBlockFor(c) === blockId && (c.kind === 'line' || c.kind === 'method' || c.kind === 'token')) return c.color || '';
   }
   return '';
+}
+
+function codeCommentBlockFor(c) {
+  if (S.commentsUi && S.commentsUi._resolveCodeBlock &&
+      (c.kind === 'line' || c.kind === 'method' || c.kind === 'token')) {
+    var target = S.commentsUi._resolveCodeBlock(c);
+    if (target.index >= 0) return 'pre:' + target.index;
+  }
+  return c.block;
 }
 // Count valid agent annotations (read-only notes in front matter, line-numbered,
 // not block-tagged). Mirrors the validation in the viewer's getAnnotations.
@@ -901,6 +910,9 @@ function setStatus(msg) {
 // ── Load content ──────────────────────────────────
 
 function loadText(text, filename) {
+  // A Cloud refresh can replace both source and comments while the viewer is
+  // open. Dismiss its old working set before any action can edit the new doc.
+  if (S.codeFocus && S.codeFocus.close) S.codeFocus.close();
   var parsed = SDocYaml.parseFrontMatter(text);
   S.currentMeta = parsed.meta;
   S.currentBody = parsed.body;
@@ -914,7 +926,7 @@ function loadText(text, filename) {
     var fn = window.SDocComments.parseFootnotes
       ? window.SDocComments.parseFootnotes(S.currentBody)
       : { comments: [], body: S.currentBody };
-    var existing = (S.currentMeta.comments || []).filter(function (c) {
+    var existing = (Array.isArray(S.currentMeta.comments) ? S.currentMeta.comments : []).filter(function (c) {
       return !fn.comments.some(function (n) { return n.id === c.id; });
     });
     // The store holds BOTH prose kinds (inline/block/slide) and code kinds

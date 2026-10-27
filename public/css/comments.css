@@ -990,3 +990,18 @@ body.comment-mode .sdoc-block-host::before {
   outline: none;
   border-color: var(--accent);
 }
+
+.sdoc-thread-details { display: block; flex: 0 0 100%; min-width: 0; white-space: normal; }
+.sdoc-card-pill:has(> .sdoc-thread-details) { flex-wrap: wrap; }
+.sdoc-card-pill > .sdoc-card-author { flex-shrink: 0; }
+.sdoc-card-pill > .sdoc-card-body { flex: 1 1 auto; min-width: 0; }
+.sdoc-thread-details .sdoc-icon-btn { position: static; }
+.sdoc-thread-actions { display: inline-flex; gap: 4px; vertical-align: middle; }
+.sdoc-thread-status { display: inline-block; margin: 3px 6px 3px 0; font: 11px var(--font-ui); color: var(--text-2); }
+.sdoc-thread-resolved { border-style: dashed; }
+.sdoc-thread-reply { display: block; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--border); }
+.sdoc-thread-reply-text { white-space: pre-wrap; }
+.sdoc-thread-reply .sdoc-card-author::after { content: ':'; margin-right: 3px; }
+.sdoc-thread-composer { display: flex; gap: 4px; margin-top: 6px; }
+.sdoc-thread-composer textarea { min-width: 0; flex: 1; resize: vertical; }
+.sdoc-cc-card > .sdoc-thread-details { grid-column: 1 / -1; }

@@ -41,7 +41,6 @@ var cloudRelatedEntries = null;
 var cloudDocumentCount = 0;
 var cloudDefaultOpened = false;
 var sidebarInteracted = false;
-var cloudSubsectionInteracted = false;
 
 function previewMode() {
   return SIDEBAR_PREVIEW_MODE;
@@ -254,11 +253,6 @@ function openCloudLibraryByDefault() {
     SharedSidebar.setExpanded(section, true);
     cloudDefaultOpened = true;
   }
-  if (cloudSubsectionInteracted) return;
-  var related = document.getElementById('_sd_sidebar_cloud_shared_section');
-  var recent = document.getElementById('_sd_sidebar_cloud_recent_section');
-  setLibrarySubsectionExpanded(related, Boolean(related && !related.hidden));
-  setLibrarySubsectionExpanded(recent, Boolean(!related || related.hidden));
 }
 
 function setLibrarySubsectionExpanded(section, expanded) {
@@ -502,7 +496,6 @@ document.querySelectorAll('.sdocs-sidebar-library-toggle').forEach(function (tri
   trigger.addEventListener('click', function () {
     var section = trigger.closest('.sdocs-sidebar-library-subsection');
     if (!section) return;
-    if (section.closest('[data-sidebar-section="cloud"]')) cloudSubsectionInteracted = true;
     var shouldExpand = !section.classList.contains('is-expanded');
     Array.prototype.forEach.call(section.parentElement.children, function (sibling) {
       if (sibling !== section && sibling.classList && sibling.classList.contains('sdocs-sidebar-library-subsection')) {

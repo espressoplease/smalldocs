@@ -66,6 +66,23 @@ module.exports = function (h) {
         assert.strictEqual(textDiff.compare('', 'a').added_lines, 1);
         assert.strictEqual(textDiff.compare('a', '').removed_lines, 1);
       });
+      await testAsync('body-only concurrent edits preserve unchanged front matter bytes and comments', async () => {
+        const prefix = '---\ntitle: "Original title"\n# Keep this note\nstyles:\n  accent: "#334455"\ncomments: [{id: c1, kind: block, text: "Reader note"}]\n---\n\n';
+        const base = prefix + '# Guide\n\nField A: old\nField B: old\n';
+        const merged = mergeTargetRevision(base, base.replace('Field A: old', 'Field A: human'),
+          base.replace('Field B: old', 'Field B: agent'));
+        assert.strictEqual(merged.markdown, prefix + '# Guide\n\nField A: human\nField B: agent\n');
+        assert.strictEqual(merged.combined, false);
+      });
+      await testAsync('equivalent but differently quoted comment front matter uses the comment merge', async () => {
+        const base = '---\ncomments:\n  - id: one\n    text: hello\n---\n\nAlpha\nBeta\n';
+        const merged = mergeTargetRevision(base, base.replace('id: one', "id: 'one'").replace('Alpha', 'Human'),
+          base.replace('id: one', 'id: "one"').replace('Beta', 'Agent'));
+        const parsed = yaml.parseFrontMatter(merged.markdown);
+        assert.deepStrictEqual(parsed.meta.comments, [{ id: 'one', text: 'hello' }]);
+        assert.ok(parsed.body.includes('Human'));
+        assert.ok(parsed.body.includes('Agent'));
+      });
       for (const [name, base, current, proposed] of [
         ['scalar', '# Policy\nCap: 10\n', '# Policy\nCap: 20\n', '# Policy\nCap: 30\n'],
         ['YAML', '---\ntitle: Base\n---\nBody\n', '---\ntitle: Human\n---\nBody\n', '---\ntitle: Agent\n---\nBody\n'],

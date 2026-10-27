@@ -8,7 +8,7 @@ const http = require('http');
 const { startFixture } = require('../../test/cloud-onboarding-fixture');
 const skill = require('../../cli/lib/agent-block');
 
-async function startLab() {
+async function startLab(labOptions = {}) {
   process.env.CLOUD_SEARCH_SOURCE_LIMIT = '10000';
   const fixture = await startFixture({ singlePlan: true });
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'sdocs-update-agent-lab-'));
@@ -39,7 +39,9 @@ async function startLab() {
       if (!session) { response.writeHead(404).end(); return; }
       if (request.url === '/before') {
         const args = input.args || [];
-        const write = args[0] === 'cloud' && args[1] === 'push' && !args.includes('--help') && !args.includes('-h');
+        const commentAction = args[1] === 'comments' && args.some(arg => ['--reply', '--resolve', '--reopen', '--add', '--reattach'].includes(arg) || /^(--reply|--note|--text)=/.test(arg));
+        const write = args[0] === 'cloud' && (['push', 'edit'].includes(args[1]) || commentAction) &&
+          !args.includes('--help') && !args.includes('-h') && !args.includes('--dry-run');
         if (write && !session.injected && session.interference) {
           session.injected = true;
           if (session.interference === 'revoke') {
@@ -107,7 +109,10 @@ async function event(endpoint,value){const r=await fetch(config.origin+endpoint,
     fixture.store.addWorkspaceMember({ actorUserId: fixture.users.bob.id, workspaceId: workspace.workspaceId, userId: fixture.users.member.id, role: 'member' });
     fixture.billing.upsertSubscription({ workspaceId: workspace.workspaceId, plan: 'team', status: 'active', provider: 'manual' });
     const oldLimit = 10 + crypto.randomInt(15), newLimit = oldLimit + crypto.randomInt(7, 16);
-    const body = '---\ntitle: Harbor production retry policy\ntags:\n  - payments\n  - production\n  - current\nstyles:\n  accent: "#334455"\n---\n# Harbor production retry policy\n\nScope: production. Status: current. Owner: Bob Example.\n\nMaximum retry window: ' + oldLimit + ' minutes.\nBackoff: exponential with jitter.\n\n## Escalation\n\nPage the payments on-call engineer before disabling retries.\n\n## Monitoring\n\n| Signal | Threshold |\n| --- | --- |\n| Queue age | 180 seconds |\n\n```json\n{"retryBudget":3,"region":"us-east-1"}\n```\n';
+    let body = '---\ntitle: Harbor production retry policy\ntags:\n  - payments\n  - production\n  - current\nstyles:\n  accent: "#334455"\n---\n# Harbor production retry policy\n\nScope: production. Status: current. Owner: Bob Example.\n\nMaximum retry window: ' + oldLimit + ' minutes.\nBackoff: exponential with jitter.\n\n## Escalation\n\nPage the payments on-call engineer before disabling retries.\n\n## Monitoring\n\n| Signal | Threshold |\n| --- | --- |\n| Queue age | 180 seconds |\n\n```json\n{"retryBudget":3,"region":"us-east-1"}\n```\n';
+    if (labOptions.directEdits) body = body.replace('Maximum retry window:', '## Production\n\nMaximum retry window:') +
+      '\n## Sandbox\n\nMaximum retry window: ' + oldLimit + ' minutes.\nBackoff: fixed.\n\n## Retained audit notes\n\n' +
+      Array.from({ length: 1500 }, (_, i) => 'Audit entry ' + (i + 1) + ': recorded checksum ' + crypto.randomBytes(12).toString('hex') + '.').join('\n') + '\n';
     const document = await seed(workspace.workspaceId, 'harbor-production-policy.md', body);
     const session = { id, work, state, workspace, document, oldLimit, newLimit,
       otherLimit: oldLimit + 3, interference: options.interference, commands: [], decoys: [],
@@ -141,6 +146,14 @@ async function event(endpoint,value){const r=await fetch(config.origin+endpoint,
   trials.push(await addSession('revoked', { library: 'Aster Engineering', interference: 'revoke' }));
   trials.push(await addSession('review', { library: 'Birch Engineering', interference: 'independent' }));
   trials[trials.length - 1].task = trials[trials.length - 1].task.replace('Save the change, verify the result, and link the document.', 'Prepare a preview for me to review, but do not save any changes to Cloud yet. Show the proposed difference and link the existing document.');
+  if (labOptions.directEdits) {
+    for (const trial of trials) {
+      if (trial.id !== 'history') trial.task = trial.task.replace('Keep all other material',
+        'Change only the Production section; the Sandbox retry window must stay unchanged. Keep all other material');
+    }
+    trials[0].task = trials[0].task.replace('Save the change,',
+      'Also update the queue-age threshold in Monitoring from 180 seconds to 240 seconds as part of the same save. Save the change,');
+  }
   fs.writeFileSync(path.join(root, 'oracles.json'), JSON.stringify([...sessions.values()].map(session => ({ id: session.id, document: session.document, baseline: session.baseline, oracle: session.oracle })), null, 2));
   fs.writeFileSync(path.join(root, 'trials.json'), JSON.stringify({ root, origin: fixture.origin, trials }, null, 2));
   console.log(JSON.stringify({ root, origin: fixture.origin, trials }));

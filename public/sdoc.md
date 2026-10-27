@@ -5,13 +5,13 @@ file: sdoc.md
 # Meet `sdoc`: Markdown without the frustrations
 
 
-(**TLDR:** `sdoc path/to/README.md` opens your file at https://smalldocs.org with pleasant default styles which can be altered. Share the url to share your file + custom styling. **Your file never hits the SmallDocs server:** Encoded file content lives in the URL fragment (`#...` part) which browsers don't send to servers. CLI: `curl -fsSL https://smalldocs.org/install | sh`. SmallDocs is [open-source](https://github.com/espressoplease/smalldocs). You're reading markdown right now.)
+`sdoc path/to/README.md` opens a Markdown file in SmallDocs. With Cloud-first setup, it saves to your tagged library and returns a Cloud URL. URL-only documents carry their content in the browser's URL fragment. Install the CLI with `curl -fsSL https://smalldocs.org/install | sh`. SmallDocs is [open-source](https://github.com/espressoplease/smalldocs).
 
 ---
 
 Markdown is great for agents, but a bit annoying for humans. Quickly and elegantly reading a `.md` file requires you to open your code editor and enter "preview" mode. Sharing a markdown file requires you to actually send the file to someone. They then have to download it and find the least annoying way to read it.
 
-SmallDocs is an [open-source](https://github.com/espressoplease/smalldocs) attempt at something different. It lets you (or your agent) easily, elegantly and <ins>100% privately</ins> **read**, **format**, **share** and **export** `.md` files.
+SmallDocs lets you and your agent **read**, **format**, **share** and **export** `.md` files. Cloud adds search, shared access, reviewer feedback and revision history. Cloud content is encrypted at rest; authorized server operations decrypt it to read, search and edit documents.
 
 Reading a `.md` file in SmallDocs feels just like this (you're reading markdown right now). And by playing with the styles, you can create things like:
 
@@ -51,6 +51,8 @@ The Cloud CLI also handles billing status, invitations and member removal. Run `
 
 The Cloud skill treats tagging as part of every new document. Agents reuse relevant vocabulary from the destination library, choose tags that describe the document's subject, project, or purpose, and check the saved tags before returning its Cloud link. For example, `sdoc api-design.md --cloud --json +payments +idempotency +api-design` saves a tagged document without changing the local file's tags. Run `sdoc cloud tag --help` for the tagging reference.
 
+Read Cloud feedback with `sdoc cloud comments DOCUMENT_ID --json`. For small changes, use scoped reads and `sdoc cloud edit`; full-file pull/edit/push remains available. Agents can reply, resolve, reopen, add, delete and reattach comments. Resolve keeps the discussion in the document, while delete removes its thread and replies. Earlier revisions follow the 90-day retention policy. See the [Cloud editing and feedback guide](/cloud-updates), `sdoc cloud edit --help` and `sdoc cloud comments --help` for examples and recovery.
+
 `npx skills@latest` currently requires Node 22.20 or newer. `sdoc setup` remains the built-in fallback and also removes the always-on SmallDocs block written by older CLI releases:
 
 ```bash
@@ -67,13 +69,13 @@ sdoc setup --yes --dry-run
 
 ### URLs
 
-The URL format for SmallDocs is:
+URL-only documents use this format:
 
 ```
 https://smalldocs.org/#md={compressed & encoded .md}
 ```
 
-Your entire document (content and styles) lives in the URL hash.
+In URL-only mode, the document content and styles live in the URL hash. Cloud documents instead use `/docs?cloud-document=DOCUMENT_ID`; opening a Cloud URL requires access to that document.
 
 To keep URLs as short as possible, SmallDocs compresses your markdown using [Brotli](https://en.wikipedia.org/wiki/Brotli) (a compression algorithm developed by Google, loaded via a small WebAssembly module) and then encodes the result with [base64url](https://en.wikipedia.org/wiki/Base64#URL_applications) (a URL-safe variant of base64 that avoids characters like `+`, `/`, and `=` which would otherwise need percent-encoding). Style properties that match built-in defaults (e.g. `fontFamily: Inter`, `baseFontSize: 16`) are omitted from the URL — only values that differ from defaults are included.
 
@@ -95,19 +97,19 @@ The `theme` parameter forces a specific theme: `theme=light` or `theme=dark`. Th
 
 ### Privacy
 
-Because the SmallDocs url format is:
+URL-only documents use this format:
 
 ```
 https://smalldocs.org/#md={compressed & encoded .md}
 ```
 
-Your document never hits the SmallDocs server.
+For these URL-only documents, the browser does not send the document fragment to the SmallDocs server. Cloud documents are uploaded to the authenticated service instead.
 
 This layer of privacy is built into how HTTP works. The hash fragment (everything after the `#` in a URL) is never sent to the server by the browser. It always stays entirely client-side:
 
 > "The fragment is not sent to the server when the URI is requested; it is processed by the client" - [MDN Web Docs](https://developer.mozilla.org/en-US/docs/Web/URI/Reference/Fragment)
 
-The [smalldocs.org](https://smalldocs.org) site is purely a rendering space. JavaScript reads `window.location.hash`, decompresses and decodes the content, and renders your `.md` locally.
+For URL-only documents, JavaScript reads `window.location.hash`, decompresses and decodes the content, and renders the Markdown locally. Cloud documents use authenticated requests, with server-managed encryption at rest and permission checks on document operations.
 
 #### Bridge mode trust boundary
 
@@ -207,7 +209,7 @@ When someone opens the link, their browser sends the short ID to the server, rec
 
 To confirm this, open your browser's developer tools, switch to the Network tab, click **Generate**, and inspect the request body. You will see a base64-encoded blob of random bytes, not your document. The source is at [SmallDocs on GitHub](https://github.com/espressoplease/smalldocs) if you want to read the exact code that runs before the upload.
 
-Short links are opt-in. The default `#md=...` URL format still works exactly as before and never reaches a server.
+Snapshot short links are opt-in. URL-only `#md=...` documents remain available, and the browser does not send their fragment to the server.
 
 ### Formatting
 
@@ -524,7 +526,7 @@ Run `sdoc feedback` with no arguments to print the full DSL reference: every fie
 
 ### Works offline
 
-SmallDocs uses a [service worker](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API) to cache all assets (HTML, CSS, JS, fonts) in the browser. After your first visit, the site loads entirely from this cache — no network required. You can open SmallDocs URLs and edit documents while offline.
+SmallDocs uses a [service worker](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API) to cache application assets in the browser. Cached rendering assets let you open URL-only documents offline. Cloud reads, search and saves require a connection to the service.
 
 On each visit, the service worker sends a single request to `/version-check` in the background. This compares the cached app version against the server's current version. If they differ, the cache is purged and fresh assets are fetched — the update takes effect on your next page load. If the request fails (e.g. you're offline), nothing happens and the cached version continues to work.
 

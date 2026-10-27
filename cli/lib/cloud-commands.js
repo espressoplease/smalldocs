@@ -8,11 +8,16 @@ const credentialStore = require('./cloud-credentials');
 const bindings = require('./cloud-bindings');
 const SDocYaml = require('../shared/sdocs-yaml.js');
 const searchQuery = require('../shared/sdocs-search-query.js');
+const cloudEdit = require('./cloud-edit');
+const cloudComments = require('./cloud-comments');
 
 const EXIT = { unexpected: 1, invalid_request: 2, login_required: 3,
   resource_unavailable: 4, account_required: 4, account_selection_required: 4,
   permission_denied: 4, terms_acceptance_required: 4, revision_conflict: 5,
   idempotency_mismatch: 5,
+  comment_changed: 5, comment_unavailable: 4,
+  edit_no_match: 2, edit_ambiguous: 2, section_not_found: 2, section_ambiguous: 2,
+  invalid_patch: 2, overlapping_edits: 2,
   unsafe_local_state: 6, base_revision_unavailable: 6, target_too_old: 6, rate_limited: 7,
   search_limit_reached: 7, search_index_building: 7, temporary_service_failure: 7, billing_not_configured: 7,
   authentication_not_configured: 7, cloud_storage_not_configured: 7,
@@ -101,6 +106,10 @@ DISCOVER AND READ
   sdoc cloud ls --shared-with-me --json
   sdoc cloud ls --starred --json
   sdoc cloud read DOCUMENT_ID --json
+  sdoc cloud read DOCUMENT_ID --section Pricing --json
+  sdoc cloud read DOCUMENT_ID --lines 10:30 --json
+  sdoc cloud read DOCUMENT_ID --outline --json
+  sdoc cloud comments DOCUMENT_ID --json
   sdoc cloud pull DOCUMENT_UUID --output /tmp/reference.md --no-bind --json
 
 Search finds all query words across document titles, filenames, tags, and current
@@ -114,13 +123,22 @@ and snippet. Search does not return the full Markdown. Use read to retrieve a
 result on stdout without a local file or binding. With pull, --no-bind makes that output a read-only reference from the CLI's point
 of view, so a later push will not update the Cloud document by accident.
 
+Read reviewer feedback with cloud comments. Its JSON contains comments, replies,
+document URLs and bounded source context without returning the whole Markdown.
+Run cloud comments --help for filters, replies, resolution, deletion and anchored notes.
+
 UPDATE AN EXISTING DOCUMENT
 
+  sdoc cloud edit DOCUMENT_ID --old 'Cap: 10' --new 'Cap: 20' --json
   sdoc cloud pull DOCUMENT_UUID --output ./plan.md --json
   # Edit ./plan.md with normal file tools.
   sdoc cloud push ./plan.md --dry-run --json
   sdoc cloud push ./plan.md --json
 
+Use cloud edit for exact text replacements or a contextual unified diff without
+retrieving the full document. Run cloud edit --help for scoped edits, batch JSON,
+previews and retries. The pull and push workflow remains available for full
+replacements and local working copies.
 Run sdoc cloud push --help for previews, conflict protection, verification and recovery.
 Account can_write is a legacy creation capability. can_create_document names
 that capability explicitly. write_entitlement describes billing, while each
@@ -358,12 +376,26 @@ const CLOUD_READ_HELP = `SmallDocs Cloud read
 
   sdoc cloud read DOCUMENT_ID --json
   sdoc cloud read DOCUMENT_ID
+  sdoc cloud read DOCUMENT_ID --lines 10:30 --json
+  sdoc cloud read DOCUMENT_ID --section Pricing --json
+  sdoc cloud read DOCUMENT_ID --outline --json
+  sdoc cloud read DOCUMENT_ID --section Pricing --revision REVISION_ID --json
 
 Read the current authorized document without a local file or binding.
 Add --revision REVISION_ID to read a retained older revision.
 With --json, the result includes markdown, url, document_id, revision_id,
-revision_number, title, filename, and tags. Without --json, stdout contains
-the Markdown exactly as stored. Reading does not change content or permissions.
+revision_number, title, filename, and tags. Without --json, full, section and
+line reads print Markdown exactly as stored; --outline prints heading metadata.
+Reading does not change content or permissions.
+
+--lines START:END selects a 1-based inclusive range. --section HEADING selects
+that exact heading and its content, including child sections. --outline returns
+headings and line ranges without Markdown. Use one selection flag at a time.
+Selections use the requested revision, or the current revision by default.
+The JSON result includes selection line bounds, total_lines, revision IDs,
+the full document sha256 and url. Selected Markdown contains only the requested
+content. Use its revision_id as cloud edit --base-revision to edit that base.
+If a heading is repeated, use --outline and a line range to select it.
 
 Use sdoc cloud pull DOCUMENT_ID --output PATH --no-bind for a local reference file, or pull
 without --no-bind when you intend to edit and push the document. Read a historical
@@ -1004,6 +1036,28 @@ async function read(opts, client) {
   if (!opts.extra) throw new CloudCommandError('invalid_request', 'usage: sdoc cloud read DOCUMENT_ID --json');
   if (opts.outputPath || opts.noBindFlag) throw new CloudCommandError('invalid_request',
     'read writes Markdown to stdout. Use cloud pull for a local file.');
+  cloudEdit.validateRead(opts);
+  if (opts.linesFlag || opts.section || opts.outlineFlag) {
+    const params = new URLSearchParams();
+    if (opts.linesFlag) params.set('lines', cloudEdit.lineRange(opts.linesFlag));
+    if (opts.section) params.set('section', opts.section);
+    if (opts.outlineFlag) params.set('outline', 'true');
+    if (opts.revisionFlag) params.set('revision_id', opts.revisionFlag);
+    const response = await client.authenticated('/api/cloud/v1/documents/' + encodeURIComponent(opts.extra)
+      + '/content?' + params.toString());
+    const document = response.document;
+    if (!document || (!opts.outlineFlag && typeof document.markdown !== 'string')
+        || (opts.outlineFlag && !Array.isArray(document.outline))) {
+      throw new CloudCommandError('temporary_service_failure', 'Cloud returned an invalid selected-content response.');
+    }
+    const id = document.document_id || document.id || opts.extra;
+    const value = { ...document, document_id: id, url: document.url || documentUrl(client, id),
+      revision_id: document.revision_id || document.current_revision_id,
+      permission: response.permission || document.permission };
+    if (opts.outlineFlag) delete value.markdown;
+    if (!opts.jsonFlag && !opts.silent && !opts.outlineFlag) { process.stdout.write(document.markdown); return value; }
+    return emit(opts, 'cloud.read', value);
+  }
   const response = await client.authenticated('/api/cloud/v1/documents/' + encodeURIComponent(opts.extra)
     + (opts.revisionFlag ? '/revisions/' + encodeURIComponent(opts.revisionFlag) : ''));
   const document = response.document;
@@ -1557,13 +1611,19 @@ async function runCloudCommand(opts, dependencies) {
     opts.subscriptionSource = () => client.subscription;
     const management = require('./cloud-management');
     if (opts.helpFlag || action === 'help') return process.stdout.write(
-      (management.ACTIONS.includes(action) ? management.HELP : (action === 'search' || action === 'ls') ? CLOUD_SEARCH_HELP : action === 'read' ? CLOUD_READ_HELP
+      (management.ACTIONS.includes(action) ? management.HELP : (action === 'search' || action === 'ls') ? CLOUD_SEARCH_HELP : action === 'comments' ? cloudComments.HELP : action === 'read' ? CLOUD_READ_HELP : action === 'edit' ? cloudEdit.HELP
         : ['tag', 'tags'].includes(action) ? CLOUD_TAG_HELP : action === 'create' ? CLOUD_CREATE_HELP
         : ['push', 'pull', 'diff', 'history', 'restore', 'access'].includes(action) ? CLOUD_UPDATE_HELP : CLOUD_HELP + '\n' + management.HELP) + '\n');
     if (opts.searchArgumentErrors && opts.searchArgumentErrors.length) {
       throw new CloudCommandError('invalid_request', opts.searchArgumentErrors.join('; '));
     }
-    if (opts.dryRunFlag && !['push', 'restore', 'move', 'read', 'search', 'ls', 'history', 'diff',
+    if (opts.cloudContentArgumentErrors && opts.cloudContentArgumentErrors.length) {
+      throw new CloudCommandError('invalid_request', opts.cloudContentArgumentErrors.join('; '));
+    }
+    if (opts.cloudCommentsArgumentErrors && opts.cloudCommentsArgumentErrors.length) {
+      throw new CloudCommandError('invalid_request', opts.cloudCommentsArgumentErrors.join('; '));
+    }
+    if (opts.dryRunFlag && !['push', 'edit', 'comments', 'restore', 'move', 'read', 'search', 'ls', 'history', 'diff',
       'status', 'tags', 'members', 'permission-groups', 'libraries', 'overview'].includes(action)) {
       throw new CloudCommandError('invalid_request', '--dry-run is not supported for cloud ' + action + '. No changes were made.');
     }
@@ -1586,6 +1646,8 @@ async function runCloudCommand(opts, dependencies) {
     if (action === 'search') return await search(opts, client);
     if (action === 'star' || action === 'unstar') return await setStar(opts, client, action === 'star');
     if (action === 'read') return await read(opts, client);
+    if (action === 'edit') return await cloudEdit.runEdit(opts, client, { emit, documentUrl });
+    if (action === 'comments') return await cloudComments.run(opts, client, { emit, documentUrl });
     if (action === 'diff') return await diff(opts, client);
     if (action === 'create') return await create(opts, client);
     if (action === 'pull') return await pull(opts, client);
@@ -1602,4 +1664,6 @@ async function runCloudCommand(opts, dependencies) {
 }
 
 module.exports = { CloudClient, CloudCommandError, runCloudCommand, autoSyncOpen, openCloudDocument, filterTags, origin, CLOUD_TAG_HELP, CLOUD_CREATE_HELP,
-  EXIT, CLOUD_HELP, CLOUD_SEARCH_HELP, CLOUD_UPDATE_HELP, CLOUD_OVERVIEW, entitlementFailure, skillInstallCommand, searchRequest };
+  EXIT, CLOUD_HELP, CLOUD_SEARCH_HELP, CLOUD_READ_HELP, CLOUD_EDIT_HELP: cloudEdit.HELP,
+  CLOUD_COMMENTS_HELP: cloudComments.HELP,
+  CLOUD_UPDATE_HELP, CLOUD_OVERVIEW, entitlementFailure, skillInstallCommand, searchRequest };
