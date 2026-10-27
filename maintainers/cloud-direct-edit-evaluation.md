@@ -1,6 +1,8 @@
 # Cloud direct editing evaluation
 
-28 October 2026. Local, disposable fixtures. No staging or production deployment.
+28 October 2026. Local, disposable fixtures, followed by the
+[staging verification](cloud-comments-evaluation.md#staging-verification-28-october-2026)
+of release `fe955563`. Production unchanged.
 
 ## Delivered behavior
 

@@ -1,6 +1,6 @@
 # Cloud comment feedback evaluation
 
-28 October 2026. Local disposable services only. No staging or production changes.
+28 October 2026. Local fixture evaluations followed by staging verification. Production unchanged.
 
 ## Result
 
@@ -61,6 +61,38 @@ resolved threads, deleting the last thread, portable footnote imports, unchanged
 prose and metadata, retained history, lost-response retries, concurrent feedback,
 company isolation and revocation during asynchronous work. The reader removes
 deleted feedback without navigation and keeps the quoted document passage.
+
+## Staging verification, 28 October 2026
+
+Code release `fe955563a0ac99e62bf88e424202d64f4f0d1126` is deployed to
+`https://cloud-staging.smalldocs.org`. The preceding release is `19da4852`.
+Before deployment, staging state and configuration were backed up together at
+`/var/backups/smalldocs-staging/cloud-comments-20261028T161204Z.tar.gz`.
+
+The release passed all 2,141 Node checks and 36 targeted browser checks.
+Sixteen live assertions used the installed CLI against staging and a separate
+test account. They covered tagged creation, structured comments, direct edits,
+anchor updates, replies, resolution, reopening, deletion preview and commit,
+retained feedback history, unchanged body text and other comments, live browser
+updates, and another account being unable to read or delete private feedback.
+The test document was removed and the temporary CLI credential revoked.
+
+All 54 packaged CLI runtime files matched the source release. The normal local
+installation and `~/code/smalldocs-cloud-experiment` now use that staging runtime
+and the exact generated Cloud skill v43. Eighteen existing Cloud state files
+were unchanged by installation. Prior runtime and skill copies were preserved.
+The package version remains `1.20.0-rc.11`; the installed runtime fingerprint is
+`a8c0af63b70d541d792bb9085fc377ff25e35edf89c7f6eb035ad42bc88ec0e1`.
+No npm package was published.
+
+A browser controlled by the old service worker upgraded from `b26e89bdc0` to
+`abffc7e34e` on ordinary reload. The new comment module loaded without page
+errors. Both services remained active. The production release, environment
+configuration hash and systemd unit hash matched their pre-deployment values.
+
+The developer's existing staging session requires review and acceptance of
+Terms version `2026-10-26` at `/cloud/terms`. Its credential was preserved; the
+Terms were not accepted on the developer's behalf. Live checks used test accounts.
 
 ## Reproduce
 
