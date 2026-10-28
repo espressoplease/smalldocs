@@ -166,6 +166,13 @@ LIVE BRIDGE (sdoc bridge)
   the read-only snapshot.
 
 FILE INFO CARD
+  Cloud-first saves preserve the working file's absolute path and any
+  supplied relative path as encrypted metadata. Only the creator can see
+  these paths in the info panel, including after opening a new tab.
+  Paths stay separate from shared Markdown and snapshot links. They
+  identify the source file, not a live connection to it.
+
+  For URL-only files:
   When you \`sdoc <file>\`, the browser shows a small info card
   above the document with:
     file       The filename — included in the share URL.

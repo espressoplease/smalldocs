@@ -13,6 +13,14 @@ window.SDocs = {
   // Stripped from the URL on load so it isn't in anything the user copies/shares.
   localMeta: {},
 
+  fileInfoPaths: function () {
+    if (this.cloudDocument && this.cloudDocument.id) {
+      var source = this.cloudDocument.source_file;
+      return source ? { path: source.relative_path || '', fullPath: source.absolute_path || '', creatorOnly: true } : {};
+    }
+    return this.localMeta || {};
+  },
+
   // Per-doc overrides for the file-info card. Set from `styles.fileinfo` in
   // YAML front matter; emitted back via collectStyles so they round-trip.
   fileinfoStyles: {},

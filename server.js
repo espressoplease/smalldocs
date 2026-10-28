@@ -2034,7 +2034,7 @@ async function handleCloudApi(req, res, url) {
         fileBytes: cloudMarkdownBytes(body.markdown),
       });
       const document = await cloudStore.createDocument({
-        userId: user.id, projectId: selected.defaultProject.id, filename: body.filename,
+        userId: user.id, projectId: selected.defaultProject.id, filename: body.filename, sourceFile: body.source_file,
         markdown: body.markdown, idempotencyKey: body.idempotency_key, credentialId,
         beforeCommit: () => requireCloudEntitlement(user.id, selected.workspace.id, 'store_revision', {
           fileBytes: cloudMarkdownBytes(body.markdown),
@@ -2440,7 +2440,7 @@ async function handleCloudApi(req, res, url) {
         fileBytes: cloudMarkdownBytes(body.markdown),
       });
       const document = await cloudStore.createDocument({
-        userId: user.id, projectId: body.project_id, filename: body.filename,
+        userId: user.id, projectId: body.project_id, filename: body.filename, sourceFile: body.source_file,
         markdown: body.markdown, idempotencyKey: body.idempotency_key, credentialId,
         beforeCommit: () => requireCloudEntitlement(user.id, project.workspaceId, 'store_revision', {
           fileBytes: cloudMarkdownBytes(body.markdown),
@@ -2754,6 +2754,17 @@ async function handleCloudApi(req, res, url) {
       }
       sendJson(res, editsMatch[2] ? 200 : 201, { ok: true,
         document: require('./lib/cloud-edit-response').editReceipt(document, CLOUD_AUTH_PUBLIC_ORIGIN) });
+      return;
+    }
+    const sourceFileMatch = pathname.match(/^\/api\/cloud\/v1\/documents\/([^/]+)\/source-file$/);
+    if (sourceFileMatch && req.method === 'PUT') {
+      const body = await cloudAuthHttp.readJson(req);
+      const context = cloudStore.getDocumentContext({ userId: user.id, documentId: sourceFileMatch[1], requiredRole: 'editor' });
+      requireCloudEntitlement(user.id, context.workspaceId, 'read');
+      const saved = await cloudStore.setDocumentSourceFile({ userId: user.id,
+        documentId: sourceFileMatch[1], sourceFile: body.source_file,
+        beforeCommit: () => requireCloudEntitlement(user.id, context.workspaceId, 'read') });
+      sendJson(res, 200, { ok: true, ...saved });
       return;
     }
     const documentMatch = pathname.match(/^\/api\/cloud\/v1\/documents\/([^/]+)$/);

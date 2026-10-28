@@ -641,7 +641,9 @@ var BRIDGE_SCREEN_SHARE_OFF_SVG = ''
   + '</svg>';
 
 function dataRowHtml(key, label, value, isLocal, isShort, extraHtml) {
-  var pill = isLocal ? '<span class="fic-local-tag" title="Only visible on this device, not included in shared sdocs">Local only</span>' : '';
+  var pill = isLocal === 'creator'
+    ? '<span class="fic-local-tag" title="Saved in Cloud and visible only to you">Only you</span>'
+    : isLocal ? '<span class="fic-local-tag" title="Only visible on this device, not included in shared sdocs">Local only</span>' : '';
   var cls = 'fic-row' + (isShort ? ' fic-row-short' : '');
   return '<div class="' + cls + '" data-key="' + key + '">'
     + '<span class="fic-label">' + label + '</span>'
@@ -656,7 +658,7 @@ function renderFileInfoCard() {
   var card = document.getElementById('_sd_sdocs-file-info');
   if (!card) return;
   var meta = S.currentMeta || {};
-  var local = S.localMeta || {};
+  var local = S.fileInfoPaths();
   var rowsEl = card.querySelector('.fic-rows');
 
   // The "Edits" row only renders when a bridge session is *or has been*
@@ -671,7 +673,7 @@ function renderFileInfoCard() {
   // Edits is a local-only row, but it only renders in editing modes — so
   // only count it toward the privacy-note flag when it'll actually appear.
   var bridgeRowWillRender = !!bridge && bridgeShouldRender(S.currentMode);
-  var hasLocalRow = !!(local.path || local.fullPath || bridgeRowWillRender);
+  var hasLocalRow = !!(!local.creatorOnly && (local.path || local.fullPath) || bridgeRowWillRender);
 
   if (!hasDoc && !meta.file && !hasLocalRow && !bridge) {
     card.hidden = true;
@@ -688,7 +690,7 @@ function renderFileInfoCard() {
   // right after Filename, so the row doesn't jump around as the user moves
   // between the intro / shorten / shortened states.
   var slots = [];
-  if (meta.file || bridgeFile) {
+  if ((meta.file || bridgeFile) && !(local.creatorOnly && (local.path || local.fullPath))) {
     // When the bridge is live and the Edits row isn't showing (read /
     // style / export / info), drop a small "live" chip next to the
     // filename so the reader still knows the file is connected. We never
@@ -718,8 +720,9 @@ function renderFileInfoCard() {
       : { type: 'intro' });
   }
 
-  if (local.path)     slots.push({ type: 'data', html: dataRowHtml('path', 'Rel. Path', local.path, true, false) });
-  if (local.fullPath) slots.push({ type: 'data', html: dataRowHtml('fullPath', 'Abs. Path', local.fullPath, true, false) });
+  var pathPrivacy = local.creatorOnly ? 'creator' : true;
+  if (local.path && local.path !== local.fullPath) slots.push({ type: 'data', html: dataRowHtml('path', 'Rel. Path', local.path, pathPrivacy, false) });
+  if (local.fullPath) slots.push({ type: 'data', html: dataRowHtml('fullPath', 'Abs. Path', local.fullPath, pathPrivacy, false) });
 
   // Tags row: YAML front-matter tags only. Editing is gated to "the
   // Bridge is connected and can save" - the Bridge is the single write

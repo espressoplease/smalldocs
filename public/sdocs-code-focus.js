@@ -1838,8 +1838,9 @@
   // File-info card at the top of the listing: filename + paths, each copyable.
   // Built only for a real file view (an opened file), not an inline code block.
   function buildFileInfo() {
-    var fullPath = S.localMeta && S.localMeta.fullPath;
-    var relPath = S.localMeta && S.localMeta.path;
+    var source = S.fileInfoPaths ? S.fileInfoPaths() : S.localMeta || {};
+    var fullPath = source.fullPath;
+    var relPath = source.path;
     var fileName = currentFileName() || (S.currentMeta && S.currentMeta.file) || (fullPath ? basename(fullPath) : '');
     if (!fileName && !fullPath) return null;
     if (!fileName) fileName = basename(fullPath);
@@ -1859,7 +1860,7 @@
     // one file you opened, which a multi-file walkthrough doesn't have.
     var isCodewalk = !!(window.SDocCodewalk && window.SDocCodewalk.isCodewalk(S.currentMeta));
     var canShortLink = isWholeFileCode || isCodewalk;
-    var rows = fiRow('Filename', fileName);
+    var rows = source.creatorOnly && isWholeFileCode && (fullPath || relPath) ? '' : fiRow('Filename', fileName);
     // Short URL sits directly under Filename, above the paths - and the whole row
     // mirrors the prose file-info card exactly: a subtle dotted "Generate" until a
     // link exists, then the URL in a copyable row. Shared generator keeps both in
@@ -1879,9 +1880,10 @@
           + '</div>';
       }
     }
-    var hasLocalRow = isWholeFileCode && !!(relPath || fullPath);
-    if (isWholeFileCode && relPath && relPath !== fullPath) rows += fiRow('Rel. Path', relPath, true);
-    if (isWholeFileCode && fullPath) rows += fiRow('Abs. Path', fullPath, true);
+    var hasLocalRow = !source.creatorOnly && isWholeFileCode && !!(relPath || fullPath);
+    var privacy = source.creatorOnly ? 'creator' : true;
+    if (isWholeFileCode && relPath && relPath !== fullPath) rows += fiRow('Rel. Path', relPath, privacy);
+    if (isWholeFileCode && fullPath) rows += fiRow('Abs. Path', fullPath, privacy);
     var card = document.createElement('div');
     card.className = 'sdoc-cf-fileinfo';
     // Footer note - mirrors the prose card: local-only rows (the paths) never
@@ -1939,7 +1941,9 @@
 
   function fiRow(label, value, local) {
     var low = label.toLowerCase();
-    var pill = local
+    var pill = local === 'creator'
+      ? '<span class="sdoc-cf-localtag" title="Saved in Cloud and visible only to you">Only you</span>'
+      : local
       ? '<span class="sdoc-cf-localtag" title="Only visible on this device, not included in shared sdocs">Local only</span>'
       : '';
     return '<div class="sdoc-cf-firow">'

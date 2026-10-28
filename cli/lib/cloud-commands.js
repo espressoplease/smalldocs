@@ -57,6 +57,12 @@ the document ID stable across edits; successful saves advance the revision.
 An unchanged file does not create another revision. --no-open still saves
 and returns the URL. The browser needs its own signed-in session and access.
 
+Creation records the working file's absolute path and any supplied relative
+path as encrypted metadata, separate from Markdown. Only the creator receives
+these paths in the file info panel. Shared readers do not receive them.
+Opening an older unchanged bound file as its creator records its missing
+paths without creating a content revision.
+
 When linking a SmallDoc in chat, always use the returned Cloud url. Never
 link to the underlying local file, a file:// URL, or a local Markdown path.
 Do not invent a URL or present an upload failure as a saved document.
@@ -1108,7 +1114,8 @@ async function create(opts, client) {
   const credential = requireCredential(client);
   let pending = bindings.getPending(credential.user_id, file);
   if (!pending || pending.operation !== 'create' || pending.sha256 !== digest) {
-    pending = { operation: 'create', destination: opts.accountFlag || 'unresolved-default', sha256: digest, idempotency_key: crypto.randomUUID() };
+    pending = { operation: 'create', destination: opts.accountFlag || 'unresolved-default', sha256: digest,
+      source_file: sourceFileForPath(opts.extra, file), idempotency_key: crypto.randomUUID() };
     bindings.setPending(credential.user_id, file, pending);
   }
   let destination = opts.accountFlag || null;
@@ -1118,14 +1125,14 @@ async function create(opts, client) {
     destination = selected.account.id;
   }
   if (!pending || pending.operation !== 'create' || pending.destination !== destination || pending.sha256 !== digest) {
-    pending = { operation: 'create', destination, sha256: digest,
+    pending = { operation: 'create', destination, sha256: digest, source_file: pending && pending.source_file,
       idempotency_key: crypto.randomUUID() };
     bindings.setPending(credential.user_id, file, pending);
   }
   const response = await client.authenticated('/api/cloud/v1/account/documents', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ account_id: destination,
-      filename: path.basename(file), markdown: content,
+      filename: path.basename(file), markdown: content, source_file: pending.source_file,
       idempotency_key: pending.idempotency_key }),
   });
   const document = response.document;
@@ -1145,6 +1152,10 @@ async function create(opts, client) {
 function localFileHash(file) {
   try { return bindings.hash(fs.readFileSync(file)); }
   catch (error) { if (error.code === 'ENOENT') return null; throw error; }
+}
+
+function sourceFileForPath(supplied, absolute) {
+  return { absolute_path: absolute, ...(!path.isAbsolute(supplied) ? { relative_path: supplied } : {}) };
 }
 
 function atomicFileWrite(file, content) {
@@ -1231,6 +1242,12 @@ async function push(opts, client) {
     const current = response.document;
     if (!current || typeof current.markdown !== 'string') throw new CloudCommandError('temporary_service_failure',
       'Cloud did not return the current document.');
+    if (!current.source_file && response.permission && response.permission.can_manage) {
+      await client.authenticated('/api/cloud/v1/documents/' + encodeURIComponent(binding.document_id) + '/source-file', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ source_file: sourceFileForPath(opts.extra, file) }),
+      });
+    }
     return emit(opts, 'cloud.push', { document_id: binding.document_id,
       url: documentUrl(client, binding.document_id),
       base_revision_id: binding.revision_id, revision_id: current.current_revision_id,
@@ -1370,7 +1387,7 @@ async function autoSyncOpen(opts, dependencies) {
   const credential = requireCredential(client);
   const binding = bindings.get(credential.user_id, file);
   const syncOpts = Object.assign({}, opts, {
-    extra: file,
+    extra: opts.file,
     accountFlag: accountId,
     jsonFlag: false,
     cloudFirst: true,

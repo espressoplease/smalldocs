@@ -548,7 +548,9 @@ Because the URL includes your full document and dynamically updates via JavaScri
 
 ### File info card
 
-When you run `sdoc <file>` the browser shows a small info card at the top of the rendered document. It can carry three fields:
+Cloud-first saves preserve the source file's absolute path and any supplied relative path as encrypted metadata. Only the document's creator sees these rows in the file info panel, including in a fresh browser tab. Shared readers do not receive the paths. They identify the source file, rather than a live connection to it.
+
+For URL-only documents, the info card can carry three fields:
 
 - **file** — the filename. Lives in the YAML front matter and travels in the share URL.
 - **path** — the relative path from the directory you ran `sdoc` in. *Local only.*

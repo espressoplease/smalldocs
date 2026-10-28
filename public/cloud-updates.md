@@ -18,6 +18,8 @@ sdoc cloud read DOCUMENT_ID --revision SAVED_REVISION_ID --json
 
 Use the returned `url` in chat. It identifies the document and requires the reader to have access. Run `sdoc cloud push --help` for the full update reference.
 
+Cloud creation saves the source file's absolute path and any supplied relative path as encrypted metadata, separate from the document's Markdown. Only the creator can see these paths in the file info panel. Sharing the document does not reveal them to other readers. Paths identify the source file; they do not connect the browser to that file or confirm it still exists. For older documents, opening an unchanged bound working file through the CLI as its creator fills in missing paths without creating a content revision.
+
 ## Concurrent edits
 
 A pull records the revision you read. When you push, the server compares that base with the current document and your proposed content. Independent edits can merge. The response identifies the revision your work merged with, the new revision and the saved content hash.

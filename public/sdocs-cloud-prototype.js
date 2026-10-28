@@ -504,7 +504,10 @@ async function beginAdd(event, accountId) {
     var data = await jsonRequest('/api/cloud/v1/account/documents', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ account_id: accountData.account.id, filename: currentFilename(),
-        markdown: currentMarkdown(), idempotency_key: crypto.randomUUID() }),
+        markdown: currentMarkdown(), source_file: {
+          absolute_path: S.localMeta && S.localMeta.fullPath,
+          relative_path: S.localMeta && S.localMeta.path,
+        }, idempotency_key: crypto.randomUUID() }),
     });
     S.cloudDocument = data.document;
     S.cloudDocument.workspace_id = data.account.id;
