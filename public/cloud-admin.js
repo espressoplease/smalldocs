@@ -72,6 +72,7 @@
       active_subscription_requires_cancellation: 'Cancel the team subscription in Billing before deleting it.',
       final_owner_required: 'Add another admin before removing the final admin.',
       personal_workspace_cannot_be_deleted: 'This account cannot be deleted here.',
+      personal_library_private: 'Your Personal library is private. Create a team library to invite people.',
       public_email_domain: 'Use a company domain rather than a public email provider.',
       email_delivery_unavailable: 'The invitation email was not sent. Try again.',
       subscription_required: 'Subscribe to Cloud before inviting people.',
@@ -114,7 +115,14 @@
     return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(date);
   }
   function setCount(id, value) { byId(id).textContent = String(value); }
-  function isTeam() { return Boolean(state.workspace && (state.singlePlan || state.workspace.kind === 'team')); }
+  function isTeam() { return Boolean(state.workspace && state.workspace.kind === 'team'); }
+
+  function libraryMark(workspace) {
+    var mark = element('span', 'account-switcher-mark');
+    mark.innerHTML = window.SDocsCloudAccountSelection.icon(workspace && workspace.kind);
+    if (workspace) mark.style.color = window.SDocsCloudAccountSelection.color(workspace.id);
+    return mark;
+  }
 
   function accountName(workspace) {
     return window.SDocsCloudAccountSelection.label(workspace, state.me);
@@ -123,14 +131,11 @@
   function renderAccountSwitcher() {
     var menu = byId('account-switcher-menu');
     menu.replaceChildren();
-    state.workspaces.forEach(function (workspace) {
+    window.SDocsCloudAccountSelection.orderedLibraries(state.workspaces).forEach(function (workspace) {
       var button = element('button');
       button.type = 'button';
       button.setAttribute('role', 'menuitem');
-      button.append(element('span', 'account-switcher-mark',
-        window.SDocsCloudAccountSelection.initials(accountName(workspace))),
-      element('strong', '', accountName(workspace)));
-      button.querySelector('.account-switcher-mark').style.backgroundColor = window.SDocsCloudAccountSelection.color(workspace.id);
+      button.append(libraryMark(workspace), element('strong', '', accountName(workspace)));
       if (state.workspace && state.workspace.id === workspace.id) {
         var check = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
         check.setAttribute('viewBox', '0 0 24 24');
@@ -148,12 +153,11 @@
       menu.appendChild(button);
     });
     byId('account-switcher').hidden = state.workspaces.length === 0;
-    byId('account-switcher-button').disabled = state.workspaces.length <= 1;
-    byId('account-switcher-button').querySelector('svg').toggleAttribute('hidden', state.workspaces.length <= 1);
-    var name = state.workspace ? accountName(state.workspace) : 'Choose account';
+    byId('account-switcher-button').disabled = false;
+    var name = state.workspace ? accountName(state.workspace) : 'Choose library';
     byId('account-switcher-name').textContent = name;
-    byId('account-switcher-mark').style.backgroundColor = state.workspace ? window.SDocsCloudAccountSelection.color(state.workspace.id) : '';
-    byId('account-switcher-mark').textContent = window.SDocsCloudAccountSelection.initials(name);
+    byId('account-switcher-mark').style.color = state.workspace ? window.SDocsCloudAccountSelection.color(state.workspace.id) : '';
+    byId('account-switcher-mark').innerHTML = window.SDocsCloudAccountSelection.icon(state.workspace && state.workspace.kind);
   }
 
   function renderMembers() {
@@ -454,7 +458,7 @@
     renderInstall(workspace.id);
     window.SDocsCloudAccountSelection.remember(localStorage, workspace.id);
     var encoded = encodeURIComponent(workspace.id);
-    var team = state.singlePlan || workspace.kind === 'team';
+    var team = workspace.kind === 'team';
     var canAdminister = workspace.role === 'owner' || workspace.role === 'admin';
     var responses = await Promise.all([
       team ? request('/account/members?account_id=' + encoded) : Promise.resolve({ members: [] }),
@@ -661,10 +665,10 @@
 
   function setupLibraries() {
     var list = byId('all-libraries'); list.replaceChildren();
-    state.workspaces.forEach(function (library) {
+    window.SDocsCloudAccountSelection.orderedLibraries(state.workspaces).forEach(function (library) {
       var row = element('div', 'machine-row');
-      var link = element('a', 'btn', library.name); link.href = '/cloud/admin?panel=install&workspace_id=' + encodeURIComponent(library.id);
-      link.style.color = window.SDocsCloudAccountSelection.color(library.id);
+      var link = element('a', 'btn'); link.href = '/cloud/admin?panel=install&workspace_id=' + encodeURIComponent(library.id);
+      link.append(libraryMark(library), document.createTextNode(accountName(library)));
       row.appendChild(link); list.appendChild(row);
     });
     byId('create-library-form').onsubmit = async function (event) {

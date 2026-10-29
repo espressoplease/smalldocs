@@ -28,7 +28,7 @@ module.exports = function (h) {
     await new Promise(resolve => mock.listen(0, '127.0.0.1', resolve));
     const f = await require('./cloud-onboarding-fixture').startFixture({ singlePlan: true, stripeApiBase: 'http://127.0.0.1:' + mock.address().port, logErrors: true });
     const single = new (require('../lib/cloud-single-plan').SinglePlan)({ billing: f.billing, store: f.store });
-    let library, currentSession, subscription, serial = 0;
+    let library, teamLibrary, currentSession, subscription, serial = 0;
     async function webhook(object, signed = true) {
       const now = Math.floor(Date.now() / 1000);
       const raw = JSON.stringify({ id: 'evt_fixture_' + (++serial), type: 'customer.subscription.updated', created: now + serial, data: { object } });
@@ -46,6 +46,7 @@ module.exports = function (h) {
     try {
       await testAsync('single checkout retries reuse one open provider session and the configured single price', async () => {
         library = (await f.api('josh', '/api/cloud/v1/onboarding/complete', 'POST', {})).data.workspaces[0].id;
+        teamLibrary = (await f.api('josh', '/api/cloud/v1/workspaces', 'POST', { name: 'Billing test team' })).data.workspace.workspaceId;
         const results = await Promise.all([f.api('josh', '/api/cloud/billing/subscribe', 'POST', {}), f.api('josh', '/api/cloud/billing/subscribe', 'POST', {})]);
         assert.ok(results.every(r => r.status === 200), JSON.stringify(results));
         const operations = calls.filter(call => call.path === '/v1/checkout/sessions');
@@ -60,8 +61,8 @@ module.exports = function (h) {
         assert.strictEqual(sessions.size, 1);
       });
       await testAsync('a changed seat count expires the old checkout before opening its replacement', async () => {
-        f.store.addWorkspaceMember({ actorUserId: f.users.josh.id, workspaceId: library, userId: f.users.member.id, role: 'member' });
-        single.claim(f.users.member.id, library);
+        f.store.addWorkspaceMember({ actorUserId: f.users.josh.id, workspaceId: teamLibrary, userId: f.users.member.id, role: 'member' });
+        single.claim(f.users.member.id, teamLibrary);
         const old = currentSession;
         const response = await f.api('josh', '/api/cloud/billing/subscribe', 'POST', {});
         assert.strictEqual(response.status, 200, JSON.stringify(response));
@@ -86,7 +87,7 @@ module.exports = function (h) {
         assert.strictEqual(sessions.size, count);
       });
       await testAsync('removing a sponsored person updates billed quantity without transferring access', async () => {
-        const response = await f.api('josh', '/api/cloud/v1/workspaces/' + library + '/members/' + f.users.member.id, 'DELETE');
+        const response = await f.api('josh', '/api/cloud/v1/workspaces/' + teamLibrary + '/members/' + f.users.member.id, 'DELETE');
         assert.strictEqual(response.status, 200, JSON.stringify(response));
         assert.strictEqual(subscriptions.get(subscription.id).items.data[0].quantity, 1);
         assert.strictEqual(single.hasSponsoredMembership(f.users.member.id, library), false);

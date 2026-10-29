@@ -33,11 +33,22 @@
 
   function label(account, user) {
     if (!account) return 'Cloud';
-    if (account.kind === 'personal' && user) {
-      var fullName = [user.first_name, user.last_name].filter(Boolean).join(' ').trim();
-      if (fullName) return fullName;
-    }
+    if (account.kind === 'personal') return 'Personal';
     return account.name || 'Cloud';
+  }
+
+  function orderedLibraries(libraries) {
+    return libraries.slice().sort(function (a, b) {
+      return Number(a.kind !== 'personal') - Number(b.kind !== 'personal');
+    });
+  }
+
+  // Lucide user-round and users-round, shared by both library switchers.
+  function icon(kind) {
+    var paths = kind === 'personal'
+      ? '<circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/>'
+      : '<path d="M18 21a8 8 0 0 0-16 0"/><circle cx="10" cy="8" r="5"/><path d="M22 20c0-3.37-2-6.5-4-8a5 5 0 0 0-.45-8.3"/>';
+    return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-library-kind="' + (kind === 'personal' ? 'personal' : 'team') + '">' + paths + '</svg>';
   }
 
   function initials(value) {
@@ -47,14 +58,15 @@
       .toUpperCase();
   }
 
-  var palette = ['#2563eb', '#0f766e', '#9333ea', '#b45309', '#be123c', '#0369a1'];
   function colorHash(id) {
     var hash = 0;
     String(id || '').split('').forEach(function (character) { hash = ((hash * 31) + character.charCodeAt(0)) >>> 0; });
     return hash;
   }
   function color(id) {
-    return palette[colorHash(id) % palette.length];
+    var hue = (colorHash('library:' + id) * 137.508) % 360;
+    var lightness = hue >= 40 && hue <= 180 ? 35 : 40;
+    return 'hsl(' + hue.toFixed(3) + ', 65%, ' + lightness + '%)';
   }
   function personColor(id, isYou) {
     if (!id || isYou) return null;
@@ -62,6 +74,8 @@
     return 'hsl(' + ((colorHash(id) * 137.508) % 360).toFixed(3) + ', 65%, 40%)';
   }
   exports.color = color;
+  exports.icon = icon;
+  exports.orderedLibraries = orderedLibraries;
   exports.personColor = personColor;
   exports.STORAGE_KEY = STORAGE_KEY;
   exports.storedId = storedId;

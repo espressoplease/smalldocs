@@ -28,8 +28,8 @@ const path = require('path');
 const { SETUP_CACHE, INSTALLATION_CHANNEL } = require('./constants');
 
 // ── Skill model ────────────────────────────────────────────
-const SKILL_VERSION = 43;
-const SKILL_REASON  = 'Delete handled Cloud comments and their replies while retaining feedback in document revision history.';
+const SKILL_VERSION = 44;
+const SKILL_REASON  = 'Keep Personal libraries private and use Team libraries for invitations and collaboration.';
 const SKILL_NAME    = 'smalldocs';
 
 // Always-in-context preamble. Concise trigger text; the full reference lives
@@ -111,7 +111,9 @@ Successful document receipts include \`subscription\` and \`notices\`. During th
 
 On \`trial_payment_required\`, Cloud content is blocked. Open or link the returned subscription page, let the human complete Stripe Checkout, then check billing and retry the original command. Use \`sdoc cloud subscribe --json\` to open the subscription page. Opening it does not charge the user. Payment methods, invoices, and cancellation stay in the authenticated Billing page and Stripe customer portal. Never ask the human for card details or a Stripe merchant API key. Do not bypass the paywall with a local file link or local viewing. Do not promise a deletion date unless one is returned by the service.
 
-On the human's instruction, invite with \`sdoc cloud invite EMAIL --account LIBRARY_UUID --role member --json\`. List pending invitations with \`sdoc cloud invitations\`, revoke one with \`sdoc cloud revoke-invite INVITATION_ID\`, and remove access with \`sdoc cloud remove-member USER_ID\`. Resolve user IDs with \`cloud members\` and specify the library when several exist. These commands use the human's existing library role. Inviting does not share private documents, and removing someone can change sponsored seat billing. Check the returned delivery state and do not claim an email was sent when it was not queued.
+Every person has a private Personal library, including people who sign up through an invitation. Personal cannot have other members. Team libraries hold collaboration and membership. To create one, open \`sdoc cloud settings libraries --json\`, then select its library ID for team work. Creating another library keeps the same per-person billing account and trial deadline. Existing document bindings stay in their current library.
+
+On the human's instruction, invite with \`sdoc cloud invite EMAIL --account TEAM_LIBRARY_UUID --role member --json\`. On \`personal_library_private\`, use the returned \`settings_url\` to create a Team library rather than retrying the Personal library. List pending invitations with \`sdoc cloud invitations\`, revoke one with \`sdoc cloud revoke-invite INVITATION_ID\`, and remove access with \`sdoc cloud remove-member USER_ID\`. Resolve user IDs with \`cloud members\` and specify the library when several exist. These commands use the human's existing library role. Inviting does not share private documents, and removing someone can change sponsored seat billing. Check the returned delivery state and do not claim an email was sent when it was not queued.
 
 After asking for feedback, submit the human's own words with \`sdoc cloud trial-feedback --note "Their feedback" --json\`. Add the optional \`--rating 1..5\` only when the human supplies a score. Feedback is shared with the SmallDocs team. Do not invent a review on the human's behalf. On \`terms_acceptance_required\`, open the returned acceptance page for the human to read and accept, then retry.
 

@@ -66,7 +66,7 @@ test('email signup verifies the delivered code, captures a profile and reaches I
   await page.getByRole('button', { name: 'Continue', exact: true }).click();
   await expect(page).toHaveURL(/cloud\/admin\?panel=install/);
   await expect(page.locator('body')).toContainText('Robin Walker');
-  await expect(page.locator('#install-prompt')).toContainText('My library is "Robin Walker".');
+  await expect(page.locator('#install-prompt')).toContainText('My library is "Personal".');
   await expect(page.locator('#install-prompt')).toContainText('Create one short getting-started document');
   await expect(page.locator('#install-prompt')).toContainText('where I complete cancellation');
   const response = await page.request.get(f.origin + '/api/cloud/v1/workspaces');

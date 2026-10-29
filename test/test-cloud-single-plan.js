@@ -20,7 +20,7 @@ module.exports = function (h) {
         const account = single.initialize(users.returning.id, extra.workspaceId, users.returning.email);
         single.initialize(users.returning.id, f.personal.workspaceId, users.returning.email);
         assert.strictEqual(account.id, f.personal.workspaceId);
-        assert.strictEqual(store.db.prepare('SELECT kind FROM cloud_workspaces WHERE id=?').get(f.personal.workspaceId).kind, 'team');
+        assert.strictEqual(store.db.prepare('SELECT kind FROM cloud_workspaces WHERE id=?').get(f.personal.workspaceId).kind, 'personal');
         assert.deepStrictEqual(store.getDocumentPermission({ userId: users.returning.id, documentId: oldDocument.id }), oldPermission);
         assert.strictEqual((await store.getDocument({ userId: users.returning.id, documentId: oldDocument.id })).markdown, '# Existing private content');
         assert.strictEqual(billing.getSubscription(account.id).plan, 'personal');
@@ -86,7 +86,8 @@ module.exports = function (h) {
         assert.deepStrictEqual(results.map(r => r.status), [200, 200], JSON.stringify(results));
         own = results[0].data.workspaces[0].id;
         assert.strictEqual(results[1].data.workspaces[0].id, own);
-        assert.strictEqual(results[0].data.workspaces[0].kind, 'team');
+        assert.strictEqual(results[0].data.workspaces[0].kind, 'personal');
+        assert.strictEqual(results[0].data.workspaces[0].name, 'Personal');
         const page = await api('josh', '/cloud/start');
         assert.strictEqual(page.status, 303);
         assert.ok(page.headers.get('location').includes('panel=install'));
@@ -104,6 +105,67 @@ module.exports = function (h) {
         foreign = (await create('outsider', f.otherTeam.workspaceId, 'other', '# Confidential foreign')).data.document;
         assert.ok(foreign.id);
       });
+      await testAsync('Personal rejects invitations and additional members through browser and CLI APIs', async () => {
+        const before = store.db.prepare('SELECT count(*) AS n FROM cloud_invitations WHERE workspace_id=?').get(own).n;
+        const invited = await api('josh', '/api/cloud/v1/account/invitations', 'POST', { account_id: own, email: users.member.email });
+        assert.strictEqual(invited.status, 409, JSON.stringify(invited));
+        assert.strictEqual(invited.data.error, 'personal_library_private');
+        assert.ok(invited.data.message.includes('Create a team library'));
+        assert.ok(invited.data.settings_url.endsWith('/cloud/admin?panel=libraries'));
+        assert.throws(() => store.addWorkspaceMember({ actorUserId: users.josh.id, workspaceId: own,
+          userId: users.member.id }), error => error.code === 'personal_library_private');
+        assert.strictEqual(store.db.prepare('SELECT count(*) AS n FROM cloud_invitations WHERE workspace_id=?').get(own).n, before);
+        assert.strictEqual(store.listWorkspaceMembers({ userId: users.josh.id, workspaceId: own }).length, 1);
+        const device = f.auth.issueDeviceAuthorization({ displayName: 'Private library test' });
+        f.auth.approveDeviceAuthorization({ userCode: device.userCode, userId: users.josh.id });
+        const credential = f.auth.pollDeviceAuthorization({ deviceCode: device.deviceCode });
+        const client = new (require('../cli/lib/cloud-commands').CloudClient)({ origin: f.origin,
+          credentials: { load: () => ({ access_token: credential.accessToken,
+            access_token_expires_at: new Date(Date.now() + 3600000).toISOString() }) } });
+        await assert.rejects(client.authenticated('/api/cloud/v1/account/invitations', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ account_id: own, email: users.member.email }),
+        }), error => error.code === 'personal_library_private' && error.message.includes('team library') && Boolean(error.data.settings_url));
+      });
+      await testAsync('existing teams retain documents, members and billing when Personal is provisioned', async () => {
+        const members = store.listWorkspaceMembers({ userId: users.bob.id, workspaceId: f.team.workspaceId });
+        const subscription = billing.getSubscription(f.team.workspaceId);
+        const result = await api('bob', '/api/cloud/v1/onboarding/complete', 'POST', {});
+        assert.strictEqual(result.status, 200);
+        const personal = result.data.workspaces.filter(workspace => workspace.kind === 'personal');
+        assert.strictEqual(personal.length, 1);
+        assert.strictEqual(personal[0].name, 'Personal');
+        assert.ok(result.data.workspaces.some(workspace => workspace.id === f.team.workspaceId && workspace.kind === 'team'));
+        assert.deepStrictEqual(store.listWorkspaceMembers({ userId: users.bob.id, workspaceId: f.team.workspaceId }), members);
+        assert.deepStrictEqual(billing.getSubscription(f.team.workspaceId), subscription);
+        assert.strictEqual(single.account(personal[0].id).id, f.team.workspaceId);
+        const again = await api('bob', '/api/cloud/v1/onboarding/complete', 'POST', {});
+        assert.strictEqual(again.data.workspaces.filter(workspace => workspace.kind === 'personal').length, 1);
+      });
+      await testAsync('first signup through an invitation keeps Personal beside the invited team', async () => {
+        let invited = f.auth.signInWithVerifiedEmail('invited-first@joes.com').user;
+        f.auth.acceptCurrentTerms({ userId: invited.id, termsVersion: require('../lib/cloud-terms').CURRENT_TERMS_VERSION });
+        users.invitedFirst = { ...invited, cookie: 'sdocs_cloud=' + f.auth.createBrowserSession(invited.id).token };
+        const invitation = await store.createInvitation({ userId: users.bob.id, workspaceId: f.team.workspaceId,
+          email: 'invited-first@joes.com', projectGrants: [{ projectId: f.team.projectId, role: 'editor' }] });
+        const target = '/cloud/invite?token=' + encodeURIComponent(invitation.token);
+        const profile = await api('invitedFirst', '/api/cloud/v1/me', 'PATCH', {
+          first_name: 'Invited', last_name: 'Person', return_to: target });
+        assert.strictEqual(profile.status, 200, JSON.stringify(profile));
+        assert.strictEqual(profile.data.return_to, target);
+        const accepted = await api('invitedFirst', '/api/cloud/v1/invitations/' + encodeURIComponent(invitation.token) + '/accept', 'POST', {});
+        assert.strictEqual(accepted.status, 200, JSON.stringify(accepted));
+        const libraries = (await api('invitedFirst', '/api/cloud/v1/workspaces')).data.workspaces;
+        assert.strictEqual(libraries.length, 2);
+        const personal = libraries.find(workspace => workspace.kind === 'personal');
+        assert.strictEqual(personal.name, 'Personal');
+        assert.ok(libraries.some(workspace => workspace.id === f.team.workspaceId));
+        assert.strictEqual(single.coverage(invited.id).account_id, single.account(f.team.workspaceId).id);
+        const privateDoc = await create('invitedFirst', personal.id, 'invited-personal');
+        assert.strictEqual(privateDoc.status, 201, JSON.stringify(privateDoc));
+        assert.strictEqual((await api('bob', '/api/cloud/v1/documents/' + privateDoc.data.document.id)).status, 404);
+        assert.strictEqual(billing.getSubscription(single.ownAccount(invited.id).id), null);
+      });
       await testAsync('other organisations and same-domain nonmembers cannot read private documents or histories', async () => {
         for (const actor of ['outsider', 'member', 'bob']) {
           for (const endpoint of ['/documents/' + doc.id, '/documents/' + doc.id + '/head', '/documents/' + doc.id + '/revisions', '/documents/' + doc.id + '/revisions/' + doc.current_revision_id, '/documents/' + doc.id + '/permission']) {
@@ -112,6 +174,38 @@ module.exports = function (h) {
             assert.ok(!JSON.stringify(result.data).includes('Confidential alpha'));
           }
         }
+      });
+      await testAsync('visiting Personal preserves a team trial sponsor and its future billed seat', async () => {
+        let invited = f.auth.signInWithVerifiedEmail('team-trial-member@joes.com').user;
+        invited = f.auth.updateUserProfile({ userId: invited.id, firstName: 'Team', lastName: 'Trial' });
+        f.auth.acceptCurrentTerms({ userId: invited.id, termsVersion: require('../lib/cloud-terms').CURRENT_TERMS_VERSION });
+        users.trialMember = { ...invited, cookie: 'sdocs_cloud=' + f.auth.createBrowserSession(invited.id).token };
+        const prepared = await api('trialMember', '/api/cloud/v1/onboarding/complete', 'POST', {});
+        const personalId = prepared.data.workspaces.find(workspace => workspace.kind === 'personal').id;
+        const invitation = await store.createInvitation({ userId: users.josh.id, workspaceId: second,
+          email: 'team-trial-member@joes.com' });
+        const accepted = await api('trialMember', '/api/cloud/v1/invitations/' + invitation.token + '/accept', 'POST', {});
+        assert.strictEqual(accepted.status, 200);
+        const payer = single.account(second).id;
+        assert.strictEqual(single.coverage(invited.id).account_id, payer);
+        const seats = single.seatCount(payer);
+        const ownDeadline = billing.db.prepare('SELECT ends_at_ms FROM cloud_billing_personal_trials WHERE user_id=?').get(invited.id).ends_at_ms;
+        await api('trialMember', '/api/cloud/v1/onboarding/complete', 'POST', {});
+        const personal = await api('trialMember', '/api/cloud/v1/account?account_id=' + personalId);
+        assert.strictEqual(personal.status, 200);
+        assert.strictEqual((await create('trialMember', personalId, 'trial-personal-note')).status, 201);
+        assert.strictEqual(single.coverage(invited.id).account_id, payer);
+        assert.strictEqual(single.seatCount(payer), seats);
+        assert.strictEqual(billing.db.prepare('SELECT ends_at_ms FROM cloud_billing_personal_trials WHERE user_id=?').get(invited.id).ends_at_ms, ownDeadline);
+        assert.strictEqual(billing.getSubscription(single.ownAccount(invited.id).id), null);
+        assert.strictEqual((await api('trialMember', '/api/cloud/v1/workspaces', 'POST', { name: 'Own trial project' })).status, 201);
+        assert.strictEqual(single.coverage(invited.id).account_id, payer);
+        assert.strictEqual(single.seatCount(payer), seats);
+        const ownAccount = single.ownAccount(invited.id);
+        billing.upsertSubscription({ workspaceId: ownAccount.id, plan: 'team', status: 'active', provider: 'manual' });
+        await api('trialMember', '/api/cloud/v1/onboarding/complete', 'POST', {});
+        assert.strictEqual(single.coverage(invited.id).account_id, ownAccount.id);
+        assert.strictEqual(single.seatCount(payer), seats - 1);
       });
       await testAsync('listing, search, tags and settings never disclose another organisation libraries or files', async () => {
         const settings = await api('outsider', '/api/cloud/v1/library-settings');
@@ -133,11 +227,12 @@ module.exports = function (h) {
       await testAsync('a paid sponsor covers the same person across libraries without a second billed seat', async () => {
         const account = single.account(own);
         billing.upsertSubscription({ workspaceId: account.id, plan: 'team', status: 'active', provider: 'manual' });
-        store.addWorkspaceMember({ actorUserId: users.josh.id, workspaceId: own, userId: users.member.id, role: 'member' });
-        single.claim(users.member.id, own);
-        const before = single.seatCount(account.id);
         store.addWorkspaceMember({ actorUserId: users.josh.id, workspaceId: second, userId: users.member.id, role: 'member' });
         single.claim(users.member.id, second);
+        const before = single.seatCount(account.id);
+        const extra = (await api('josh', '/api/cloud/v1/workspaces', 'POST', { name: 'Another team library' })).data.workspace.workspaceId;
+        store.addWorkspaceMember({ actorUserId: users.josh.id, workspaceId: extra, userId: users.member.id, role: 'member' });
+        single.claim(users.member.id, extra);
         assert.strictEqual(single.seatCount(account.id), before);
         single.initialize(users.outsider.id, f.otherTeam.workspaceId, users.outsider.email);
         store.addWorkspaceMember({ actorUserId: users.outsider.id, workspaceId: f.otherTeam.workspaceId, userId: users.member.id, role: 'member' });
@@ -149,8 +244,11 @@ module.exports = function (h) {
         assert.strictEqual((await api('member', '/api/cloud/v1/documents/' + foreign.id)).status, 404);
       });
       await testAsync('Everyone is scoped to library membership, never email domain or sponsorship', async () => {
+        const shared = (await create('josh', second, 'shared-team-document')).data.document;
+        store.setDocumentPermission({ userId: users.josh.id, documentId: shared.id, mode: 'everyone' });
         store.setDocumentPermission({ userId: users.josh.id, documentId: doc.id, mode: 'everyone' });
-        assert.strictEqual((await api('member', '/api/cloud/v1/documents/' + doc.id)).status, 200);
+        assert.strictEqual((await api('member', '/api/cloud/v1/documents/' + shared.id)).status, 200);
+        assert.strictEqual((await api('member', '/api/cloud/v1/documents/' + doc.id)).status, 404);
         assert.strictEqual((await api('bob', '/api/cloud/v1/documents/' + doc.id)).status, 404);
       });
       await testAsync('machine defaults are scoped to the owner and affect only new unbound documents', async () => {

@@ -108,7 +108,7 @@
         (libraryName ? '\n\nMy library is ' + JSON.stringify(libraryName) + '.' : '') + '\n\n' +
         steps.map(function (step, index) { return (index + 1) + '. ' + step; }).join('\n') +
         '\n\nPut this short guide in the document:\n' +
-        '- My library holds Cloud documents I can open from other computers. Tags are labels, such as `launch` or `research`, that help us find related documents again.\n' +
+        '- My library holds Cloud documents I can open from other computers. Everyone has a private Personal library. To invite people, I create or join a separate Team library. Tags are labels, such as `launch` or `research`, that help us find related documents again.\n' +
         '- I can ask for a document without naming a tool: "Write a document about our launch plan." I can also say "Make a SmallDoc" or "Use SmallDocs". Use SmallDocs by default unless I request another format or tool.\n' +
         '- I can ask you to find documents by tags, author or words, read comments and update the same document. Edits keep its Cloud URL, and the open browser page picks up saved changes.\n' +
         '- I can ask you to manage my library and account through chat. You can invite or remove members when my role allows it, check my trial and billing, and open account settings. "Subscribe to SmallDocs" opens the subscription page, where I complete payment. "Cancel my subscription" opens billing settings, where I complete cancellation. Inviting someone does not share existing private documents.\n' +

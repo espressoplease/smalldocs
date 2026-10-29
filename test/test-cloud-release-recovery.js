@@ -74,9 +74,10 @@ await h.testAsync('checkout reconciles intervening members and publishes payment
  const single = new (require('../lib/cloud-single-plan').SinglePlan)({billing:f.billing,store:f.store});
  try {
   const library=(await f.api('josh','/api/cloud/v1/onboarding/complete','POST',{})).data.workspaces[0].id;
+  const teamLibrary=(await f.api('josh','/api/cloud/v1/workspaces','POST',{name:'Recovery test team'})).data.workspace.workspaceId;
   const checkout=await f.api('josh','/api/cloud/billing/subscribe','POST',{});assert.equal(checkout.status,200);
   const session=sessions[0];assert.equal(session.params['line_items[0][quantity]'],'1');
-  const invite=await f.store.createInvitation({userId:f.users.josh.id,workspaceId:library,email:f.users.gmail.email,role:'member'});
+  const invite=await f.store.createInvitation({userId:f.users.josh.id,workspaceId:teamLibrary,email:f.users.gmail.email,role:'member'});
   const accept=await f.api('gmail','/api/cloud/v1/invitations/'+invite.token+'/accept','POST',{});assert.equal(accept.status,200,JSON.stringify(accept.data));
   // A seat-sync job can run before payment and finish without a Stripe subscription.
   const jobs=require('../lib/cloud-jobs').createCloudJobs({dbPath:require('path').join(f.dir,'jobs.db')});

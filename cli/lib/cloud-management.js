@@ -25,6 +25,8 @@ Browser sign-in is independent of CLI authorization. Never collect card details.
 Invitations queue an email when delivery is configured and return an accept_url.
 Check notification_scheduled before reporting delivery. They require the same
 library permissions as the UI.
+Personal libraries are private and cannot have members. Create a team library
+in cloud settings libraries, then pass its --account UUID when inviting people.
 Resolve USER_ID with cloud members. Removing a member revokes library access
 and reconciles sponsored seats. An owner cannot remove the final owner.
 Inviting a person does not share existing private documents with them.

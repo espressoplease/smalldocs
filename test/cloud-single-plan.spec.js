@@ -19,7 +19,7 @@ for (const width of [390, 1440]) {
     await expect(page.locator('body')).not.toContainText('Your SmallDocs libraries');
     await page.getByRole('button', { name: 'Libraries', exact: true }).click();
     await page.getByRole('textbox', { name: 'Library name', exact: true }).fill('Engineering');
-    await page.getByRole('button', { name: 'Create library', exact: true }).click();
+    await page.getByRole('button', { name: 'Create team library', exact: true }).click();
     await expect(page.locator('#account-switcher-name')).toHaveText('Engineering');
     expect((await f.store.listWorkspaces(f.users.missing.id)).length).toBe(2);
     await page.goto(f.origin + '/cloud/admin?panel=libraries');
@@ -116,7 +116,7 @@ test('paid accounts cannot accidentally start a second subscription from the pag
   // Initialize coverage through the same billing access used by the app.
   await f.api('returning', '/api/cloud/v1/account/documents', 'POST', { account_id: f.personal.workspaceId, filename: 'existing.md', markdown: '# Existing', idempotency_key: 'paid-summary' });
   await page.goto(f.origin + '/cloud/subscribe');
-  await expect(page.locator('#subscription-state')).toContainText('You already have a subscription');
+  await expect(page.locator('#subscription-state')).toContainText('Your subscription is active');
   await expect(page.locator('#subscribe')).toBeHidden();
 });
 
@@ -138,5 +138,5 @@ test('cancelling an early subscription does not claim a future trial deadline ha
   await page.goto(f.origin + '/cloud/subscribe');
   await expect(page.getByRole('button', { name: 'Subscribe', exact: true })).toBeVisible();
   await expect(page.locator('#subscription-state')).not.toContainText('trial has ended');
-  await expect(page.locator('#subscription-state')).toContainText('Subscribe to continue saving');
+  await expect(page.locator('#subscription-state')).toContainText('Subscribe again to save changes');
 });

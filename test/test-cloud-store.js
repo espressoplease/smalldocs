@@ -196,7 +196,7 @@ module.exports = function(harness) {
       const again = await store.ensurePersonalWorkspace(owner, 'Changed');
       assert.strictEqual(again.created, false);
       assert.strictEqual(again.workspaceId, personal.workspaceId);
-      assert.deepStrictEqual((await store.listWorkspaces(owner)).map((row) => row.name), ['Josh']);
+      assert.deepStrictEqual((await store.listWorkspaces(owner)).map((row) => row.name), ['Personal']);
       assert.deepStrictEqual(store.listWorkspaceMemberships(owner), [
         { id: personal.workspaceId, kind: 'personal', role: 'owner' },
       ]);

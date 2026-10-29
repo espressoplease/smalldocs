@@ -105,21 +105,24 @@ module.exports = function (h) {
         assert.strictEqual(f.billing.db.prepare('SELECT COUNT(*) AS n FROM cloud_billing_personal_trials WHERE user_id=?').get(user.id).n, 1);
       });
 
-      await testAsync('invited signup joins the intended library without an extra trial or private library', async () => {
+      await testAsync('invited signup retains the destination and provisions Personal alongside the team', async () => {
         const user = actor('invited-ready', false);
         const invite = await f.store.createInvitation({ userId: f.users.bob.id, workspaceId: f.team.workspaceId,
           email: user.email, role: 'member' });
         const target = '/cloud/invite?token=' + invite.token;
         const profile = await f.api('invited-ready', '/api/cloud/v1/me', 'PATCH', { first_name: 'Invited', last_name: 'Person', return_to: target });
         assert.strictEqual(profile.data.return_to, target);
-        assert.strictEqual(profile.data.onboarding_complete, false);
-        assert.strictEqual(f.store.listWorkspaceMemberships(user.id).length, 0);
+        assert.strictEqual(profile.data.onboarding_complete, true);
+        assert.strictEqual(f.store.listWorkspaceMemberships(user.id).filter(library => library.kind === 'personal').length, 1);
         const accepted = await f.api('invited-ready', '/api/cloud/v1/invitations/' + invite.token + '/accept', 'POST', {});
         assert.strictEqual(accepted.status, 200, JSON.stringify(accepted.data));
         const result = await verify('invited-ready', '/library?scope=cloud');
         assert.strictEqual(result.data.onboarding_complete, true);
-        assert.deepStrictEqual(f.store.listWorkspaceMemberships(user.id).map(library => library.id), [f.team.workspaceId]);
-        assert.strictEqual(trial(user.id), undefined);
+        const libraries = f.store.listWorkspaceMemberships(user.id);
+        assert.strictEqual(libraries.length, 2);
+        assert.ok(libraries.some(library => library.id === f.team.workspaceId));
+        assert.strictEqual(libraries.filter(library => library.kind === 'personal').length, 1);
+        assert.ok(trial(user.id));
         assert.strictEqual((await f.api('outsider', '/api/cloud/v1/account?account_id=' + f.team.workspaceId)).status, 404);
       });
 
@@ -134,9 +137,9 @@ module.exports = function (h) {
         const profile = await f.api('invite-resume', '/api/cloud/v1/me', 'PATCH', {
           first_name: 'Invited', last_name: 'Again', return_to: nested });
         assert.strictEqual(profile.data.return_to, target);
-        assert.strictEqual(profile.data.onboarding_complete, false);
-        assert.strictEqual(f.store.listWorkspaceMemberships(user.id).length, 0);
-        assert.strictEqual(trial(user.id), undefined);
+        assert.strictEqual(profile.data.onboarding_complete, true);
+        assert.strictEqual(f.store.listWorkspaceMemberships(user.id).filter(library => library.kind === 'personal').length, 1);
+        assert.ok(trial(user.id));
       });
 
       // Run the production OAuth callback with a verified provider adapter. The

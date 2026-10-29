@@ -1183,6 +1183,7 @@ function cloudApiError(res, error) {
     idempotency_mismatch: 409,
     final_owner_required: 409,
     personal_workspace_cannot_be_deleted: 409,
+    personal_library_private: 409,
     subscription_required: 402,
     subscription_read_only: 402,
     trial_payment_required: 402,
@@ -1211,6 +1212,10 @@ function cloudApiError(res, error) {
     temporary_service_failure: 503,
   };
   const body = { ok: false, error: code };
+  if (code === 'personal_library_private') {
+    body.message = 'Personal libraries are private. Create a team library to invite people.';
+    body.settings_url = CLOUD_AUTH_PUBLIC_ORIGIN + '/cloud/admin?panel=libraries';
+  }
   if (code === 'recent_auth_required') {
     body.message = 'Sign in again to continue. Your changes have not been submitted.';
     body.sign_in_url = '/cloud/sign-in';
@@ -1374,19 +1379,22 @@ async function completeCloudOnboarding(user) {
       if (cloudBilling) await require('./lib/cloud-library-upgrade').recoverLocal({ billing: cloudBilling, store: cloudStore, userId: user.id });
       if (!user.firstName || !user.lastName) throw Object.assign(new Error('profile_required'), { code: 'profile_required' });
       let workspaces = await cloudStore.listWorkspaces(user.id);
-      if (!workspaces.length) {
-        if (!cloudBilling) throw Object.assign(new Error('billing_not_configured'), { code: 'billing_not_configured' });
-        if (cloudSinglePlan) {
-          const workspace = await cloudStore.ensureInitialLibrary(user.id, user.firstName + ' ' + user.lastName);
-          cloudSinglePlan.initialize(user.id, workspace.workspaceId, verifiedCloudEmail(user.id));
-        } else await cloudStore.ensurePersonalWorkspace(user.id, user.firstName + ' ' + user.lastName);
-        workspaces = await cloudStore.listWorkspaces(user.id);
-      }
       if (cloudSinglePlan) {
+        if (!cloudBilling) throw Object.assign(new Error('billing_not_configured'), { code: 'billing_not_configured' });
+        // Attach existing libraries first to preserve the payer and trial deadline.
         for (const workspace of workspaces) {
           if (workspace.role === 'owner') cloudSinglePlan.initialize(user.id, workspace.id, verifiedCloudEmail(user.id));
           else cloudSinglePlan.claim(user.id, workspace.id);
         }
+        const personal = await cloudStore.ensurePersonalWorkspace(user.id, 'Personal');
+        if (!workspaces.some(workspace => workspace.id === personal.workspaceId)) {
+          cloudSinglePlan.initialize(user.id, personal.workspaceId, verifiedCloudEmail(user.id));
+        }
+        workspaces = await cloudStore.listWorkspaces(user.id);
+      } else if (!workspaces.length) {
+        if (!cloudBilling) throw Object.assign(new Error('billing_not_configured'), { code: 'billing_not_configured' });
+        await cloudStore.ensurePersonalWorkspace(user.id, user.firstName + ' ' + user.lastName);
+        workspaces = await cloudStore.listWorkspaces(user.id);
       }
       const personal = workspaces.find(workspace => workspace.kind === 'personal' && workspace.role === 'owner');
       if (personal && cloudBilling && !cloudSinglePlan) cloudBilling.ensurePersonalTrial({ userId: user.id, workspaceId: personal.id, verifiedEmail: verifiedCloudEmail(user.id) });
@@ -1398,6 +1406,7 @@ function cloudNeedsOnboarding(user) {
   if (!user.firstName || !user.lastName) return true;
   const memberships = cloudStore.listWorkspaceMemberships(user.id);
   if (!memberships.length) return true;
+  if (!memberships.some(workspace => workspace.kind === 'personal' && workspace.role === 'owner')) return true;
   return memberships.some(workspace => {
     const account = cloudSinglePlan.account(workspace.id);
     if (!account) return true;
@@ -1416,12 +1425,6 @@ async function cloudSignInContinuation(user, requestedReturn) {
   if (!SINGLE_PLAN_ENABLED) return { return_to: target };
   if (!user.firstName || !user.lastName) {
     return { return_to: '/cloud/profile?return=' + encodeURIComponent(target), onboarding_complete: false };
-  }
-  // Accepting an email-bound invitation supplies the first library. Keep that
-  // deliberate step ahead of provisioning a separate library and trial.
-  const invitation = new URL(target, CLOUD_AUTH_PUBLIC_ORIGIN);
-  if (['/cloud/invite', '/cloud/business-invite'].includes(invitation.pathname) && invitation.searchParams.get('token')) {
-    return { return_to: target, onboarding_complete: !cloudNeedsOnboarding(user) };
   }
   try {
     await prepareCloudAccount(user);
@@ -1643,7 +1646,7 @@ async function cloudJoinReview(user, token) {
     throw Object.assign(new Error('resource_unavailable'), { code: 'resource_unavailable' });
   }
   const workspaces = (await cloudStore.listWorkspaces(user.id)).filter(workspace =>
-    (cloudSinglePlan || workspace.kind === 'team') && ['owner', 'admin'].includes(workspace.role));
+    workspace.kind === 'team' && ['owner', 'admin'].includes(workspace.role));
   if (!workspaces.length) throw Object.assign(new Error('resource_unavailable'), { code: 'resource_unavailable' });
   return { row, workspaces, requesterEmail };
 }

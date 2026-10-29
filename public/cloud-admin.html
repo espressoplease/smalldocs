@@ -27,7 +27,8 @@
   .account-switcher-button:disabled { cursor:default; }
   .account-switcher-button:disabled > svg { visibility:hidden; }
   .account-switcher-button:hover { border-color:var(--text-3); background:var(--surface-2); }
-  .account-switcher-mark { width:28px; height:28px; display:grid; flex:0 0 auto; place-items:center; border-radius:6px; background:var(--blue); color:#fff; font-size:10px; font-weight:600; }
+  .account-switcher-mark { width:28px; height:28px; display:grid; flex:0 0 auto; place-items:center; color:var(--text); }
+  .account-switcher-mark svg, .account-switcher-menu button .account-switcher-mark svg { width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:2; }
   .account-switcher-copy { min-width:0; flex:1; }
   .account-switcher-copy strong { display:block; overflow:hidden; font-size:12.5px; font-weight:500; text-overflow:ellipsis; white-space:nowrap; }
   .account-switcher-button > svg { width:14px; height:14px; flex:0 0 auto; fill:none; stroke:currentColor; stroke-width:2; color:var(--text-3); }
@@ -178,8 +179,8 @@
       <div><h1>Cloud settings</h1><p class="description" id="account-label">Loading account</p></div>
     <div class="account-switcher" id="account-switcher" hidden>
       <button class="account-switcher-button" id="account-switcher-button" type="button" aria-expanded="false" aria-haspopup="menu">
-        <span class="account-switcher-mark" id="account-switcher-mark">C</span>
-        <span class="account-switcher-copy"><strong id="account-switcher-name">Choose account</strong></span>
+        <span class="account-switcher-mark" id="account-switcher-mark" aria-hidden="true"></span>
+        <span class="account-switcher-copy"><strong id="account-switcher-name">Choose library</strong></span>
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/></svg>
       </button>
       <div class="account-switcher-menu" id="account-switcher-menu" role="menu" hidden></div>
@@ -197,8 +198,8 @@
     <section class="panel" id="panel-libraries" hidden>
       <div class="page-head"><div><h2>Libraries</h2><p class="description">Choose where you work, create a library, or request an invitation.</p></div></div>
       <div class="card" id="all-libraries"></div>
-      <div class="card"><div class="card-head"><div><h2>Create a library</h2><p>Documents start with access for you only. Invite people from People when you want to collaborate.</p></div></div>
-      <form class="invite open" id="create-library-form"><input class="field" id="new-library-name" aria-label="Library name" placeholder="Library name" maxlength="512" required><button class="btn primary" type="submit">Create library</button><p class="form-status" id="library-create-status" role="status"></p></form></div>
+      <div class="card"><div class="card-head"><div><h2>Create a team library</h2><p>Create a team library, then open People to invite members. Only you can access new documents until you share them. Your Personal library stays private.</p></div></div>
+      <form class="invite open" id="create-library-form"><input class="field" id="new-library-name" aria-label="Library name" placeholder="Library name" maxlength="512" required><button class="btn primary" type="submit">Create team library</button><p class="form-status" id="library-create-status" role="status"></p></form></div>
       <div class="card"><div class="card-head"><div><h2>Join a library</h2><p>Open an invitation from its administrator, or create a request link to send to them. Your existing documents stay in their libraries.</p></div></div>
       <form class="install-content" id="library-request-form"><label>Work email<select class="field" id="library-request-email"></select></label><label>Note (optional)<textarea class="field" id="library-request-note" maxlength="1000" rows="3"></textarea></label>
       <label><input type="checkbox" id="library-request-consent" required> Share my name, verified email and note with administrators at my email domain who open my request link.</label>

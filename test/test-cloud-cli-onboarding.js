@@ -105,11 +105,15 @@ module.exports = function (h) {
         assert.strictEqual(store.listWorkspaceMemberships(user.id).length, 2);
       });
 
-      await testAsync('joining through an existing membership does not create another private library', async () => {
+      await testAsync('joining through an existing membership provisions Personal once and retains the team', async () => {
         const before = store.listWorkspaceMemberships(users.member.id);
         const credential = await authorize('member');
-        assert.deepStrictEqual(store.listWorkspaceMemberships(users.member.id), before);
-        assert.strictEqual((await bearer(credential, '/api/cloud/v1/account')).data.account.id, f.team.workspaceId);
+        const libraries = store.listWorkspaceMemberships(users.member.id);
+        assert.strictEqual(libraries.filter(library => library.kind === 'personal').length, 1);
+        assert.ok(before.every(library => libraries.some(current => current.id === library.id)));
+        assert.strictEqual((await bearer(credential, '/api/cloud/v1/account?account_id=' + f.team.workspaceId)).data.account.id, f.team.workspaceId);
+        await authorize('member');
+        assert.strictEqual(store.listWorkspaceMemberships(users.member.id).length, libraries.length);
       });
 
       await testAsync('logging in again preserves the trial payment wall without extending the deadline', async () => {

@@ -27,7 +27,7 @@ module.exports = function (h) {
       let data; try { data = JSON.parse(result.stdout); } catch (_) { throw new Error(result.stdout + result.stderr); }
       return { code: result.status, data };
     }
-    let library, document, file, invitation;
+    let library, teamLibrary, document, file, invitation;
     try {
       await testAsync('old accounts keep legacy navigation, new accounts default to Cloud, and preferences survive restart', async () => {
         const dbPath = path.join(f.dir, 'auth-migration.db');
@@ -79,7 +79,8 @@ module.exports = function (h) {
         const summary = cli(['cloud', 'billing']);
         assert.strictEqual(summary.data.phase, 'trial_warning');
         assert.strictEqual((await api('josh', '/docs?cloud-document=' + document.document_id)).status, 200);
-        const invited = cli(['cloud', 'invite', users.gmail.email, '--account', library]);
+        teamLibrary = (await api('josh', '/api/cloud/v1/workspaces', 'POST', { name: 'Operations team' })).data.workspace.workspaceId;
+        const invited = cli(['cloud', 'invite', users.gmail.email, '--account', teamLibrary]);
         assert.strictEqual(invited.code, 0, JSON.stringify(invited.data));
         const token = new URL(invited.data.invitation.accept_url).searchParams.get('token');
         const joined = await api('gmail', '/api/cloud/v1/invitations/' + token + '/accept', 'POST', {});
@@ -129,22 +130,24 @@ module.exports = function (h) {
         assert.deepStrictEqual(result.data.notices, []); assert.ok(result.data.markdown.includes('Retry with backoff.'));
       });
       await testAsync('an authorized agent can invite, list and revoke an invitation with existing role checks', async () => {
-        const result = cli(['cloud','invite','alex@example.test','--account',library]);
+        const result = cli(['cloud','invite','alex@example.test','--account',teamLibrary]);
         assert.strictEqual(result.code, 0, JSON.stringify(result.data)); invitation = result.data.invitation.id;
-        assert.ok(cli(['cloud','invitations','--account',library]).data.invitations.some(i=>i.id===invitation));
-        assert.strictEqual(cli(['cloud','revoke-invite',invitation,'--account',library]).code, 0);
+        assert.ok(cli(['cloud','invitations','--account',teamLibrary]).data.invitations.some(i=>i.id===invitation));
+        assert.strictEqual(cli(['cloud','revoke-invite',invitation,'--account',teamLibrary]).code, 0);
         const rejected = cli(['cloud','invite','foreign@example.test','--account',f.otherTeam.workspaceId]);
         assert.notStrictEqual(rejected.code, 0); assert.strictEqual(rejected.data.error, 'resource_unavailable');
       });
       await testAsync('agent member removal revokes access and cannot remove the final owner or a foreign member', async () => {
-        store.addWorkspaceMember({ actorUserId:users.josh.id,workspaceId:library,userId:users.member.id,role:'member' });
-        store.setDocumentPermission({ userId:users.josh.id,documentId:document.document_id,mode:'everyone' });
-        assert.strictEqual((await api('member','/api/cloud/v1/documents/' + document.document_id)).status, 200);
-        const unprivileged = cli(['cloud','remove-member',users.josh.id,'--account',library], 'member');
+        store.addWorkspaceMember({ actorUserId:users.josh.id,workspaceId:teamLibrary,userId:users.member.id,role:'member' });
+        const shared = (await api('josh', '/api/cloud/v1/account/documents', 'POST', {
+          account_id: teamLibrary, filename: 'team.md', markdown: '# Shared team document', idempotency_key: 'team-removal-test' })).data.document;
+        store.setDocumentPermission({ userId:users.josh.id,documentId:shared.id,mode:'everyone' });
+        assert.strictEqual((await api('member','/api/cloud/v1/documents/' + shared.id)).status, 200);
+        const unprivileged = cli(['cloud','remove-member',users.josh.id,'--account',teamLibrary], 'member');
         assert.notStrictEqual(unprivileged.code, 0);
-        assert.strictEqual(cli(['cloud','remove-member',users.member.id,'--account',library]).code, 0);
-        assert.strictEqual((await api('member','/api/cloud/v1/documents/' + document.document_id)).status, 404);
-        assert.notStrictEqual(cli(['cloud','remove-member',users.josh.id,'--account',library]).code, 0);
+        assert.strictEqual(cli(['cloud','remove-member',users.member.id,'--account',teamLibrary]).code, 0);
+        assert.strictEqual((await api('member','/api/cloud/v1/documents/' + shared.id)).status, 404);
+        assert.notStrictEqual(cli(['cloud','remove-member',users.josh.id,'--account',teamLibrary]).code, 0);
         assert.notStrictEqual(cli(['cloud','remove-member',users.outsider.id,'--account',f.otherTeam.workspaceId]).code, 0);
       });
     } finally { await f.close(); }

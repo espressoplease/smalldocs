@@ -77,7 +77,7 @@ test('an individual account shows its library label and hides team and project c
   await page.goto('/public/cloud-admin.html');
   await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible();
   await expect(page.locator('#account-switcher')).toBeVisible();
-  await expect(page.locator('#account-switcher-button')).toBeDisabled();
+  await expect(page.locator('#account-switcher-button')).toBeEnabled();
   await expect(page.getByRole('button', { name: 'People' })).toBeHidden();
   await expect(page.getByText('Projects', { exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Connected machines' })).toBeVisible();
@@ -175,7 +175,7 @@ test('Team Cloud keeps invitations and domains in People without project control
   await expect(page.getByText('Projects', { exact: true })).toHaveCount(0);
   await expect(page.getByText(/project access/i)).toHaveCount(0);
   await expect(page.locator('#account-switcher')).toBeVisible();
-  await expect(page.locator('#account-switcher-button')).toBeDisabled();
+  await expect(page.locator('#account-switcher-button')).toBeEnabled();
   await expect(page.getByText('Olivia Walker', { exact: true })).toBeVisible();
   await expect(page.getByText('Tom Smith', { exact: true })).toBeVisible();
   const avatar = page.locator('.avatar').first();

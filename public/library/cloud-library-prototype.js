@@ -43,10 +43,11 @@
 
   heading.hidden = false;
 
-  function workspaceMark(name) {
+  function workspaceMark(workspace) {
     const mark = document.createElement('span');
     mark.className = 'workspace-mark';
-    mark.textContent = window.SDocsCloudAccountSelection.initials(name);
+    mark.innerHTML = window.SDocsCloudAccountSelection.icon(workspace && workspace.kind);
+    if (workspace) mark.style.color = window.SDocsCloudAccountSelection.color(workspace.id);
     return mark;
   }
 
@@ -55,8 +56,9 @@
     window.SDocsCloudAccountSelection.remember(localStorage, workspace.id);
     window.SDocsCloudLibrary.workspaceId = workspace.id;
     window.SDocsCloudLibrary.workspaceName = accountName;
+    document.getElementById('personal-library-note').hidden = workspace.kind !== 'personal';
     workspaceButton.replaceChildren(
-      workspaceMark(accountName),
+      workspaceMark(workspace),
       Object.assign(document.createElement('span'), { textContent: accountName }),
       chevron()
     );
@@ -94,15 +96,15 @@
     workspaceMenu.replaceChildren();
     const label = document.createElement('div');
     label.className = 'workspace-menu-label';
-    label.textContent = 'Accounts';
+    label.textContent = 'Libraries';
     workspaceMenu.appendChild(label);
-    workspaces.forEach(function (workspace) {
+    window.SDocsCloudAccountSelection.orderedLibraries(workspaces).forEach(function (workspace) {
       const button = document.createElement('button');
       button.className = 'workspace-menu-item' + (workspace.id === selectedId ? ' selected' : '');
       button.type = 'button';
       button.setAttribute('role', 'menuitem');
       var accountName = window.SDocsCloudAccountSelection.label(workspace, user);
-      button.appendChild(workspaceMark(accountName));
+      button.appendChild(workspaceMark(workspace));
       const copy = document.createElement('span');
       const strong = document.createElement('strong');
       strong.textContent = accountName;
@@ -112,7 +114,7 @@
         const check = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
         check.setAttribute('class', 'workspace-check');
         check.setAttribute('viewBox', '0 0 24 24');
-        check.setAttribute('aria-label', 'Current account');
+        check.setAttribute('aria-label', 'Current library');
         const path = document.createElementNS(check.namespaceURI, 'path');
         path.setAttribute('d', 'm20 6-11 11-5-5');
         check.appendChild(path);
@@ -130,7 +132,7 @@
       const link = document.createElement('a');
       link.className = 'workspace-menu-link';
       link.href = '/cloud/admin?workspace_id=' + encodeURIComponent(selected.id);
-      link.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/></svg><span>Cloud settings</span>';
+      link.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/></svg><span>' + (selected.kind === 'personal' ? 'Account settings' : 'Library settings') + '</span>';
       workspaceMenu.append(separator, link);
     }
   }
@@ -167,7 +169,7 @@
     const me = account.user || {};
     window.SDocsCloudLibrary.workspaces = workspaces;
     window.SDocsCloudLibrary.user = me;
-    actions.hidden = workspaces.length <= 1;
+    actions.hidden = workspaces.length === 0;
     const note = heading.querySelector('.cloud-access-note');
     if (note) note.textContent = me.email ? 'Signed in as ' + me.email : 'Signed in';
     if (!workspaces.length) {
@@ -182,12 +184,12 @@
       selectWorkspace(selectedWorkspace, me).catch(showUnavailable);
     } else {
       workspaceButton.replaceChildren(
-        workspaceMark('Cloud'),
-        Object.assign(document.createElement('span'), { textContent: 'Choose account' }),
+        workspaceMark(null),
+        Object.assign(document.createElement('span'), { textContent: 'Choose library' }),
         chevron()
       );
       renderMenu(workspaces, null, me);
-      if (note) note.textContent = 'Choose an account to view its documents';
+      if (note) note.textContent = 'Choose a library to view its documents';
     }
   }).catch(showUnavailable);
 })();

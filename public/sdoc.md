@@ -43,7 +43,7 @@ The `skills` installer detects supported coding agents and installs the SmallDoc
 
 Each document builds your tagged knowledge library. Agents choose meaningful tags, reuse existing vocabulary, and preserve relevant tags when updating documents, so you and your agents can find and build on earlier work.
 
-Run `sdoc cloud login`, complete authorization in the browser, then run `sdoc cloud status --json`. First-time Cloud-first authorization prepares your library and trial before the CLI connects. One library is selected automatically; with several libraries, choose where new documents should be saved.
+Run `sdoc cloud login`, complete authorization in the browser, then run `sdoc cloud status --json`. First-time Cloud-first authorization prepares your private Personal library and trial before the CLI connects. People signing up through a team invitation also get a Personal library. Personal cannot have other members; create a Team library in [Libraries settings](/cloud/admin?panel=libraries) to invite people. One library is selected automatically; with several libraries, choose where new documents should be saved. Additional libraries use the same per-person billing account and original trial deadline.
 
 After you connect SmallDocs Cloud, run `sdoc setup --cloud --yes`. The Cloud edition has the same `smalldocs` name, so agents do not see two overlapping SmallDocs skills. In Cloud-first mode, `sdoc FILE.md` creates or updates the Cloud document before opening it. List your libraries with `sdoc cloud libraries --json`. Use `sdoc cloud library-default LIBRARY_UUID --json` to select the default for new documents from this connected computer. An explicit `--account UUID` takes priority; existing documents keep their bindings.
 

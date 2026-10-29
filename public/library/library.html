@@ -65,20 +65,22 @@ __CLOUD_LIBRARY_STYLES__
       <div class="cloud-library-actions" id="cloud-library-actions" hidden>
         <div class="workspace-switcher">
           <button class="workspace-button" id="workspace-button" aria-expanded="false" aria-haspopup="menu">
-            <span class="workspace-mark">C</span>
-            <span>Cloud</span>
+            <span class="workspace-mark" aria-hidden="true"></span>
+            <span>Choose library</span>
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
           </button>
           <div class="workspace-menu" id="workspace-menu" role="menu" hidden>
-            <div class="workspace-menu-label">Accounts</div>
+            <div class="workspace-menu-label">Libraries</div>
           </div>
         </div>
+        <a class="workspace-button cloud-create-library" href="/cloud/admin?panel=libraries">Create team library</a>
       </div>
     </div>
 
     <div class="cloud-library-heading" id="cloud-library-heading" hidden>
       <span class="cloud-access-note"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m17 15-5.5 5.5L9 18"/><path d="M5.516 16.07A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 3.501 7.327"/></svg> Loading Cloud account...</span>
     </div>
+    <p class="personal-library-note" id="personal-library-note" hidden>Your Personal library is for you only. <a href="/cloud/admin?panel=libraries">Create a team library</a> to invite people.</p>
 
     <section class="cloud-onboarding" id="cloud-onboarding" hidden>
       <h1>Cloud Library</h1>
