@@ -35,15 +35,28 @@ module.exports = function (h) {
     });
     await testAsync('install instructions select the library after login and set PATH and origin before sdoc', async () => {
       for (const windows of [false, true]) {
-        const instructions = setup.cloudInstructions({ origin: STAGING_ORIGIN, workspaceId: 'library-123', windows });
+        const instructions = setup.cloudInstructions({ origin: STAGING_ORIGIN, workspaceId: 'library-123', workspaceName: 'Engineering', windows });
         assert.ok(instructions.commands.indexOf('SDOCS_CLOUD_URL=') < instructions.commands.indexOf('sdoc cloud login'));
         assert.ok(instructions.commands.indexOf('sdoc cloud login') < instructions.commands.indexOf('sdoc setup --cloud'));
         assert.ok(instructions.commands.includes('sdoc setup --cloud --account library-123 --yes'));
+        assert.ok(instructions.commands.indexOf('sdoc cloud login') < instructions.commands.indexOf('sdoc cloud library-default library-123 --json'));
+        assert.ok(instructions.commands.indexOf('sdoc cloud library-default library-123 --json') < instructions.commands.indexOf('sdoc cloud status'));
         assert.ok(instructions.commands.includes(STAGING_ORIGIN + (windows ? '/cli/sdocs-dev.tgz' : '/install')));
         if (!windows) assert.ok(instructions.commands.includes('export PATH="$HOME/.sdocs/bin:$PATH"'));
         assert.ok(instructions.prompt.includes('Replace the example tags'));
         assert.ok(instructions.prompt.includes('returned Cloud URL'));
+        assert.ok(instructions.prompt.includes('My library is "Engineering".'));
+        assert.ok(instructions.prompt.includes('Create one short getting-started document'));
+        assert.ok(instructions.prompt.includes('can_create_document'));
+        assert.ok(instructions.prompt.includes('Write a document about our launch plan.'));
+        assert.ok(instructions.prompt.includes('invite or remove members'));
+        assert.ok(instructions.prompt.includes('Cancel my subscription'));
+        assert.ok(instructions.prompt.includes('where I complete payment'));
+        assert.ok(instructions.prompt.includes('where I complete cancellation'));
       }
+      const unscoped = setup.cloudInstructions();
+      assert.ok(!unscoped.commands.includes('library-default'));
+      assert.ok(!unscoped.prompt.includes('--account '));
       assert.strictEqual(setup.installCommand(false), 'curl -fsSL https://smalldocs.org/install | sh');
     });
   };

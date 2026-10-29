@@ -639,7 +639,8 @@
 
   function renderInstall(workspaceId) {
     var setup = window.SDocCliSetup;
-    var instructions = setup.cloudInstructions({ origin: location.origin, workspaceId: workspaceId, windows: setup.isWindows() });
+    var instructions = setup.cloudInstructions({ origin: location.origin, workspaceId: workspaceId,
+      workspaceName: state.workspace && accountName(state.workspace), windows: setup.isWindows() });
     byId('install-command').textContent = instructions.commands;
     byId('install-prompt').textContent = instructions.prompt;
   }

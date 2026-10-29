@@ -66,6 +66,9 @@ test('email signup verifies the delivered code, captures a profile and reaches I
   await page.getByRole('button', { name: 'Continue', exact: true }).click();
   await expect(page).toHaveURL(/cloud\/admin\?panel=install/);
   await expect(page.locator('body')).toContainText('Robin Walker');
+  await expect(page.locator('#install-prompt')).toContainText('My library is "Robin Walker".');
+  await expect(page.locator('#install-prompt')).toContainText('Create one short getting-started document');
+  await expect(page.locator('#install-prompt')).toContainText('where I complete cancellation');
   const response = await page.request.get(f.origin + '/api/cloud/v1/workspaces');
   const data = await response.json();
   expect(data.workspaces).toHaveLength(1);
@@ -87,6 +90,11 @@ test('email signup verifies the delivered code, captures a profile and reaches I
   const markdown = path.join(f.dir, 'first.md');
   fs.writeFileSync(markdown, '# First Cloud document\n\nSaved from the CLI.');
   const execFile = require('util').promisify(require('child_process').execFile);
+  const defaultLibrary = JSON.parse((await execFile(process.execPath, [path.join(__dirname, '../cli/bin/sdocs-dev.js'),
+    'cloud', 'library-default', data.workspaces[0].id, '--json'], { env: { ...process.env, SDOCS_HOME: state,
+      SDOCS_CLOUD_URL: f.origin, SDOCS_CLOUD_FILE_CREDENTIALS: '1', SDOCS_NO_SETUP: '1', SDOCS_NO_REFRESH: '1', SDOCS_NO_UPDATE_CHECK: '1' } })).stdout);
+  expect(defaultLibrary.ok).toBe(true);
+  expect(defaultLibrary.workspace_id).toBe(data.workspaces[0].id);
   const save = async () => JSON.parse((await execFile(process.execPath, [path.join(__dirname, '../cli/bin/sdocs-dev.js'), markdown,
     '--cloud', '--url', f.origin, '--no-open', '--json'], { env: { ...process.env, SDOCS_HOME: state,
       SDOCS_CLOUD_URL: f.origin, SDOCS_CLOUD_FILE_CREDENTIALS: '1' } })).stdout);

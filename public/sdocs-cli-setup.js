@@ -78,6 +78,7 @@
     options = options || {};
     var origin = options.origin || 'https://smalldocs.org';
     var account = options.workspaceId || '';
+    var libraryName = options.workspaceName || '';
     var install = installCommand(options.windows, origin);
     var environment = origin === 'https://smalldocs.org' ? '' : options.windows
       ? '$env:SDOCS_CLOUD_URL="' + origin + '"' : 'export SDOCS_CLOUD_URL=' + origin;
@@ -87,7 +88,9 @@
     var commands = [install];
     if (!options.windows) commands.push('export PATH="$HOME/.sdocs/bin:$PATH"');
     if (environment) commands.push(environment);
-    commands.push('sdoc cloud login', setup, status);
+    commands.push('sdoc cloud login', setup);
+    if (account) commands.push('sdoc cloud library-default ' + account + ' --json');
+    commands.push(status);
     var steps = [
       'Install or update the SmallDocs CLI:\n   `' + install + '`',
     ];
@@ -95,11 +98,22 @@
     if (environment) steps.push('Before running any sdoc command, set the Cloud server:\n   `' + environment + '`');
     steps.push('Run `sdoc cloud login`. Let me approve this computer in my browser.',
       'Install the SmallDocs skill' + (account ? ' and select this library for new documents' : '') + ':\n   `' + setup + '`',
-      'Confirm this computer can create documents:\n   `' + status + '`');
+      'Read the installed `~/.agents/skills/smalldocs/SKILL.md` now so you can use it in this chat.');
+    if (account) steps.push('Save this library as the default for this computer:\n   `sdoc cloud library-default ' + account + ' --json`');
+    steps.push('Confirm the selected library and that `can_create_document` is true:\n   `' + status + '`',
+      'Create one short getting-started document in my Cloud library. Read `sdoc cloud tags --help`, then check existing tags and reuse relevant ones. Give the document meaningful tags, such as `getting-started` and `smalldocs` if they fit. Save it with the CLI and verify `ok`, the saved tags and the returned Cloud URL. Open that URL for me.');
     return {
       commands: commands.join('\n'),
-      prompt: 'Set up SmallDocs Cloud for me.\n\n' + steps.map(function (step, index) { return (index + 1) + '. ' + step; }).join('\n') +
-        '\n\nUse SmallDocs by default for documents and artifacts, unless I request another format or tool. Reuse relevant library tags and save every new document with meaningful tags. Example: `sdoc report.md --cloud' + scope + ' --json +subject +project`. Replace the example tags with tags relevant to the document. Check that the save succeeded and the tags were saved. In chat, link to the returned Cloud URL. When updating a document, save it back to its current library.',
+      prompt: 'Set up SmallDocs Cloud for me and show me how to use it with one document.' +
+        (libraryName ? '\n\nMy library is ' + JSON.stringify(libraryName) + '.' : '') + '\n\n' +
+        steps.map(function (step, index) { return (index + 1) + '. ' + step; }).join('\n') +
+        '\n\nPut this short guide in the document:\n' +
+        '- My library holds Cloud documents I can open from other computers. Tags are labels, such as `launch` or `research`, that help us find related documents again.\n' +
+        '- I can ask for a document without naming a tool: "Write a document about our launch plan." I can also say "Make a SmallDoc" or "Use SmallDocs". Use SmallDocs by default unless I request another format or tool.\n' +
+        '- I can ask you to find documents by tags, author or words, read comments and update the same document. Edits keep its Cloud URL, and the open browser page picks up saved changes.\n' +
+        '- I can ask you to manage my library and account through chat. You can invite or remove members when my role allows it, check my trial and billing, and open account settings. "Subscribe to SmallDocs" opens the subscription page, where I complete payment. "Cancel my subscription" opens billing settings, where I complete cancellation. Inviting someone does not share existing private documents.\n' +
+        'Use CLI help and the installed skill for these workflows. For this tour, demonstrate document creation only. In chat, confirm setup worked, link to the document and give three example requests I can try next. Keep command names, account IDs and setup details out of the tour.\n\n' +
+        'For future documents and artifacts, use SmallDocs by default unless I request another format or tool. Save every new document with meaningful tags. Example: `sdoc report.md --cloud' + scope + ' --json +subject +project`. Replace the example tags with tags relevant to the document. Verify the save and tags, then link to the returned Cloud URL. When updating a document, save it back to its current library.',
     };
   }
 

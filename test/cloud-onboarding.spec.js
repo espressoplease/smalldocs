@@ -31,7 +31,9 @@ for (const width of [390, 1440]) {
     await expect(page.locator('#account-label')).toHaveText('Alex Rivera · alex@example.com');
     await expect(page.locator('#install-command')).toContainText('sdoc setup --cloud --yes');
     await expect(page.locator('#install-command')).toContainText('export SDOCS_CLOUD_URL=' + new URL(page.url()).origin + '\nsdoc cloud login');
-    await expect(page.locator('#install-prompt')).toContainText('Let me approve the connection in my browser');
+    await expect(page.locator('#install-prompt')).toContainText('Let me approve this computer in my browser');
+    await expect(page.locator('#install-prompt')).toContainText('Create one short getting-started document');
+    await expect(page.locator('#install-prompt')).toContainText('Cancel my subscription');
     await page.getByRole('link', { name: 'View connected machines' }).click();
     await expect(page.locator('#credentials-empty')).toBeVisible();
     api.connect();
@@ -60,7 +62,10 @@ test('Install copies the prompt rather than a browser session credential', async
   expect(await page.evaluate(() => window.copied)).not.toMatch(/token|secret|cookie/);
 });
 test('signed-out requests retain the Install destination', async ({ request }) => {
-  const response = await request.get('/cloud/admin?panel=install', { maxRedirects: 0 });
-  expect(response.status()).toBe(303);
-  expect(response.headers().location).toBe('/cloud/sign-in?return=%2Fcloud%2Fadmin%3Fpanel%3Dinstall');
+  const cloud = await require('./cloud-onboarding-fixture').startFixture();
+  try {
+    const response = await request.get(cloud.origin + '/cloud/admin?panel=install', { maxRedirects: 0 });
+    expect(response.status()).toBe(303);
+    expect(response.headers().location).toBe('/cloud/sign-in?return=%2Fcloud%2Fadmin%3Fpanel%3Dinstall');
+  } finally { await cloud.close(); }
 });
