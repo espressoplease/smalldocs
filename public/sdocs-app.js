@@ -641,9 +641,8 @@ var BRIDGE_SCREEN_SHARE_OFF_SVG = ''
   + '</svg>';
 
 function dataRowHtml(key, label, value, isLocal, isShort, extraHtml) {
-  var pill = isLocal === 'creator'
-    ? '<span class="fic-local-tag" title="Saved in Cloud and visible only to you">Only you</span>'
-    : isLocal ? '<span class="fic-local-tag" title="Only visible on this device, not included in shared sdocs">Local only</span>' : '';
+  var pill = isLocal && isLocal !== 'creator'
+    ? '<span class="fic-local-tag" title="Only visible on this device, not included in shared sdocs">Local only</span>' : '';
   var cls = 'fic-row' + (isShort ? ' fic-row-short' : '');
   return '<div class="' + cls + '" data-key="' + key + '">'
     + '<span class="fic-label">' + label + '</span>'
@@ -707,7 +706,7 @@ function renderFileInfoCard() {
   // points at the canonical production URL so it's shareable from anywhere.
   var blogMatch = /^\/blogs\/[A-Za-z0-9_-]+$/.test(location.pathname || '');
   if (blogMatch) {
-    slots.push({ type: 'data', html: dataRowHtml('shortUrl', 'Short URL', 'https://smalldocs.org' + location.pathname, false, true) });
+    slots.push({ type: 'data', html: dataRowHtml('shortUrl', 'Share URL', 'https://smalldocs.org' + location.pathname, false, true) });
   }
 
   // Don't offer a short URL for the built-in default document (bare / or
@@ -716,7 +715,7 @@ function renderFileInfoCard() {
   // a file, opens a shared link, or edits anything.
   if (hasDoc && !S._isDefaultState) {
     slots.push(S.shortUrl
-      ? { type: 'data', html: dataRowHtml('shortUrl', 'Short URL', S.shortUrl, false, true) }
+      ? { type: 'data', html: dataRowHtml('shortUrl', 'Share URL', S.shortUrl, false, true) }
       : { type: 'intro' });
   }
 
@@ -827,10 +826,10 @@ function renderFileInfoCard() {
       var introRow = document.createElement('div');
       introRow.className = 'fic-row fic-row-short-intro';
       introRow.innerHTML = ''
-        + '<span class="fic-label">Short URL</span>'
+        + '<span class="fic-label">Share URL</span>'
         + '<button class="fic-shorten-button" title="Generate a short link for this document">Generate</button>'
         + '<span class="fic-short-intro-text">'
-        +   'Encrypted document on our server, but decryption key stays with you '
+        +   'Share a copy of this document by link '
         +   '(<a class="fic-short-intro-learn" href="' + SHORT_LINKS_LEARN_URL + '" target="_blank" rel="noopener">learn more</a>)'
         + '</span>'
         + '<span class="fic-shorten-error" hidden></span>'

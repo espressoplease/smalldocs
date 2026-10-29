@@ -26,7 +26,7 @@ test('signed-out desktop navigation explains how to connect each library', async
   await expect(page.locator('#doc-site-menu')).toHaveCount(0);
 });
 
-test('toolbar mode buttons use a stable selection ring and toggle panels closed', async ({ page }) => {
+test('document and account mode buttons retain their dimensions and toggle panels closed', async ({ page }) => {
   await page.setViewportSize({ width: 1200, height: 800 });
   await page.goto('/docs');
 
@@ -37,7 +37,7 @@ test('toolbar mode buttons use a stable selection ring and toggle panels closed'
   await expect(read).toHaveAttribute('aria-pressed', 'true');
   await expect(read).toHaveCSS('border-color', 'rgb(212, 207, 201)');
   await expect(info).toHaveAttribute('aria-pressed', 'false');
-  await expect(info).toHaveCSS('border-color', 'rgba(0, 0, 0, 0)');
+  await expect(info).toHaveCSS('border-color', 'rgb(212, 207, 201)');
 
   await info.click();
   await expect(page.locator('body')).toHaveClass(/info-mode/);

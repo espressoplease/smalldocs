@@ -240,6 +240,13 @@
 
   function renderShell(element, options) {
     options = options || {};
+    var settings = options.documentSettings
+      ? '<div class="sdocs-sidebar-account-actions">' +
+        '<a class="sdocs-sidebar-icon-shortcut sdocs-sidebar-settings-shortcut" href="/cloud/admin" aria-label="Account settings" title="Account settings">' +
+        icons.settings + '</a>' +
+        '<button class="sdocs-sidebar-icon-shortcut btn-with-dot" id="_sd_btn-info" type="button" aria-label="What\'s new" title="What\'s new" aria-controls="_sd_info-panel">' +
+        '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>' +
+        '<span class="info-dot" aria-hidden="true"></span></button></div>' : '';
     var footerOptions = {
       statusId: options.statusId,
       authenticated: Boolean(options.authenticated),
@@ -256,7 +263,7 @@
       '</button></div><nav class="sdocs-sidebar-nav' + (options.navClass ? ' ' + options.navClass : '') +
       '" aria-label="SmallDocs navigation">' + (options.primaryHtml || '') +
       supportingSectionsHtml({ idPrefix: options.idPrefix, rowClass: options.rowClass }) +
-      '</nav></div><footer class="sdocs-sidebar-footer">' + footerInnerHtml(footerOptions) + '</footer>';
+      '</nav></div>' + settings + '<footer class="sdocs-sidebar-footer">' + footerInnerHtml(footerOptions) + '</footer>';
     element.setAttribute('data-sdocs-sidebar-renderer', 'shared');
     if (options.active === 'settings') {
       var accountSettings = element.querySelector('a[href="/cloud/admin"]');
@@ -435,7 +442,7 @@
 
     sidebar.addEventListener('click', function (event) {
       if (!body.classList.contains('sdocs-sidebar-collapsed')) return;
-      if (event.target.closest('.sdocs-sidebar-collapse-toggle')) return;
+      if (event.target.closest('.sdocs-sidebar-collapse-toggle, .sdocs-sidebar-account-actions')) return;
       var interactive = event.target.closest('a, button');
       if (interactive && interactive.matches('a')) event.preventDefault();
       manualState = 'expanded';
@@ -457,6 +464,7 @@
         navClass: element.getAttribute('data-nav-class') || '',
         brandId: element.getAttribute('data-brand-id') || '',
         responsiveBrand: element.hasAttribute('data-responsive-brand'),
+        documentSettings: element.hasAttribute('data-document-settings'),
         primaryHtml: template ? template.innerHTML : '',
         statusId: element.getAttribute('data-status-id') || '',
         authenticated: element.getAttribute('data-cloud-authenticated') === 'true',

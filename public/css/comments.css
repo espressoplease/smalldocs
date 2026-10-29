@@ -18,81 +18,46 @@
   --sdoc-anchor-color: #ffbb00;
 }
 
-/* ── Comment-mode toolbar ──────────────────────────────────────── */
-#_sd_comment-toolbar {
-  display: none;
-  align-items: center;
-  gap: 6px;
-  height: 0;
-  opacity: 0;
-  padding: 0 12px;
-  background: var(--bg);
-  border-bottom: 1px solid transparent;
-  flex-shrink: 0;
-  overflow: hidden;
-  transition: height .3s cubic-bezier(.4,0,.2,1),
-              opacity .22s ease,
-              border-color .3s ease,
-              padding .3s cubic-bezier(.4,0,.2,1);
+/* The shared context row positions and sizes the comment pill groups. */
+#_sd_comment-toolbar .sdoc-toolbar-middle,
+#_sd_comment-toolbar .sdoc-toolbar-active.is-active { display: contents; }
+#_sd_comment-toolbar .sdoc-toolbar-zero.is-active {
+  display: block;
+  max-width: 100%;
+  white-space: normal;
+  line-height: 1.5;
 }
-body.comment-mode #_sd_comment-toolbar {
-  position: relative;
-  display: flex;
+#_sd_comment-toolbar .sdoc-comment-pref-author {
+  width: 160px;
+  min-width: 0;
+  max-width: 30vw;
+}
+#_sd_comment-toolbar .sdoc-comment-author-icon { flex: 0 0 auto; stroke-width: 1.5; }
+#_sd_comment-toolbar .sdoc-comment-pref-color {
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+}
+#_sd_comment-toolbar .sdoc-comment-pref-color::-webkit-color-swatch-wrapper { padding: 0; }
+#_sd_comment-toolbar .sdoc-comment-pref-color::-webkit-color-swatch {
+  border: 1px solid var(--border);
+  border-radius: 50%;
+}
+#_sd_comment-toolbar .sdoc-comment-pref-color::-moz-color-swatch {
+  border: 1px solid var(--border);
+  border-radius: 50%;
+}
+#_sd_comment-toolbar .sdoc-copy-with-c {
+  width: 28px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
   justify-content: center;
-  height: 34px;
-  opacity: 1;
-  border-bottom-color: var(--border-subtle);
-  padding: 0 12px;
-  overflow-x: auto;
-  overflow-y: hidden;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
+  color: var(--text);
 }
-@media (min-width: 769px) {
-  body.comment-mode #_sd_comment-toolbar {
-    position: relative;
-    z-index: 5;
-    width: 100%;
-    max-width: none;
-    background: var(--bg-input);
-    border-bottom: 1px solid var(--border-subtle);
-  }
-}
-body.comment-mode #_sd_comment-toolbar::-webkit-scrollbar { display: none; }
-
-/* Mobile: same shape as the write toolbar - left-aligned and horizontally
-   scrollable inside the shared mobile header. The "commenting as:" prefs sit
-   first so the toolbar always reads as belonging to the current author,
-   even when scrolled away from the count/nav controls. */
-@media (max-width: 768px) {
-  body.comment-mode #_sd_comment-toolbar {
-    position: relative;
-    top: auto;
-    z-index: 98;
-    justify-content: flex-start;
-  }
-  body.comment-mode #_sd_comment-toolbar > * { flex-shrink: 0; }
-}
-
-/* Right-edge fade hint when the toolbar overflows. Matches the write
-   toolbar's hint at the same breakpoint. */
-@media (max-width: 560px) {
-  body.comment-mode #_sd_comment-toolbar.has-overflow::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    right: 0;
-    width: 32px;
-    height: 100%;
-    background: linear-gradient(to right, transparent, var(--bg) 90%);
-    pointer-events: none;
-    opacity: 1;
-    transition: opacity .2s ease;
-  }
-  body.comment-mode #_sd_comment-toolbar.scrolled-end::after {
-    opacity: 0;
-  }
-}
+#_sd_comment-toolbar .sdoc-copy-with-c svg { stroke-width: 1.5; }
+#_sd_comment-toolbar .sdoc-copy-with-c-label { display: none; }
 
 .sdoc-comment-count {
   font-size: 12px;
@@ -217,9 +182,9 @@ body.comment-mode #_sd_comment-toolbar::-webkit-scrollbar { display: none; }
   background: transparent;
   border: none;
   border-radius: var(--radius-sm, 4px);
-  color: var(--text-2);
+  color: var(--text);
   cursor: pointer;
-  transition: background .12s, color .12s;
+  transition: background .12s;
   flex-shrink: 0;
 }
 .sdoc-icon-btn:hover {

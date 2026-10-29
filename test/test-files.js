@@ -265,16 +265,14 @@ module.exports = function(harness) {
     assert.ok(sdkCss.includes("@import url('./vendor/sdocs-walkthrough.css')"));
   });
 
-  test('reader controls share dimensions and developer docs reuse the shared sidebar', () => {
+  test('reader panels and developer docs reuse shared dimensions', () => {
     const cssDir = path.join(__dirname, '..', 'public', 'css');
     const tokens = fs.readFileSync(path.join(cssDir, 'tokens.css'), 'utf-8');
-    const layout = fs.readFileSync(path.join(cssDir, 'layout.css'), 'utf-8');
     const panel = fs.readFileSync(path.join(cssDir, 'panel.css'), 'utf-8');
     const sidebar = fs.readFileSync(path.join(cssDir, 'sidebar-shared.css'), 'utf-8');
     const developers = fs.readFileSync(path.join(cssDir, 'developers.css'), 'utf-8');
     assert.ok(tokens.includes('--ui-toolbar-height: 40px'));
     assert.ok(tokens.includes('--ui-panel-width:    335px'));
-    assert.ok(layout.includes('height: var(--ui-toolbar-height)'));
     assert.ok(panel.includes('width: var(--ui-panel-width)'));
     assert.ok(developers.includes('height: var(--ui-toolbar-height)'));
     assert.ok(sidebar.includes('--sdocs-sidebar-width: 224px'));

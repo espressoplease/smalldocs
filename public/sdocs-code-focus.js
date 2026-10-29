@@ -1867,13 +1867,13 @@
     // sync. (Same wording the prose card uses, verbatim.)
     if (canShortLink && S.generateShortLink && navigator.clipboard) {
       if (S.shortUrl) {
-        rows += fiRow('Short URL', S.shortUrl);
+        rows += fiRow('Share URL', S.shortUrl);
       } else {
         var learn = S.SHORT_LINKS_LEARN_URL || 'https://smalldocs.org/#sec=short-links';
         rows += '<div class="sdoc-cf-firow sdoc-cf-shortintro">'
-          + '<span class="sdoc-cf-filabel">Short URL</span>'
+          + '<span class="sdoc-cf-filabel">Share URL</span>'
           + '<button type="button" class="sdoc-cf-shortbtn" data-shorten title="Generate a short link for this document">Generate</button>'
-          + '<span class="sdoc-cf-shortnote">Encrypted document on our server, but decryption key stays with you '
+          + '<span class="sdoc-cf-shortnote">Share a copy of this document by link '
           +   '(<a class="sdoc-cf-shortlearn" href="' + escapeHtml(learn) + '" target="_blank" rel="noopener">learn more</a>)</span>'
           + '<span class="sdoc-cf-shorterr" hidden></span>'
           + '<button type="button" class="sdoc-cf-ficopy" data-shorten title="Generate a short link" aria-label="Generate a short link">' + LINK_ICON + '</button>'
@@ -1941,9 +1941,7 @@
 
   function fiRow(label, value, local) {
     var low = label.toLowerCase();
-    var pill = local === 'creator'
-      ? '<span class="sdoc-cf-localtag" title="Saved in Cloud and visible only to you">Only you</span>'
-      : local
+    var pill = local && local !== 'creator'
       ? '<span class="sdoc-cf-localtag" title="Only visible on this device, not included in shared sdocs">Local only</span>'
       : '';
     return '<div class="sdoc-cf-firow">'

@@ -2301,6 +2301,7 @@ function wirePrefsInputs() {
   if (!nameInput || !colorInput) return;
   var prefs = readPrefs();
   nameInput.value  = prefs.author;
+  nameInput.title = prefs.author;
   nameInput.readOnly = prefs.lockedAuthor;
   nameInput.classList.toggle('cloud-comment-author', prefs.lockedAuthor);
   colorInput.value = prefs.color;
@@ -2320,6 +2321,7 @@ function refreshCommentIdentity() {
   if (!nameInput || !colorInput) return;
   var prefs = readPrefs();
   nameInput.value = prefs.author;
+  nameInput.title = prefs.author;
   nameInput.readOnly = prefs.lockedAuthor;
   nameInput.classList.toggle('cloud-comment-author', prefs.lockedAuthor);
 }

@@ -15,48 +15,86 @@
   pointer-events: none;
 }
 
-/* ── Write toolbar ── */
-#_sd_write-toolbar {
-  display: none;
+/* Context tools share the document width and wrap as complete pill groups. */
+.sdoc-context-tools {
+  display: grid;
+  grid-template-rows: 0fr;
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 0 48px;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  flex-shrink: 0;
+  transition: grid-template-rows .3s cubic-bezier(.4,0,.2,1),
+              opacity .3s cubic-bezier(.4,0,.2,1),
+              border-color .3s ease,
+              padding .3s cubic-bezier(.4,0,.2,1),
+              visibility 0s linear .3s;
+}
+.sdoc-context-tools-inner {
+  min-height: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+  overflow: hidden;
+}
+body.write-mode #_sd_write-toolbar,
+body.comment-mode #_sd_comment-toolbar {
+  grid-template-rows: 1fr;
+  padding-top: 10px;
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transition-delay: 0s;
+}
+.sdoc-toolbar-pill {
+  height: 40px;
+  max-width: 100%;
+  flex: 0 0 auto;
+  display: inline-flex;
   align-items: center;
   gap: 2px;
-  height: 0;
-  opacity: 0;
-  padding: 0 12px;
-  background: var(--bg);
-  border-bottom: 1px solid transparent;
-  flex-shrink: 0;
-  overflow: hidden;
-  transition: height .3s cubic-bezier(.4,0,.2,1),
-              opacity .22s ease,
-              border-color .3s ease,
-              padding .3s cubic-bezier(.4,0,.2,1);
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  background: transparent;
 }
-body.write-mode #_sd_write-toolbar {
-  position: relative;
-  display: flex;
-  justify-content: center;
-  height: 34px;
-  opacity: 1;
-  border-bottom-color: var(--border-subtle);
-  padding: 0 12px;
-  overflow-x: auto;
-  overflow-y: hidden;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
+.sdoc-context-tools .write-tb-btn {
+  height: 30px;
+  border-radius: 50%;
 }
-@media (min-width: 769px) {
-  body.write-mode #_sd_write-toolbar {
-    position: relative;
-    z-index: 5;
-    width: 100%;
-    max-width: none;
-    background: var(--bg-input);
-    border-bottom: 1px solid var(--border-subtle);
-  }
+.sdoc-context-tools .write-tb-btn.active {
+  background: var(--bg-hover);
+  box-shadow: none;
 }
-body.write-mode #_sd_write-toolbar::-webkit-scrollbar {
-  display: none;
+.sdoc-context-tools .write-tb-btn svg,
+.sdoc-context-tools .write-tb-btn svg [stroke-width] {
+  stroke-width: 1.5;
+}
+.sdoc-block-style {
+  min-width: 106px;
+  height: 30px;
+  padding: 0 4px;
+  background: transparent;
+  color: var(--text);
+  border: 0;
+  font: 12px var(--font-ui);
+  cursor: pointer;
+}
+.sdoc-context-tools :is(button, select, input):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+@media (max-width: 768px) {
+  .sdoc-context-tools { padding-right: 20px; padding-left: 20px; }
+  body.write-mode #_sd_write-toolbar,
+  body.comment-mode #_sd_comment-toolbar { padding-top: 8px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sdoc-context-tools { transition: none; }
 }
 
 .write-tb-btn {
@@ -70,14 +108,14 @@ body.write-mode #_sd_write-toolbar::-webkit-scrollbar {
   flex-shrink: 0;
   border: none;
   background: none;
-  color: var(--text-2);
+  color: var(--text);
   cursor: pointer;
   border-radius: var(--radius-sm);
   padding: 0;
   font-size: 12px;
   font-family: var(--font-ui);
   font-weight: 600;
-  transition: color .12s, background .12s;
+  transition: background .12s;
 }
 .write-tb-btn:hover {
   color: var(--text);

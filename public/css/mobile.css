@@ -136,7 +136,7 @@
   body.sdocs-mobile-nav-open #_sd_comment-toolbar {
     display: none;
   }
-  #_sd_left-toolbar {
+  #_sd_mobile-navigation {
     display: flex;
     position: relative;
     top: auto;
@@ -145,6 +145,7 @@
     width: 100%;
     height: 44px;
     padding: 0;
+    background: var(--bg-input);
     transform: none;
     justify-content: flex-start;
     border: 0;
@@ -155,13 +156,15 @@
     -webkit-backdrop-filter: none;
     overflow: hidden;
   }
+  #_sd_left-toolbar { padding: 12px 20px 0; }
+  .sdocs-mobile-brand-wrap { flex: 1; min-width: 0; }
   .sdocs-mobile-toolbar-scroll {
     min-width: 0;
     flex: 1 1 auto;
     justify-content: flex-start;
     overflow-x: auto;
     overflow-y: hidden;
-    padding: 0 4px 0 8px;
+    padding: 0;
     scrollbar-width: none;
     -ms-overflow-style: none;
     -webkit-overflow-scrolling: touch;
@@ -218,8 +221,6 @@
     margin: 0;
     padding: 20px 20px 0;
   }
-  /* ── Write toolbar: travels with the primary mobile header ── */
-  body.write-mode #_sd_write-toolbar { position: relative; top: auto; z-index: 98; justify-content: flex-start; }
 
   /* ── Status bar: hidden on mobile ── */
   #_sd_statusbar { display: none; }
@@ -346,23 +347,6 @@
    TOOLBAR SCROLL FADE HINT (< 560px / < 342px)
    Right-edge gradient that fades out when scrolled
 ═══════════════════════════════════════════════════ */
-@media (max-width: 560px) {
-  body.write-mode #_sd_write-toolbar.has-overflow::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    right: 0;
-    width: 32px;
-    height: 100%;
-    background: linear-gradient(to right, transparent, var(--bg) 90%);
-    pointer-events: none;
-    opacity: 1;
-    transition: opacity .2s ease;
-  }
-  body.write-mode #_sd_write-toolbar.scrolled-end::after {
-    opacity: 0;
-  }
-}
 
 /* ═══════════════════════════════════════════════════
    NARROW MOBILE (< 366px)
@@ -384,7 +368,7 @@
     flex: 0 0 32px;
     margin-left: -32px;
     width: 32px;
-    height: 44px;
+    height: 100%;
     background: linear-gradient(to right, transparent, var(--bg) 90%);
     pointer-events: none;
     opacity: 1;

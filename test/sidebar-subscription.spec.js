@@ -21,7 +21,7 @@ function setTrial(daysLeft) {
     .run(now + (daysLeft - 30) * DAY, now + daysLeft * DAY, f.users.josh.id);
 }
 
-test('reader and Library use the actual trial above Account settings', async ({ page }) => {
+test('reader settings sit above the trial while Library and admin retain their account footer', async ({ page }) => {
   setTrial(23);
   await signIn(page);
   for (const path of ['/docs', '/library?scope=cloud', '/cloud/admin?panel=install']) {
@@ -39,8 +39,14 @@ test('reader and Library use the actual trial above Account settings', async ({ 
       accountTop: el.nextElementSibling.querySelector('.sdocs-sidebar-account-link').getBoundingClientRect().top,
     }));
     expect(geometry.nextIsFooter).toBe(true);
-    expect(geometry.accountTop).toBeGreaterThan(geometry.bottom);
-    expect(geometry.accountTop - geometry.bottom).toBeLessThan(32);
+    if (path === '/docs') {
+      const gear = await page.locator('.sdocs-sidebar-settings-shortcut').boundingBox();
+      const trial = await summary.boundingBox();
+      expect(gear.y + gear.height).toBeLessThan(trial.y);
+    } else {
+      expect(geometry.accountTop).toBeGreaterThan(geometry.bottom);
+      expect(geometry.accountTop - geometry.bottom).toBeLessThan(32);
+    }
     await page.evaluate(() => window.SDocsSidebarShared.bindSubscriptionUi());
     await expect(page.locator('.sdocs-sidebar-subscription')).toHaveCount(1);
   }

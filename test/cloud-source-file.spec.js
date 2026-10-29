@@ -26,7 +26,7 @@ test('creator paths survive a fresh browser load without duplicate filename or l
   await expect(card.locator('[data-key="fullPath"] .fic-value')).toHaveText(doc.source.absolute_path);
   await expect(card.locator('[data-key="path"] .fic-value')).toHaveText(doc.source.relative_path);
   await expect(card.locator('[data-key="file"]')).toHaveCount(0);
-  await expect(card.locator('[data-key="fullPath"] .fic-local-tag')).toHaveText('Only you');
+  await expect(card.locator('[data-key="fullPath"] .fic-local-tag')).toHaveCount(0);
   await expect(card.locator('.fic-privacy-note')).toBeHidden();
   expect(await page.evaluate(() => window.SDocs.localMeta)).toEqual({});
   expect(await page.evaluate(() => window.SDocs.currentMeta)).not.toHaveProperty('source_file');
@@ -59,7 +59,6 @@ test('whole-file code views use the same creator-only paths', async ({ page }) =
   await expect(fileInfo).toBeVisible();
   await expect(fileInfo).toContainText(doc.source.absolute_path);
   await expect(fileInfo).toContainText(doc.source.relative_path);
-  await expect(fileInfo.locator('.sdoc-cf-localtag')).toHaveCount(2);
-  await expect(fileInfo.locator('.sdoc-cf-localtag').first()).toHaveText('Only you');
+  await expect(fileInfo.locator('.sdoc-cf-localtag')).toHaveCount(0);
   await expect(fileInfo.locator('.sdoc-cf-filabel', { hasText: 'Filename' })).toHaveCount(0);
 });

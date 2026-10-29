@@ -43,6 +43,8 @@ async function setBody(page, md) {
       window.SDocs.commentsUi.onHostRender();
     }
   }, md);
+  await page.locator('#_sd_comment-toolbar').evaluate(el =>
+    Promise.all(el.getAnimations({ subtree: true }).map(animation => animation.finished)));
 }
 
 // Apply a selection comment via the same API the composer uses.
@@ -509,6 +511,7 @@ test.describe('comments on links', () => {
     // than hitting the network; we assert the URL is unchanged regardless.
     await page.route('https://example.com/**', (route) => route.abort());
     await setBody(page, LINK_DOC);
+    const originalUrl = page.url();
     await openComposerOnLinkSubset(page);
     const composerInAnchor = await page.evaluate(() => {
       var input = document.querySelector('.sdoc-card-input');
@@ -528,7 +531,7 @@ test.describe('comments on links', () => {
       quote: (window.SDocs.currentMeta.comments || [])[0] &&
              window.SDocs.currentMeta.comments[0].quote,
     }));
-    expect(state.url).toBe(BASE + '/docs');
+    expect(state.url).toBe(originalUrl);
     expect(state.count).toBe(1);
     expect(state.quote).toBe('full documentation');
   });

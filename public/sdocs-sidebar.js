@@ -457,13 +457,13 @@ function loadCloudLibrary() {
 var mobileMenuButton = document.getElementById('_sd_mobile_menu');
 var mobileSidebar = document.getElementById('_sd_sidebar');
 var mobileBackground = [
-  document.querySelector('.sdocs-mobile-toolbar-scroll'),
+  document.querySelector('.sdocs-mobile-toolbar-brand'),
   document.getElementById('_sd_content-area'),
   document.getElementById('_sd_right'),
   document.getElementById('_sd_statusbar'),
 ].filter(Boolean);
 
-SharedSidebar.bindMobileDrawer({
+var mobileDrawer = SharedSidebar.bindMobileDrawer({
   body: document.body,
   sidebar: mobileSidebar,
   button: mobileMenuButton,
@@ -472,6 +472,10 @@ SharedSidebar.bindMobileDrawer({
   closeLabel: 'Close SmallDocs menu',
   breakpoint: 768,
   backgrounds: mobileBackground,
+});
+
+document.getElementById('_sd_btn-info').addEventListener('click', function () {
+  if (mobileDrawer) mobileDrawer.setOpen(false, false);
 });
 
 SharedSidebar.bindExpandableSections(mobileSidebar, {

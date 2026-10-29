@@ -160,41 +160,41 @@ test.describe('Inline code', () => {
 
 test.describe('Heading toggle', () => {
   for (const level of [1, 2, 3, 4, 5]) {
-    test(`H${level} button toggles off when already H${level}`, async ({ page }) => {
+    test(`Text style returns H${level} to a paragraph`, async ({ page }) => {
       await gotoWriteMode(page);
       await setWriteHTML(page, `<h${level}>My Heading</h${level}>`);
       await placeCursorAtEnd(page, `#_sd_write h${level}`);
-      await page.click(`#_sd_wb-h${level}`);
+      await page.selectOption('#_sd_wb-block', 'p');
       const html = await getWriteHTML(page);
       expect(html).not.toContain(`<h${level}>`);
       expect(html).toContain('My Heading');
     });
   }
 
-  test('H2 button converts P to H2', async ({ page }) => {
+  test('Text style converts P to H2', async ({ page }) => {
     await gotoWriteMode(page);
     await setWriteHTML(page, '<p>Some text</p>');
     await placeCursorAtEnd(page, '#_sd_write p');
-    await page.click('#_sd_wb-h2');
+    await page.selectOption('#_sd_wb-block', 'h2');
     const html = await getWriteHTML(page);
     expect(html).toContain('<h2>');
   });
 
-  test('H1 button converts H3 to H1', async ({ page }) => {
+  test('Text style converts H3 to H1', async ({ page }) => {
     await gotoWriteMode(page);
     await setWriteHTML(page, '<h3>Some text</h3>');
     await placeCursorAtEnd(page, '#_sd_write h3');
-    await page.click('#_sd_wb-h1');
+    await page.selectOption('#_sd_wb-block', 'h1');
     const html = await getWriteHTML(page);
     expect(html).toContain('<h1>');
     expect(html).not.toContain('<h3>');
   });
 
-  test('Paragraph button converts heading to P', async ({ page }) => {
+  test('Text style converts heading to P', async ({ page }) => {
     await gotoWriteMode(page);
     await setWriteHTML(page, '<h2>Heading</h2>');
     await placeCursorAtEnd(page, '#_sd_write h2');
-    await page.click('#_sd_wb-p');
+    await page.selectOption('#_sd_wb-block', 'p');
     const html = await getWriteHTML(page);
     expect(html).not.toContain('<h2>');
   });
@@ -589,27 +589,21 @@ test.describe('Inline formatting', () => {
 // ─────────────────────────────────────────────
 
 test.describe('Toolbar active state', () => {
-  test('H2 button shows active when cursor is in H2', async ({ page }) => {
+  test('Text style follows the cursor in H2', async ({ page }) => {
     await gotoWriteMode(page);
     await setWriteHTML(page, '<h2>Heading</h2>');
     await placeCursorAtEnd(page, '#_sd_write h2');
     // selectionchange fires async
     await page.waitForTimeout(50);
-    const isActive = await page.evaluate(() =>
-      document.getElementById('_sd_wb-h2').classList.contains('active')
-    );
-    expect(isActive).toBe(true);
+    await expect(page.locator('#_sd_wb-block')).toHaveValue('h2');
   });
 
-  test('P button shows active when cursor is in P', async ({ page }) => {
+  test('Text style follows the cursor in P', async ({ page }) => {
     await gotoWriteMode(page);
     await setWriteHTML(page, '<p>Paragraph</p>');
     await placeCursorAtEnd(page, '#_sd_write p');
     await page.waitForTimeout(50);
-    const isActive = await page.evaluate(() =>
-      document.getElementById('_sd_wb-p').classList.contains('active')
-    );
-    expect(isActive).toBe(true);
+    await expect(page.locator('#_sd_wb-block')).toHaveValue('p');
   });
 
   test('BQ button shows active when cursor is directly in blockquote', async ({ page }) => {
