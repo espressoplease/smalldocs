@@ -38,6 +38,22 @@ body {
 .toolbar-brand-short { display: none; }
 .toolbar-brand-tiny { display: none; }
 
+/* Reveal the Cloud document and its controls as one surface after rendering. */
+#_sd_content-area {
+  transition: opacity .3s cubic-bezier(.4,0,.2,1), visibility .3s cubic-bezier(.4,0,.2,1);
+}
+html.sdocs-cloud-document-loading #_sd_content-area {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+html.sdocs-cloud-document-error :is(#_sd_left-toolbar, #_sd_write-toolbar, #_sd_comment-toolbar, #_sd_sdocs-file-info) {
+  display: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  #_sd_content-area { transition: none; }
+}
+
 .btn {
   display: inline-flex;
   align-items: center;

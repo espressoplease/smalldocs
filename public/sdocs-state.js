@@ -65,6 +65,18 @@ Object.defineProperty(SDocs, 'overriddenColors', {
 
 SDocs.contentAreaEl = document.getElementById('_sd_content-area');
 
+SDocs.setDocumentLoadState = function (state) {
+  var loading = state === 'loading';
+  document.documentElement.classList.toggle('sdocs-cloud-document-loading', loading);
+  document.documentElement.classList.toggle('sdocs-cloud-document-error', state === 'error');
+  SDocs.contentAreaEl.dataset.documentState = state;
+  SDocs.contentAreaEl.setAttribute('aria-busy', String(loading));
+  SDocs.contentAreaEl.inert = loading;
+};
+if (document.documentElement.classList.contains('sdocs-cloud-document-loading')) {
+  SDocs.setDocumentLoadState('loading');
+}
+
 SDocs.setStyleVar = function(cssVar, value) {
   SDocs.renderedEl.style.setProperty(cssVar, value);
   if (SDocs.writeEl) SDocs.writeEl.style.setProperty(cssVar, value);

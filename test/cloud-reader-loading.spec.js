@@ -128,8 +128,96 @@ test('a delayed Cloud module cannot show the introductory document before the re
   try {
     await expect(page.locator('.sdocs-sidebar-brand')).toBeVisible();
     await expect(page.locator('#_sd_rendered')).toBeEmpty();
+    await expect(page.getByRole('toolbar', { name: 'Document actions' })).toBeHidden();
+    await expect(page.locator('#_sd_content-area')).toHaveCSS('opacity', '0');
   } finally { release(); }
   await expect(page.locator('#_sd_rendered h1')).toHaveText('Requested Cloud document');
+  await expect(page.getByRole('toolbar', { name: 'Document actions' })).toBeVisible();
+});
+
+for (const width of [1280, 390]) {
+  test('document, file info and controls reveal together after a slow Cloud read at ' + width + 'px', async ({ page }) => {
+    await page.setViewportSize({ width, height: 844 });
+    const current = await document('josh', 'A complete document', ['design']);
+    let release;
+    const gate = new Promise(resolve => { release = resolve; });
+    await page.route('**/api/cloud/v1/documents/' + current.id, async route => { await gate; await route.continue(); });
+    await page.goto(f.origin + '/docs?cloud-document=' + current.id, { waitUntil: 'domcontentloaded' });
+    const surface = page.locator('#_sd_content-area');
+    const toolbar = page.getByRole('toolbar', { name: 'Document actions' });
+    try {
+      await expect(surface).toHaveAttribute('aria-busy', 'true');
+      await expect(surface).toHaveAttribute('inert', '');
+      await expect(surface).toHaveCSS('opacity', '0');
+      await expect(toolbar).toBeHidden();
+      await expect(page.locator('#_sd_sdocs-file-info')).toBeHidden();
+      if (width > 768) await expect(page.getByRole('link', { name: 'Account settings', exact: true })).toBeVisible();
+      const frames = await page.evaluate(() => {
+        window._loadingFrames = [];
+        window._watchDocumentReveal = true;
+        function frame() {
+          const area = document.getElementById('_sd_content-area');
+          const heading = document.querySelector('#_sd_rendered h1');
+          window._loadingFrames.push({
+            opacity: Number(getComputedStyle(area).opacity),
+            heading: heading && heading.textContent,
+            cloudRow: Boolean(document.querySelector('.fic-row-cloud')),
+          });
+          if (window._watchDocumentReveal) requestAnimationFrame(frame);
+        }
+        requestAnimationFrame(frame);
+        return window._loadingFrames.length;
+      });
+      expect(frames).toBe(0);
+    } finally { release(); }
+    await expect(page.locator('#_sd_rendered h1')).toHaveText('A complete document');
+    await expect(surface).toHaveAttribute('data-document-state', 'ready');
+    await expect(surface).toHaveAttribute('aria-busy', 'false');
+    await expect(surface).not.toHaveAttribute('inert', '');
+    await expect(surface).toHaveCSS('opacity', '1');
+    await expect(toolbar).toBeVisible();
+    await expect(page.locator('#_sd_sdocs-file-info')).toBeVisible();
+    const visibleFrames = await page.evaluate(() => {
+      window._watchDocumentReveal = false;
+      return window._loadingFrames.filter(frame => frame.opacity > 0);
+    });
+    expect(visibleFrames.length).toBeGreaterThan(0);
+    expect(visibleFrames.every(frame => frame.heading === 'A complete document' && frame.cloudRow)).toBe(true);
+  });
+}
+
+test('an unavailable document shows recovery actions and a retry reveals the real document', async ({ page }) => {
+  const current = await document('josh', 'Recovered document', []);
+  let fail = true;
+  await page.route('**/api/cloud/v1/documents/' + current.id, route => fail
+    ? route.fulfill({ status: 503, json: { error: 'temporarily_unavailable' } }) : route.continue());
+  await page.goto(f.origin + '/docs?cloud-document=' + current.id);
+  await expect(page.getByRole('heading', { name: 'Could not open this document' })).toBeVisible();
+  await expect(page.getByRole('toolbar', { name: 'Document actions' })).toBeHidden();
+  await expect(page.locator('#_sd_content-area')).toHaveAttribute('aria-busy', 'false');
+  await expect(page.locator('#_sd_rendered').getByRole('link', { name: 'Open library' }))
+    .toHaveAttribute('href', '/library?scope=cloud');
+  fail = false;
+  await page.getByRole('button', { name: 'Try again', exact: true }).click();
+  await expect(page.locator('#_sd_rendered h1')).toHaveText('Recovered document');
+  await expect(page.getByRole('toolbar', { name: 'Document actions' })).toBeVisible();
+});
+
+test('a permission failure reveals a generic message with usable navigation', async ({ page }) => {
+  await page.goto(f.origin + '/docs?cloud-document=unavailable-document');
+  await expect(page.getByRole('heading', { name: 'Could not open this document' })).toBeVisible();
+  await expect(page.locator('#_sd_rendered')).toContainText('It may have been removed, or you may not have access.');
+  await expect(page.getByRole('link', { name: 'Account settings', exact: true })).toBeVisible();
+  await expect(page.getByRole('toolbar', { name: 'Document actions' })).toBeHidden();
+});
+
+test('reduced motion removes the document reveal animation', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  const current = await document('josh', 'Reduced motion', []);
+  await page.goto(f.origin + '/docs?cloud-document=' + current.id);
+  await expect(page.locator('#_sd_rendered h1')).toHaveText('Reduced motion');
+  await expect(page.locator('#_sd_content-area')).toHaveCSS('transition-duration', '0s');
+  await expect(page.getByRole('toolbar', { name: 'Document actions' })).toBeVisible();
 });
 
 test('the authorized Cloud document appears before optional account details finish loading', async ({ page }) => {

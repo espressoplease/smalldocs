@@ -227,6 +227,7 @@ async function loadAccountData(accountId) {
 }
 
 async function loadCloudDocument(id) {
+  if (S.setDocumentLoadState) S.setDocumentLoadState('loading');
   try {
     var data = await jsonRequest('/api/cloud/v1/documents/' + encodeURIComponent(id));
     S.cloudDocument = data.document;
@@ -246,14 +247,27 @@ async function loadCloudDocument(id) {
     if (S.refreshCommentIdentity) S.refreshCommentIdentity();
     if (S.setMode) S.setMode('read', true);
     if (data.document.workspace_id) loadAccountData(data.document.workspace_id).catch(function () {});
+    if (S.setDocumentLoadState) S.setDocumentLoadState('ready');
   } catch (error) {
     if (error.status === 401) {
       location.href = '/cloud/sign-in?return=' +
         encodeURIComponent(location.pathname + location.search + location.hash);
       return;
     }
+    if (error.data && error.data.error === 'trial_payment_required') return;
     var status = document.getElementById('_sd_status-text');
     if (status) status.textContent = 'Could not open this Cloud document.';
+    if (S.setMode) S.setMode('read', true);
+    S.renderedEl.innerHTML = '<h1>Could not open this document</h1>' +
+      '<p>' + (error.status === 403 || error.status === 404
+        ? 'It may have been removed, or you may not have access.'
+        : 'Try again to load the document.') + '</p>' +
+      '<button type="button" class="btn" data-cloud-retry>Try again</button> ' +
+      '<a href="/library?scope=cloud">Open library</a>';
+    S.renderedEl.querySelector('[data-cloud-retry]').addEventListener('click', function () {
+      loadCloudDocument(id);
+    });
+    if (S.setDocumentLoadState) S.setDocumentLoadState('error');
   } finally {
     S._loadingDocument = false;
   }
