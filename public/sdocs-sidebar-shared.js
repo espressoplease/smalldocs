@@ -13,25 +13,6 @@
     chevron: '<svg class="sdocs-sidebar-row-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>'
   };
 
-  var capabilities = [
-    { label: 'Diagrams', href: '/docs#sec=diagrams' },
-    { label: 'Slides', href: '/docs#sec=slides' },
-    { label: 'Spreadsheets', href: '/advanced-spreadsheets' },
-    { label: 'Charts', href: '/docs#sec=charts' },
-    { label: 'Runnable HTML', href: '/runnable-html' },
-    { label: 'Walkthroughs', href: '/docs#sec=document-walkthroughs' },
-    { label: 'Formatting', href: '/docs#sec=formatting' },
-    { label: 'Code', href: '/docs#sec=code' },
-  ];
-
-  function capabilitiesHtml(className, ctaClassName) {
-    var homepage = '<a class="' + (ctaClassName || className) + '" href="/home" ' +
-      'target="_blank" rel="noopener"><span>View homepage</span>' + icons.external + '</a>';
-    return homepage + capabilities.map(function (item) {
-      return '<a class="' + className + '" href="' + item.href + '">' + item.label + '</a>';
-    }).join('');
-  }
-
   function topRowHtml(options) {
     options = options || {};
     var tag = options.href ? 'a' : 'button';
@@ -61,25 +42,6 @@
         dataHref: options.dataHref,
       }) + '<div class="sdocs-sidebar-expander" id="' + panelId + '">' +
       '<div class="sdocs-sidebar-expander-clip">' + options.content + '</div></div></div>';
-  }
-
-  function supportingSectionsHtml(options) {
-    options = options || {};
-    var rowClass = options.rowClass || '';
-    var idPrefix = options.idPrefix || '_sd_sidebar';
-    var capabilityContent = '<div class="sdocs-sidebar-preview sdocs-sidebar-preview-compact" ' +
-      'data-sdocs-shared-capabilities>' +
-      capabilitiesHtml('sdocs-sidebar-subitem',
-        'sdocs-sidebar-library-row sdocs-sidebar-library-open') + '</div>';
-    return sectionHtml({
-      id: 'capabilities',
-      idPrefix: idPrefix,
-      rowClass: rowClass,
-      icon: icons.capabilities,
-      label: 'Capabilities',
-      dataHref: '/docs#sec=formatting',
-      content: capabilityContent,
-    });
   }
 
   function sitePrimaryHtml(active, rowClass) {
@@ -200,7 +162,7 @@
         feedback.className = 'sdocs-sidebar-trial-feedback'; feedback.href = status.feedback_url;
         feedback.textContent = 'Share feedback'; section.appendChild(feedback);
       }
-      footer.before(section);
+      footer.appendChild(section);
     } catch (_) { /* Navigation stays usable when billing status is unavailable. */ }
   }
 
@@ -215,44 +177,25 @@
       ' class="sdocs-sidebar-brand" href="/" title="SmallDocs homepage">' + text + '</a>';
   }
 
-  function footerInnerHtml(options) {
+  function accountActionsHtml(options) {
     options = options || {};
-    var status = options.statusId
-      ? '<div id="' + options.statusId + '" class="sdocs-sidebar-status" aria-live="polite"></div>' : '';
-    var returnTo = options.returnTo || '/docs';
-    var account = options.authenticated
-      ? '<a class="sdocs-sidebar-footer-link sdocs-sidebar-account-link" href="/cloud/admin" data-rail-label="Account settings">' +
-        icons.settings + '<span>Account settings</span></a>'
-      : '<a class="sdocs-sidebar-footer-link sdocs-sidebar-account-link" href="/cloud/sign-in?return=' +
-        encodeURIComponent(returnTo) + '" data-sdocs-sign-in-return data-rail-label="Sign in">' +
-        icons.signIn + '<span>Sign in</span></a>';
-    var legal = options.termsAccepted ? '' :
-      '<div class="sdocs-sidebar-legal">You agree to our ' +
-      '<a href="/legal" target="_blank" rel="noopener">Terms</a></div>';
-    return status +
-      account +
-      '<a class="sdocs-sidebar-footer-link" href="/privacy" target="_blank" rel="noopener" data-rail-label="Private by design">' +
-      icons.shield + '<span>Private by design</span></a>' +
-      '<a class="sdocs-sidebar-footer-link" href="https://github.com/espressoplease/smalldocs" target="_blank" rel="noopener" data-rail-label="Source on GitHub">' +
-      icons.github + '<span>Source on GitHub</span></a>' +
-      legal;
+    var label = options.authenticated ? 'Account settings' : 'Sign in';
+    var href = options.authenticated ? '/cloud/admin'
+      : '/cloud/sign-in?return=' + encodeURIComponent(options.returnTo || '/docs');
+    return '<div class="sdocs-sidebar-account-actions">' +
+      '<a class="sdocs-sidebar-icon-shortcut sdocs-sidebar-settings-shortcut" href="' + href +
+      '" aria-label="' + label + '" title="' + label + '"' +
+      (options.authenticated ? '' : ' data-sdocs-sign-in-return') + '>' +
+      (options.authenticated ? icons.settings : icons.signIn) + '</a>' +
+      '<button class="sdocs-sidebar-icon-shortcut btn-with-dot" id="_sd_btn-info" type="button" aria-label="What\'s new" title="What\'s new" aria-controls="_sd_info-panel" aria-pressed="false">' +
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>' +
+      '<span class="info-dot" aria-hidden="true"></span></button></div>';
   }
 
   function renderShell(element, options) {
     options = options || {};
-    var settings = options.documentSettings
-      ? '<div class="sdocs-sidebar-account-actions">' +
-        '<a class="sdocs-sidebar-icon-shortcut sdocs-sidebar-settings-shortcut" href="/cloud/admin" aria-label="Account settings" title="Account settings">' +
-        icons.settings + '</a>' +
-        '<button class="sdocs-sidebar-icon-shortcut btn-with-dot" id="_sd_btn-info" type="button" aria-label="What\'s new" title="What\'s new" aria-controls="_sd_info-panel">' +
-        '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>' +
-        '<span class="info-dot" aria-hidden="true"></span></button></div>' : '';
-    var footerOptions = {
-      statusId: options.statusId,
-      authenticated: Boolean(options.authenticated),
-      termsAccepted: Boolean(options.termsAccepted),
-      returnTo: options.returnTo || '/docs',
-    };
+    var status = options.statusId
+      ? '<div id="' + options.statusId + '" hidden aria-live="polite"></div>' : '';
     element.innerHTML = '<div class="sdocs-sidebar-main"><div class="sdocs-sidebar-header">' + brandHtml({
       id: options.brandId,
       responsive: options.responsiveBrand,
@@ -262,8 +205,8 @@
       '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/><path d="m16 15-3-3 3-3"/></svg>' +
       '</button></div><nav class="sdocs-sidebar-nav' + (options.navClass ? ' ' + options.navClass : '') +
       '" aria-label="SmallDocs navigation">' + (options.primaryHtml || '') +
-      supportingSectionsHtml({ idPrefix: options.idPrefix, rowClass: options.rowClass }) +
-      '</nav></div>' + settings + '<footer class="sdocs-sidebar-footer">' + footerInnerHtml(footerOptions) + '</footer>';
+      '</nav></div>' + status + '<footer class="sdocs-sidebar-footer sdocs-sidebar-account-footer">' +
+      accountActionsHtml(options) + '</footer>';
     element.setAttribute('data-sdocs-sidebar-renderer', 'shared');
     if (options.active === 'settings') {
       var accountSettings = element.querySelector('a[href="/cloud/admin"]');
@@ -464,7 +407,6 @@
         navClass: element.getAttribute('data-nav-class') || '',
         brandId: element.getAttribute('data-brand-id') || '',
         responsiveBrand: element.hasAttribute('data-responsive-brand'),
-        documentSettings: element.hasAttribute('data-document-settings'),
         primaryHtml: template ? template.innerHTML : '',
         statusId: element.getAttribute('data-status-id') || '',
         authenticated: element.getAttribute('data-cloud-authenticated') === 'true',
@@ -477,16 +419,13 @@
   }
 
   exports.icons = icons;
-  exports.capabilities = capabilities;
-  exports.capabilitiesHtml = capabilitiesHtml;
   exports.topRowHtml = topRowHtml;
   exports.sectionHtml = sectionHtml;
-  exports.supportingSectionsHtml = supportingSectionsHtml;
   exports.sitePrimaryHtml = sitePrimaryHtml;
   exports.applyLibraryPreference = applyLibraryPreference;
   exports.bindSubscriptionUi = bindSubscriptionUi;
   exports.brandHtml = brandHtml;
-  exports.footerInnerHtml = footerInnerHtml;
+  exports.accountActionsHtml = accountActionsHtml;
   exports.renderShell = renderShell;
   exports.setExpanded = setExpanded;
   exports.bindExpandableSections = bindExpandableSections;

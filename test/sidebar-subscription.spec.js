@@ -21,7 +21,7 @@ function setTrial(daysLeft) {
     .run(now + (daysLeft - 30) * DAY, now + daysLeft * DAY, f.users.josh.id);
 }
 
-test('reader settings sit above the trial while Library and admin retain their account footer', async ({ page }) => {
+test('reader, Library and Settings share account icons above the trial', async ({ page }) => {
   setTrial(23);
   await signIn(page);
   for (const path of ['/docs', '/library?scope=cloud', '/cloud/admin?panel=install']) {
@@ -34,19 +34,15 @@ test('reader settings sit above the trial while Library and admin retain their a
     await expect(summary.getByRole('link', { name: 'Subscribe', exact: true }))
       .toHaveAttribute('href', f.origin + '/cloud/subscribe');
     const geometry = await summary.evaluate(el => ({
-      nextIsFooter: el.nextElementSibling.classList.contains('sdocs-sidebar-footer'),
-      bottom: el.getBoundingClientRect().bottom,
-      accountTop: el.nextElementSibling.querySelector('.sdocs-sidebar-account-link').getBoundingClientRect().top,
+      previousIsAccount: el.previousElementSibling.classList.contains('sdocs-sidebar-account-actions'),
+      top: el.getBoundingClientRect().top,
+      accountBottom: el.previousElementSibling.getBoundingClientRect().bottom,
     }));
-    expect(geometry.nextIsFooter).toBe(true);
-    if (path === '/docs') {
-      const gear = await page.locator('.sdocs-sidebar-settings-shortcut').boundingBox();
-      const trial = await summary.boundingBox();
-      expect(gear.y + gear.height).toBeLessThan(trial.y);
-    } else {
-      expect(geometry.accountTop).toBeGreaterThan(geometry.bottom);
-      expect(geometry.accountTop - geometry.bottom).toBeLessThan(32);
-    }
+    expect(geometry.previousIsAccount).toBe(true);
+    expect(geometry.accountBottom).toBeLessThan(geometry.top);
+    expect(geometry.top - geometry.accountBottom).toBe(16);
+    await expect(page.locator('.sdocs-sidebar-footer-link, [data-sidebar-section="capabilities"]')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: "What's new", exact: true })).toBeVisible();
     await page.evaluate(() => window.SDocsSidebarShared.bindSubscriptionUi());
     await expect(page.locator('.sdocs-sidebar-subscription')).toHaveCount(1);
   }

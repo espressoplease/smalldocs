@@ -391,8 +391,6 @@ html.sdocs-short-link-visit #_sd_sidebar .doc-site-action.sdocs-short-link-only 
 .sdocs-mobile-toolbar-brand,
 .sdocs-mobile-menu-button { display: none; }
 
-body.sdocs-reader-shell #_sd_sidebar [data-sidebar-section="capabilities"],
-body.sdocs-reader-shell #_sd_sidebar .sdocs-sidebar-footer { display: none; }
 
 .toggle-group {
   display: flex;

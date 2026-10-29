@@ -30,191 +30,114 @@ test('Library and supporting text pages share the desktop navigation shell', asy
   }
 });
 
-test('expandable site navigation stays closed until selected', async ({ page }) => {
-  await page.goto('/public/library/library.html?demo=1');
-  const capabilities = page.locator('[data-sidebar-section="capabilities"]');
-  await expect(page.locator('[data-sidebar-section="sdk"]')).toHaveCount(0);
-
-  await expect(capabilities.locator('.sdocs-sidebar-top-row')).toHaveAttribute('aria-expanded', 'false');
-  await expect(capabilities.getByRole('link', { name: 'View homepage' })).toBeHidden();
-  await expect(capabilities.getByRole('link', { name: 'Diagrams' })).toBeHidden();
-  await capabilities.locator('.sdocs-sidebar-top-row').click();
-  await expect(capabilities.locator('.sdocs-sidebar-top-row')).toHaveAttribute('aria-expanded', 'true');
-  const homepage = capabilities.getByRole('link', { name: 'View homepage' });
-  await expect(homepage).toBeVisible();
-  await expect(homepage).toHaveAttribute('href', '/home');
-  await expect(homepage).toHaveAttribute('target', '_blank');
-  await expect(homepage).toHaveClass(/sdocs-sidebar-library-open/);
-  await expect(homepage.locator('svg')).toHaveCount(1);
-  await expect(homepage.locator('path').first()).toHaveAttribute('d',
-    'M13 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-7');
-  expect(await capabilities.locator('[data-sdocs-shared-capabilities] a').first().innerText())
-    .toBe('View homepage');
-  await expect(capabilities.getByRole('link', { name: 'Diagrams' })).toBeVisible();
-  await expect(capabilities.getByRole('link', { name: 'Runnable HTML' }))
-    .toHaveAttribute('href', '/runnable-html');
-  await expect(capabilities.getByRole('link', { name: 'Walkthroughs' }))
-    .toHaveAttribute('href', '/docs#sec=document-walkthroughs');
-});
-
-test('Library and reader sidebars share capability and footer content', async ({ page }) => {
-  async function sharedContent(url, sidebar) {
+test('all app sidebars use the same account shortcuts without legacy menu items', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  async function contract(url, selector) {
     await page.goto(url);
-    return page.locator(sidebar).evaluate(element => ({
-      renderer: element.getAttribute('data-sdocs-sidebar-renderer'),
-      capabilities: Array.from(element.querySelectorAll('[data-sdocs-shared-capabilities] a'))
-        .map(link => ({ label: link.textContent, href: link.getAttribute('href') })),
-      footer: Array.from(element.querySelectorAll('.sdocs-sidebar-footer-link'))
-        .map(link => link.textContent.trim()),
-      legal: element.querySelector('.sdocs-sidebar-legal')?.textContent.trim() || '',
-      footerBottom: Math.round(element.querySelector('.sdocs-sidebar-footer').getBoundingClientRect().bottom),
-      sidebarBottom: Math.round(element.getBoundingClientRect().bottom),
-      contract: (() => {
-        const styleValues = (target, names) => {
-          const style = getComputedStyle(target);
-          return Object.fromEntries(names.map(name => [name, style[name]]));
-        };
-        const row = Array.from(element.querySelectorAll('.sdocs-sidebar-top-row'))
-          .find(target => getComputedStyle(target).display !== 'none');
-        const brand = element.querySelector('.sdocs-sidebar-brand');
-        const footerLink = element.querySelector('.sdocs-sidebar-footer-link');
-        const footerIcon = footerLink.querySelector('svg');
-        const legal = element.querySelector('.sdocs-sidebar-legal');
-        const legalLink = legal && legal.querySelector('a');
-        const capabilityAction = element.querySelector('[data-sdocs-shared-capabilities] a');
-        const capabilityItem = element.querySelector('[data-sdocs-shared-capabilities] a:nth-child(2)');
-        const bounds = element.getBoundingClientRect();
-        const brandBounds = brand.getBoundingClientRect();
-        return {
-          sidebar: styleValues(element, ['width', 'paddingTop', 'paddingRight', 'paddingBottom',
-            'paddingLeft', 'fontFamily', 'fontSize', 'fontWeight']),
-          row: styleValues(row, ['height', 'paddingLeft', 'paddingRight', 'columnGap', 'fontSize',
-            'fontFamily', 'fontWeight', 'borderRadius']),
-          footerLink: styleValues(footerLink, ['minHeight', 'paddingLeft', 'paddingRight',
-            'columnGap', 'fontFamily', 'fontSize', 'fontWeight', 'borderRadius']),
-          footerIcon: styleValues(footerIcon, ['width', 'height', 'fill', 'stroke', 'strokeWidth',
-            'strokeLinecap', 'strokeLinejoin']),
-          legal: legal ? styleValues(legal, ['fontSize']) : null,
-          legalLink: legalLink ? styleValues(legalLink, ['textDecorationLine']) : null,
-          capabilityAction: styleValues(capabilityAction, ['width', 'minHeight', 'paddingTop',
-            'paddingRight', 'paddingBottom', 'paddingLeft', 'columnGap', 'borderRadius']),
-          capabilityItem: styleValues(capabilityItem, ['width', 'minHeight', 'paddingTop',
-            'paddingRight', 'paddingBottom', 'paddingLeft', 'columnGap', 'fontFamily',
-            'fontSize', 'fontWeight', 'borderRadius']),
-          brandOffset: {
-            top: Math.round(brandBounds.top - bounds.top),
-            left: Math.round(brandBounds.left - bounds.left),
-          },
-        };
-      })(),
-    }));
+    const sidebar = page.locator(selector);
+    await expect(sidebar.locator('[data-sidebar-section="capabilities"], [data-sidebar-section="sdk"]')).toHaveCount(0);
+    await expect(sidebar.getByRole('link', { name: 'Source on GitHub' })).toHaveCount(0);
+    await expect(sidebar.getByRole('link', { name: 'Private by design' })).toHaveCount(0);
+    await expect(sidebar).not.toContainText('Loaded:');
+    const account = sidebar.locator('.sdocs-sidebar-settings-shortcut');
+    const news = sidebar.getByRole('button', { name: "What's new", exact: true });
+    await expect(account).toBeVisible();
+    await expect(news).toBeVisible();
+    return sidebar.evaluate(element => {
+      const values = (target, names) => {
+        const style = getComputedStyle(target);
+        return Object.fromEntries(names.map(name => [name, style[name]]));
+      };
+      const account = element.querySelector('.sdocs-sidebar-settings-shortcut');
+      const news = element.querySelector('#_sd_btn-info');
+      const bounds = element.getBoundingClientRect();
+      const footer = element.querySelector('.sdocs-sidebar-account-footer').getBoundingClientRect();
+      return {
+        sidebar: values(element, ['width', 'paddingTop', 'paddingRight', 'paddingBottom',
+          'paddingLeft', 'fontFamily', 'fontSize', 'fontWeight']),
+        account: values(account, ['width', 'height', 'borderRadius', 'color']),
+        icon: values(account.querySelector('svg'), ['width', 'height', 'strokeWidth', 'fill']),
+        aligned: account.getBoundingClientRect().top === news.getBoundingClientRect().top,
+        bottomSpace: Math.round(bounds.bottom - footer.bottom),
+      };
+    });
   }
-
-  const library = await sharedContent('/public/library/library.html?demo=1', '#_sd_site_sidebar');
-  const settings = await sharedContent('/public/cloud-admin.html', '#_sd_site_sidebar');
-  const reader = await sharedContent('/docs?sidebar=preview', '#_sd_sidebar');
-  expect(library.renderer).toBe('shared');
-  expect(reader.renderer).toBe('shared');
-  expect(library.capabilities).toEqual(reader.capabilities);
-  expect(settings.capabilities).toEqual(reader.capabilities);
-  expect(reader.capabilities[0]).toEqual({ label: 'View homepage', href: '/home' });
-  expect(library.footer).toEqual(reader.footer);
-  expect(library.footer).toEqual(['Sign in', 'Private by design', 'Source on GitHub']);
-  expect(library.legal).toBe('You agree to our Terms');
-  expect(reader.legal).toBe(library.legal);
-  await expect(page.locator('#_sd_sidebar').getByText('For business', { exact: true })).toHaveCount(0);
-  expect(library.contract).toEqual(reader.contract);
-  expect(settings.contract.sidebar).toEqual(reader.contract.sidebar);
-  expect(settings.contract.row).toEqual(reader.contract.row);
-  expect(settings.contract.capabilityItem).toEqual(reader.contract.capabilityItem);
-  expect(settings.contract.footerLink).toMatchObject({
-    fontFamily: reader.contract.footerLink.fontFamily,
-    fontSize: reader.contract.footerLink.fontSize,
-    fontWeight: reader.contract.footerLink.fontWeight,
-  });
-  expect(reader.contract.sidebar.width).toBe('224px');
-  expect(reader.contract.sidebar).toMatchObject({
-    fontFamily: '"SDocs Sidebar Inter", system-ui, sans-serif',
-    fontSize: '13px',
-    fontWeight: '400',
-  });
-  expect(reader.contract.row).toMatchObject({
-    fontFamily: '"SDocs Sidebar Inter", system-ui, sans-serif',
-    fontSize: '13px',
-    fontWeight: '500',
-  });
-  expect(reader.contract.footerLink).toMatchObject({
-    fontFamily: '"SDocs Sidebar Inter", system-ui, sans-serif',
-    fontSize: '11px',
-    fontWeight: '500',
-  });
-  expect(reader.contract.footerIcon).toMatchObject({
-    width: '15px',
-    height: '15px',
-    fill: 'none',
-    strokeWidth: '2px',
-    strokeLinecap: 'round',
-    strokeLinejoin: 'round',
-  });
-  expect(reader.contract.legal.fontSize).toBe('11px');
-  expect(reader.contract.legalLink.textDecorationLine).toBe('underline');
-  expect(reader.contract.capabilityAction).toMatchObject({
-    minHeight: '32px',
-    paddingTop: '5px',
-    paddingRight: '9px',
-    paddingBottom: '5px',
-    paddingLeft: '9px',
-    columnGap: '7px',
-    borderRadius: '4px',
-  });
-  expect(reader.contract.capabilityItem).toMatchObject({
-    minHeight: '28px',
-    paddingTop: '5px',
-    paddingRight: '10px',
-    paddingBottom: '5px',
-    paddingLeft: '10px',
-    columnGap: '6px',
-    fontFamily: '"SDocs Sidebar Inter", system-ui, sans-serif',
-    fontSize: '13px',
-    fontWeight: '500',
-    borderRadius: '4px',
-  });
-  expect(library.sidebarBottom - library.footerBottom).toBe(16);
-  expect(reader.sidebarBottom - reader.footerBottom).toBe(16);
+  const reader = await contract('/docs', '#_sd_sidebar');
+  for (const url of ['/public/library/library.html?demo=1', '/public/cloud-admin.html',
+    '/public/connect.html', '/public/cloud.html', '/public/library/rescued.html']) {
+    expect(await contract(url, '#_sd_site_sidebar')).toEqual(reader);
+  }
+  expect(reader.account).toMatchObject({ width: '36px', height: '36px', borderRadius: '50%' });
+  expect(reader.icon).toMatchObject({ width: '18px', height: '18px', strokeWidth: '1.5px', fill: 'none' });
+  expect(reader.aligned).toBe(true);
+  expect(reader.bottomSpace).toBe(16);
 });
 
-test('shared footer uses acceptance state without another request', async ({ page }) => {
+test('signed-out shortcuts retain the return path and authenticated shortcuts open Settings', async ({ page }) => {
   await page.goto('/public/library/library.html?demo=1');
-  const footer = page.locator('#_sd_site_sidebar .sdocs-sidebar-footer');
-  const signIn = footer.getByRole('link', { name: 'Sign in', exact: true });
-  await expect(signIn).toBeVisible();
-  await expect(signIn).toHaveAttribute('href',
+  const actions = page.locator('.sdocs-sidebar-account-actions');
+  await expect(actions.getByRole('link', { name: 'Sign in', exact: true })).toHaveAttribute('href',
     '/cloud/sign-in?return=%2Fpublic%2Flibrary%2Flibrary.html%3Fdemo%3D1');
-  await expect(signIn.locator('path').last()).toHaveAttribute('d', 'm16 19 2 2 4-4');
-  await expect(footer.getByRole('link', { name: 'Account settings' })).toHaveCount(0);
-
-  await footer.evaluate(element => {
-    element.innerHTML = window.SDocsSidebarShared.footerInnerHtml({
-      authenticated: true,
-      statusId: 'test-sidebar-status',
-    });
-    element.querySelector('#test-sidebar-status').textContent = 'Loaded';
+  await actions.evaluate(element => {
+    element.outerHTML = window.SDocsSidebarShared.accountActionsHtml({ authenticated: true });
   });
-  await expect(footer.locator('#test-sidebar-status')).toHaveCSS('margin-bottom', '4px');
-  await expect(footer.getByRole('link', { name: 'Account settings' })).toHaveAttribute('href', '/cloud/admin');
-  await expect(footer.getByRole('link', { name: 'Sign in' })).toHaveCount(0);
-  await expect(footer.locator('.sdocs-sidebar-footer-link').first()).toHaveText('Account settings');
-  await expect(footer.locator('.sdocs-sidebar-footer-link').nth(1)).toHaveText('Private by design');
-  await expect(footer.locator('.sdocs-sidebar-legal')).toHaveText('You agree to our Terms');
+  await expect(page.getByRole('link', { name: 'Account settings', exact: true }))
+    .toHaveAttribute('href', '/cloud/admin');
+  await expect(actions.getByRole('link', { name: 'Sign in', exact: true })).toHaveCount(0);
+});
 
-  await footer.evaluate(element => {
-    element.innerHTML = window.SDocsSidebarShared.footerInnerHtml({
-      authenticated: true,
-      termsAccepted: true,
-    });
-  });
-  await expect(footer.getByRole('link', { name: 'Account settings' })).toBeVisible();
-  await expect(footer.locator('.sdocs-sidebar-legal')).toHaveCount(0);
+test('Information works on site pages and shares the reader panel content', async ({ page }) => {
+  await page.goto('/docs');
+  const readerContent = await page.locator('#_sd_info-panel').innerHTML();
+  await page.goto('/public/cloud-admin.html');
+  const url = page.url();
+  expect(await page.locator('#_sd_info-panel').innerHTML()).toBe(readerContent);
+  const news = page.getByRole('button', { name: "What's new", exact: true });
+  await news.click();
+  await expect(news).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('complementary', { name: 'Information' })).toBeVisible();
+  await expect(page.locator('#_sd_info-feedback')).toBeEditable();
+  await page.locator('#_sd_info-notify-off').click();
+  await expect(page.locator('#_sd_info-notify-off')).toHaveAttribute('aria-checked', 'true');
+  await page.keyboard.press('Escape');
+  await expect(news).toHaveAttribute('aria-pressed', 'false');
+  await expect(news).toBeFocused();
+  await expect(page.locator('#_sd_info-panel')).toHaveAttribute('aria-hidden', 'true');
+  await expect(page).toHaveURL(url);
+
+  await page.setViewportSize({ width: 900, height: 800 });
+  await expect(page.locator('body')).toHaveClass(/sdocs-sidebar-collapsed/);
+  await news.click();
+  await expect(page.getByRole('complementary', { name: 'Information' })).toBeVisible();
+  await expect(page.locator('body')).toHaveClass(/sdocs-sidebar-collapsed/);
+  await page.getByRole('button', { name: 'Close information panel' }).click();
+
+  await page.setViewportSize({ width: 390, height: 700 });
+  const menu = page.locator('.sdocs-site-mobilebar-menu');
+  await menu.click();
+  await news.click();
+  const panel = page.getByRole('dialog', { name: 'Information' });
+  await expect(panel).toBeVisible();
+  await expect(menu).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.locator('.shell')).toHaveAttribute('inert', '');
+  const close = panel.getByRole('button', { name: 'Close information panel' });
+  await expect(close).toBeFocused();
+  await page.keyboard.press('Shift+Tab');
+  await expect(panel.getByRole('link', { name: 'Learn about SmallDocs', exact: true })).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(close).toBeFocused();
+  await close.click();
+  await expect(menu).toBeFocused();
+  await expect(page.locator('.shell')).not.toHaveAttribute('inert', '');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.emulateMedia({ colorScheme: 'dark' });
+  for (const path of ['/public/cloud-admin.html', '/public/library/library.html?demo=1']) {
+    await page.goto(path);
+    await page.getByRole('button', { name: "What's new", exact: true }).click();
+    const background = await page.locator('#_sd_info-panel').evaluate(el => getComputedStyle(el).backgroundColor);
+    expect(background.match(/\d+/g).slice(0, 3).map(Number).every(channel => channel < 100)).toBe(true);
+  }
 });
 
 test('compact site navigation uses a rail and mobile navigation uses a left drawer', async ({ page }) => {

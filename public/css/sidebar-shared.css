@@ -345,7 +345,8 @@
   stroke-linejoin: round;
 }
 .sdocs-sidebar-icon-shortcut:hover,
-.sdocs-sidebar-icon-shortcut.active {
+.sdocs-sidebar-icon-shortcut.active,
+.sdocs-sidebar-icon-shortcut.is-active {
   background: var(--bg-hover, #f1ede8);
   color: var(--text, #1c1917);
 }
@@ -365,6 +366,13 @@
   gap: 4px;
   padding-top: 12px;
   border-top: 1px solid var(--border-subtle, var(--border, #ddd9d3));
+}
+
+.sdocs-sidebar-shell .sdocs-sidebar-account-footer {
+  flex: 0 0 auto;
+  gap: 0;
+  padding-top: 0;
+  border-top: 0;
 }
 
 .sdocs-sidebar-shell .sdocs-sidebar-footer-link {

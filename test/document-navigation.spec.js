@@ -22,7 +22,7 @@ test('signed-out desktop navigation explains how to connect each library', async
   await expect(cloudLearnMore).toBeVisible();
   await expect(cloudLearnMore).toHaveAttribute('href', '/cloud');
   await expect(page.locator('#_sd_sidebar').getByRole('link', { name: 'Sign in', exact: true })).toBeVisible();
-  await expect(page.locator('#_sd_sidebar').getByText('You agree to our', { exact: false })).toBeVisible();
+  await expect(page.locator('#_sd_sidebar .sdocs-sidebar-legal')).toHaveCount(0);
   await expect(page.locator('#doc-site-menu')).toHaveCount(0);
 });
 

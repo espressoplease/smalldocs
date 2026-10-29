@@ -137,6 +137,11 @@ test('account icons sit together above the trial and work from the compact rail'
   await updates.click();
   await settings.click();
   await expect(page).toHaveURL(f.origin + '/cloud/admin');
+  await expect(page.locator('#_sd_site_sidebar .sdocs-sidebar-settings-shortcut'))
+    .toHaveAttribute('aria-current', 'page');
+  await expect(page.locator('#_sd_site_sidebar [data-sidebar-section="capabilities"], .sdocs-sidebar-footer-link')).toHaveCount(0);
+  await page.getByRole('button', { name: "What's new", exact: true }).click();
+  await expect(page.getByRole('complementary', { name: 'Information' })).toBeVisible();
 });
 
 test('mobile actions fit the document and the settings shortcut stays reachable in the drawer', async ({ page }) => {
