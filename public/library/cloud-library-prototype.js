@@ -10,6 +10,7 @@
   const cloudLink = document.getElementById('cloud-scope-link');
   const workspaceButton = document.getElementById('workspace-button');
   const workspaceMenu = document.getElementById('workspace-menu');
+  const manageMembersLink = document.getElementById('manage-members-link');
   const onboarding = document.getElementById('cloud-onboarding');
 
   window.SDocsCloudLibrary = window.SDocsCloudLibrary || {};
@@ -57,6 +58,8 @@
     window.SDocsCloudLibrary.workspaceId = workspace.id;
     window.SDocsCloudLibrary.workspaceName = accountName;
     document.getElementById('personal-library-note').hidden = workspace.kind !== 'personal';
+    manageMembersLink.hidden = workspace.kind !== 'team';
+    manageMembersLink.href = '/cloud/admin?panel=people&workspace_id=' + encodeURIComponent(workspace.id);
     workspaceButton.replaceChildren(
       workspaceMark(workspace),
       Object.assign(document.createElement('span'), { textContent: accountName }),

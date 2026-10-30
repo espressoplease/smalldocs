@@ -666,10 +666,12 @@
   function setupLibraries() {
     var list = byId('all-libraries'); list.replaceChildren();
     window.SDocsCloudAccountSelection.orderedLibraries(state.workspaces).forEach(function (library) {
-      var row = element('div', 'machine-row');
-      var link = element('a', 'btn'); link.href = '/cloud/admin?panel=install&workspace_id=' + encodeURIComponent(library.id);
-      link.append(libraryMark(library), document.createTextNode(accountName(library)));
-      row.appendChild(link); list.appendChild(row);
+      var row = element('div', 'machine-row library-row');
+      var link = element('a', 'btn library-link'); link.href = '/cloud/admin?panel=install&workspace_id=' + encodeURIComponent(library.id);
+      link.append(libraryMark(library), element('span', '', accountName(library)));
+      row.appendChild(link);
+      if (library.kind === 'personal') row.appendChild(element('span', 'description', "Others can't join this library."));
+      list.appendChild(row);
     });
     byId('create-library-form').onsubmit = async function (event) {
       event.preventDefault(); var button = this.querySelector('button'); button.disabled = true;

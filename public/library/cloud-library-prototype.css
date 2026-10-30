@@ -6,6 +6,7 @@
 }
 .cloud-library-nav[hidden],
 .cloud-library-actions[hidden],
+.cloud-manage-members[hidden],
 .cloud-library-heading[hidden],
 .workspace-menu[hidden] { display: none; }
 .cloud-library-actions svg,
@@ -46,7 +47,8 @@
   color: var(--text);
 }
 .workspace-mark svg { width: 20px; height: 20px; }
-.cloud-create-library { padding: 3px 10px; text-decoration: none; }
+.cloud-create-library,
+.cloud-manage-members { padding: 3px 10px; text-decoration: none; }
 .personal-library-note { margin: 8px 0 16px; color: var(--text-2); font: 12px/1.6 var(--font-ui); }
 .personal-library-note[hidden] { display: none; }
 .personal-library-note a { color: var(--accent-text); }
