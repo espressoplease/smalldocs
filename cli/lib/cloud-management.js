@@ -20,13 +20,16 @@ Afterwards, trial_payment_required blocks Cloud content until payment is confirm
 Use the returned subscribe_url for the human to complete Stripe Checkout.
 The command opens a subscription page; it does not charge the user.
 Settings billing opens invoice, payment-method and cancellation management.
+Billing, preferences and connected machines belong to your account. Libraries,
+people and overview open library management; --account selects that library.
+Install can use --account to select where the first documents are saved.
 Browser sign-in is independent of CLI authorization. Never collect card details.
 
 Invitations queue an email when delivery is configured and return an accept_url.
 Check notification_scheduled before reporting delivery. They require the same
 library permissions as the UI.
 Personal libraries are private and cannot have members. Create a team library
-in cloud settings libraries, then pass its --account UUID when inviting people.
+with cloud settings libraries, then pass its --account UUID when inviting people.
 Resolve USER_ID with cloud members. Removing a member revokes library access
 and reconciles sponsored seats. An owner cannot remove the final owner.
 Inviting a person does not share existing private documents with them.
@@ -57,9 +60,10 @@ async function run(opts, client, helpers) {
     if (action === 'settings' && !panels.includes(panel)) invalid('Choose settings panel: ' + panels.join(', '));
     const params = new URLSearchParams();
     if (action === 'settings') params.set('panel', panel);
-    if (opts.accountFlag) params.set('workspace_id', await account());
+    const libraryPanel = ['libraries', 'people', 'overview'].includes(panel);
+    if (opts.accountFlag && (libraryPanel || panel === 'install')) params.set(libraryPanel ? 'workspace' : 'workspace_id', await account());
     const url = client.origin + (action === 'subscribe' ? '/cloud/subscribe'
-      : '/cloud/admin?' + params.toString());
+      : (libraryPanel ? '/library/settings?' : '/cloud/admin?') + params.toString());
     if (!opts.noOpenFlag) openBrowser(url, message => process.stderr.write(message + '\n'));
     return emit(opts, 'cloud.' + action, { url, human_action_required: true,
       payment_taken: false }, url);

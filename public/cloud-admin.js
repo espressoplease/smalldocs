@@ -1,6 +1,9 @@
 (function () {
   'use strict';
 
+  var settingsScope = document.body.dataset.settingsScope;
+  var scoped = settingsScope === 'account' || settingsScope === 'library';
+  var scopedReady = false, workspaceEpoch = 0, selectedWorkspaceId, libraryHeader;
   var EMPTY_INVITE_POLICY = { domains: [], can_manage: false, can_invite: false };
   var state = {
     me: null,
@@ -24,7 +27,7 @@
     if (text != null) node.textContent = String(text);
     return node;
   }
-  function apiPath(path) { return '/api/cloud/v1' + path; }
+  function apiPath(path) { return path.startsWith('/api/') ? path : '/api/cloud/v1' + path; }
 
   async function request(path, options) {
     var response = await fetch(apiPath(path), Object.assign({ credentials: 'same-origin' }, options || {}));
@@ -83,6 +86,7 @@
   }
 
   function showError(error) {
+    if (error && error.code === 'recent_auth_required') return;
     var box = byId('page-error');
     box.textContent = humanError(error);
     box.classList.add('visible');
@@ -274,6 +278,7 @@
         restore.disabled = true;
         try {
           await mutation('POST', '/workspaces/' + encodeURIComponent(workspace.id) + '/restore', {});
+          if (settingsScope === 'library') { location.assign(window.SDocsLibraryHeader.settingsUrl(workspace.id)); return; }
           await loadDeletedItems();
         } catch (error) {
           restore.disabled = false;
@@ -297,7 +302,7 @@
             expected_head_revision_id: documentItem.current_revision_id,
           });
           await loadDeletedItems();
-          await loadWorkspace(state.workspace.id);
+          if (!scoped) await loadWorkspace(state.workspace.id);
         } catch (error) {
           restore.disabled = false;
           showError(error);
@@ -306,7 +311,8 @@
       row.append(details, restore);
       recovery.appendChild(row);
     });
-    byId('recovery-section').hidden = recovery.children.length === 0;
+    byId('recovery-section').hidden = scoped ? false : recovery.children.length === 0;
+    if (scoped && !recovery.children.length) recovery.appendChild(element('p', 'empty', 'No deleted items.'));
   }
 
   async function saveInviteDomains(domains) {
@@ -394,19 +400,29 @@
     }
   }
 
-  function activatePanel(name, updateLocation) {
-    Array.from(document.querySelectorAll('.nav')).forEach(function (button) {
+  function activatePanel(name, updateLocation, skipLoad) {
+    if (settingsScope === 'library') {
+      if (name === 'libraries') byId('panel-libraries').appendChild(byId('recovery-section'));
+      else byId('panel-overview').insertBefore(byId('recovery-section'), byId('workspace-lifecycle'));
+      byId('recovery-section').querySelector('.section-head p').textContent = name === 'libraries' ? 'Restore deleted libraries before they are permanently removed.' : 'Restore deleted documents from this library before they are permanently removed.';
+    }
+    Array.from(document.querySelectorAll('.nav[data-panel]')).forEach(function (button) {
       button.classList.toggle('active', button.dataset.panel === name);
     });
     Array.from(document.querySelectorAll('.panel')).forEach(function (panel) {
       panel.hidden = panel.id !== 'panel-' + name;
     });
-    if (name === 'machines') loadCredentials().catch(showError);
+    if (!scoped && name === 'machines') loadCredentials().catch(showError);
     if (updateLocation !== false) {
       var url = new URL(location.href);
+      if (settingsScope === 'account' && name !== 'install') { url.searchParams.delete('workspace_id'); url.searchParams.delete('workspace'); }
       if (name === 'overview') url.searchParams.delete('panel');
       else url.searchParams.set('panel', name);
       history.replaceState(null, '', url.pathname + url.search);
+    }
+    if (scopedReady && !skipLoad) {
+      var load = settingsScope === 'library' ? (selectedWorkspaceId ? loadLibraryWorkspace(selectedWorkspaceId) : Promise.resolve()) : loadAccountPanel(name);
+      load.catch(showError);
     }
   }
 
@@ -448,6 +464,7 @@
   }
 
   async function loadWorkspace(workspaceId) {
+    if (settingsScope === 'library') return loadLibraryWorkspace(workspaceId);
     clearError();
     var workspace = state.workspaces.find(function (item) { return item.id === workspaceId; });
     if (!workspace && state.workspaces.length === 1) workspace = state.workspaces[0];
@@ -500,6 +517,10 @@
   }
 
   async function loadDeletedItems() {
+    if (settingsScope === 'library') {
+      if (state.workspace) return loadLibraryWorkspace(state.workspace.id);
+      return;
+    }
     var responses = await Promise.all([request('/workspaces/deleted'), request('/documents/deleted')]);
     state.deletedWorkspaces = responses[0].workspaces || [];
     state.deletedDocuments = responses[1].documents || [];
@@ -576,7 +597,7 @@
   }
 
   function wireEvents() {
-    Array.from(document.querySelectorAll('.nav')).forEach(function (button) {
+    Array.from(document.querySelectorAll('.nav[data-panel]')).forEach(function (button) {
       button.addEventListener('click', function () { activatePanel(button.dataset.panel); });
     });
     byId('account-switcher-button').addEventListener('click', function () {
@@ -613,6 +634,7 @@
         async function () {
           await mutation('DELETE', '/workspaces/' + encodeURIComponent(workspace.id));
           state.workspaces = state.workspaces.filter(function (item) { return item.id !== workspace.id; });
+          if (settingsScope === 'library') { location.assign('/library/settings?panel=libraries'); return; }
           if (state.workspaces.length) await loadWorkspace(state.workspaces[0].id);
           else location.assign('/library?scope=cloud');
         }, state.singlePlan ? 'Delete library' : 'Delete team');
@@ -634,7 +656,7 @@
     });
     byId('manage-billing').addEventListener('click', async function () {
       try {
-        var result = await mutation('POST', '/workspaces/' + encodeURIComponent(state.workspace.id)
+        var result = await mutation('POST', settingsScope === 'account' ? '/api/cloud/billing/portal' : '/workspaces/' + encodeURIComponent(state.workspace.id)
           + '/billing/portal');
         location.assign(result.portal_url);
       } catch (error) { showError(error); }
@@ -667,7 +689,7 @@
     var list = byId('all-libraries'); list.replaceChildren();
     window.SDocsCloudAccountSelection.orderedLibraries(state.workspaces).forEach(function (library) {
       var row = element('div', 'machine-row library-row');
-      var link = element('a', 'btn library-link'); link.href = '/cloud/admin?panel=install&workspace_id=' + encodeURIComponent(library.id);
+      var link = element('a', 'btn library-link'); link.href = (scoped ? '/library?scope=cloud&workspace=' : '/cloud/admin?panel=install&workspace_id=') + encodeURIComponent(library.id);
       link.append(libraryMark(library), element('span', '', accountName(library)));
       row.appendChild(link);
       if (library.kind === 'personal') row.appendChild(element('span', 'description', "Others can't join this library."));
@@ -677,7 +699,7 @@
       event.preventDefault(); var button = this.querySelector('button'); button.disabled = true;
       try {
         var result = await mutation('POST', '/workspaces', { name: byId('new-library-name').value.trim() });
-        location.assign('/cloud/admin?panel=install&workspace_id=' + encodeURIComponent(result.workspace.workspaceId));
+        location.assign(scoped ? window.SDocsLibraryHeader.settingsUrl(result.workspace.workspaceId, 'people') : '/cloud/admin?panel=install&workspace_id=' + encodeURIComponent(result.workspace.workspaceId));
       } catch (_) { byId('library-create-status').textContent = 'The library could not be created. Try again.'; button.disabled = false; }
     };
     request('/onboarding').then(function (data) {
@@ -782,5 +804,168 @@
     }
   }
 
-  initialize();
+  function requestedPanel() {
+    var name = new URLSearchParams(location.search).get('panel');
+    var allowed = settingsScope === 'library' ? ['people', 'overview', 'libraries'] : ['billing', 'preferences', 'machines', 'install'];
+    return allowed.includes(name) ? name : settingsScope === 'library' ? 'overview' : 'billing';
+  }
+
+  function renderAccountBilling(data) {
+    byId('billing-plan').textContent = 'SmallDocs, all features';
+    byId('billing-price').textContent = data.legacy_price ? 'View your current price in Stripe.'
+      : window.SDocsCloudPricing.primaryAmount('standard', window.SDocsCloudPricing.currentCurrency()) + ' / person / month';
+    var status = data.phase;
+    byId('billing-status').textContent = data.covered_elsewhere ? 'Your subscription is covered by another billing account.'
+      : status === 'trial' ? 'Your free trial ends on ' + formatDateTime(data.trial_ends_at_ms) + '.'
+      : status === 'trial_warning' ? 'Your trial has ended. Subscribe by ' + formatDateTime(data.paywall_starts_at_ms) + ' to keep using SmallDocs.'
+      : status === 'payment_required' ? 'Your free trial and extra week have ended. Subscribe to continue using SmallDocs.'
+      : status === 'past_due_grace' ? 'Payment needs attention. Update your payment details to keep your subscription active.'
+      : ['past_due', 'read_only'].includes(status) ? 'Update your payment details to save changes. You can still open and export your documents.'
+      : data.payment_pending ? 'Your payment is being confirmed. Open Billing again shortly to check its status.'
+      : data.subscription_status === 'canceled' ? 'Your subscription has ended. Subscribe again to save changes.'
+      : data.subscription_status ? 'Your subscription is active.' : 'One subscription covers you across your libraries.';
+    byId('billing-usage').textContent = data.covered_elsewhere ? 'Your billing account does not pay for your current coverage.'
+      : 'People on your billing account: ' + (data.quantity || 1) + '.';
+    byId('manage-billing').hidden = !data.can_manage_payment;
+    byId('subscribe-row').hidden = Boolean(data.covered_elsewhere || data.subscription_status && data.subscription_status !== 'canceled');
+    byId('subscribe-link').href = '/cloud/subscribe';
+    byId('subscribe-link').textContent = 'Subscribe';
+  }
+
+  async function loadAccountPanel(name) {
+    clearError();
+    if (name === 'billing') {
+      var data = await request('/api/cloud/billing/subscription');
+      renderAccountBilling(data);
+    } else if (name === 'machines') {
+      await loadCredentials();
+    } else if (name === 'install') {
+      var response = await request('/workspaces');
+      state.workspaces = response.workspaces || [];
+      var choice = byId('install-destination'); choice.replaceChildren();
+      choice.appendChild(new Option('Choose a library', ''));
+      window.SDocsCloudAccountSelection.orderedLibraries(state.workspaces).forEach(function (library) {
+        choice.appendChild(new Option(accountName(library), library.id));
+      });
+      var explicit = new URLSearchParams(location.search).get('workspace_id');
+      var selected = state.workspaces.find(function (library) { return library.id === explicit; });
+      if (!selected && state.workspaces.length === 1) selected = state.workspaces[0];
+      byId('install-destination-choice').hidden = state.workspaces.length === 0;
+      function choose(id) {
+        state.workspace = state.workspaces.find(function (library) { return library.id === id; }) || null;
+        renderInstall(state.workspace && state.workspace.id);
+        byId('install-destination-note').textContent = state.workspace
+          ? 'New documents will be saved to ' + accountName(state.workspace) + '.' : 'Choose a library for the installation prompt, or let your agent ask where to save.';
+        byId('install-library-link').href = '/library?scope=cloud' + (state.workspace ? '&workspace=' + encodeURIComponent(state.workspace.id) : '');
+      }
+      choice.value = selected ? selected.id : '';
+      choose(choice.value);
+      choice.onchange = function () { choose(choice.value); };
+    }
+  }
+
+  async function loadLibraryWorkspace(workspaceId) {
+    var epoch = ++workspaceEpoch;
+    var workspace = state.workspaces.find(function (library) { return library.id === workspaceId; });
+    clearError(); closeConfirm();
+    state.workspace = null;
+    byId('invite-open').hidden = true; byId('domain-form').hidden = true; byId('workspace-lifecycle').hidden = true; byId('library-details').hidden = true;
+    byId('member-rows').replaceChildren();
+    byId('recovery-list').replaceChildren();
+    byId('invite-form').classList.remove('open');
+    if (!workspace) throw Object.assign(new Error('resource_unavailable'), { code: 'resource_unavailable' });
+    selectedWorkspaceId = workspace.id;
+    var panel = requestedPanel();
+    if (panel === 'people' && workspace.kind === 'personal') { panel = 'overview'; activatePanel(panel, true, true); }
+    var encoded = encodeURIComponent(workspace.id);
+    var team = workspace.kind === 'team';
+    var manager = workspace.role === 'owner' || workspace.role === 'admin';
+    var responses = await Promise.all([
+      panel === 'people' && team ? requestWithoutSubscription('/account/members?account_id=' + encoded, { members: [] }) : { members: [] },
+      panel === 'people' && team && manager ? requestWithoutSubscription('/account/invitations?account_id=' + encoded, { invitations: [] }) : { invitations: [] },
+      panel === 'people' && team ? requestWithoutSubscription('/account/invite-policy?account_id=' + encoded, { policy: EMPTY_INVITE_POLICY }) : { policy: EMPTY_INVITE_POLICY },
+      panel === 'overview' ? requestWithoutSubscription('/documents/deleted?workspace_id=' + encoded, { documents: [] }) : { documents: [] },
+      panel === 'libraries' ? requestWithoutSubscription('/workspaces/deleted', { workspaces: [] }) : { workspaces: [] },
+    ]);
+    if (epoch !== workspaceEpoch) return;
+    state.workspace = workspace;
+    state.members = responses[0].members || []; state.invitations = responses[1].invitations || [];
+    state.invitePolicy = responses[2].policy || EMPTY_INVITE_POLICY;
+    state.deletedDocuments = responses[3].documents || [];
+    state.deletedWorkspaces = responses[4].workspaces || [];
+    state.billing = { plan: 'standard' };
+    window.SDocsCloudAccountSelection.remember(localStorage, workspace.id);
+    libraryHeader.render(workspace);
+    byId('library-documents-link').href = '/library?scope=cloud&workspace=' + encoded;
+    byId('library-details').hidden = false;
+    document.title = accountName(workspace) + ' - Library settings | SmallDocs';
+    byId('library-settings-name').textContent = accountName(workspace);
+    byId('library-settings-description').textContent = team ? 'Manage this library and its documents.' : "Your Personal library is for you only. Others can't join it.";
+    byId('overview-name').textContent = 'Library settings';
+    byId('overview-description').textContent = 'Settings and deleted documents for this library.';
+    renderPermissions();
+    if (team) { renderMembers(); renderInvitePolicy(); }
+    renderRecovery();
+    var url = new URL(location.href); url.searchParams.set('workspace', workspace.id); history.replaceState(null, '', url.pathname + url.search);
+  }
+
+  async function initializeScoped() {
+    setupInstall(); wireEvents();
+    if (settingsScope === 'library') {
+      document.querySelector('[data-panel=overview]').lastChild.textContent = 'Library settings';
+      document.querySelector('[data-panel=people]').lastChild.textContent = 'Members';
+      byId('panel-people').querySelector('h2').textContent = 'Members';
+    }
+    try {
+      var me = await request('/me');
+      state.me = me.user || {}; state.singlePlan = Boolean(me.single_plan);
+      byId('account-label').textContent = [state.me.first_name, state.me.last_name].filter(Boolean).join(' ') + (state.me.email ? ' · ' + state.me.email : '');
+      byId('connect-google').hidden = !me.google_enabled;
+      (me.sign_in_methods || []).forEach(function (method) {
+        byId('sign-in-methods').appendChild(element('p', '', (method.provider === 'google' ? 'Google' : 'Email code') + ': ' + method.email));
+      });
+      byId('legacy-library').checked = Boolean(state.me.legacy_library_enabled);
+      byId('legacy-library').onchange = async function () {
+        var control = this; control.disabled = true;
+        try { await mutation('PATCH', '/me/preferences', { legacy_library_enabled: control.checked }); byId('library-preference-status').textContent = 'Saved. Navigation updates when you open another page.'; }
+        catch (error) { control.checked = !control.checked; showError(error); }
+        finally { control.disabled = false; }
+      };
+      var panel = requestedPanel();
+      if (settingsScope === 'account' && panel !== 'install') { var cleanUrl = new URL(location.href); cleanUrl.searchParams.delete('workspace_id'); cleanUrl.searchParams.delete('workspace'); history.replaceState(null, '', cleanUrl.pathname + cleanUrl.search); }
+      if (settingsScope === 'library') {
+        byId('members-empty').textContent = 'No other people have joined this library yet.';
+        byId('invite-status').textContent = "Accepting adds a seat to the library owner's subscription unless the person already has paid coverage.";
+        byId('delete-workspace').textContent = 'Delete library';
+        byId('workspace-lifecycle').querySelector('strong').textContent = 'Delete library';
+        var libraries = await request('/workspaces'); state.workspaces = libraries.workspaces || [];
+        setupLibraries();
+        libraryHeader = window.SDocsLibraryHeader.bind({ root: byId('library-header'), workspaces: state.workspaces, user: state.me,
+          onSelect: function (library) {
+            location.assign(window.SDocsLibraryHeader.settingsUrl(library.id, requestedPanel() === 'people' && library.kind === 'personal' ? 'overview' : requestedPanel()));
+          } });
+        var params = new URLSearchParams(location.search);
+        var id = params.get('workspace');
+        var selected = id ? state.workspaces.find(function (library) { return library.id === id; })
+          : window.SDocsCloudAccountSelection.resolve(state.workspaces, null, localStorage);
+        if (id && !selected) throw Object.assign(new Error('resource_unavailable'), { code: 'resource_unavailable' });
+        scopedReady = true;
+        activatePanel(panel, false, true);
+        if (selected) await loadLibraryWorkspace(selected.id);
+        else if (panel === 'libraries') { state.deletedWorkspaces = (await requestWithoutSubscription('/workspaces/deleted', { workspaces: [] })).workspaces || []; renderRecovery(); }
+        else { byId('overview-name').textContent = 'Choose a library'; byId('overview-description').textContent = 'Choose the library you want to manage.'; }
+        byId('recovery-section').hidden = byId('recovery-list').children.length === 0;
+      } else {
+        byId('install-team-link').textContent = 'Manage libraries'; byId('install-team-link').href = '/library/settings?panel=libraries';
+        scopedReady = true;
+        activatePanel(panel, false, true);
+        await loadAccountPanel(panel);
+      }
+      scopedReady = true;
+    } catch (error) { showError(error); }
+    finally { document.body.dataset.settingsReady = 'true'; }
+  }
+
+  if (scoped) initializeScoped();
+  else { byId('panel-billing').appendChild(byId('workspace-lifecycle')); initialize(); }
 })();

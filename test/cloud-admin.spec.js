@@ -88,7 +88,7 @@ test('an individual account shows its library label and hides team and project c
   await expect(library).toHaveAttribute('href', '/library?scope=cloud');
   await expect(library.locator('svg')).toHaveCount(1);
   await expect(sidebar.getByRole('link', { name: 'Account settings' })).toHaveAttribute('aria-current', 'page');
-  await expect(page.getByRole('heading', { name: 'Cloud settings', level: 1 })).toHaveCount(1);
+  await expect(page.getByRole('heading', { name: 'Account settings', level: 1 })).toHaveCount(1);
   await expect(page.locator('.header')).toHaveCount(0);
   await expect(page.locator('.side-label')).toHaveCount(0);
   await expect.poll(() => calls.some(call => call.path.includes('/members'))).toBe(false);

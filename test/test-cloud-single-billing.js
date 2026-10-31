@@ -8,6 +8,7 @@ module.exports = function (h) {
       let body = ''; for await (const chunk of req) body += chunk;
       const params = new URLSearchParams(body); calls.push({ path: req.url, params });
       const send = data => { res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(data)); };
+      if (req.url === '/v1/billing_portal/sessions') return send({ id: 'bps_fixture', url: 'https://billing.example/own-account' });
       if (req.url === '/v1/checkout/sessions') {
         const key = req.headers['idempotency-key'];
         if (idempotency.has(key)) return send(idempotency.get(key));
@@ -85,6 +86,31 @@ module.exports = function (h) {
         const response = await f.api('member', '/api/cloud/billing/subscribe', 'POST', { owner_user_id: f.users.josh.id });
         assert.strictEqual(response.data.error, 'already_covered', JSON.stringify(response));
         assert.strictEqual(sessions.size, count);
+      });
+      await testAsync('account billing portal selects only the signed-in payer, without a library context', async () => {
+        const summary = await f.api('josh', '/api/cloud/billing/subscription');
+        assert.strictEqual(summary.data.can_manage_payment, true);
+        const result = await f.api('josh', '/api/cloud/billing/portal', 'POST', { workspace_id: f.otherTeam.workspaceId, user_id: f.users.outsider.id });
+        assert.strictEqual(result.status, 200, JSON.stringify(result));
+        assert.strictEqual(result.data.portal_url, 'https://billing.example/own-account');
+        const call = calls.filter(call => call.path === '/v1/billing_portal/sessions').at(-1);
+        assert.strictEqual(call.params.get('customer'), subscription.customer);
+        assert.strictEqual(call.params.get('return_url'), f.origin + '/cloud/admin?panel=billing');
+        const count = calls.filter(call => call.path === '/v1/billing_portal/sessions').length;
+        const sponsored = await f.api('member', '/api/cloud/billing/portal', 'POST', { workspace_id: library });
+        assert.strictEqual(sponsored.status, 404, JSON.stringify(sponsored));
+        const crossOrigin = await fetch(f.origin + '/api/cloud/billing/portal', { method: 'POST', headers: {
+          Cookie: f.users.josh.cookie, Origin: 'https://other.example', 'Content-Type': 'application/json' }, body: '{}' });
+        assert.strictEqual(crossOrigin.status, 403);
+        const anonymous = await fetch(f.origin + '/api/cloud/billing/portal', { method: 'POST', headers: { Origin: f.origin, 'Content-Type': 'application/json' }, body: '{}' });
+        assert.strictEqual(anonymous.status, 401);
+        const session = f.auth.authenticateSession(f.users.josh.sessionToken).session;
+        f.auth.db.prepare('UPDATE cloud_auth_sessions SET created_at_ms=? WHERE id=?').run(Date.now() - 31 * 60 * 1000, session.id);
+        const stale = await f.api('josh', '/api/cloud/billing/portal', 'POST', {});
+        assert.strictEqual(stale.status, 401);
+        assert.strictEqual(stale.data.error, 'recent_auth_required');
+        f.auth.db.prepare('UPDATE cloud_auth_sessions SET created_at_ms=? WHERE id=?').run(session.createdAtMs, session.id);
+        assert.strictEqual(calls.filter(call => call.path === '/v1/billing_portal/sessions').length, count);
       });
       await testAsync('removing a sponsored person updates billed quantity without transferring access', async () => {
         const response = await f.api('josh', '/api/cloud/v1/workspaces/' + teamLibrary + '/members/' + f.users.member.id, 'DELETE');

@@ -49,7 +49,7 @@ module.exports = function (h) {
         assert.strictEqual(missingProfile.status, 303);
         assert.ok(missingProfile.headers.get('location').startsWith('/cloud/profile?return='));
         f.auth.updateUserProfile({ userId: users.missing.id, firstName: 'Taylor', lastName: 'Example' });
-        const pages = await Promise.all([api('missing', '/cloud/admin?panel=billing'), api('missing', '/cloud/admin?panel=libraries')]);
+        const pages = await Promise.all([api('missing', '/cloud/admin?panel=billing'), api('missing', '/library/settings?panel=libraries')]);
         assert.deepStrictEqual(pages.map(page => page.status), [200, 200]);
         const libraries = await store.listWorkspaces(users.missing.id);
         assert.strictEqual(libraries.length, 1);
@@ -111,7 +111,7 @@ module.exports = function (h) {
         assert.strictEqual(invited.status, 409, JSON.stringify(invited));
         assert.strictEqual(invited.data.error, 'personal_library_private');
         assert.ok(invited.data.message.includes('Create a team library'));
-        assert.ok(invited.data.settings_url.endsWith('/cloud/admin?panel=libraries'));
+        assert.ok(invited.data.settings_url.endsWith('/library/settings?panel=libraries'));
         assert.throws(() => store.addWorkspaceMember({ actorUserId: users.josh.id, workspaceId: own,
           userId: users.member.id }), error => error.code === 'personal_library_private');
         assert.strictEqual(store.db.prepare('SELECT count(*) AS n FROM cloud_invitations WHERE workspace_id=?').get(own).n, before);

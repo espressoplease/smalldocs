@@ -17,10 +17,10 @@ for (const width of [390, 1440]) {
     await page.getByRole('button', { name: 'Continue', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Install SmallDocs', exact: true })).toBeVisible();
     await expect(page.locator('body')).not.toContainText('Your SmallDocs libraries');
-    await page.getByRole('button', { name: 'Libraries', exact: true }).click();
+    await page.getByRole('link', { name: 'Manage libraries', exact: true }).click();
     await page.getByRole('textbox', { name: 'Library name', exact: true }).fill('Engineering');
     await page.getByRole('button', { name: 'Create team library', exact: true }).click();
-    await expect(page.locator('#account-switcher-name')).toHaveText('Engineering');
+    await expect(page.locator('#workspace-button')).toContainText('Engineering');
     expect((await f.store.listWorkspaces(f.users.missing.id)).length).toBe(2);
     await page.goto(f.origin + '/cloud/admin?panel=libraries');
     await expect(page.getByRole('heading', { name: 'Libraries', exact: true })).toBeVisible();
@@ -96,7 +96,7 @@ for (const width of [390, 1440]) {
     await page.goto(f.origin + '/cloud/subscribe');
     await page.getByRole('link', { name: 'Back to settings' }).click();
     await expect(page.getByRole('heading', { name: 'Billing', exact: true })).toBeVisible();
-    await expect(page.locator('#billing-status')).toContainText('Free until');
+    await expect(page.locator('#billing-status')).toContainText('Your free trial ends');
     expect(f.billing.db.prepare('SELECT ends_at_ms FROM cloud_billing_personal_trials WHERE user_id=?').get(f.users.josh.id).ends_at_ms).toBe(trial.ends_at_ms);
   });
 }

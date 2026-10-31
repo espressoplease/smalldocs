@@ -1320,7 +1320,7 @@ module.exports = function(harness) {
 
       const settings = await get(BASE + '/cloud/admin', { Cookie: cookie });
       assert.strictEqual(settings.status, 200);
-      assert.ok(settings.body.includes('Cloud settings'));
+      assert.ok(settings.body.includes('Account settings'));
       assert.ok(settings.body.includes('Connected machines'));
       assert.ok(settings.body.includes('/public/cloud-admin.js?v='));
       assert.ok(/script-src[^;]*'self'/.test(settings.headers['content-security-policy'] || ''));
@@ -1478,7 +1478,7 @@ module.exports = function(harness) {
       assert.ok(response.body.includes('Billing'));
       assert.ok(!response.body.includes('Agent access'));
       assert.ok(response.body.includes('Connected machines'));
-      assert.ok(response.body.includes('Cloud settings'));
+      assert.ok(response.body.includes('Account settings'));
       assert.ok(response.body.includes('data-sdocs-site-page="settings"'));
       assert.ok(response.body.includes('/public/css/site-sidebar.css'));
       assert.ok(response.body.includes('/public/sdocs-site-sidebar.js'));

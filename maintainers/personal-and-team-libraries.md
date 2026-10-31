@@ -32,11 +32,15 @@ their existing libraries until deliberately moved. Existing Personal libraries
 are displayed as Personal without rewriting encrypted names or document data.
 
 The library page keeps the switcher visible with one library and offers Create
-team library next to it. Personal shows a note linking to team creation. Settings
-hides People for Personal. Both switchers use the shared Lucide user-round and
-users-round SVGs, with Personal first. Colours derive from the library ID and
-use the same helper as document library pills; changing selection does not
-reassign a colour. Person colours and the neutral You icon are separate.
+team library next to it. Personal shows a note linking to team creation. Members
+and library settings reuse that same header in the same location. Account
+settings contains billing, sign-in, preferences, machines and installation,
+without a global library switcher. Personal has no Members section. The shared
+header uses Lucide user-round and users-round SVGs, with Personal first. Colours
+derive from the library ID and use the same helper as document library pills;
+changing selection does not reassign a colour. Person colours and the neutral
+You icon are separate. See `account-and-library-settings.md` for the routing,
+loading and permissions map.
 
 Verification covers:
 

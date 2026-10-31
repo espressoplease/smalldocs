@@ -1214,7 +1214,7 @@ function cloudApiError(res, error) {
   const body = { ok: false, error: code };
   if (code === 'personal_library_private') {
     body.message = 'Personal libraries are private. Create a team library to invite people.';
-    body.settings_url = CLOUD_AUTH_PUBLIC_ORIGIN + '/cloud/admin?panel=libraries';
+    body.settings_url = CLOUD_AUTH_PUBLIC_ORIGIN + '/library/settings?panel=libraries';
   }
   if (code === 'recent_auth_required') {
     body.message = 'Sign in again to continue. Your changes have not been submitted.';
@@ -3477,7 +3477,26 @@ const server = http.createServer((req, res) => {
       payment_pending: Boolean(subscription && subscription.initialPaymentPending && subscription.status !== 'canceled'),
       covered_elsewhere: Boolean(sponsor && (!account || sponsor.account_id !== account.id) && coverage && coverage.access.write
         && cloudBilling.getSubscription(sponsor.account_id)),
+      can_manage_payment: Boolean(subscription && subscription.providerCustomerId),
+      legacy_price: Boolean(account && subscription && subscription.provider === 'stripe' && account.standard_subscription_id !== subscription.providerSubscriptionId),
       quantity: account ? cloudSinglePlan.seatCount(account.id) : 1 });
+    return;
+  }
+
+  if (req.method === 'POST' && pathname === '/api/cloud/billing/portal') {
+    const principal = cloudApiPrincipal(req, res);
+    if (!principal || !cloudAuthPostAllowed(req, res)) return;
+    cloudAuthHttp.readJson(req).then(async () => {
+      requireRecentBrowser(principal);
+      if (!cloudSinglePlan || !cloudStripe || !cloudBilling) throw Object.assign(new Error('billing_not_configured'), { code: 'billing_not_configured' });
+      const account = cloudSinglePlan.ownAccount(principal.user.id);
+      const subscription = account && cloudBilling.getSubscription(account.id);
+      if (!subscription || !subscription.providerCustomerId) throw Object.assign(new Error('resource_unavailable'), { code: 'resource_unavailable' });
+      const portal = await cloudStripe.createBillingPortalSession({ customerId: subscription.providerCustomerId,
+        returnUrl: CLOUD_AUTH_PUBLIC_ORIGIN + '/cloud/admin?panel=billing',
+        configurationId: process.env.STRIPE_PORTAL_CONFIGURATION_ID, idempotencyKey: crypto.randomUUID() });
+      sendJson(res, 200, { ok: true, portal_url: portal.url });
+    }).catch(error => cloudApiError(res, error));
     return;
   }
 
@@ -3842,7 +3861,10 @@ const server = http.createServer((req, res) => {
     res.end(); return;
   }
 
-  if (pathname === '/cloud/admin') {
+  if (pathname === '/cloud/admin' || pathname === '/library/settings') {
+    if (pathname === '/library/settings' && !CLOUD_DEPLOYMENT.publicEnabled) {
+      sendJson(res, 404, { ok: false, error: 'resource_unavailable' }); return;
+    }
     const authenticated = cloudAuthSession(req);
     if (!authenticated.ok) {
       res.writeHead(303, { Location: '/cloud/sign-in?return=' + encodeURIComponent(pathname + url.search),
@@ -3851,6 +3873,11 @@ const server = http.createServer((req, res) => {
       return;
     }
     if (redirectForCloudTerms(res, authenticated, pathname + url.search)) return;
+    if (SINGLE_PLAN_ENABLED && pathname === '/cloud/admin' && ['people', 'libraries', 'overview'].includes(url.searchParams.get('panel'))) {
+      const target = new URL(require('./public/sdocs-library-header').settingsUrl(
+        url.searchParams.get('workspace_id'), url.searchParams.get('panel')), CLOUD_AUTH_PUBLIC_ORIGIN);
+      res.writeHead(303, { Location: target.pathname + target.search, 'Cache-Control': 'no-store' }); res.end(); return;
+    }
     if (SINGLE_PLAN_ENABLED) {
       if (!authenticated.user.firstName || !authenticated.user.lastName) {
         res.writeHead(303, { Location: '/cloud/profile?return=' + encodeURIComponent(pathname + url.search), 'Cache-Control': 'no-store' });
@@ -3868,6 +3895,11 @@ const server = http.createServer((req, res) => {
     function serveCloudAdmin() {
       serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'cloud-admin.html'), {
         '__CLOUD_LEGACY_LIBRARY__': !SINGLE_PLAN_ENABLED || authenticated.user.legacyLibraryEnabled ? 'true' : 'false',
+        '__CLOUD_SETTINGS_SCOPE__': pathname === '/library/settings' ? 'library' : SINGLE_PLAN_ENABLED ? 'account' : 'legacy',
+        'data-sdocs-site-page="settings"': 'data-sdocs-site-page="' + (pathname === '/library/settings' ? 'cloud' : 'settings') + '"',
+        '__CLOUD_LIBRARY_HEADER__': pathname === '/library/settings' ? require('./public/sdocs-library-header').markup : '',
+        '__CLOUD_SETTINGS_LIBRARY_STYLES__': pathname === '/library/settings'
+          ? '<link rel="stylesheet" href="/public/library/library.css"><link rel="stylesheet" href="/public/library/cloud-library-prototype.css">' : '',
       }, {
         'Cache-Control': 'no-store',
         'X-Content-Type-Options': 'nosniff',
@@ -4003,6 +4035,7 @@ const server = http.createServer((req, res) => {
     ].join('; ');
     const libraryNavigation = homepageNavigation(req);
     serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'library', 'library.html'), {
+      '__CLOUD_LIBRARY_HEADER__': require('./public/sdocs-library-header').markup,
       '__CLOUD_AUTHENTICATED__': libraryNavigation.authenticated ? 'true' : 'false',
       '__CLOUD_LEGACY_LIBRARY__': libraryNavigation.legacyLibrary ? 'true' : 'false',
       '__CLOUD_TERMS_ACCEPTED__': libraryNavigation.termsAccepted ? 'true' : 'false',

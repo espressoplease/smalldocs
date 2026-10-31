@@ -8,9 +8,8 @@
   const heading = document.getElementById('cloud-library-heading');
   const localLink = document.getElementById('local-scope-link');
   const cloudLink = document.getElementById('cloud-scope-link');
-  const workspaceButton = document.getElementById('workspace-button');
-  const workspaceMenu = document.getElementById('workspace-menu');
-  const manageMembersLink = document.getElementById('manage-members-link');
+  var header;
+  var selectionEpoch = 0;
   const onboarding = document.getElementById('cloud-onboarding');
 
   window.SDocsCloudLibrary = window.SDocsCloudLibrary || {};
@@ -44,33 +43,17 @@
 
   heading.hidden = false;
 
-  function workspaceMark(workspace) {
-    const mark = document.createElement('span');
-    mark.className = 'workspace-mark';
-    mark.innerHTML = window.SDocsCloudAccountSelection.icon(workspace && workspace.kind);
-    if (workspace) mark.style.color = window.SDocsCloudAccountSelection.color(workspace.id);
-    return mark;
-  }
-
   async function selectWorkspace(workspace, user) {
     var accountName = window.SDocsCloudAccountSelection.label(workspace, user);
     window.SDocsCloudAccountSelection.remember(localStorage, workspace.id);
     window.SDocsCloudLibrary.workspaceId = workspace.id;
     window.SDocsCloudLibrary.workspaceName = accountName;
     document.getElementById('personal-library-note').hidden = workspace.kind !== 'personal';
-    manageMembersLink.hidden = workspace.kind !== 'team';
-    manageMembersLink.href = '/cloud/admin?panel=people&workspace_id=' + encodeURIComponent(workspace.id);
-    workspaceButton.replaceChildren(
-      workspaceMark(workspace),
-      Object.assign(document.createElement('span'), { textContent: accountName }),
-      chevron()
-    );
-    workspaceButton.setAttribute('aria-expanded', 'false');
-    workspaceMenu.hidden = true;
-    renderMenu(window.SDocsCloudLibrary.workspaces || [], workspace.id,
-      window.SDocsCloudLibrary.user || null);
+    header.render(workspace);
+    var epoch = ++selectionEpoch;
     const accountResponse = await fetch('/api/cloud/v1/account?account_id=' +
       encodeURIComponent(workspace.id), { credentials: 'same-origin' });
+    if (epoch !== selectionEpoch) return;
     if (accountResponse.status === 401) {
       location.href = '/cloud/sign-in?return=' + encodeURIComponent(location.pathname + location.search);
       return;
@@ -84,73 +67,6 @@
     showLibrary();
     window.dispatchEvent(new CustomEvent('sdocs-cloud-workspace-change'));
   }
-
-  function chevron() {
-    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    svg.setAttribute('viewBox', '0 0 24 24');
-    svg.setAttribute('aria-hidden', 'true');
-    const path = document.createElementNS(svg.namespaceURI, 'path');
-    path.setAttribute('d', 'm6 9 6 6 6-6');
-    svg.appendChild(path);
-    return svg;
-  }
-
-  function renderMenu(workspaces, selectedId, user) {
-    workspaceMenu.replaceChildren();
-    const label = document.createElement('div');
-    label.className = 'workspace-menu-label';
-    label.textContent = 'Libraries';
-    workspaceMenu.appendChild(label);
-    window.SDocsCloudAccountSelection.orderedLibraries(workspaces).forEach(function (workspace) {
-      const button = document.createElement('button');
-      button.className = 'workspace-menu-item' + (workspace.id === selectedId ? ' selected' : '');
-      button.type = 'button';
-      button.setAttribute('role', 'menuitem');
-      var accountName = window.SDocsCloudAccountSelection.label(workspace, user);
-      button.appendChild(workspaceMark(workspace));
-      const copy = document.createElement('span');
-      const strong = document.createElement('strong');
-      strong.textContent = accountName;
-      copy.append(strong);
-      button.appendChild(copy);
-      if (workspace.id === selectedId) {
-        const check = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-        check.setAttribute('class', 'workspace-check');
-        check.setAttribute('viewBox', '0 0 24 24');
-        check.setAttribute('aria-label', 'Current library');
-        const path = document.createElementNS(check.namespaceURI, 'path');
-        path.setAttribute('d', 'm20 6-11 11-5-5');
-        check.appendChild(path);
-        button.appendChild(check);
-      }
-      button.addEventListener('click', function () {
-        selectWorkspace(workspace, user).catch(showUnavailable);
-      });
-      workspaceMenu.appendChild(button);
-    });
-    const selected = workspaces.find(function (workspace) { return workspace.id === selectedId; });
-    if (selected && (selected.role === 'owner' || selected.role === 'admin')) {
-      const separator = document.createElement('div');
-      separator.className = 'workspace-menu-sep';
-      const link = document.createElement('a');
-      link.className = 'workspace-menu-link';
-      link.href = '/cloud/admin?workspace_id=' + encodeURIComponent(selected.id);
-      link.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/></svg><span>' + (selected.kind === 'personal' ? 'Account settings' : 'Library settings') + '</span>';
-      workspaceMenu.append(separator, link);
-    }
-  }
-
-  workspaceButton.addEventListener('click', function () {
-    const open = workspaceMenu.hidden;
-    workspaceMenu.hidden = !open;
-    workspaceButton.setAttribute('aria-expanded', String(open));
-  });
-  document.addEventListener('click', function (event) {
-    if (!event.target.closest('.workspace-switcher')) {
-      workspaceMenu.hidden = true;
-      workspaceButton.setAttribute('aria-expanded', 'false');
-    }
-  });
 
   function showUnavailable() {
     document.body.classList.remove('cloud-library-loading');
@@ -181,17 +97,13 @@
       showOnboarding(false);
       return;
     }
+    header = window.SDocsLibraryHeader.bind({ root: document.getElementById('library-header'), workspaces: workspaces, user: me,
+      onSelect: function (workspace) { selectWorkspace(workspace, me).catch(showUnavailable); } });
     var selectedWorkspace = window.SDocsCloudAccountSelection.resolve(
       workspaces, params.get('workspace'), localStorage);
     if (selectedWorkspace) {
       selectWorkspace(selectedWorkspace, me).catch(showUnavailable);
     } else {
-      workspaceButton.replaceChildren(
-        workspaceMark(null),
-        Object.assign(document.createElement('span'), { textContent: 'Choose library' }),
-        chevron()
-      );
-      renderMenu(workspaces, null, me);
       if (note) note.textContent = 'Choose a library to view its documents';
     }
   }).catch(showUnavailable);

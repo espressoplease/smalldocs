@@ -33,6 +33,7 @@ async function openCloudLibrary(page, extraQuery) {
   await page.evaluate(() => { document.body.dataset.cloudAuthenticated = 'true'; });
   await page.addStyleTag({ url: '/public/library/cloud-library-prototype.css' });
   await page.addScriptTag({ url: '/public/sdocs-cloud-account-selection.js' });
+  await page.addScriptTag({ url: '/public/sdocs-library-header.js' });
   await page.addScriptTag({ url: '/public/library/cloud-library-prototype.js' });
 }
 
@@ -44,6 +45,7 @@ test('signed-out Cloud Library explains the feature without calling Cloud APIs',
   await page.goto('/public/library/library.html?scope=cloud');
   await page.addStyleTag({ url: '/public/library/cloud-library-prototype.css' });
   await page.addScriptTag({ url: '/public/sdocs-cloud-account-selection.js' });
+  await page.addScriptTag({ url: '/public/sdocs-library-header.js' });
   await page.addScriptTag({ url: '/public/library/cloud-library-prototype.js' });
 
   await expect(page.getByRole('heading', { name: 'Cloud Library' })).toBeVisible();

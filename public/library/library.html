@@ -5,9 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>SmallDocs - Library</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32' fill='none'%3E%3Crect x='2' y='2' width='28' height='28' rx='7' fill='%232563EB' fill-opacity='.15'/%3E%3Crect x='2' y='2' width='28' height='28' rx='7' stroke='%232563EB' stroke-width='2'/%3E%3Cpath d='M9 11h14M9 16h11M9 21h8' stroke='%232563EB' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/public/css/fonts.css">
 <link rel="stylesheet" href="/public/css/cloud-pills.css">
 <link rel="stylesheet" href="/public/library/library.css">
 <link rel="stylesheet" href="/public/css/sidebar-shared.css">
@@ -50,38 +48,12 @@ __CLOUD_LIBRARY_STYLES__
   <div id="agent-banner" hidden></div>
 
   <div class="container">
-    <div class="cloud-library-nav" id="cloud-library-nav" hidden>
-      <div class="library-scope" aria-label="Library location">
-        <a class="library-scope-option" id="local-scope-link" href="/library">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 16h.01"/><path d="M2.212 11.577a2 2 0 0 0-.212.896V18a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-5.527a2 2 0 0 0-.212-.896L18.55 5.11A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/><path d="M21.946 12.013H2.054"/><path d="M6 16h.01"/></svg>
-          Local
-        </a>
-        <a class="library-scope-option" id="cloud-scope-link" href="/library?scope=cloud">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>
-          Cloud
-        </a>
-      </div>
-
-      <div class="cloud-library-actions" id="cloud-library-actions" hidden>
-        <div class="workspace-switcher">
-          <button class="workspace-button" id="workspace-button" aria-expanded="false" aria-haspopup="menu">
-            <span class="workspace-mark" aria-hidden="true"></span>
-            <span>Choose library</span>
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
-          </button>
-          <div class="workspace-menu" id="workspace-menu" role="menu" hidden>
-            <div class="workspace-menu-label">Libraries</div>
-          </div>
-        </div>
-        <a class="workspace-button cloud-manage-members" id="manage-members-link" href="/cloud/admin?panel=people" hidden>Manage members</a>
-        <a class="workspace-button cloud-create-library" href="/cloud/admin?panel=libraries">Create team library</a>
-      </div>
-    </div>
+    <div id="library-header">__CLOUD_LIBRARY_HEADER__</div>
 
     <div class="cloud-library-heading" id="cloud-library-heading" hidden>
       <span class="cloud-access-note"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m17 15-5.5 5.5L9 18"/><path d="M5.516 16.07A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 3.501 7.327"/></svg> Loading Cloud account...</span>
     </div>
-    <p class="personal-library-note" id="personal-library-note" hidden>Your Personal library is for you only. <a href="/cloud/admin?panel=libraries">Create a team library</a> to invite people.</p>
+    <p class="personal-library-note" id="personal-library-note" hidden>Your Personal library is for you only. <a href="/library/settings?panel=libraries">Create a team library</a> to invite people.</p>
 
     <section class="cloud-onboarding" id="cloud-onboarding" hidden>
       <h1>Cloud Library</h1>
@@ -202,6 +174,7 @@ __CLOUD_LIBRARY_STYLES__
   <script src="/public/sdocs-connect.js"></script>
   <script src="/public/library/library.js"></script>
   <script src="/public/library/library-menu.js"></script>
+  <script src="/public/sdocs-library-header.js"></script>
   __CLOUD_LIBRARY_SCRIPT__
   <script src="/public/sdocs-sidebar-shared.js"></script>
   <script src="/public/sdocs-scroll-header.js"></script>
