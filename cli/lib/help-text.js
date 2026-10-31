@@ -53,9 +53,12 @@ USAGE
   sdoc cloud status --json         Check the connected Cloud account
   sdoc cloud ls                    List Cloud documents
   sdoc cloud search "query"        Search Cloud documents
+  sdoc file.md --cloud --json +topic +project
+                                  Save a tagged Cloud document and return its URL
   sdoc cloud create file.md        Add a document to Cloud
   sdoc cloud --help                Full Cloud command reference
-  sdoc <file> +tag1 +tag2          Inject tags into the file's front matter at open time
+  sdoc <file> +tag1 +tag2           Add Cloud tags in Cloud-first mode;
+                                  edit local front matter in local-first mode
   sdoc defaults                    Show ~/.sdocs/styles.yaml
   sdoc defaults --reset            Remove default styles
   sdoc setup                       Install the SmallDocs skill for your coding agents
@@ -94,6 +97,10 @@ OPTIONS
   --placement <id>      Attribute a social short link to one publishing
                         placement. Use 4-32 letters, numbers, underscores,
                         or hyphens with --source x, yt, or youtube.
+  --cloud               Save a Markdown file to Cloud, then open and print its
+                        stable document URL. Requires sdoc cloud login.
+                        In chat, link to the returned URL, never the local file.
+  --standard            Open locally without uploading, even in Cloud mode.
   --json                Machine-readable output for safe and Cloud commands.
   --no-open             Do not launch the browser after a normal file open.
   --audit               Also print GitHub links to server-side source
@@ -159,6 +166,13 @@ LIVE BRIDGE (sdoc bridge)
   the read-only snapshot.
 
 FILE INFO CARD
+  Cloud-first saves preserve the working file's absolute path and any
+  supplied relative path as encrypted metadata. Only the creator can see
+  these paths in the info panel, including after opening a new tab.
+  Paths stay separate from shared Markdown and snapshot links. They
+  identify the source file, not a live connection to it.
+
+  For URL-only files:
   When you \`sdoc <file>\`, the browser shows a small info card
   above the document with:
     file       The filename — included in the share URL.
@@ -304,9 +318,12 @@ STYLED MARKDOWN FORMAT
 
 COMMENTS
   SmallDocs files can carry reviewer comments in their YAML front matter
-  under a \`comments:\` key. Comments do not modify the body — they're
-  resolved at render time by index lookup with a text-based fallback.
-  A typical use:
+  under a \`comments:\` key, separate from the document body. Read Cloud
+  feedback with \`sdoc cloud comments DOCUMENT_ID --json\`. Use scoped
+  \`cloud read\` and \`cloud edit\` to address it, then reply, resolve or
+  delete the selected thread. Run \`sdoc cloud comments --help\` for options.
+
+  For a local file:
     1. an agent generates a draft .md file
     2. a human reads it via \`sdoc <file> --comment\`, leaves comments
     3. the user copies the .md back to the agent (with comments)
@@ -326,9 +343,25 @@ const COMMENTS_HELP = `
 SmallDocs — Comments
 ================
 Reviewer comments are stored in YAML front matter under \`comments:\`.
-The body is never modified — anchoring happens at render time.
+The body is kept separate from feedback. Anchors locate comments at render time.
 This makes the format safe for round-tripping through agents and
 markdown tooling that doesn't understand SmallDocs-specific markers.
+
+CLOUD FEEDBACK
+  sdoc cloud comments DOCUMENT_ID --json
+  sdoc cloud comments DOCUMENT_ID --id c7 --json
+  sdoc cloud comments DOCUMENT_ID --id c7 --reply 'Updated the limit.' --json
+  sdoc cloud comments DOCUMENT_ID --id c7 --resolve --json
+  sdoc cloud comments DOCUMENT_ID --id c7 --delete --json
+  sdoc cloud comments --help
+
+  For an existing Cloud document, use cloud comments to read structured
+  feedback with replies, status, anchor diagnostics, short source excerpts
+  and Cloud links. Use cloud edit to change the document, then reply to
+  addressed feedback. Resolve keeps the discussion in the document;
+  delete removes the thread and its replies. Earlier revisions follow
+  the document's 90-day retention policy. The following formats support
+  local authoring, imports and portable exports.
 
 WHEN TO USE THIS
   Two flows benefit from comments:
@@ -355,7 +388,7 @@ TWO INPUT FORMATS
   identically in comment mode. Pick whichever is more natural for the
   context:
 
-  1. Markdown footnote format (RECOMMENDED FOR AGENTS).
+  1. Markdown footnote format (for portable authoring).
      Standard markdown footnote syntax. The agent edits the body,
      adding [^cN] markers where the comment anchors. No counting of
      element indices required — anchoring is positional, computed
@@ -475,13 +508,13 @@ FIELDS
   Optional but recommended:
     block         The "tag:n" anchor. Used as a fast lookup. Optional
                   for inline (the quote alone is enough), required for
-                  block (it's the only anchor).
-    block_text    For block kind only. The first ~60 characters of
+                  block (together with block_text when available).
+    block_text    The leading text of the target block, also used
+                  by inline comments to distinguish repeated quotes.
+                  For a block comment, store at least the first ~60 characters of
                   the block's plain text at the time of writing.
-                  Survival hint: when "tag:n" no longer matches (the
-                  document was edited and indices drifted), readers
-                  fall back to scanning for a block whose start
-                  matches block_text.
+                  A unique matching block can recover placement after
+                  the document changes. Repeated matches stay unplaced.
     prefix        For inline kind. Up to 60 chars of the rendered
                   text immediately before the quote, used to
                   disambiguate when the quote appears multiple times.
@@ -492,6 +525,15 @@ FIELDS
     author        Display name on the rendered card. Default: "user".
     color         Card tint, hex (#rrggbb). Default: "#ffbb00" (yellow).
     at            ISO 8601 timestamp. Default: now (browser side).
+    uid           Thread identity generated by SmallDocs. Preserve it
+                  when editing an existing comment.
+    replies       Reply list. Each reply has id, author, at and text,
+                  with optional author_user_id. The YAML writer stores
+                  this list as an inline JSON scalar.
+    author_user_id Stored author ID, when present. Imported names and
+                  IDs are editable metadata, not proof of identity.
+    updated_at    Last thread update time, when present.
+    resolved_at   Resolution time, when present.
 
 ID GENERATION
   Use c1, c2, c3... in chronological order. To pick the next id, take
@@ -500,23 +542,16 @@ ID GENERATION
   the auto-increment guarantee.
 
 ANCHOR RESOLUTION (HOW READERS RECOVER FROM DRIFT)
-  When a tool (the SmallDocs renderer or another agent) loads the file,
-  each comment is resolved in this order:
+  An unchanged document fingerprint preserves precise placement.
+  After edits, the renderer uses surviving block text and quote context
+  to locate a unique target. Missing or ambiguous targets remain visible
+  as unplaced feedback. A block index alone is not proof after edits.
 
-  Block kind:
-    1. Try \`block: "tag:n"\` exactly.
-    2. If found, optionally verify the resolved block's leading text
-       matches \`block_text\`. If not, fall through.
-    3. Search the document for any block whose first ~60 chars start
-       with \`block_text\`.
-    4. Give up — comment is orphaned.
-
-  Inline kind:
-    1. Find the block via \`block: "tag:n"\`.
-    2. Inside that block, find \`prefix + quote + suffix\`.
-    3. Fall back to \`prefix + quote + suffix\` anywhere in the body.
-    4. Fall back to \`quote\` alone, anywhere in the body.
-    5. Give up — comment is orphaned.
+  Cloud source diagnostics and browser placement are separate. Inspect
+  anchor.match_status, anchor.source_status and context in Cloud JSON.
+  For an unplaced Cloud comment, locate the intended passage before
+  using \`cloud comments DOCUMENT_ID --id c7 --reattach --quote 'Text'\`.
+  Add --section or --lines when the quote repeats.
 
 AUTHORING TIPS FOR AGENTS
   - Prefer the markdown-footnote authoring path (above). It avoids
@@ -525,9 +560,8 @@ AUTHORING TIPS FOR AGENTS
   - If you do author in YAML directly:
       - Compute "tag:n" by counting same-tag elements in render order.
         Headings, paragraphs, lists each have their own counters.
-      - Counting errors are common. The fallback tiers (block_text
-        for block kind, prefix/suffix or quote-only search for inline)
-        will rescue an off-by-one index — but only if you populate them.
+      - Include block_text and surrounding quote context so a unique
+        passage can still be located when block indices change.
       - For block comments, ALWAYS populate block_text (first ~60 chars
         of the block's plain text).
       - For inline comments, ensure the comment is uniquely resolvable:
@@ -3267,3 +3301,23 @@ SUPPORTED LANGUAGES
 `;
 
 module.exports = { HELP, COMMENTS_HELP, SCHEMA, CHARTS_HELP, DIAGRAMS_HELP, VIDEOS_HELP, APPS_HELP, CELLS_HELP, CODE_HELP, SLIDES_HELP, SLIDES_CUSTOM_SHAPES_HELP, LIBRARY_HELP };
+
+
+// Keep installed-channel examples consistent with the destination used by commands.
+const { INSTALLATION_CHANNEL } = require('./constants');
+if (INSTALLATION_CHANNEL) {
+  const origin = INSTALLATION_CHANNEL.origin;
+  const hostname = new URL(origin).host;
+  module.exports.HELP = module.exports.HELP
+    .replace('Toggle auto-install of sdoc updates', 'Automatic binary updates are disabled')
+    .replace('Upgrade sdoc to the latest version now', 'Print staging manual-update instructions')
+    .replace('Custom base URL (default: https://smalldocs.org)', 'Must match the installed staging origin: ' + origin)
+    .replace('Fallback base URL if --url is not passed.', 'Must match the installed staging origin: ' + origin);
+  module.exports.LIBRARY_HELP = module.exports.LIBRARY_HELP.replace(
+    /    - refuses any browser request whose Origin is not smalldocs\.org,[\s\S]*?SDOCS_AGENT_ALLOWED_ORIGINS\)/,
+    '    - accepts browser requests only from ' + origin);
+  for (const key of Object.keys(module.exports)) {
+    module.exports[key] = module.exports[key].split('https://smalldocs.org').join(origin)
+      .replace(/(?<![A-Za-z0-9.-])smalldocs\.org/g, hostname);
+  }
+}

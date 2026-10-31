@@ -1,0 +1,1280 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<script src="/public/sdocs-home-entry.js" data-cloud-authenticated="__HOME_CLOUD_AUTHENTICATED__" data-local-library="false"></script>
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SmallDocs - a document format and store for coding agents</title>
+<meta name="description" content="An office suite your existing coding agents use to write documents, charts, slides, sheets, and forms." />
+<link rel="canonical" href="https://smalldocs.org/" />
+
+<!-- Open Graph -->
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="SmallDocs" />
+<meta property="og:url" content="https://smalldocs.org/" />
+<meta property="og:title" content="SmallDocs - a document format and store for coding agents" />
+<meta property="og:description" content="An office suite your existing coding agents use to write documents, charts, slides, sheets, and forms." />
+<meta property="og:image" content="https://smalldocs.org/public/homepage/og-preview.png" />
+<meta property="og:image:type" content="image/png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="SmallDocs - the document format as intelligent as your agents" />
+
+<!-- Twitter / X -->
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="SmallDocs - a document format and store for coding agents" />
+<meta name="twitter:description" content="An office suite your existing coding agents use to write documents, charts, slides, sheets, and forms." />
+<meta name="twitter:image" content="https://smalldocs.org/public/homepage/og-preview.png" />
+<meta name="twitter:image:alt" content="SmallDocs - the document format as intelligent as your agents" />
+
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32' fill='none'%3E%3Crect x='2' y='2' width='28' height='28' rx='7' fill='%232563EB' fill-opacity='.15'/%3E%3Crect x='2' y='2' width='28' height='28' rx='7' stroke='%232563EB' stroke-width='2'/%3E%3Cpath d='M9 11h14M9 16h11M9 21h8' stroke='%232563EB' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ───────────────────────────────────────────────────────────────
+   SmallDocs homepage. Two registers stacked: a confident hero
+   (eyebrow + display heading + lead + demo video), then a
+   document-panel install section styled to nod at how SmallDocs
+   renders its own .md files - filename chrome, hairline divider,
+   document-scale type. The page ends just below that panel.
+   ─────────────────────────────────────────────────────────────── */
+
+:root {
+  --paper:     #F6F4F1;
+  --white:     #FFFFFF;
+  --ink:       #1B1815;
+  --ink-2:     #56504A;
+  --ink-3:     #938C82;
+  --line:      #E7E2DA;
+  --line-2:    #DAD3C9;
+  --accent:    #2563EB;
+  --accent-ink:#1D4ED8;
+  --terminal:  #1C1916;
+
+  --t-h2:      clamp(1.95rem, 1.5rem + 1.7vw, 2.55rem);
+  --t-h3:      1.35rem;
+  --t-lead:    clamp(1.08rem, 1.01rem + 0.34vw, 1.25rem);
+  --t-body:    1.0625rem;
+  --t-sm:      0.9375rem;
+  --t-label:   0.75rem;
+  --t-mono:    0.8125rem;
+
+  --r-sm: 8px;
+  --r:    12px;
+  --r-lg: 18px;
+
+  --sh-card: 0 1px 2px rgba(27,24,21,.04), 0 6px 16px rgba(27,24,21,.05);
+  --sh-lift: 0 2px 4px rgba(27,24,21,.04), 0 14px 32px rgba(27,24,21,.07),
+             0 40px 64px rgba(27,24,21,.06);
+
+  --font:  'Inter', system-ui, -apple-system, sans-serif;
+  --mono:  'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--font);
+  background: var(--paper);
+  color: var(--ink);
+  font-size: var(--t-body);
+  line-height: 1.62;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+::selection { background: color-mix(in srgb, var(--accent) 18%, transparent); }
+a { color: inherit; }
+.wrap { width: 100%; max-width: 1128px; margin: 0 auto; padding: 0 36px; }
+
+.eyebrow {
+  display: inline-flex;
+  letter-spacing: 0.01em;
+  align-items: center;
+  gap: 9px;
+  font-size: var(--t-label);
+  font-weight: 400;
+  color: var(--ink-3);
+}
+.eyebrow::before {
+  content: "";
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
+
+/* ── NAV ─────────────────────────────────────────────── */
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  background: transparent;
+  border-bottom: 1px solid transparent;
+  transition: background .25s ease, border-color .25s ease;
+}
+.nav.scrolled {
+  background: color-mix(in srgb, var(--paper) 86%, transparent);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border-bottom-color: var(--line);
+}
+@media (max-width: 768px) {
+  .nav { position: sticky; top: 0; }
+}
+.nav-in {
+  height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.brand {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+  color: var(--accent);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.nav-links {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.nav-primary {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.nav-link,
+.nav-dropdown > summary {
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 9px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink-2);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  list-style: none;
+  text-decoration: none;
+  cursor: pointer;
+}
+.nav-link:hover,
+.nav-dropdown > summary:hover,
+.nav-dropdown[open] > summary {
+  background: var(--white);
+  border-color: var(--line);
+  color: var(--ink);
+}
+.nav-dropdown { position: relative; }
+.nav-dropdown > summary::-webkit-details-marker { display: none; }
+.nav-dropdown > summary svg {
+  transition: transform .18s ease;
+}
+.nav-dropdown[open] > summary svg { transform: rotate(180deg); }
+.nav-dropdown .nav-menu-panel { left: 0; right: auto; min-width: 196px; }
+/* GitHub button: the app's standard .btn translated to the homepage
+   palette - 12px label, hairline border, darken on hover. */
+.btn-gh {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 11px;
+  border-radius: 6px;
+  border: 1px solid #D4CFC9;
+  background: #EDE8E2;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  text-decoration: none;
+  transition: background .12s, border-color .12s, color .12s;
+}
+.btn-gh:hover { background: #E8E3DD; border-color: #D4CFC9; }
+.btn-gh svg, .btn-read svg, .btn-secondary svg { display: block; flex-shrink: 0; }
+.nav-links > .btn-gh {
+  height: 32px;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+.nav-cloud {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+.nav-cloud:hover { border-color: var(--accent-ink); background: var(--accent-ink); color: #fff; }
+.btn-gh:focus-visible, .nav-menu summary:focus-visible,
+.nav-link:focus-visible, .nav-dropdown > summary:focus-visible,
+.nav-menu-panel a:focus-visible, .nav-menu-panel button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.nav-menu-mobile-only { display: none; }
+.nav-menu-static-mobile { display: none !important; }
+.nav-menu-guest { display: none; }
+.nav-install-label-short { display: none; }
+.nav-menu {
+  position: relative;
+}
+.nav-menu summary {
+  width: 34px;
+  height: 32px;
+  justify-content: center;
+  padding: 0;
+  list-style: none;
+  cursor: pointer;
+}
+.nav-menu summary::-webkit-details-marker { display: none; }
+.nav-menu[open] summary { background: #E8E3DD; border-color: #C2BBB0; }
+.nav-menu-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 164px;
+  padding: 6px;
+  border: 1px solid var(--line-2);
+  border-radius: 10px;
+  background: var(--white);
+  box-shadow: var(--sh-card);
+}
+.nav-menu-panel a, .nav-menu-panel button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 34px;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.25;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+.nav-menu-panel :is(a, button) svg { display: block; flex: 0 0 auto; }
+.nav-menu-panel :is(a, button):hover { background: var(--paper); }
+.nav-menu-panel form { margin: 0; }
+.nav-menu-separator {
+  height: 1px;
+  margin: 5px 4px;
+  background: var(--line);
+}
+
+/* ── BUTTONS ─────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font);
+  font-size: var(--t-sm);
+  font-weight: 500;
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  transition: background .15s ease, border-color .15s ease, color .15s ease, transform .12s ease;
+}
+.btn-primary {
+  background: var(--accent);
+  color: var(--paper);
+  padding: 11px 18px;
+}
+.btn-primary:hover { background: #000; }
+.btn-primary:active { transform: translateY(1px); }
+
+/* Secondary CTA: hairline-bordered, sits beside the primary in the hero.
+   Quieter than .btn-primary so the page still has one clear lead action. */
+.btn-secondary {
+  background: #EDE8E2;
+  color: var(--ink);
+  border-color: #D4CFC9;
+  padding: 11px 18px;
+}
+.btn-secondary:hover { background: #E8E3DD; border-color: #C2BBB0; color: #000; }
+.btn-secondary:active { transform: translateY(1px); }
+
+/* ── HERO ────────────────────────────────────────────── */
+.hero {
+  padding: 78px 0 0 0;
+  text-align: left;
+}
+.hero .eyebrow { margin: 0; }
+.hero .eyebrow::before { display: none; }
+.hero .hero-display {
+  text-align: left;
+  max-width: 27.1ch;
+  font-size: 39px;
+  font-weight: 600;
+  line-height: 1.27;
+  letter-spacing: -0.034em;
+  color: var(--ink);
+}
+.hero .lead {
+  margin-top: 12px;
+  text-align: left;
+  max-width: 71ch;
+  font-size: var(--t-lead);
+  line-height: 1.56;
+  color: var(--ink-2);
+  font-weight: 400;
+}
+.hero-install-prompt {
+  color: var(--ink);
+  font-weight: 700;
+}
+/* "Read a SmallDoc": the quiet white pill (the GitHub button's first
+   palette), on its own line above the CTA pair. */
+.btn-read {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 20px;
+  padding: 11px 18px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--line-2);
+  background: var(--white);
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+  font-weight: 500;
+  line-height: 1;
+  text-decoration: none;
+  transition: background .12s, border-color .12s, color .12s;
+}
+/* Subtle hover: a faint background nudge plus a darker border and text, so the
+   button reads as pressable without the old hard white-to-cream jump. */
+.btn-read:hover { background: #FBF9F6; border-color: #C2BBB0; color: #000; }
+/* "Read a SmallDoc" + "Learn how to sdoc" sit on one line above the CTA pair. */
+.hero-read-row { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 20px; }
+.hero-read-row .btn-read { margin-top: 0; }
+
+.hero-cta {
+  margin-top: 14px;
+  display: flex;
+  gap: 20px;
+}
+.hero-works {
+  margin-top: 24px;
+  font-size: var(--t-label);
+  /* font-size: var(--t-mono); */
+  letter-spacing: 0.01em;
+  color: var(--ink-3);
+}
+
+/* ── LEARN ───────────────────────────────────────────── */
+#learn { padding: 64px 0 0; }
+.learn-more { margin-top: 16px; font-size: var(--t-sm); color: var(--ink-2); }
+.learn-more a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+/* Each example is a single-line button that opens a real SmallDoc in a new
+   tab. Styled to match the install-area expandable rows exactly (same cream
+   fill, padding, radius, muted text), no border - just the external-link icon
+   where the chevron would sit. */
+.learn-items { display: flex; flex-direction: column; gap: 6px; }
+.learn-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 14px;
+  border-radius: var(--r);
+  background: var(--paper);
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+  font-weight: 400;
+  text-decoration: none;
+  transition: background .12s, color .12s;
+}
+.learn-item:hover { background: #F0EBE3; color: var(--ink); }
+.learn-item-prompt { flex: 1; min-width: 0; }
+.learn-item-icon { flex-shrink: 0; margin-left: auto; color: var(--ink-3); transition: color .12s; }
+.learn-item:hover .learn-item-icon { color: var(--accent); }
+
+/* ── HERO VIDEO ──────────────────────────────────────── */
+.hero-visual { margin: 56px 0 0; }
+.videocard {
+  position: relative;
+  background: #000;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  overflow: hidden;
+}
+.videocard .vid {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+}
+.vid-loading {
+  position: absolute;
+  left: 14px;
+  bottom: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 13px 7px 11px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #fff;
+  background: rgba(20,18,16,.62);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  border-radius: 999px;
+  transition: opacity .45s ease;
+}
+.videocard.ready .vid-loading { opacity: 0; pointer-events: none; }
+.spinner {
+  width: 13px;
+  height: 13px;
+  border: 2px solid rgba(255,255,255,.32);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.vid-controls {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  display: flex;
+  gap: 8px;
+}
+.vid-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--font);
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #fff;
+  cursor: pointer;
+  border: 1px solid rgba(255,255,255,.16);
+  background: rgba(20,18,16,.62);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  border-radius: 999px;
+  padding: 8px 13px;
+  line-height: 1;
+  transition: background .14s ease, border-color .14s ease, opacity .14s ease;
+}
+.vid-btn:hover { background: rgba(20,18,16,.84); }
+.vid-btn svg { display: block; }
+.vid-btn.cc-off { opacity: .48; }
+.vid-btn .ic-sound { display: none; }
+.videocard.sound-on .vid-btn .ic-muted { display: none; }
+.videocard.sound-on .vid-btn .ic-sound { display: block; }
+.vid-btn .ic-play { display: none; }
+.videocard.paused .vid-btn .ic-pause { display: none; }
+.videocard.paused .vid-btn .ic-play { display: block; }
+/* Icon-only seek buttons (skip 10s, prev/next chapter) pack tighter. */
+.vid-btn.seek { padding: 8px 9px; }
+.vid-btn.seek svg text { stroke: none; font-weight: 600; }
+.videocard.chapters-open #chapBtn { background: rgba(20,18,16,.9); border-color: rgba(255,255,255,.32); }
+
+/* Chapters dropdown: a scrollable list floating above the control bar.
+   Populated from the chapters[] list in the player script. */
+.vid-chapmenu {
+  position: absolute;
+  right: 14px;
+  bottom: 60px;
+  z-index: 6;
+  width: 264px;
+  max-height: 264px;
+  overflow-y: auto;
+  padding: 6px;
+  background: rgba(20,18,16,.9);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,.16);
+  border-radius: 12px;
+  opacity: 0;
+  transform: translateY(6px);
+  pointer-events: none;
+  transition: opacity .16s ease, transform .16s ease;
+}
+.videocard.chapters-open .vid-chapmenu { opacity: 1; transform: none; pointer-events: auto; }
+.videocard.teaser .vid-chapmenu { opacity: 0 !important; pointer-events: none; }
+.vid-chap {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  width: 100%;
+  text-align: left;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #fff;
+  font-family: var(--font);
+  font-size: 13px;
+  line-height: 1.3;
+  cursor: pointer;
+}
+.vid-chap:hover { background: rgba(255,255,255,.12); }
+.vid-chap.active { background: rgba(255,255,255,.16); }
+.vid-chap .t {
+  min-width: 38px;
+  color: rgba(255,255,255,.55);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.vid-chap.active .t { color: #fff; }
+
+/* Teaser: a short muted loop stacked on top of the main video until
+   the visitor presses play. */
+.vid-teaser {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .35s ease;
+}
+.videocard.teaser .vid-teaser { opacity: 1; }
+.videocard.teaser .vid-controls,
+.videocard.teaser .vid-loading,
+.videocard.teaser .vid-caption { opacity: 0; pointer-events: none; }
+.videocard.teaser .vid-play { display: flex; }
+
+/* Full screen: the whole card goes fullscreen (not the bare video) so the
+   custom captions and controls stay visible. */
+.videocard:fullscreen { border: 0; border-radius: 0; }
+.videocard:fullscreen .vid {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+  object-fit: contain;
+}
+.videocard:-webkit-full-screen { border: 0; border-radius: 0; }
+.videocard:-webkit-full-screen .vid {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+  object-fit: contain;
+}
+
+@media (max-width: 560px) {
+  .vid-btn .lbl { display: none; }
+  /* The 9-button bar overflows a phone; the chapters menu already covers
+     navigation there, so drop the chapter-skip buttons and keep +/-10s. */
+  .vid-controls { gap: 6px; }
+  #prevChapBtn, #nextChapBtn { display: none; }
+  /* The inline video card is short on a phone; pin the menu between the top
+     and the control bar so it can never overhang and clip against the card. */
+  .vid-chapmenu {
+    top: 8px;
+    bottom: 50px;
+    right: 10px;
+    width: 210px;
+    max-height: none;
+  }
+  .vid-chap { padding: 5px 9px; font-size: 12px; }
+  .vid-chap .t { min-width: 32px; font-size: 11px; }
+}
+
+.vid-caption {
+  position: absolute;
+  left: 50%;
+  bottom: 62px;
+  transform: translateX(-50%);
+  max-width: 78%;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 450;
+  line-height: 1.45;
+  pointer-events: none;
+}
+.vid-caption span {
+  color: #fff;
+  background: rgba(20,18,16,.74);
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  padding: 4px 9px;
+  border-radius: 5px;
+}
+.vid-caption:empty,
+.vid-caption.cc-hidden { display: none; }
+
+.vid-play {
+  position: absolute;
+  inset: 0;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  background: rgba(20,18,16,.3);
+  cursor: pointer;
+  z-index: 2;
+}
+.videocard.needs-play .vid-play { display: flex; }
+.vid-play span {
+  width: 66px;
+  height: 66px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.95);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 6px 22px rgba(0,0,0,.28);
+  transition: transform .18s ease;
+}
+.vid-play:hover span { transform: scale(1.06); }
+.vid-play em {
+  font-style: normal;
+  font-size: 13px;
+  font-weight: 500;
+  color: #fff;
+  background: rgba(20,18,16,.62);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  border-radius: 999px;
+  padding: 7px 14px;
+}
+
+/* ── INSTALL: a calm tinted panel matching the video width ────
+   Same overall idea as Cursor's homepage info blocks - a wide
+   warm-beige section sitting inside the wrap, no drop shadow,
+   two columns inside (text + action). Width matches the video
+   so the page reads as one visual column top to bottom. */
+
+#install {
+  padding: 66px 0 0 0;
+}
+.install-panel {
+  background: var(--white);
+  border-radius: var(--r);
+  padding: 38px 42px 42px;
+}
+.install-grid {
+  display: grid;
+  grid-template-columns: 0.95fr 1.05fr;
+  gap: 56px;
+  align-items: start;
+}
+/* Grid items default to min-width auto, which lets nowrap content
+   (the curl command) widen the track past the viewport on phones. */
+.install-grid > * { min-width: 0; }
+.install-text { max-width: 32ch; }
+.install-text h2 {
+  font-size: var(--t-lead);
+  font-weight: 600;
+  line-height: 1.16;
+  letter-spacing: -0.022em;
+  color: var(--ink);
+}
+.install-text p {
+  margin-top: 16px;
+  font-size: 1.0625rem;
+  line-height: 1.65;
+  color: var(--ink-2);
+}
+/* terminal-style command block, kept dark for strong identity */
+.install-cmd {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #EDE8E2;
+  border-radius: var(--r);
+  padding: 8px;
+}
+.install-cmd .pr { color: #6E665C; font-family: var(--mono); font-size: var(--t-mono); }
+.install-cmd .cmd {
+  flex: 1;
+  /* min-width 0 lets the nowrap command shrink with the column and
+     scroll inside the pill instead of stretching the page. */
+  min-width: 0;
+  font-family: var(--mono);
+  font-size: var(--t-mono);
+  white-space: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.install-cmd .cmd::-webkit-scrollbar { display: none; }
+/* matches the markdown-rendered code-block copy button (rendered.css):
+   transparent at rest so it blends with the cmd-block bg, faint hairline,
+   opacity 0.7 at rest, full opacity + subtle dark tint on hover. */
+.install-cmd .copy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  color: var(--ink-2);
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity .15s, background .15s, color .15s;
+}
+.install-cmd .copy:hover { opacity: 1; background: rgba(0,0,0,0.05); color: var(--ink); }
+.install-cmd .copy.done { opacity: 1; color: #2E8C46; }
+/* Two commands (install, then sdoc setup) in one gray block: the box stacks
+   its rows, each row keeps the $ / command / copy layout. */
+.install-cmd-stack { flex-direction: column; align-items: stretch; gap: 0; }
+.install-cmd-line { display: flex; align-items: center; gap: 12px; min-width: 0; }
+/* A shell-style comment between commands - muted, monospace, no copy button. */
+.install-cmd-comment {
+  font-family: var(--mono);
+  font-size: var(--t-mono);
+  color: var(--ink-3);
+  padding: 0;
+}
+
+/* expandable extras: paper-tinted, borderless, lower visual weight
+   than the install command block above them */
+.trouble {
+  background: var(--paper);
+  border-radius: var(--r);
+  transition: background .12s;
+}
+/* Subtle hover on the whole row - no border, matching the learn buttons. */
+.trouble:hover { background: #F0EBE3; }
+.trouble + .trouble { margin-top: 6px; }
+.learn-items .trouble + .trouble { margin-top: 0; }
+.install-cmd + .trouble { margin-top: 14px; }
+.trouble[open] { background: var(--paper); }
+.trouble > summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 9px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: var(--t-sm);
+  font-weight: 400;
+  color: var(--ink-2);
+}
+.trouble > summary:hover { color: var(--ink); }
+.trouble > summary::-webkit-details-marker { display: none; }
+.trouble > summary code {
+  font-family: var(--mono);
+  font-size: 0.84em;
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 1px 6px;
+  color: var(--ink);
+}
+.trouble > summary .chev {
+  margin-left: auto;
+  transition: transform .2s ease;
+  color: var(--ink-3);
+}
+.trouble[open] > summary .chev { transform: rotate(90deg); }
+.trouble-body { padding: 2px 14px 0; }
+.trouble-step {
+  padding: 14px 0;
+  border-top: 1px solid var(--line);
+}
+.trouble-step:first-child { border-top: 0; padding-top: 6px; }
+.trouble-step h4 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+.trouble-step p {
+  margin-top: 18px;
+  font-size: var(--t-sm);
+  line-height: 1.55;
+  color: var(--ink-2);
+}
+.trouble-step ul {
+  margin-top: 10px;
+  list-style: none;
+  font-size: var(--t-sm);
+  line-height: 1.55;
+  color: var(--ink-2);
+}
+/* hanging-indent bullets: round dot in the gutter, wrapped lines align
+   with the first line of text (not the bullet). */
+.trouble-step ul li {
+  position: relative;
+  padding-left: 20px;
+  margin-top: 8px;
+}
+.trouble-step ul li:first-child { margin-top: 0; }
+.trouble-step ul li::before {
+  content: "";
+  position: absolute;
+  left: 6px;
+  top: 0.62em;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--ink-3);
+}
+.trouble-step code, .trouble-step .mini {
+  font-family: var(--mono);
+  font-size: 0.84em;
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 2px 7px;
+  color: var(--ink);
+}
+.trouble-step .mini {
+  display: inline-block;
+  padding: 9px 12px;
+  margin-top: 8px;
+  font-size: 13px;
+  color: #EDE8E0;
+  background: var(--terminal);
+  border-color: #322D27;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+/* agent-prompt: copyable block of markdown the user pastes into their coding agent.
+   Styled to match .install-cmd (same cream bg, no border, dark text) so the two
+   copy blocks read as one family. */
+.agent-prompt-wrap {
+  position: relative;
+  margin-top: 10px;
+}
+.agent-prompt {
+  margin: 0;
+  padding: 16px 18px;
+  background: #EDE8E2;
+  border-radius: var(--r);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 12.5px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  max-height: 380px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.agent-prompt-copy {
+  position: absolute;
+  top: 8px;
+  right: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  color: var(--ink-2);
+  background: transparent;
+  border: 1px solid rgba(0,0,0,0.12);
+  border-radius: 4px;
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity .15s, background .15s, color .15s;
+}
+.agent-prompt-copy:hover { opacity: 1; background: rgba(0,0,0,0.05); color: var(--ink); }
+.agent-prompt-copy.done { opacity: 1; color: #2E8C46; }
+
+/* ── TEAMS ─────────────────────────────────────────────
+   Reuses the install panel and grid so both calls to action share one
+   layout and responsive rhythm. */
+#teams { padding: 66px 0 0; }
+.teams-form { display: grid; gap: 14px; }
+.tf-field label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: var(--t-label);
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: var(--ink-2);
+}
+.tf-field .tf-opt { font-weight: 400; color: var(--ink-3); }
+.tf-field input,
+.tf-field textarea {
+  width: 100%;
+  font-family: var(--font);
+  font-size: 1rem;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-sm);
+  padding: 10px 12px;
+  outline: none;
+  transition: border-color .15s ease;
+}
+.tf-field input:focus,
+.tf-field textarea:focus { border-color: var(--accent); }
+.tf-field textarea { resize: vertical; min-height: 96px; }
+.tf-hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+.tf-actions { display: flex; align-items: center; gap: 14px; }
+.tf-status { font-size: var(--t-sm); color: var(--ink-2); }
+.tf-status.err { color: #B4231F; }
+.tf-note { font-size: var(--t-label); color: var(--ink-3); }
+.teams-thanks {
+  font-size: var(--t-body);
+  line-height: 1.6;
+  color: var(--ink);
+  background: var(--paper);
+  border-radius: var(--r);
+  padding: 22px 24px;
+}
+
+/* ── FOOTER (minimal hairline) ───────────────────────── */
+footer {
+  margin-top: 66px;
+  border-top: 1px solid var(--line);
+  padding: 28px 0 36px;
+}
+.foot-fine {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  /* Matches the hero's "Works with ..." line. */
+  font-size: var(--t-label);
+  letter-spacing: 0.01em;
+  color: var(--ink-3);
+}
+.foot-fine a {
+  color: var(--ink-2);
+  text-decoration: none;
+  transition: color .14s;
+}
+.foot-fine a:hover { color: var(--ink); }
+.foot-fine .dot { color: var(--line-2); padding: 0 4px; }
+
+/* ── PRAISE (Hacker News comment wall) ────────────────
+   Reuses .install-panel for the outer shell so the page reads as
+   one family of boxes; cards echo the .learn-item surface. */
+#praise { padding: 66px 0 0 0; }
+.praise-head h2 {
+  font-size: var(--t-lead);
+  font-weight: 600;
+  line-height: 1.16;
+  letter-spacing: -0.022em;
+  color: var(--ink);
+}
+.praise-head p {
+  margin-top: 14px;
+  font-size: 1.0625rem;
+  line-height: 1.65;
+  color: var(--ink-2);
+}
+.praise-grid {
+  margin-top: 30px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+.praise-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  min-height: 180px;
+  background: var(--paper);
+  border-radius: var(--r);
+  padding: 14px;
+}
+.praise-card blockquote {
+  margin: 0;
+  font-size: 1.0625rem;
+  line-height: 1.5;
+  letter-spacing: -0.006em;
+  color: var(--ink);
+}
+/* Small Hacker News monogram: orange square, white Y. Shown once,
+   inline in the blurb, rather than repeated on every card. */
+.hn-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  background: #FF6600;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  vertical-align: 3px;
+}
+/* Per-card "context" link to the original HN comment. The card itself is
+   not a link; only this small icon reacts to a direct hover (matching the
+   external-link icon on the "Example sdocs" rows above). margin-top:auto
+   parks it at the card's bottom-right without overlapping a long quote. */
+.praise-context {
+  margin-top: auto;
+  align-self: flex-end;
+  padding-top: 16px;
+  display: inline-flex;
+  align-items: center;
+  color: var(--ink-3);
+  text-decoration: none;
+  transition: color .12s;
+}
+.praise-context:hover { color: var(--accent); }
+.praise-context svg { flex-shrink: 0; display: block; }
+
+/* ── RESPONSIVE ──────────────────────────────────────── */
+@media (max-width: 900px) {
+  .nav-primary { display: none; }
+  .nav-menu-guest { display: block; }
+  .nav-menu-static-mobile { display: flex !important; }
+  /* One 56px gap between every panel and before the footer. */
+  #learn { padding: 56px 0 0; }
+  #install { padding: 56px 0 0; }
+  #teams { padding: 56px 0 0; }
+  #praise { padding: 56px 0 0; }
+  footer { margin-top: 56px; }
+  .install-panel { padding: 44px 36px; border-radius: 18px; }
+  .install-grid { grid-template-columns: 1fr; gap: 32px; }
+  .install-text { max-width: 100%; }
+  .install-text h2 { font-size: 1.7rem; }
+  .praise-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 620px) {
+  .wrap { padding: 0 22px; }
+  .nav-library-wide { display: none; }
+  .nav-menu-mobile-only { display: flex; }
+  .nav-install-label-long { display: none; }
+  .nav-install-label-short { display: inline; }
+  /* Hero bottom padding stays 0 so the video-to-panel gap equals the
+     40px panel-to-panel rhythm below. */
+  .hero { padding: 52px 0 0; }
+  .hero .hero-display { font-size: 30px; max-width: 100%; line-height: 1.2; }
+  .hero .lead { max-width: 100%; }
+  .hero-cta { flex-wrap: wrap; gap: 12px; }
+  .hero-visual { margin-top: 40px; }
+  .vid-caption { font-size: 12.5px; bottom: 50px; max-width: 88%; }
+  .vid-btn { font-size: 11.5px; padding: 7px 10px; }
+  .vid-controls { right: 10px; bottom: 10px; gap: 6px; }
+  .vid-loading { left: 10px; bottom: 10px; }
+  #learn { padding: 40px 0 0; }
+  #install { padding: 40px 0 0; }
+  #teams { padding: 40px 0 0; }
+  #praise { padding: 40px 0 0; }
+  footer { margin-top: 40px; }
+  .install-panel { padding: 32px 22px; border-radius: 16px; }
+  .install-text h2 { font-size: 1.45rem; }
+  .install-cmd { padding: 12px 12px 12px 14px; }
+  .install-cmd .cmd { font-size: 0.84rem; }
+  .praise-grid { grid-template-columns: 1fr; }
+  /* A single column gets long fast; keep only the three strongest. */
+  .praise-extra { display: none; }
+}
+@media (max-width: 360px) {
+  .nav-in { gap: 10px; padding-left: 16px; padding-right: 16px; }
+  .nav-links { gap: 5px; }
+  .nav-links > .btn-gh { padding-left: 8px; padding-right: 8px; }
+}
+</style>
+<link rel="stylesheet" href="/public/css/homepage-next.css">
+</head>
+<body class="home-next" data-cloud-authenticated="__HOME_CLOUD_AUTHENTICATED__" data-google-enabled="__HOME_GOOGLE_ENABLED__"><nav class="nav homepage-login-nav" id="nav" aria-label="Account">
+  <div class="wrap"><div class="homepage-column nav-in">
+    <a class="btn-gh homepage-login" href="__HOME_ACCOUNT_HREF__">__HOME_ACCOUNT_LABEL__</a>
+  </div></div>
+</nav><main class="hero"><div class="wrap"><div class="homepage-column"><div class="hero-visual homepage-small-video"><div class="videocard needs-play" id="videocard"><video class="vid" id="intro-video" playsinline preload="none" poster="/public/homepage/home-next-poster.png" aria-label="30-second SmallDocs preview"><source src="/public/homepage/home-next-demo.mp4" type="video/mp4"><track kind="captions" src="/public/homepage/home-next-demo.vtt" srclang="en" label="English" default></video><button class="vid-play intro-play" type="button" aria-label="Play 30-second preview"><span><svg width="24" height="24" viewBox="0 0 16 16" aria-hidden="true"><path d="M5 3.1l8 4.9-8 4.9z" fill="#1B1815"/></svg></span><em>30s</em></button></div></div><h1 class="hero-display">SmallDocs is a document format and library for coding agents.</h1><p class="lead homepage-copy">You use it when you want to escape the limits of your chat interface or save an agent’s thinking at a given point in time. Your agents can use it on their own: a remote agent can write a SmallDoc and notify you.</p><p class="lead homepage-copy">A single SmallDoc can include slides, a multi-tab spreadsheet, charts, code, an HTML widget and text to link it all together.</p><p class="lead homepage-copy">After installation, ask your agent: <em>“write me a sdoc about (topic)”</em>. Open it in your browser, including on mobile, or share it with other people.</p><p class="lead homepage-copy">SmallDocs are built for human-agent feedback loops. Speed up your iteration with targeted features: easy ways to copy precise chunks of text, tables, code and charts, and the ability to leave comments on a document for your agent to pick up.</p><p class="lead homepage-copy">SmallDocs are automatically saved to an encrypted cloud library. This library is accessible to humans (on the web, including mobile) and agents (via the SmallDocs command line tool).</p><p class="lead homepage-copy">SmallDocs are agent agnostic, meaning teams using AI from a range of providers can all create and save documents in a standardized way.</p><p class="lead homepage-copy">Over 4,000 developers, financiers and scientists use SmallDocs. To join them, get your install prompt:</p><div class="homepage-start" id="start"><a class="homepage-google" href="/api/cloud/auth/oauth/google?return_to=%2Fcloud%2Fprofile"><svg class="homepage-google-icon" viewBox="0 0 18 18" aria-hidden="true">
+            <path fill="#4285F4" d="M17.64 9.205c0-.638-.057-1.252-.164-1.841H9v3.481h4.844a4.14 4.14 0 0 1-1.797 2.716v2.258h2.909c1.703-1.568 2.684-3.878 2.684-6.614Z"/>
+            <path fill="#34A853" d="M9 18c2.43 0 4.468-.806 5.956-2.181l-2.909-2.258c-.806.54-1.836.859-3.047.859-2.344 0-4.328-1.585-5.037-3.714H.957v2.332A9 9 0 0 0 9 18Z"/>
+            <path fill="#FBBC05" d="M3.963 10.706A5.41 5.41 0 0 1 3.681 9c0-.592.102-1.168.282-1.706V4.962H.957A9 9 0 0 0 0 9c0 1.452.347 2.827.957 4.038l3.006-2.332Z"/>
+            <path fill="#EA4335" d="M9 3.58c1.321 0 2.507.454 3.441 1.346l2.581-2.581C13.464.892 11.426 0 9 0A9 9 0 0 0 .957 4.962l3.006 2.332C4.672 5.165 6.656 3.58 9 3.58Z"/>
+          </svg><span>Continue with Google</span></a><div class="homepage-signup-divider"><span>or use your email</span></div><form class="teams-form homepage-email" data-install-form><div class="tf-field"><input name="email" type="email" aria-label="your email" autocomplete="email" placeholder="your@email.com" required></div><button class="btn btn-primary" type="submit">Get install prompt</button></form><p class="homepage-sales-link">or <a href="#talk-to-sales">talk to sales</a> (or <a href="/cloud/sign-in?return=%2Flibrary%3Fscope%3Dcloud">log in</a>)</p><p class="tf-status start-status" role="status"></p></div><p class="lead homepage-copy homepage-price">SmallDocs is free for a month, then <span data-cloud-plan="standard"><span data-cloud-price-primary>£4</span>/user/month</span>, with all features included.</p></div></div><span id="samples"></span><section id="learn">
+  <div class="wrap">
+    <div class="install-panel">
+      <div class="install-grid">
+
+        <div class="install-text">
+          <h2 class="hero-display">Read sample SmallDocs</h2>
+        </div>
+
+        <div class="learn-items">
+
+          <!-- sample-links:start -->
+          <div class="sample-group" role="group" aria-labelledby="samples-engineering">
+            <h3 class="sample-group-heading" id="samples-engineering">For engineers:</h3>
+            <a class="learn-item" data-sample="idempotent-order-api.md" href="/docs#md=G4EVABwHdqyxJJxZnu_bTN3fn5cYO3aPLzsk7JkWUBPRuEMulsJYFHjrV9JHKtRuEy6-_9NX2rFgeBEqZo2urnQa2_9nzaHnLqfI6RwsJ6yAli6I-1hqrzmNCQgI6O5NWWtN6JmVclLXupA1hcH0_EC5Ib38QiCSRk9ijn2Lpo7L4B3QjYRG_Q_M_TyWvqQe3dngXIhyl4DWBBOhJXTqk8nwbJ1frlE0CbgpxW02mSqTxtP6EYBMtm8aG7C4qIfaAm4e_hat--MEYf81GgclLr9gQF-AsnTzD5ChZ3wffB11vXQHKFnc0BkphSTt1EdDFSFpI5IlRVJTFWiIZhIbrc-6o0SlCvp1HCKuEnrIwTJC9lQkdWGPoBEmmk4W4ffnQbQX6eri2JXVGHuJK5ptxVd2iFCQCdIg1gVlP_-fTo0ojtBXhv3ZW9unTFDjYBkyQFlGc9lfb6SNMwIr-7iRW624wybI7MZGumLu6OCfklabjpLG-JXTLpybIA16LVdxIaBAjjgyi6V7_Fg5OkZr2KAirbC6U2YMu3R2cnJw_bsW-5mZA0_kQbjSxUvS-KXQO6X-eATIr-LycyXHqQqhWu9uZOLjhzj3q5IkGDSmmFVKbkybiQKH0nnIeEFe3rqrviTwdwwvB-R_zx5Nv7hSv6fzMYwplYhAvoslEVpkDgn8PtMHLsO0bsH39HpSdii_PwHRW-kOuGRyNYS90vTRGNX2oSC2w6MZSWMJ3ez3-PV-y0_gyke_f5iy1sJ3-M3gKX3AiGajRmCNXzp5uda0MuZVUgfxmHMekbnm7REmqeuDhGrPrciey-Nys_EBGbDWcpf6anPP1eRzCYw46wcMGOOo9YlseGOHXNRaVCEGqUuM5OcK-yTke2VgzWblF45JN4XUxzYZQs_5whaPQ_9N03pdhF_jKmO_THMChQgWgXChMz-H4C1VKMX9sMiQ53DsWwf06rOi0liwwjO8tKsiKUGDi55IVjr7y-WNoRLa_83AyMtOFKstjhU6vIcMbQlr_p33sgT1FxAq-jmgJXX0wcOs-E7hG-ynMDLI3JdxjVbFHpr7WnsJp0H6JUT9oYixtYRlqcMDNgs9DkFvYuzMrHW5pitlRKmNnieJyEVP-ctciQxDFOuKhV1Dgo6keCnSEkyDBzoQ8p1peRua7ZDGxufq6SrPZtHovEke_ObZV9D1Pc8Kp2fXW9tbUzbwEaXPv3pUbc-k_mPT-CoICe7q5xqljoBX46fVgzRhimcGp1ch_TMYXgyBtu6fqMqNPaPW9enT73Pxvzt0kcPH_MJBNuH3S0c7DzAPezOB9AUJZNML5moOop1HCl-ajtyofEeq0lq6CtDbPPdc-z-4005s-qXul5JUlQr14mCX6l7duxSz9cWxcm4wazjiZXnNxDyyrPXAAa0o_zza7eXJESlOgoP1sdUX2R14G02lzX8xbksT8mLdT3MVG6rvyCAb5ktgJ9yltXZRxwiSniGAucxoI92m_7ZSN9pbX2xHcHrys38xUp-vfknSLZrAv_oME9FcXqnY5wI8syIgJ_IjfonMhvwpVGJkGLMf_z3yoe0moKFQlNxv7oAsn38kNVm92gJkq1x2ghD2p8FgPY2oNqX5X2FUrY9-YrWnnqpGW8x1dgKF6m5230sYYnZEgiNfw5IiT-qLBbPVPYARz5XVqRm7J1aEW7eQDhCJqDt8ZB4xIpXIspyE3sDdvYZpnMTGVxABh0OjSRVh5eDqCzEvVfjoi4Y9CZd3GHPaVtp3rsBaRE_a5PzcsNrzd9SQvA3NccmIi1ZuX22BNmW9BIt709R9ml3bSew37bT9zy-UplWkh15YuhD5QBfdBZ7xsRjehszplqs2Mki-ozBBtBjBcNpzCWQ5Vk-A0eOjO5Bmgpq0zTMgjM1zTQ1x0Lcgw4x2w2cTe0qRTUNSQNh-VzbMM5BYipWJl85PL7ySu8X8-2yzm3M1jZUpRaMRsGwO69_1mtDomy6j2dhVwRF_SImlJn4TuHpPHV-aIC3OFFkCSDJu63ihR7eLO9BGsJJQSx3B9mNfVlSS4Y5EKbQCoxxwM-vJC2gd0nAvIW_m3TtFGwYiUBMhxNSzW9xUXhEvEh3srTHB0Zlv7uaZ0BAKI4xwX5sndrBq4vWq6qZ7Ls1EHR3h1wEZzDufzqY8snVfRZ1wqSjROBjGL9foocHlNC5EA0rIFYMkWvmc43LK3LfJ9qoVXZPO5S7sEj-KanRM0SzBETNNjkY7BoEphRTuVopHNO2s-kOu6Yes2-1bR3519QzUaHkx4sVO3OIcQHTQ2XxAh6vEozEXWIPGPIIefy9CI9oah0JEgLXFOWUaq_IHceHRALNs26zY-BmHCF4lXUC37vGadG7nfAmTO_-TWNJTlXO3n8BdS8gWZgQaBnvY0aQHjq8u4iO0bDDWRXV3paZzKjLqHo82h7De1jnEufRB5OUm10ov5zQ3LWRgMTzTqCvlHtcYyUH4UUpA5F0zpuEuwaLrzFunBK5cotI-VitH_DXPQx920lANY_m3jz-JMlHvLaZpjVLrt-5_hAiK9O5qTsBkhCOTNl3wsIbsbxg_ZIdZsI9rMxTFemPzlvu4sE6MTVbwlSzdVqxVetim5wfSWnAA" data-sample-standard target="_blank" rel="noopener">
+              <span class="learn-item-prompt">&ldquo;sdoc me an idempotent order API design&rdquo;</span>
+              <svg class="learn-item-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="m10 14 11-11"/></svg>
+            </a>
+            <a class="learn-item" data-sample="date-picker-bug-report.md" href="/docs#md=G6QMQIzTDXWJo0V9-jO3_p7L6a1iEVy6rFnZL1gDzZQgSacpYpsgCnx-7zKlpQJuwAyBATTA3v9nVu8k7Z1L7WltpLS2YRsYFgDvBTWAA1kwiI2htrqXCQkcqFWj_d8lhKDX3lZ22V57UQ4PEQhnAtx1iULkMnwMWoO-iEbEN-VAIW1_uuqmurlu6xIB4vDgmFQhbWWL383SZcenHswUc51i_hLOS5LvzQsyXfzBu8xdp5u_xDO4A_2NroD0jyrPfoqKx7_3Kz_Uq_JtiTlyhXHMcKhQUjQdgajeIgIK9qyYLDxPf51j1mwmBdkZDuUyjLxoldcS5mYmXIaH3tUDeLX18ejnS0y-cpZErVNUUqUGV5BZZUNuBP8cCtY49LlOp5FISbdQKg8maw-mHPFWtCKuW54MZ24o0Gc68AzbNJVhgLiTpQvZVAznrSQUCSqTuTyZiL2LTAu857NSTYT6PktPDUX9nh5aiWDFpYtAS3_GI7aFQKv_wYIAbdfB-7rLJJna-6EfaKbdj_RyyhEysrqSruV7pGd3hgi0Xzvb6UeLKSpybMKuv_OF1efrQzyELPirIZF3oq6u4EuEXnZkiIrnywB0lxtwBv8v6HRuHODKhWCtwLH_19TROXvRZtxnBLWsiz9pBSs-ff8GHUykPZRHkIFrQEPrvD2NmshomY9UXqDDqarp5FGFSzqqoIPkf4XuzxGhSO87gh0RaIrQrEj1oTzGSnF_Vq1JLvZQHXaO4vO1RpcHS-1F6Zl84sOc6ozxL3Wv5EYqoc4smO62YssZxgB3ApkUZtyFJeEUwmufynGoTq397npCAyEErvkoU1wGF2sUqzqc5uldOkDsMhVvTmhm4ATfCBR9nYcTgXnHDvepu-x9Chkj0e0ngOB3cGehbZkMRm0eqEOub6KrUn9MKAtGWnqqi7XH73ddAB-gfCbuCWbqFYoCHlutoYjnQUZ4Y5E4rXDFd-i9SJyThFKedfmeQv_VeguhwkfL9seUBsxoIVc8sHokaOgpsJPHLnpq2B8xYUPYYf6xyMx0NS7rzjMx8ldD7Md0x_F3HA8gvHRIpstKvy6D8-_0CHl9JZblQFk52nr_bMonOw6ZH19q31EsTFB-0WgoVr49DqbCr2-5XPyAPdLZu9b7zL_M_kdAr-JwtvV_Vjyx2rM7GDe-IxnEVWstgLkijb4VYj1T31VKaALl1A184Sn2M51OVJmAPsEHN8SDo0xb0UseUsJTZHQgvyYAHyg5TBYhZUJEnjNyVx6E60iB4fE8za03K5UYVxH-sysuqcerlF74DK3clkm2A-suja62knFGGhXg4UZdB3Innsh6hWe2bcwxsnQ4pCIGyYaLy8Ks1aSteoEw7WUamhuolu-LzszOBBHMiYLHdFJ18AsEKIzOGr1l6muFl6JKXI849n8HjAiXzzOENQc_sfMmtuNQEFbimY5MeYo5_WeclpGc2Xqx1w5qhMR5qP13TvtIi8bkCc84PDMNw4TyECsK88LC2MQiq1fgtifTX5yoVx5AsZPq63i96U1PdjRN0qWtrpjAHW77sg47jKvgtMsRIWCmK3Syx3rfqoLBgh1i-EY9m4BDMKP_Boel4P4LxcP6RiA-ZRbtulbR_S6ElkOm5uBjQWWMLJEgKEUYH5eURw" style="--sample-background: #F1F5FA" target="_blank" rel="noopener">
+              <span class="learn-item-prompt">&ldquo;sdoc me a bug report for a date picker showing the wrong day&rdquo;</span>
+              <svg class="learn-item-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="m10 14 11-11"/></svg>
+            </a>
+            <a class="learn-item" data-sample="retry-amplification-study.md" href="/docs#md=G0YkIByFccO9OH5Z7yLWR2gUGSHJ7J8_1f_38_WOyJmCaoHJkI-dvVr7VAc38gKvLpc2iEJPUatZZk4StZ8fUJXDPb9J_HMw3GKjQaZnS6Z0_teylM6tHJkMmLEJChFfcRPs---9_r7pvd0LMyvVXlKIoXsUNzikjGTkEnIKOGSEVQbQbjIMSrAwd3EZW9RfrdBjrAi93-y6Ljhe3dCZe75HjGi4xoKLBrsRXW73fUdDmI4sOhgsw5XbzKETe-6lPHUl9LYN4OxtX7eRF4VfBA7AVNvRu_C2DGX2kc_3G67Pfa2QgQxiB5tgvkq6aAjyOrMiT_PcoW_0iGvVuRMgogEyQj5sv52EyjlR1WkdBft6NTvdp8gPHJLIwJdpaFZGr9gGFs_421vPgZeX9pMS9ZwRwnvLyqjoiO3aaj6hhknYmZEogQSenfTl1hKdCQCYBVJSiGcLo1igJVCIwUk5SXXMb2X_zpR6v_YNy-uI1bG7O43U8ra7O4Qqae6gQDFEdZ-BYC3FVRnogNRQl6lEr6ZeWaODt3FPqPw72ruNmJkScAdt5Asg7tTu8kiWGiQpK-3rZbVSWe0h7fRpH7t3LjbXKB0iNKXa09s3Bnsb6_r7U2E8xL5h5J1ABCUsCv40oSSOJVWtplBSclkAN7pYartYyx7XS9xMa7kAQQ51ynUSLPe-IdugsMjsj15ijXrGBfo8X2UYh5BU28mw4SdDIHYpaUfd_LF9qAwzH_fiTSKK1UNW4Rl5iJlkz6qNDeQeXkNdXdcN02TaTFkBUkb7lo4gVRWDoxEEXAM1x_AiJZB_TsBqGD0n5ZbHg07DhouyvCyRmhQNWb72vLGD06ytjTF7CWECKisg_o_2dNAIEhOgH4hzdKgYOHzch_z3pmMkng1A6E0HC4xu20Dpsf95yqSc59SK6wVBuF_nxR0gxt8uWk_5g5uoknf7sVBgvFSNzQATN710LYT2vvWQzw3A9MMZ_15LPmL2bgcnAqLDuuj-cHrUVfWI-c0Cl8y1dUYI7m55TI4EX50icIlPdFEblt0amrxx6-jJgCFs5PiYh2McDJ70YPjwVn3OvJpogLP3JrA08Ap1GPVMBIl9Omx8j5_vVdaPVuOAKyKNsHrSwPYOh7eYX4w0CW7801aZDN33zCmYmgGidgUzLaHP2zRqDWA4H4YJWZ6nncG7yOrVzS5JGWBvgb0DKlQ2uUIsZOUQw7D1WeSv56BmFoklJhFmKvSttsL0DmJdTtQVAb7NJMk2OpGbWfzxDSIE_u3hG2pfF6vzr7XVrOmuY5c3ddfC4asG85Rv3K27cfO3TQ39OmNYv5Lh13H5DzWOkAcE7Ji1xLwTXZkOXCHFz5O6GxMPi2qC1JoTmgHH2hjtUZL0ldq502VCUvpK3RABYQthtdwx18KIZboy5s35bqGeQEvWH3IWNYdUd8g48D0k7nDSlNF8D3FrgM4ktf0NnQldoz-4aK2_Dz70S92tai-t62RQICyniU3vDmsZ7Bzy1KPjt_6ywNn7TeImNRHGb76NlFyk2EfQVu11gJawYffdNwIGFQofp3KK3GO-8P8a-YF5oT7c5gefVXhKfWtoqEPTnhyl2vCpOaL89_IbqmHySTZbyKSMWR4grue_2m1G0cpulWsQzdbYIIpomCcFIKncxLyw9Xmwj686fB8SzVm5uSjQD2AOzJqwGsxtOh3BPCZFi1oBEzealWykPwmnheX4a7Uf9FbgRKRt7H8_ll0g8Z4ogbmBjImQmIUs1FFIUzmmBMRmlKVRXWigwCJGKjjRGWmC9BT69GoKchJLQprThnWrddiOu5mItnTMECSLHp2q8Wto3jZ75BH5_yw9bpfiaWa20LpJXhNeWvOyiLSPDWnadtbFXYpu0l4fveabGr3lDSAiLbGNVpsSsFGDcQJPEdeQjYXTaUG1HUB-3oaJ1K3I4fGgQY6Gu767T8_XTfKuuZHKvqZnnoAHamPBS-4EVSwyNfrwfeHEheExyccJtVli4qcyXjINSuE4OdbxFB_hHX1abOf3mCeJ1Jz-c7-i29w91-1-eNrOl_fVnR0nngtwBj2v3e4Vu4kAm_eGtpiXzygdaRdGSrVDA8g8OQI3eUZDhh6mOquSssRmqCrz_3GdSMhxWDyIeDnw3JQA08-JDGdb4Cbt3CqbKXbIS2VMVdELVyU1X7kLkBAdoD7DDkc_au2joW8oLEvteByoxOvQiejGAsRrISeRIAs1iQJV-JP44BdBFcCszE85JlflzjIfXomCZ-eDMztPYABvxhD3CG9WlW7h8I75ob1SVVRJmwsMj2QnQdXiXOunCqoYw8-1x7MXV6dEjO8eMlyBr1BxoZrasIslaJnSyHb2HcRmvsvXtNZ85oIVQaSsZTnjpHPB1xI95_Md1qeVw4PsC-CAyJAFeGXaoAS8IJf_P_JosLCU_6KqIBcE57mib1-Abz2RXRFiUhUQDn3HUqsGv0AU1rqs60QJgo4ty8vTMMebF0dtvdJ3M9-GpeV79dYorMcANFWri1LvIkmtNs8tqCtl3P55d3l3dbMPwiujcApZ7O8QbYqhf4AolPyEM1hGIBV9BZpn8ZGSpXxOL4FFshxhXFbMho3DdoNgN_bLjaLUEpZVKKcFH5JKbyp3aALBJkbCeVOfg9XCV2wUfuvEZ5q8TjLhI5o-RAmbFFS22oEKeaaUIGFgRpiAa4v-g1IUiDEqenm3NgauFHCS8oZbNeeVzZZa-K8Ql0Kaenuf_2w2r6Eoc7Y9SG20qsGrOcSROUcgRUMwxE0nW_cS-ja9tzKMPa5TrkssPXceYup2OvcHk0TG87JZrNPiJKdvVBP3RWaDgctWkHEp3eP51FbEaDbtFem8PQ4xc0Mn3a4pxSLDXOv-TjPipWupIY57nqjSdERRWt5xYxshtl8sOHc0BcRi2i9-9UqQUp5JJ7xLoinuLq88mcUCUz_F6mKbpWDEMrY3CCpCaBSAfg45bBe1UCopqev6fAQZPwR7qJTSH5Ysvx1KOEyCaCGi_JXo9ilLYk0JyzTD7M1FRERdgiFt3ndgDKcAfZ4omHU57NAeWF5hKOFbmrD9xtB151U3xgchbuW-FKHIN9ki58sw0bwMFBM9xWX6TCWMfzBdDsUhHsVBFuKb04UZ8g0yQW-dPknU5mDmU1YQXKk7bQWajSLnFxxeRBvsnY5GkTZJDjojzTAph3UBVNB4m9oGQnfXR3vnI_V3ELsUo1f6TBQ3fnd3PXJ5s83deoccihGbGMhmj5SAmFEoFN1hUgkcJbsgjR-kkk6tSPcq7XRHyBuAddBmk3lk1xnr8oiOljJ1Ie1yFyzXmXwLfEgto84vkmb1dU1pgvYbbY1WwT8UDI801n9GnujgcA6dJX6iZL8Y2vv2iGKN3V3sD0IX-Q5igvfrN3QnTC99A34BUjaPYPW2-j-F0-A_sod859u7HuPmzrYbRZUcwYj_p7zZSbtnes_rxer8-uocqx69VUdbemg1js1vKHL_Gc80r_l-6wh3MYT7HOHZqcXnqMXKxyUx-MZbw6_aVqKJrhm-C7BC0i4pWRbS8gidrEnDn8OWkny1D_7fObAVvd7UnOVXD_XQ6fUmpumvnnMA1daqD35nFD3m19s5a4mW2haybwf5uqQYnws0NHYltOBxFriRgXOrDzzWaug62Ed3t6uBwp6iuUgiwLHRDlhcKOI5TwAz-FH6dTl9TvBH0mMsbIlB8eFC7kv-ZhVSbUvJ2SX4YQQtbv4G2HMpW07pn-kLJVEG0G_RNtt1GBYkRons3NZ_hh6X02rq410tYqrHIjaVBxX6ztO4Ck8qdvjKqf5v6Y-mGPR2IRslSg8sDyw5BlQNlW4qsmf1AiHN4fIPGUpTLLxnaR6rUN5AY9qtPZBbBiKh9EFySlH02qSrcll9MkaRLjCU2i06ss8Ouc8cCQpoVOGU-7A7oseMIlITTrIBqRHhcVarTOxIuzaqsTMbAxYMyKWENEE1agRXyhCA8NDljiMZqBqZ1eIaZ9ZVKqAB4yDtIi5Pz2-AOBXBPpYb0zyxoAlyGjbiS2MCCNcazbFPTyVuhbBIB6ozMdVmWXpBa5DY95Hr7SnJyjTZNmVPmazyBvrRg9PyYafopZHst2puXeGVSp2l2UrC97GppICKMBvSY7g2VwefPh-9j8McmA426w-eQmxC3C1SvKv0aPxgk2CwwjmRblNn--WDilxeR1_wooG8Qpr1-nnwkLi_0h_J_D7BTd4hLCC5k5jJNCthxzL6ZttkYf9upQGEab9292fibsGdWQLJGE1GQc4CSv9Pm-B8xugw9SkVRZuW1xGuBriNDxSmY5X0SmJoAiwnXjaJvXXzrCEeP5nh3N5BbYbT0KdZ7r3iSGX-3-gqAw" style="--sample-background: #EFF5F6" target="_blank" rel="noopener">
+              <span class="learn-item-prompt">&ldquo;sdoc me a study of retry amplification with a working model&rdquo;</span>
+              <svg class="learn-item-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="m10 14 11-11"/></svg>
+            </a>
+          </div>
+
+          <div class="sample-group" role="group" aria-labelledby="samples-science">
+            <h3 class="sample-group-heading" id="samples-science">For scientists:</h3>
+            <a class="learn-item" data-sample="Palmer penguins: body mass, flipper length and species" href="https://smalldocs.org/s/YrJDCfCD8-6j_uRE0pNCbI#k=odJRxWOIySVVS6QezFq_Kup8Hqw1j2s5lecv1xC_KQ0" style="--sample-background: #F7F8F4" target="_blank" rel="noopener">
+              <span class="learn-item-prompt">&ldquo;sdoc me a scientific analysis of the Palmer penguins dataset&rdquo;</span>
+              <svg class="learn-item-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="m10 14 11-11"/></svg>
+            </a>
+            <a class="learn-item" data-sample="alphafold3-benchmark-audit.md" href="/docs#md=GzFOUdQwSmpJAFocZEMmvmGLqScW4iwajI50SMzf-vISYem0G4JpXiMtVZ3Wv4w-09k1pk0Zs6tRlAsJ-QC45erX_P7n56tzXOwMCl6J70RRY54k5tyD5FENtNLlMS4zVJay3AZRUNnqS_uVfo3KAWfyX8KzBwVftl3hK0xBnFMoHRF4YSdnUHH_-b1a0i97UytsAAcQbwqtaABMAWR8zz33Zv_Xt7JqU2Q5xatpRdPafe8ru7KcYqV6tjSW2lhFCWuFh_CwBIWGsWQZTlS5bVSwECftvp2UEqmrbg7ln_Kjaw4tUkFKmPZhHE80MmI0x1JV4s19limlLNa-JE7W_Nk8P82L5cnedKDmbu8lFC-OXdsGbDgsm8EcCY4t6UA64rZbTjPgzNmYRbnZape3JwO2HmprXY3qwyxf_zvtpFLdqVU9UAUNjAWs3kg-STucGGBw5-IAgs4dzLlkSXRHby26M_etZz1bAGOSi4IkfYXdFaQCR2j9_yrOG6AGaGMyuY002LjZXyXtILsGDVYSWQaTRTUHm2GMZjc4LtDAwEdP90Fizxij7rwm8Z0ch8UWjm5neU4rJatBT6P5HOLOBJZ9TVbcCAFWOhgGpSdIfABlIDSrFT7gEfPft80otoXgpkfXXs8VbdHnpPGUqLuHLTyr9VJcfVtTcTWp_UwO3jQlNami2Lm1ulWrN903md0YiNg4H6kvG3RJGhmPf659MjE2gCN6Cj43sKOZBq6wvl-gQ4O6hCdeCBjQRJglc1J_CD_F_flkZsWpVGQFvDLSiNDv4IJFCxzS0AZqY7K2MzfxAOTHP0R7c15XemSXBvaEsuIsR8qeJZr8bA1AsFL-KCSNuwpYl8upPDNJy4Tp9z62EfZuIWvxq9mXZobiVLFDu0iaX6FqvOjm3GnfK1NPAtiFGtTDBxXl-KmNLnlu8ylCw0EjBSXWATi_TddUUS1Zf792FoYvoEm4_jNDPa8e3ZM4OYE2EYfnBKxv-CVOnyOhn5DzTcBbJew1M361TUGFRZXZDVyZhCLXAuG9Lvav2mh4AyCWa5Jbi2SBJeYVgrE8_yeLdmScrk1qKwUW27BnpEYFEqJV13BIvl4gR0seXJeAfmBsOR4Z4B_41wYcKvxUoYn6tiALQyBJzrDWjXQsNyRlL3_sXT4uT7CFzeQ9dQKnMhKaQqgT2phBMdTwoY2E7FUJc5TWHfQWkKlhJaAzip4D_QWr1n572F-iJ86547qufZLUIIsUySKlQDu5TJDDQvcAVVXQJbYnJGHzlaql7JWlcHw9fVM5feT_327aEDd4ymJQAY187exJgCA-EmjtYuv_8KabWqMKRd8dxDmUBEap6XGevFgAkj2FYTzPgCRfHX6hMC5ISbIabo3iMI_CGmpqe1jj6mg4jgVd28Yl50PLRlOujvdMYhkaUKXTB1Uomp4EhyyxOhnexlIqoLy64sgCUYxWllq9XZrGQi-g7Jg7TCpjjxDZ0jOB9B23nVSDzdUmm7Z0qtaQm-4oCc6Zm_BSfDADV08obSI_0YQHdPf6y5i0kW79sm6ifXavcbpS5YcwMb62QFme3bAwgEqgy5NVGtSTSQiAG-JEgkVo7iOUIqFOJzgPdZ-fFJ2hUC_Ms9e0XpHrEF3SWIKE4hnBopEMgZQ7qhc4FYNP3AX5QY2hkHUvRNWR2JlyrCuPkMb-kUU362sE7VhsFjCHwOnmjXIXy96Qs_m1v14errPT8orq6vrKrsrjxE0NH3XiTnvFOqs_MHT0RloY56Oz0kxKW_i-KJuRyhkwIo5GL4BKdd79jYjhLBtQjxuyDiNPhNlGTiZcah5TNLhbJC-1mTsJ68FMCHOgV82lV2X-c15_ONDC-eoBNlH4EaZMWIBKCxpNgGy1RgN_rdNZkCwsHtSRQbG78CRgNKOXSLkm8hTx8g7WSgmmduQRKdCjN5Fn9x_7OWv5U6en4jnZ787PPHyDzF_Ju5foj38Vpk9Fbi2S_UZOHJQHXFpMsfLysI5SHPN35_SK5VOYLpFOcUBU2u6kcRdINrCzwj718OIpRIl-fYVNlAUT2NbxcuE6SLscI6PyBFliLBYdFColZK5PP0dGzMz4MMRMJPYo3QD8VTq1PC3H4WkfYQfjdNSUQYzzGuq8HQkMRi1bieSvL1fUXkGE7OzXStfi-r5t1WMBDk9yRIfQBOFuqbjqVOGNDN33GtdFHtFFw7or0984CC6SOG_wSBXgJwGiw7uhpkzHponINT_ec-ihYMyi_tBsoXYTjmPsB-5RcmrzDqdjCW0rhTskiHK69zUqqohjr3jopzriSch_eTwoMUs2OIAuGZiJPrpZ4QjFk0TTDkBOIpqk4fyOfIegj2WjoMW5kmPblUmg-c6WrwKsukX6zEDoenFrXaCVBAHFUqUSNp1_6kgcakHcKaIth9OXZWtdFr1Z2anPUfNwsIWPGS2uPnfNk0UgJNujaHPKowhfYEA_8EzdTLjqlG7kPJfW5JhtAyU4gzZUBZ0QMPmGxiDnmQATuDDlHBEYZHKQKGKRoVcdg1iBMmy5subhQ83bgB44bkK2WkQMIJ4dsN2_GVeZHLpCkz5dViHbKuXF1W7UTFdvgm5EETYFwxp0trhmHKWwsyjkUVKIggvsaUehFkq5b0um6NQTYBDD2hcRjzDUlyvl0VkBxvJF48Y-UABJaBKmggFZg6n-Tu0DOJ4aY9SHYw9ClbxwxF4_73xAM-f6pS3s508qq9Pf6XRGl_-Yqab3KspfDedO0_a084UNJkcJK7IOdEldE_jgD5mXO-IAAI7n1dR6Kpk9gaTxyncqZAU7J2TjLNHioKYbfmUrHhvZDuBjR4XHvk_k12r_N8uClIJoLlodYs1Ig2HJl8XbeW8L-JID_BE_oNuSB_hbanKdkk_Vx9-_mAPvT2w6s38VrTVxQDdklnq1_Wd3Tfb9-ynZXlqQZnQDn9chitLkqlMbfB73JUtepPVv3Yd0Pr2qGTJLXni0OuWhKSu8ZSs0KAzti9u3sNQPItzGY6OE4j5rvTqEXGc94-SKLNg1H3KvFfMgK2wKmmJOQeJKLdV09JRN-PklvjjZinGG5CNoyV7mW6d_p3JjynmoUer7hHbi9z1bbdllHghcKsCNwgHF-UFzqJpuRjYGS1aWT1TYQnCsdEIpNVJKoqVZbEcdSvIle092IyLhlWY9IlujSrl3PqarD03rnFHoHaXgQawaVJFEhEjYTQQ1Q08raRdFgHsEJ4GEWmJ2MKZLcCA5q7JJND8_SXdhtLkqF6fyd1meOtOq12jKkEUNVBi5wnx8oTixaRyOakZTxWqrVAissZyAqV1rS0sENVqV_ypiGnc10G4NTLRw4mAGtsBlU_G1HJDU-rdFv3KIItYDVjaHG8hFvIfNQPoV7WqWiRHkHdaq1aqjVNaxzctjmCF5Tw2Tm35XMdaE9fqIgiaiuXSKP-WFa0lrmSkns0Myt8lT9ByO4f9lnxBLY0vdjOthG3Mt-qhkiQbefKyDSvJ7rwEWXAvB9eF0lr7jNy727EJegYNMCX6KResmjDCBRb7BN7VGUMpzWH22M6I0oeO9bwyMzpZ-28M4roR8hc2ELgRJ8y4J5pApoZ1n4UO-UFHUMwz8llMbkSVr9m_JkN3HGmi6WIMhsSL0QTw3AKIgsQ6UH_6FMsM96hT3qDFfTxr3Vuu5eXx2PLC9hLGgOcjZgCUZpp1FVDty5QWWWMqRgp1RIhhEoZKCYDadF1_2WRHY4p_x7d38W9r9-6LEee_9398f3k3Vkj1_u6D8_fzHrN-IFt436CJd7P87JKzuW3X3vUzT_-3zJqLphItJO2BQhl1bYgku4HjZkyWMglGBDH0Bnqm8I2qMGgARHQm678gxsGK93AVZazvcnho1LKnZSZBBi45xBuxSwl5tLt3wdBKkUAV1zbYBA3fMM4dJ_QPUByoXFL0Lh8HGUREQvAFA88S0Q3O-oJ8gq-VmHmY8OwtG9xhXcuVRLyaRQytHQiD02larpZNpSeaycIhqe1EDl-efcl96GBIrxXraM-mlldKgoZinZrDDhJfcctRjTeOB2C686EzXULEdM-4IE5YmpFGm2gl0AzjOkWng_bHGTbuaM5QY097nCjbBPTQZKec0QfOITCLtz26jotSis_tU2E30FTnVXyMhAgFxKjH2zMWtxWK1MXlzO4jBmnQL2pyagqlasQs5Iic5kdmsp5Z4g1NCNho_K-bhWDm1uKmxAJVqapexO1EFy_s5XNAlLlckgSh3unWu7NCz3cdzRGuu2rjGfScwV185CshJ51TNRRGIsZf4cGIvz6GJHJIy_EYbwxjg5VxTRptVldaDxmwlqVaM5Ry_cR_SRBm6lifrKMS4HtPSUDCe6pt4VlxuOp2_Q7Ru0RiVqxd8GRE6tjTIPQwqjtOLk8_zwqjlqQCHcjp0WJe3bTpm1U3p8_WllXHWR9GGYmqbMHaaC_yVpkkhvxstnD4jizcWszt0mb1wnaLKaWqnO8FbUSzqd82zWA06hg7-7FTeJJqYLBY0aB2R2M0jj_MRo93m30RKGp2nNB452a639TZCPGzBgx1fCYoZ5hi9tn_SwR7t_DfSFLcsZOWtP9kw6yesqScROr_kQ0EAK2jWehn8TQzeHT5xPtBlc3ko92x_JJI2wUKqUEcWQOqb5KncyLAB8m3_UeLGJWOFV42PAVX_PquvMwNm3bBr9pWtluZrtXhmwqO1IeBT6xyfWrO-WAOW_MampPMnKBFqUu8dOo5yL9pEz3Eqcug4CvkMmeUUyTjOwL_Drx9fPE4FFlo3sMFeVqzegQPS6dFaySfPDEcI2gPb8CpxLgi7p7AyeXoxNgsIBNAJu74nicCwCZjUNFpTU0ta9fSTFv29BEkPrgF9XDNFsOFANHiUh_qw1FmFAtQeI_k65Pu7hUxneG4EQ8lo7wIQtaLGPjpK6tAtmE6Y3jZXKzl_QKWddJbBvX5W2kEGXM2aakOUOoZ-A-sqU9UmKmJK9Im6tHMyQuRqcXeizizPIdWiZwSKMjj3DMWRpcwGXEbiHzrR0s8kChjjqOUeRheLYWketUqiZoRO-K5qKKpAVKdfbi10--LiypUO4bA2KQQ-UQvDD2CpBKe2Tr9GAZqL5pATDJ9uVWEa9ybEdi36xIDQtdYVSS66VQBpX1zZhZ_A40XhHVXtlxB1EdX8jmHqrSrnJ6XtgrPlHy0XFRb5IRvmEP3V9945NtjUf02sLtszJz2S7FIU_DV7_quHOMBpJ9O8rcUsyGgyd9K-bTaDTEgO57hRfANtfC-RBe-Cmra4pSBHNPhmpVUP_z4VfhOn0dvKeGry7c7Vk4xiU35nYc1AfhVW7NizUMzlAU6GsXlV0GMNjNKZbWnJ75UUaECWcOv7yFZo_H759-NPR2hLtcJX-EDoIfKG9YfCV7zwlr_IialfIRUV7KsUUFv58zo0Q2ICYcXU-yhWGKsrohXDOCFG_vlFVr5A2iLs8_WHIleyyFZ-vjzJh05L9-HsCAt7xFNLFrVSRbWqqAz3cMsxu9DMeuwFkjEF_tPU-6hX2GssutVlN4jGVrHrlE4MjeN_t1Es2LtFyRbVdzNSE_wNr6_22Dn-tlu3mZqhbDjF5xHl8-2EcfNJGerzC5k2s0_1flGAGG9LhX1o22lL7EcRn4bGN88eiiNyIJHKZIb8z2--9y-1eCIH2mKbLZdmvZ-ppbSfwF5sG58U0PAvRcjWEOuek5FUUi9djS-aLuZZbY4rSJsCa-ngr6K-r_ehHQOrxYtc2XanKbxw1R2wnnswRREvaStil6ieU9Hs81lklWXs2y70NRFZ1FwVv17_VuXeu-hOQ57Ejkhq6GCqh-q5mM4IIRuGEOp8_O4aFPdv03AaQOAB1AZNBjCZvyJFqUhgNJy_vqnhOaJ6HkzZWTWGNr6Y5ryM6z43LRgo3uE5pri9uxjCVcqI2MNsNl8zyTx4oqSj8Wc6_a9RZ5IgxESBNpdd9MdfppxrYGnjuobwylIzsMI2cAMw9Ld60Z7H7TucgSccsfQKZB6ouxjtimQk4m7QC3elLqzWegJNh1NL481cy1aCfbCE_zGLRvjLXkLe8r-BI-3WNlQCjwl9Ggnn-aqZUaIUrr5-zTDwkKQnQNSXrsRsgKXWs8rig6eqg6Uq3g2atYkGefvJkAYWjqnpuOt_adlERfK9-2f1RDUiUb0W51sPfhwUyidQK73y3hPVxN2aUMoKH6n621TJy70OYFDjw2oedNubxu652jjxZCJn8OaAta-9Xb2L6n_4fNBd_1fsflqDL4lW2TwidF3WHwez2MW0IMRRiBzs2LBc9WuJW6L4gS702jsSy8mIDcrjA7MAfUBCZJ1CJ7bA4v_RHR04FapTYepLDXGj1NTpqq6p_wd2tS00RG4Be3lcqS_K-lLlr3fVp_HHXODCS-LjApU0gO7xRwL9jYfoVJZ1_WKbrCaLj9dwE-_s5vgDvn7tgm-t37XJmmT2Nb6jUbPidlK3WINfTfPgZ_Vokng9ukIUiddRu_9PODAqKxSGrwIKOPqKHl0m0Z1Ufc3acOGcTGnde6Pvv1wgf11cTiq500dGxiXipTGtGhFXib0wn5OL46fABqaSf8ZrJ7heJ1CCiXhJ_OWUYpEo44qanKvJ_Fty2mzPJRYeXHPDlbokGURR3i8znT4pzLnkzaVgLgQG92QI7FzHEaD7nQsEXT7XNs5iEKq5bD5qZBglaEdeaCRwMv2KI32u66grFcIJ7lqVy6R1E6xvK8XtTUzSUwjk5hy6SkJrjfrWSNiZAJByblU_SjlCLoE9jWXBYPXbZLMT25ODPNygEyG1dleCvbiun9Rx3diVQfMZq4Z27Fl1cFivA6JBxqK0bHC_E234ab4is9toqSUOxGEk6QGw1wGj4U7MOSGvGkwhRPc-vFVfuLdubAAeylVia9Y-foYMrFtRGN0zOPPoBjskgr43t3yBMwi3OQpuhsXtj1caXPuX1T7pRAR6RY2CieDfObiJdpXoUA-5X25hSGeG7uYAOWBoQTEIwJy_HpZ84q-pWy6_bm3no52ny9Z2j3efhHBSASOTtnJclFoEaCZDRLpUVPFxERH7D6e2Jh0NdZmk9v7UOH1kasGdTIavYXC-J527uU0Zno8wGWZyG8o9zVelu0qzdTa5oMKMTMo9V9TMPfG41Jy4deqdzdW16ALE3Dxnuwtv1NkxGnHe4O0nmYLyNIFtNOnVrnFtr-4ZCzS179TpjR1Vehcjys7ocUNbM_t4dIbtzrWSEAKHmiZ9bDkOSkaVCIpBx82PpiMAL6LVAEHxFjkxYiBY86QaNCgpm8-0z_8sQ8WNktm1FHqGphRGoujLziQNrpO20G3qgImdG4uBEQsCBZ1DF3BOv2i1UOxxqEJs0nqDYHsdm3VOF6OhVETU4DDLLCYQzBGOqkojwmgasRibrFmsZLwcc6CGCoF4hiGDGa7PFdgoI9oPStTRTfNnIkq5OCLVSDc10kRbX1IHRuJjgGaOkAsJSbLsc8lGrFmTD8bmKUtEYiZMtMYOZKxeWaDZo0M0bm1ANmRJJ8wDHLNAUob2kSgAdCEfcZBfTe7obVkTKZBFXFMkBwpsxj9PGKe_0CdfFfsFNxaDU_8NGYAF1XCpga1A2x_tm1aqPXXU6iIIp76_QPr37HMsa-QcDnWlF3XnvY_D9b9Lk8Q50WssgRKVAGZ9fh03maKvaDfw5CgSvUueLU1lJalxopudyMe-vZodObj1rw1IVqSIcfwMhHDeZJqVycmT-u0dJ_YujgNBSmxGA-4kBXkl_uORsMLyGZp9pXuyazZix8XNfnK6upRpsz3eYqOXsHS5PDbjUa5Pnpb-zkweROFzmLbm1GparGbH9Pq8csnxePNb7aDrOMf21QGE4od_BFeE4nsorPeP2m0yF1nKB6w3LvjorvruCOrfqsb829BTrdkWx5VbSC_yV0wnnJKp2OQGk5qPc2KNDPM1xl5tnp3Crl22ZBfV9F9Y8RelnJbrhpE3cMWtMt060rWeGjD_skauZ9PYzA_bbfmVSw_uPfK5elFrxf8Rg8qWYLJCL4BIUqRZsmASSQppBMUwqvUoNJj0KZgSJln1RQkLyIzkCK5cAdM0cDvaVvwSFoXNdaZzo2ZqGL9wH6H_GTZDJ780CPNdTZdaP2cHXp5dHesvi3cZvKi9El8141v81bxXMvV066AzOmT0yi9bcMebfw_LNxFe-pSkChxiV5gpk79m-5Hy1EhTLF2tZ8xqWDMS-rEBb6qIz9xsnLb_4VmV7vAXdXYkcGiABDoHGKOBgmH9_9fDB5jQWr3HsGA-TC2Prhd1P7MCCI1o7aPZ_xc-TSuhu8ETv5oj3SqYgnVe02n5bLyo9661kkYr8NjCLqzugeTRg2A" data-sample-standard target="_blank" rel="noopener">
+              <span class="learn-item-prompt">&ldquo;sdoc me an evidence review of AlphaFold 3&rdquo;</span>
+              <svg class="learn-item-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="m10 14 11-11"/></svg>
+            </a>
+            <a class="learn-item" data-sample="LLMs as a cognitive virus: the paper in five slides" href="https://smalldocs.org/s/3PsKm-OLGfJzZISD6bd5Dd#k=LPC2tAzfdFzj-Juho89eHe5KeQPpwcLKrt9zC9_YQc4" style="--sample-background: #F7F5EF" target="_blank" rel="noopener">
+              <span class="learn-item-prompt">&ldquo;sdoc me a visual explanation of the LLMs as a Cognitive Virus paper&rdquo;</span>
+              <svg class="learn-item-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="m10 14 11-11"/></svg>
+            </a>
+          </div>
+
+          <div class="sample-group" role="group" aria-labelledby="samples-finance">
+            <h3 class="sample-group-heading" id="samples-finance">For financiers:</h3>
+            <a class="learn-item" data-sample="costco-cash-engine.md" href="/docs#md=G84jAJyDceN8mDloH7369RxvDhFRWyhdTku-BO1_t0-StaVlxl8aCwzL0bBS0c35_76bX78PL3iSdo40KcwF2HbxTJqdkE6sFUC4wvpLX91ZppfSQT9lk1PHLJOLhM9y0fcBTrr__dTPhakV4NIIikVoEMm_5553ZyVZHvdZeUsv90n-45LqTe_M-Si0FZjwILqFJQ9Z5m2z-x5PkxiRAAHy1G5Hr3YIXWZM-1qVZbywTqvwU1YJn9ADEcvbcYfaQquYHXpKywgpU7mUGzKm_xxcaD0mkH0qQ9Sd209lPp4_7P3lEqLTkD_PkncR1m8s-Ab-7Hwk0k70S_wTnWjqQarSXDu9-xtftgUxgbxPyxARCWbL1xNLY0pd7um9YWAFSXu6sb9sxLY8Q16jgm7jx7nEc70mLiB8XxmC3icJSiWUd3Dcn3GmfbNAEA3GSKRHgtqu5pjUu4mHlHG_F6a4PH_DkeXIeVQGt24jT7peQRirvgwrqMbjzNll6EmjSFIaD2hNCE8llQJUF5vz-e_rOF3coi6PKfHozz9e2lYdbqFwH2P7OdA0y4Cmswg03LBRB04f7RvG0HSnaTrC0ukdBkLcuDYsfLRFIq1KJXWd4vmWvK6dBOBYVM_8EyZNxHD6VVSrI54Gugj5ybU2qwZG08mhRKcUH7WKkrAHg6aVWsoDqy0lWua5NNPUz4NwZDcf_x1suMnpLso08yfWRaRop0Ke86_z4P3B_-zGqEiHdE1v-b1h52y_3FKK1ucYMXM_Eduf-MsbNH7740knaj_BM4zFjTaKd2SYmDLFy44PqW3fYIc5Wnd7mOr9cpYJHu_6NVlejfsGOee3hTUUgegVomad8Q50-KlbY6zNLb6nTtKOzUKNJ1o0QXT8hjGgV6cqXKBPJ5kMstGxgtUHtLPaCMxNh6aVARBUuF9IWQQr_0axttC6RQzc7Qm925YIeDe1yhm1KaOAcdLKWZ-0b7ILD0-FLXmKu1ahz96sXGK590tYaQpx12ukSJCJJ6uw1mlhCbxiHRf_1E2xko79tgriuhl0KhWvUVzRVi9RTeG8xp8Oz5f7r6vabQ71duTXNuNgutcT-f8LbIOYOjV49ubE0n41o2yOiao5Jij8haHlDFxdPWBwNHWOAE9n1nK2JV5FDBp0CgvXypqczYQFLE8QWZ7OzCyWp0hlOjggslPeKuYaoo6S5tGHDpAKBfsnitMaTUnJKffcpBCPlrMKCNX_xEQi1UhEDBQNQuiROcS3X9Cg2UwrwW_RCOkl3Fi6Bvjuxju3EHmswMaF2ooMsRJmdylT5PoPZaRcxJorCX90_-Nkvt8MRrXak2LLHaLj7wvWenJ1L1angaiv4XUa1spVjy9gOq8Bq3z2Dt49TPrUkeS-5d26bAEqIjSqBiUf_NXSW0EOgczwa2Y_wlV8y03DYVGWCAmqUd2iajFlAXX-ER9-Nk91NgI0qtdXkTzkCrCeqsQbelI19BerAjhEXXFXm_lGSfBGmfKCr41u53CU29gjQ8YwFoQ97pe_P9pLjzUWVm1C4mwWbY3mvpKP95ygwRCRzBG_ClFMmTv_FUoigMGfuybIe8MZKLIR9RYHgsqcv5rgcdjcSr0aNWFH1Y7NrR7Sx3bMOZ-PptSNcNKk4BgSZv8JonQXyqNM6ZbmGW8c6dg-XsoJk51laVYjooqz3h-9_mWZ33nZKP2te3kMJXWXkWt8gfCe_0SUozkiK1FR30FYUNwUH-95PLeIdWWgIgWlyBk-Vp1GXIYqktvgzsvW1ZRYVhY9KyWWkpxW0BQaqON13tzdbuEAgx06gx3SzC28OBOzRXQXQj7lCBJnaJGg5quWb6p6oKEOtemqRG6TEqjVRsGXInVv5XYEZ1ocuMrVy1GpYqLFjqJzoLwSOuRuHQAVzwUGlV9U9JyZhjXrSGQkloeKOqqpQU7MRaEuU64Plet66R6Fh20IqTzy0iV5b50IIxK_dizcomZFJqUYMJT1xycM6eKE3WjRfjbuZVb2aF0TwxTyn-b0RFeWKeCYAPVspEA4yOkTtD7NOAG7phHkT-dOFLArETh88QHXxGYFIe8fI_QmnXpkd0QdjqH_ood8XN7UOSex91qUvSbez798vpf86aUWua8-cMyACigUhKu76YPH75Jml3R0q0zhSlYm9LKKITK1KWEnL8keWbBYpqpv0pdeb4L2TvEADe7cda05Tsa6Czpz02q7CcL5pmlcHURog6KhsNZ9nCyhtmAPPBusfHPWWYNQpkEvx-gWKFEy8cw3JdIvt-zRivF-tFNvppc0rXzyZDaYwqbw3BXFoaWrw3bGMXLrFj77lcJ9jEH_QjtY02-B7_UWeGSTqr1Qlk7y_a3n3OPHcb06jFlNB3ba9ZndK9YB0IoKGYpMDb6HDpJWmXMPimyigNAZeDu6G_pIoUejJOAMC0A50dt0oeXLVmrI3Gu1t4jQmtOmRE51CTUvZgK4VAdBz1ggkABu8PUNCfoccQQUGv6Ja7sco6-abo0ohD-hR5Tmdy83pXA1R4bzLAPuNV9A6PgMslmYbrL1S5QQ5W_9YxM2s_Py67E8Vf5c4_DODxH5svH5xKW2HMj081dVyLcfVhQGw6juv18dWYlnvLJM5e6lvxYTNmRwEdYC8zt5jdDRHCr6SDB-ao49xow8sVTqNNLSfed1acziRyZlDuxx9mI8ocQWDqAp2dIs2UTut1StuWVPobtescfLwb_oTN6C0pg4bF3OgGLsWMbzvdnSTz2fdmv932bLa00p77zvU9vNW6WCBwPgtR6cAVHYl_-_MHaz2CRfI_vXUQao3QGR3NtRfZ_CdcErXr7cHt4SVWr7ykmiYW5Xm7p9FU-hZ5p-CXZ7VPSS4QcZ5tdRajR882kYnatWNbJaUGVX1Vc1QFEq20rsJtk4jEDppRsFXyygDII37HBojBfm6-QdD21COMh5ZMYTg6MdXp-TuNhDRK-vFOIWXxtSymfmMUhKO9-sxgQDjbb1dEAN1gS6qcMaMV7J38QID0rYQ0ub9KnQTUOvm0lhC30vFEBv3W_WD4CEXA2MID4ybU_TE1-NYNaiMshE4zUwOnxxhWp_18_5lui76ZAW3sgiEu-yC8hlQ2vq1zi9SEsY3fIlPYOFeqQ8Omtq_VEUU6ZVrqjEcNnJAicwSUDJDO29OTD4KuQUqWHUqIPGWlazrGapXwg2oF_8ESogrN3u3xLEyh41qhG6cKytXDq8Xw1U6ovtvSkBz6wG7W7ePS_gIA6fluey8bK9AJUnVB3v7roqzcc4zGAp71K6vMYBX92f3bvkNe2Ogn-wUSEjGHHIrkG7fySD27gdkYX1Ncaa_CADTiwGMBSGHKpN1QHxi3iXefWc-r1GF9vBaOXWbiUi42ZlEofFOoUyHG1OWWD2f-geGU-jZl-j-CmabfdCPjSWFb0ED3RrMkvmzxUdYF_mS2rJkiwJcptI1mRN1gS9LUi2ZEu2BCPn61gd_SUuGNKSVOSCb8-mn2oFICCVyTM3WBqXrSU0SwQsuKFfiPCYNlNetRmrldwVvb2HhIBWEbGmC3cITnr6IrbkcL93lnPaiIrudBdPwuodbTRLkSf7xvmUZaaBYoWdEznfCJSTE399xWrsZO4Rtyh1QOxqH083hzr-CE38EtXryib2q_X_vqGY0nDNZ8Mqo2gYWDX0pzZcm3QE8n77tN_EZJeWaZnsLpfeFUC120TtPzjvC_EeNR7KfkqsE7O5S98-3dFE754bjLBM1H__gnXiKy6ZJqGFiwVGIB-etyJF6UvIuM_Rf1siT7BMfIG7qwXOMt91a-MEyat8TYLiD78T6tOXh_4LRsFlgyTE2ddGtsAtU1icpamV-A9UgGZJHvzt7zIKqVD4SZjU_3xJ73R5Ja7PYuX3Mag1IsknOeH3wSolYlpAa77RdcZRN56Kktz76eA24m8KgQj8_F-7YACIRWAT_p2LsNUdUFfMXrqtt2jOcUeNo-B1_hmduOapm15ox_xfq4EzH2bzUwpeMd57Vb1dtjt05GoTAhOitROUBrrS6xXle_jFwqcGrrgQGee9WHzZQ_Y8qHm2JIS0A97D3jvJu1p52sTK2DSM1u6uxjApTOqzgLezdCj2DnTMEoitS-ktaZJg6YkA" style="--sample-background: #FAF5EB" target="_blank" rel="noopener">
+              <span class="learn-item-prompt">&ldquo;sdoc me an analysis of Costco&#39;s cash flow with an editable model&rdquo;</span>
+              <svg class="learn-item-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="m10 14 11-11"/></svg>
+            </a>
+            <a class="learn-item" data-sample="working-capital-in-five-slides.md" href="/docs#md=G1ETABwF7p7BovhsDtiGEI17hCSz21TbWSalFezUOsw_dmHkPG74EE73--mqn6b6D3ZPOJjgJ0rg1CrxbrukXAEnTqlbCMzZCbXf__9lDvqE0hTCYjGudWUQZufed-ef_WmlOtrbWUqrjuPpNg5JpIuQSBUJ6I68IqhEMzn0f0-jRBBHQ_v-oJSGbHdtINQ2wQ-DMUrn6E0qsQH01lUS60WZYCmX9pQiXSfCfLYhQGnbcvIsZ_a0CgICiz8fFIM_9bsMcwE8Hea_fdraWctC39ZjmeRD3BQMLIqnBSWkGr0VxKmOVoNp3CxOWkVMr0kh6UG7f1Rv_oMzY3i-Nrki5O5nktS4_rtpIblSjqoKfpTXczlNcMESLwpHsCHNlcoTMFqp8QHJnDxucJllFXuH3lxpZRcjrx8NOSdyRH1sUeteNs5YQ132lP8DDTDGiINxxBjJX7MPdu6gEXCBEbp6_3AV3nBfEJRUoMxIVqS0rKzPTVRM_r0pFxNeNFT1gNhk2V6eTWv1zPu_dahNxXvLizeofrsPGCkFl2G2gU7rHmXfajQXdiYGWPCkjaBcupH3cXpPt_S9bmx9CGwBGRvReINjPStRtK3YVq29K16gDzGGvG0h5_ZykfiBk6oeQX0bTzpVPdHFuM30Yyyr8qbcJwIMujBJm5hH5Otrfovn0qGdkP2lzZmdBbhk0WzfqOgMsTDyqFOmUicDjPZ7Q41V2ZByqlPXKA9OFPAmzxKWgzhJrErCSilq-6pAvNhuzOJBwSI1l4yXdkewOGZqiJy1e0a88d7ruA0azDUP3c7vbK5W7bkEoff3N4rrkodsA0926TaZ3niGqS7cq84cjq4nT2RGOCgnwcyq50S2Zhj4UynDwugmYa3yjA1_A1OjmMY--LX_BnlF1gFjwTyIk6KSgtO7UYn8Jteocnh6X1FNHGrR7wUb4xV5lPvRAxpgxQSO3QLu7mgneyc5tw_UtBsLkqEOYTHT8dtHXv61Nhopohn29hNUbJ0ijX05FQU6BMoamFiHdrJohMlP_lfipjDM37CZTH4qQYRIG3HULm5E_s2_9oVF3Nw1e5upkb0bil8I760Ffwt64zIayYbippseMJYw_Njn0vmd2ri4u-HsY0OOXW0ToD5xJ-AuAW1YTAl7H4djQp7awYnuxCQhxGTommshiLG-lA1cFgcUy9X0TgsqWdbH-AZ0JIuFldPchiDoYvaE-iFb31ycV8fUmnrWRHfNPEoggepMnEhEob1WF_CI2C2ObbwVLoTcpDaI95D93XimWl75cPX25KISwSa-kLMv6y2IIpuuMjuvCr2XHtYbHfUGOvA-HGYE_SO6mFQQ8g6FelBaIwf5l_iVVJUKVqgM91l4hMVFIVNa4N42LOUeE7el2zJDZ6321lKllB8UarY6LOd7pK7RrpJcKrQPg61aEgfI7DJw-bPExDKIPupdWuSfa4tY5S0jfeVb8s5Ecbq1MUHVITVGav12v9XaYHdtrnbpQRTySt3wkN6lEhWwXeoWxTf93K0KdutWCHA7-3hoakKS2_nl0L5T6b4KTMlJb_UYrwtXUl-pIUAhFC7WIC8ObbSmb_rfepFwPeFG1MaY50e1ee8NkxrSjjMbTcwJEJrAL9qD-EVX13_sND67byzYH0BzH9RiHaXuXwUpp6gwD9mCL7I__ia44bO6hnhurH84QTu9k8k_LiEAmPuCIJHTHDGzrAzfWDDQ4Wq6YDV8th9L7UdZMuZ8FKOKO0plQTKYAZ-GJFi8CEY0nP1pmdFMmE1iSV2UR3yVngcvyrM8zCVgybJqGpsVB1B5I0MnAN3GAW7NsBm7eGP8-tfdXGdMJBa_ZWSNtwQoLV0Apb0RFsISAJSQ5AEydEPSN7FTDgA1ayVWKBxHgpA4FD5gRKRSFS_uMJXvucq0eYEUwnHQdTNiHeABPV5bFtOgOlepAEomoFRamfTmpjCrKbO17zIi9pxhdQa3yWlm0JkZrICjqY2ERJZD4GxKjiAdS0CMGqJCTY-AS3WLU_m1spEIPutjH9nOCFhp40l7ECUjOfuacpyw7GfT3Y-NBccvM05Gjv9ZpAvwbhm_s518yMl1yN5s-G-jX2yugUM0eaD7ceGxSFQZ7eZVEtCL0niCPx038LYF-5g2mQA" style="--sample-background: #F6F0EC" target="_blank" rel="noopener">
+              <span class="learn-item-prompt">&ldquo;sdoc me a visual guide to working capital with a model&rdquo;</span>
+              <svg class="learn-item-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="m10 14 11-11"/></svg>
+            </a>
+          </div>
+
+          <div class="sample-group" role="group" aria-labelledby="samples-mathematics">
+            <h3 class="sample-group-heading" id="samples-mathematics">For mathematicians:</h3>
+            <a class="learn-item" data-sample="simpsons-paradox.md" href="/docs#md=G-EPAIzCtm0zFIitlOEsJ5zHCElmTTV15zKdS-frkYwynDXYs7rkC52XCxmIdl_N2d-fV9Rl47aJmxRO6qS4dAA0hCP0_9svtbPLLqfG1qicWNXe9-58DO5yiMs4f2P-BkgVAF0lsfXVdZ0dzKtWxGOo9u9dPyogUTTd_IIR2P58ZNbP5PzvphNHYTzQ2gM2_zL-ejfhghPYDsdySCt9Ko5hkYmtyCw7VEvbJ2DdF4FBkduXBjnmfpZZxJAA_HovDD1C_Uz3GdmP4ZRCX609Fv4kiYGXdPJzKNPzgWlq8VVdSrHFZV9HicbjCRqDRPlWAIIbQwmp34R4-RbBiZ1ukmFAMbHFVfIPXF38YmuGYMqnoTcrSIOd2_3wlVxAsl9yN6xgFNpghbnOyv0Z0yi6R9SlqNQcc0Q00kuXFPmAwOFE4RSCNhpzJVF-TEaZwWratknR_FB2k0ybw4FLKfOmTxDMqR7Mh46vHNoU6b5BagF3_UH8VuPwdf9WpD5ZxlZrQDvpHwoaPZ1Qg-UZVFMrNcWW13ay7BlUQsqY6N0ENML8I3vJOwL_hFfDxG07gdvZxhukdVEyDQSlgQ-c0OSZ6kTwq7Vg4hcmf-fF4Q5NjNwQGf5I-AXZKtAU_cJ262LfwQ5EqCf8IhKsxNbyY1BulVD8ttISDyYUF-i0aNALc5iS77F8lxnJ8SzmOaxo7X1e5uSBwHN89TQE_05UyR_4AYa-6sXRCGuEWsS_BEYK-1e32Ot4eNWAaqvHWK08cy34MfAxcmMleabPsBKD7_l_ahFtLAP_jbpcHk4BBuDtXkJmpYZLxbuwuRyJFkN9Fa3v_lrO-qBMaKQkvt_77KsfxoAhIoq08aZ4WdPROidlLH4uVw-AfAT-ADcCIDw-strDTHqEoBADrVy0ZK-iGJywf9R9bKOJlYUAo2ATsLIGobeIrBCr23EN6mAwKZLeZbb4RVxrOtpwWQ8yObFXAZGZexwEw_4cwa5cwO87w7MUPxniRF8aL62B3RN5KVJkQaDV89caAfgQjneGrSCc6CPJLKaxJu0d1U0ifAwCwr66yZEJc5STeSrKHB3YFG0Eqp4IRgBVGTxwv2QMpQPpj3gNUVtHzC0bFq475ILwCgU-WOVsdzMfCCmu32zfDnPVvOXfT_AX7nwWcBsfjaVwpbSli3GkFeRDiG0c3ss_3IA7-IZbKT2-hejfWRGNZXBsG0kZCNa6XCHJ1RyNzZYDp9nhTDswClt7UieuqCQD_KXkXqFgUXgA-H3Y16cx8Uydqn3M7DBDn4f4PhVOZAsnrDczK5gdZbAl63EgQBMekQJkj622O1L2r609eLWbfHV3kyGbKFGR4RESe5LP5MvE0pQN40npK2B2wqthpTJCfJivr6Z2E3xoedopF90Ds7bgDq5_5pJTc8khyw265Jnek0iiRTs-UZkU6t4kzpVoF2nBloymy-y5sjHLnmp2bt_SnWdNrNO3QSCmmH-tagwLUzqbWorAdn2WHqmRw9AueZcAFQB3deSazrI10Nlf75HSlUsLJW8YAHTKSiXAuKU466AWrhacRGIRxSyVo50sRAq--CqOAlEScQoVJI96mSQ0pr-r0YdYuiqjWJWJdqf51sMm5tt2Jhu9KEchEag2R4I4fqYVE7oJtkLxK1xN1s4RaFed0ZrxfC_lk8lGcw9I71c5PjnbqxFukFf_2SQm2f_MqFj92mQm05PJs_mBTLm5SvuKAFC9os7VUJv2pPxGPKXL-pJ8OouFo8EUgJWtxTGAF3oJuj_dAQXkrpSbfA2TwwBpf8PWSIqYYpKw_svb8ICc9VmYouvkdr7BOenVQXZE2-TD5l3X1AZZV7ZPBDfI4e5dVeW8zl_ePEBu0GqP8ne29iddcD_vaummOF1mjNf2KSpEOmi1kgU-EN2znaI7pUuhJUl5d9xC5ooqXe5dWCIRnUvDlSiqFZBjoCPxP9AVbTpFNdveXAmwqDRSlNON2TOqlnGIN13YLk9swrFouZOaGwoyYC731KsjB7PoxOXWEQqsyWB7qCQ69CKCmy0M_3VyqfJx4iDJRznJU56P_Wro3JDcsakJOOCqFmo_TgzSXsv_F58_U568piZ9X1M5QCddygJERwEFJop5JZ7ufGUV0x7C9U5WdkwZM_9Zk0IC" style="--sample-background: #F2F6EE" target="_blank" rel="noopener">
+              <span class="learn-item-prompt">&ldquo;sdoc me a worked proof of Simpson&#39;s paradox with an editable model&rdquo;</span>
+              <svg class="learn-item-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="m10 14 11-11"/></svg>
+            </a>
+            <a class="learn-item" data-sample="newton-convergence.md" href="/docs#md=GwkTAIzTpXYTcdL0t1et__fz9ZYwE8kGSTxJKdpo25XSXAbbyCYF3QK54LF1rbDXBNPvW6rvCcmXDmAADUEulEjzZ3as3Tv1k1tpu6e0zmKUML8w0cBSaXsMR31sV7mZiIhoz0gpQfVXOmTfm5c4ust2hiMS9ewtBjR2eo6KmqlGFwtaNBigpJUBOdQhe17dmB0DgH3QAWJgfpFdfN5-rj6_YYDoCbp8T31DNw1dOVCHp5tHr26b9vqW4fQIb9qgJMPMT_7s08_qz4mJAzqBunQUDsJqehq8vm3V2A8HgeEyuEAIvLTueCuAX9ObNR2OudFRe232Iu0Sj0Xt9sZFqSQcsYoEYGXNUxPyOjGny8_hVjsMB2_dQwkfGgERiswfC3zPcYLiy6JckTowbsAg4eUxyCV6tzwL8AZns19fxvZK1dBdMk3ZV3VEJfao0sq0ddZG4z3pcRBf4Yvw0ccTTdzr6uIKDpHQcW_c1hTG56ssmIIk_oCnVS0pzYmXpNlwl9JgYcxdFUozCq3L0HgkTlb9Zm2BO8jc04M_KCk1TWxlvJMOAW0M2J-J1QVqVLlWSXQS9v7SZ7uJxpI_CUoWe1OSLNJ2GwuAi4sG_AZBoOo17cCbgjpIZJEoDNmdL_AhS2uXz4fLn4ezJA_LjSPuCYT7rzsAziGtT26upj6tnVwMXm9P-tOp004qZ-Dz0Zt8LO_TiiTxVomStGQYx0ZtU9OJpgWZycXzG3kqXii8gwS53PTmr4cpSRnuqMQVHls4U_EC_-gQjUgf3Vur3lRc8D0GEIbmIp4wHJP3CCARxlDXBpDfTnDfYybCb4abtYPDiOdFRw67uV9RT9x_100MJ3lk-4rmJMl7qX6in8x9lxl1Wb6ie_3m0CeFKxhE9YRGXrTVzi7-5X3bD4aHGOOeNyT00HxK7s34y7C32xzsmHVmSfkkbwZ8t-0Nei4mjSr_ZU5bgT2AkQzw9TQb3IRa4kNLv5t3CvukCuH4OUaYqb-19dvdndl6kIHU7Yo5MeGFxlexAs4V_u2bijuqeO14n307p_LbvMTNehjfKSgJxqDApv0hgAvMUBcBDFl4EsSQqcWjfXr-yiKOC-uGeJwekzNK1M_Tr1V3_nh9AtQ36MVBLbUO29M-K-jRMD6ZwZcz-FvJ54_sTcy1y-YDvPbVQBkaBsPZhvnNSiNFPPiUOT3onggMF8JxxjStDIOL46eSOcNGilVl08qxZXA-0tPeBJvXbvAzVsxIOvOaGcsBnTGjPeuAt2E1XdC11D9HZ17XOAIPeam1-GIe_5saHqezmmP38rghwZZxzXjzRE8YfxlweBwRI5ZJpY5-QwnwIMD_X8DSSFrUKr-CYzMAs3W8ww99oQg_-WkUnFDUMqIMyMDiszChRP_-wy_ZB4JILYdLxaczcyo_UF7S_et1RFHdrb7eRHXUdGuut1ETtd3a61dRG111u7p2TX5t42HwzSMBTkqcGMYDJWaCc6-JHiZjrz5cKzC-Dl_znyQ_34Po6mPKSEXq3ruriupLrJyWWddQWaeKsAZUAtjO8TfVfuJuskN3QMMF6c89OroyQZrzOS9mTKHmKnPOcQXitAxG3s9CZtFNJeRCfCpOYEmbC6Ar8_P89TTtFggoaesvZaUnlaNKz-OS2Dmcjdi4G3HikDRSilVo2OT79Ft4KBFv-UMfkyJ7ecZ1Es8U8OD3WZX3lUy-j0uaeiVg8ZGcFVXk1Q2VV_3qYLovEqTAhsKPIDhIXCCn4UHL3z2aSHggVZVlATMxsO-vCgQ4g6U8X0PSmUpVJhuONb__6MYnqx-z0SQ7RUBzJMd4NssBIuv_ebhD1leyE1dHbHw8H_-VnaNllpnARy3QLN6TjUBWrRTOz_zDXD8mkKkfIorqqInakSu21MaZvFzHSqAS-MrKmPyQyzh1YPuGnqx7iqvf7-i0rAqCyZtAk_RnI3GnfKLy9IDD9n-P8TA6SJhJ0s9CdUrFSuIVI8Uck7BHVVT0bwUdWrct5Tuv8g4QcWPKf-MEDuyUukLRMLELBq3_pE9vQpZmSVLeFbWZWK73hB3Q4R22JuELWfZfWcI5UplyLJFAh2B8dM5IloT7pjPKRaxfXsfxsacqrSZX7VnXxDuCswywM8POoMfJ1VL6NJVQooadsxol0sxueqhm9e_Fxy7J_u-qFEtXevwnLcHRx5p0iG04jE6RmdEtcatn5nP0wR4DaB1rbjTRMaGrkgcvivrDYRXjp7F9_f4FXgd1VZQL6S65WoCZmkAg8QXopXYCuhByunwlkECHTfWRaTUtFhMtCuVYLATLOiLlk4qxAv9ZXg7NCdEF1YksupFVMj2RDRk3ZzZFeF4pzO65FK3YEo-XlWrKXSpmS2PkaJQufWuGdZ7S1fKfOK-RAbok2WNvbvRBBhHCbEhmVWhXPGmcVbBvnjg6BEQ2qy-U8PHXZU68ZHbt8xb5hXYSBW_C8FZzjLRPxxmVvH1ZvKbUQFU06PU4Rd7xCveeapal6Hz_xuvtg4klhenGiqyGX6OuaEtOJr6d4QwJA9FkZi1gJ9U9V3EpFZzxaufFJsBfOHY0Ic4R8zoRjeTYQgENF8IpOuost-gJVDCc2IMyhXaLRxYA" style="--sample-background: #F5F1F8" target="_blank" rel="noopener">
+              <span class="learn-item-prompt">&ldquo;sdoc me a proof of quadratic convergence for Newton&#39;s square-root method and a failure case&rdquo;</span>
+              <svg class="learn-item-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="m10 14 11-11"/></svg>
+            </a>
+          </div>
+          <!-- sample-links:end -->
+
+          </div><!-- /learn-items -->
+      </div><!-- /install-grid -->
+    </div><!-- /install-panel -->
+  </div>
+</section><div class="wrap"><div class="homepage-column"><div class="homepage-start" id="start-samples"><a class="homepage-google" href="/api/cloud/auth/oauth/google?return_to=%2Fcloud%2Fprofile"><svg class="homepage-google-icon" viewBox="0 0 18 18" aria-hidden="true">
+            <path fill="#4285F4" d="M17.64 9.205c0-.638-.057-1.252-.164-1.841H9v3.481h4.844a4.14 4.14 0 0 1-1.797 2.716v2.258h2.909c1.703-1.568 2.684-3.878 2.684-6.614Z"/>
+            <path fill="#34A853" d="M9 18c2.43 0 4.468-.806 5.956-2.181l-2.909-2.258c-.806.54-1.836.859-3.047.859-2.344 0-4.328-1.585-5.037-3.714H.957v2.332A9 9 0 0 0 9 18Z"/>
+            <path fill="#FBBC05" d="M3.963 10.706A5.41 5.41 0 0 1 3.681 9c0-.592.102-1.168.282-1.706V4.962H.957A9 9 0 0 0 0 9c0 1.452.347 2.827.957 4.038l3.006-2.332Z"/>
+            <path fill="#EA4335" d="M9 3.58c1.321 0 2.507.454 3.441 1.346l2.581-2.581C13.464.892 11.426 0 9 0A9 9 0 0 0 .957 4.962l3.006 2.332C4.672 5.165 6.656 3.58 9 3.58Z"/>
+          </svg><span>Continue with Google</span></a><div class="homepage-signup-divider"><span>or use your email</span></div><form class="teams-form homepage-email" data-install-form><div class="tf-field"><input name="email" type="email" aria-label="your email" autocomplete="email" placeholder="your@email.com" required></div><button class="btn btn-primary" type="submit">Get install prompt</button></form><p class="homepage-sales-link">or <a href="#talk-to-sales">talk to sales</a> (or <a href="/cloud/sign-in?return=%2Flibrary%3Fscope%3Dcloud">log in</a>)</p><p class="tf-status start-status" role="status"></p></div></div></div><section id="praise">
+  <div class="wrap">
+    <div class="install-panel">
+      <div class="praise-head">
+        <h2 class="hero-display"><span class="hn-badge" aria-hidden="true">Y</span><span>Praise for SmallDocs on Hacker News</span></h2>
+        <p>Comments from threads where SmallDocs has been discussed.</p>
+      </div>
+      <div class="praise-grid">
+
+        <figure class="praise-card">
+          <blockquote>&ldquo;Great job on this. I can see this being extremely useful for my teams.&rdquo;</blockquote>
+          <a class="praise-context" href="https://news.ycombinator.com/item?id=48810851" target="_blank" rel="noopener" title="View this comment on Hacker News" aria-label="View this comment on Hacker News"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="m10 14 11-11"/></svg></a>
+        </figure>
+
+        <figure class="praise-card">
+          <blockquote>&ldquo;Very good and well done. I found an immediate use-case for this.&rdquo;</blockquote>
+          <a class="praise-context" href="https://news.ycombinator.com/item?id=48811944" target="_blank" rel="noopener" title="View this comment on Hacker News" aria-label="View this comment on Hacker News"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="m10 14 11-11"/></svg></a>
+        </figure>
+
+        <figure class="praise-card">
+          <blockquote>&ldquo;This is super cool - so many uses.&rdquo;</blockquote>
+          <a class="praise-context" href="https://news.ycombinator.com/item?id=48812725" target="_blank" rel="noopener" title="View this comment on Hacker News" aria-label="View this comment on Hacker News"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="m10 14 11-11"/></svg></a>
+        </figure>
+
+        <figure class="praise-card">
+          <blockquote>&ldquo;You&rsquo;ve clearly put a lot of thought into making it useful.&rdquo;</blockquote>
+          <a class="praise-context" href="https://news.ycombinator.com/item?id=48812874" target="_blank" rel="noopener" title="View this comment on Hacker News" aria-label="View this comment on Hacker News"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="m10 14 11-11"/></svg></a>
+        </figure>
+
+        <figure class="praise-card">
+          <blockquote>&ldquo;I think agents making Word docs and PowerPoints is going to go away. [SmallDocs] is the future.&rdquo;</blockquote>
+          <a class="praise-context" href="https://news.ycombinator.com/item?id=48809212" target="_blank" rel="noopener" title="View this comment on Hacker News" aria-label="View this comment on Hacker News"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="m10 14 11-11"/></svg></a>
+        </figure>
+
+        <figure class="praise-card">
+          <blockquote>&ldquo;So amusing that small devs get it so right, while a trillion-dollar company still can&rsquo;t figure out what Copilot is to their ecosystem.&rdquo;</blockquote>
+          <a class="praise-context" href="https://news.ycombinator.com/item?id=48814273" target="_blank" rel="noopener" title="View this comment on Hacker News" aria-label="View this comment on Hacker News"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="m10 14 11-11"/></svg></a>
+        </figure>
+
+
+
+
+
+
+
+      </div><!-- /praise-grid -->
+    </div><!-- /install-panel -->
+  </div>
+</section><div class="wrap"><div class="homepage-column"><div class="homepage-start" id="start-praise"><a class="homepage-google" href="/api/cloud/auth/oauth/google?return_to=%2Fcloud%2Fprofile"><svg class="homepage-google-icon" viewBox="0 0 18 18" aria-hidden="true">
+            <path fill="#4285F4" d="M17.64 9.205c0-.638-.057-1.252-.164-1.841H9v3.481h4.844a4.14 4.14 0 0 1-1.797 2.716v2.258h2.909c1.703-1.568 2.684-3.878 2.684-6.614Z"/>
+            <path fill="#34A853" d="M9 18c2.43 0 4.468-.806 5.956-2.181l-2.909-2.258c-.806.54-1.836.859-3.047.859-2.344 0-4.328-1.585-5.037-3.714H.957v2.332A9 9 0 0 0 9 18Z"/>
+            <path fill="#FBBC05" d="M3.963 10.706A5.41 5.41 0 0 1 3.681 9c0-.592.102-1.168.282-1.706V4.962H.957A9 9 0 0 0 0 9c0 1.452.347 2.827.957 4.038l3.006-2.332Z"/>
+            <path fill="#EA4335" d="M9 3.58c1.321 0 2.507.454 3.441 1.346l2.581-2.581C13.464.892 11.426 0 9 0A9 9 0 0 0 .957 4.962l3.006 2.332C4.672 5.165 6.656 3.58 9 3.58Z"/>
+          </svg><span>Continue with Google</span></a><div class="homepage-signup-divider"><span>or use your email</span></div><form class="teams-form homepage-email" data-install-form><div class="tf-field"><input name="email" type="email" aria-label="your email" autocomplete="email" placeholder="your@email.com" required></div><button class="btn btn-primary" type="submit">Get install prompt</button></form><p class="homepage-sales-link">or <a href="#talk-to-sales">talk to sales</a> (or <a href="/cloud/sign-in?return=%2Flibrary%3Fscope%3Dcloud">log in</a>)</p><p class="tf-status start-status" role="status"></p></div></div></div><section id="talk-to-sales">
+  <div class="wrap">
+    <div class="install-panel">
+      <div class="install-grid">
+
+        <div class="install-text"><h2 class="hero-display">Talk to Sales</h2></div>
+
+        <form class="teams-form" id="teamsForm" novalidate>
+          <div class="tf-field">
+            <label for="tf-name">Name</label>
+            <input id="tf-name" name="name" type="text" required autocomplete="name" maxlength="200" />
+          </div>
+          <div class="tf-field">
+            <label for="tf-email">Work email</label>
+            <input id="tf-email" name="email" type="email" required autocomplete="email" />
+          </div>
+          <div class="tf-field">
+            <label for="tf-message">Anything else? <span class="tf-opt">optional</span></label>
+            <textarea id="tf-message" name="message" rows="4"></textarea>
+          </div>
+          <div class="tf-hp" aria-hidden="true">
+            <label for="tf-website">Website</label>
+            <input id="tf-website" name="website" type="text" tabindex="-1" autocomplete="off" />
+          </div>
+          <div class="tf-actions">
+            <button class="btn btn-primary" type="submit" id="tf-submit">Send a request</button>
+            <span class="tf-status" id="tf-status" aria-live="polite"></span>
+          </div>
+          <p class="tf-note">We store what you submit and use it only to reply.</p>
+        </form>
+
+      </div>
+    </div>
+  </div>
+</section></main><footer>
+  <div class="wrap">
+    <p class="foot-fine">
+      <span>smalldocs.org</span>
+      <span>
+        <a href="/docs">Docs</a><span class="dot">&middot;</span>
+        <a href="/developers">Developers</a><span class="dot">&middot;</span>
+        <a href="/blogs/new-home">What's new</a><span class="dot">&middot;</span>
+        <a href="/privacy">Privacy</a><span class="dot">&middot;</span>
+        <a href="/trust">Trust</a><span class="dot">&middot;</span>
+        <a href="/analytics">Analytics</a><span class="dot">&middot;</span>
+        <a href="/legal">Terms</a><span class="dot">&middot;</span>
+        <a href="/acceptable-use">Acceptable use</a><span class="dot">&middot;</span>
+        <a href="/cancellation">Cancellation</a><span class="dot">&middot;</span>
+        <a href="/service-closure">Service closure</a><span class="dot">&middot;</span>
+        <a href="/subprocessors">Service providers</a><span class="dot">&middot;</span>
+        <a href="https://github.com/espressoplease/smalldocs" target="_blank" rel="noopener">Open source on GitHub</a>
+      </span>
+    </p>
+    <p class="foot-fine">Odd Solutions Ltd, registered in England and Wales, company number 16186575. Registered office: 98 Downhills Park Road, London, United Kingdom, N17 6PA.</p>
+  </div>
+</footer><script src="/public/sdocs-cli-setup.js"></script><script src="/public/sdocs-scroll-header.js"></script><script src="/public/cloud-pricing.js"></script><script src="/public/homepage-next.js"></script></body></html>

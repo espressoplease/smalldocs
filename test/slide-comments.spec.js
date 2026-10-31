@@ -1,7 +1,7 @@
 // @ts-check
 const { test, expect } = require('@playwright/test');
 
-const BASE = 'http://localhost:3000';
+const BASE = process.env.SDOCS_TEST_BASE_URL || 'http://localhost:3000';
 
 /**
  * Slide comment mode end-to-end.

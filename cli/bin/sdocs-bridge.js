@@ -27,6 +27,7 @@ const path   = require('path');
 const crypto = require('crypto');
 const FormBlock = require('../shared/sdocs-form-block.js');
 const { isWrappedFile, wrapForDisplay } = require('../lib/file-wrap');
+const { INSTALLATION_CHANNEL } = require('../lib/constants');
 
 // ── Constants ─────────────────────────────────────────────
 
@@ -59,6 +60,7 @@ function isAllowedOrigin(origin, extra) {
   // still parses (some browsers will tolerate junk).
   if (u.pathname && u.pathname !== '/') return false;
   if (u.search || u.hash) return false;
+  if (INSTALLATION_CHANNEL) return u.origin === INSTALLATION_CHANNEL.origin && !u.username && !u.password;
   const host = u.hostname.toLowerCase();
   // Production: HTTPS only, exact root or any subdomain. The leading dot in
   // the suffix is what closes smalldocs.org.attacker.com style footguns.

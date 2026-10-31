@@ -19,14 +19,14 @@ const path = require('path');
 const fs = require('fs');
 
 const { startBridge } = require('../bin/sdocs-bridge');
-const { DEFAULT_URL } = require('./constants');
+const { resolveBaseUrl } = require('./constants');
 const { openBrowser } = require('./io');
 const { stripAndCompress } = require('./url');
 const { wrapForDisplay } = require('./file-wrap');
 const { isCodeFile } = require('./code-langs');
 
 function baseUrlFor(opts) {
-  return opts.url || process.env.SDOCS_URL || DEFAULT_URL;
+  return resolveBaseUrl(opts.url);
 }
 
 // Wrapped files (.csv, .mmd, .mermaid) render a derived view the bridge builds

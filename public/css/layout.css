@@ -38,6 +38,22 @@ body {
 .toolbar-brand-short { display: none; }
 .toolbar-brand-tiny { display: none; }
 
+/* Reveal the Cloud document and its controls as one surface after rendering. */
+#_sd_content-area {
+  transition: opacity .3s cubic-bezier(.4,0,.2,1), visibility .3s cubic-bezier(.4,0,.2,1);
+}
+html.sdocs-cloud-document-loading #_sd_content-area {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+html.sdocs-cloud-document-error :is(#_sd_left-toolbar, #_sd_write-toolbar, #_sd_comment-toolbar, #_sd_sdocs-file-info) {
+  display: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  #_sd_content-area { transition: none; }
+}
+
 .btn {
   display: inline-flex;
   align-items: center;
@@ -358,29 +374,39 @@ html.sdocs-short-link-visit #_sd_sidebar .doc-site-action.sdocs-short-link-only 
 }
 #_sd_mobile-header { display: contents; }
 #_sd_mobile-header-spacer { display: none; }
-/* Document actions sit in a quiet top rail above the scrolling page. */
+/* Document actions align with the file info and scroll with the document. */
 #_sd_left-toolbar {
   position: relative;
   z-index: 6;
   width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
   display: flex;
   align-items: center;
-  justify-content: center;
-  height: var(--ui-toolbar-height);
-  padding: 0 12px;
-  background: var(--bg-input);
-  border-bottom: 1px solid var(--border-subtle);
+  justify-content: flex-start;
+  padding: 16px 48px 0;
+  background: transparent;
   flex-shrink: 0;
   white-space: nowrap;
 }
 .sdocs-mobile-toolbar-scroll {
   min-width: 0;
+  flex: 1 1 auto;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
+.sdocs-mobile-toolbar-scroll::-webkit-scrollbar { display: none; }
+.sdocs-mobile-toolbar-scroll > .toggle-group { flex: 0 0 auto; }
+#_sd_left-toolbar ~ :is(#_sd_rendered, #_sd_write) { padding-top: 16px; }
+#_sd_mobile-navigation,
 .sdocs-mobile-toolbar-brand,
 .sdocs-mobile-menu-button { display: none; }
+
 
 .toggle-group {
   display: flex;
@@ -400,7 +426,7 @@ html.sdocs-short-link-visit #_sd_sidebar .doc-site-action.sdocs-short-link-only 
   background: transparent;
   padding: 0;
   border: 1px solid transparent;
-  color: var(--text-2);
+  color: var(--text);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -415,6 +441,22 @@ html.sdocs-short-link-visit #_sd_sidebar .doc-site-action.sdocs-short-link-only 
   background: var(--bg-hover);
   border-color: transparent;
   color: var(--text);
+}
+#_sd_left-toolbar .toggle-group .btn > svg,
+#_sd_left-toolbar .toggle-group .btn > svg [stroke-width] {
+  stroke-width: 1.5;
+}
+
+@media (min-width: 769px) {
+  #_sd_left-toolbar .toggle-group .btn {
+    width: 36px;
+    height: 36px;
+    flex-basis: 36px;
+  }
+  #_sd_left-toolbar .toggle-group .btn > svg {
+    width: 18px;
+    height: 18px;
+  }
 }
 
 /* Hamburger collapses the last few toggle-group buttons.

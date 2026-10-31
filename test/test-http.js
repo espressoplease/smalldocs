@@ -73,6 +73,7 @@ module.exports = function(harness) {
         ANALYTICS_FLUSH_IMMEDIATE: '1',
         SHORT_LINKS_DB: testShortLinksDbPath,
         SMALLCRM_TEAMS_FORM_ACTION: teamsFormAction,
+        SMALLCRM_INSTALL_FORM_ACTION: teamsFormAction,
         CLOUD_AUTH_DB: testCloudAuthDbPath,
         CLOUD_PUBLIC_MODE: 'enabled',
         CLOUD_AUTH_PEPPER: 'http-test-cloud-auth-pepper-32-bytes',
@@ -210,7 +211,7 @@ module.exports = function(harness) {
       const r = await get(BASE + '/');
       assert.ok(r.body.includes('id="install"'),
         'root should contain the landing install section');
-      assert.ok(r.body.includes('var cloudAuthenticated = \'false\''),
+      assert.ok(r.body.includes('data-cloud-authenticated="false"'),
         'signed-out root should leave Cloud library routing disabled');
       assert.ok(r.body.includes('curl -fsSL https://smalldocs.org/install | sh'),
         'root should show the canonical install command');
@@ -743,7 +744,7 @@ module.exports = function(harness) {
       const r = await get(BASE + '/home');
       assert.strictEqual(r.status, 200);
       assert.ok(r.body.includes('<title>SmallDocs - an office suite for coding agents</title>'));
-      assert.ok(r.body.includes("var explicitHomepage = location.pathname === '/home';"));
+      assert.ok(r.body.includes('/public/sdocs-home-entry.js?v='));
       assert.ok(r.body.includes("source = (sourceParams.get('src') || '').trim().toLowerCase();"),
         'homepage should lowercase the explicit source label');
       assert.ok(!r.body.includes("sourceParams.get('utm_source')"),
@@ -1127,12 +1128,13 @@ module.exports = function(harness) {
       assert.ok(r.body.includes('SmallDocs Cloud'));
       assert.ok(r.body.includes('£4'));
       assert.ok(r.body.includes('$5 USD'));
-      assert.ok(r.body.includes('£7'));
-      assert.ok(r.body.includes('$9 USD'));
+      assert.ok(r.body.includes('data-cloud-plan="standard"'));
+      assert.ok(!r.body.includes('Subscribe to Team'));
+      assert.ok(r.body.includes('€5 EUR'));
       assert.ok(r.body.includes('not end-to-end encrypted'));
-      assert.ok(!r.body.toLowerCase().includes('trial'));
-      assert.ok(r.body.includes('/cloud/checkout?plan=personal'));
-      assert.ok(r.body.includes('/cloud/checkout?plan=team'));
+      assert.ok(r.body.includes('one free calendar month'));
+      assert.ok(r.body.includes('/cloud/subscribe'));
+      assert.ok(!r.body.includes('/cloud/checkout?plan='));
       assert.ok(r.body.includes('data-cloud-authenticated="false"'));
       assert.ok(!r.body.includes('href="/docs"'));
     });
@@ -1177,34 +1179,11 @@ module.exports = function(harness) {
       await assertEveryAssetVersioned('/cloud/sign-in', v);
     });
 
-    await testAsync('GET /cloud/business-invite serves the private invitation page', async () => {
-      const r = await get(BASE + '/cloud/business-invite?preview=signin');
-      assert.strictEqual(r.status, 200);
-      assert.ok(r.body.includes('Welcome to SmallDocs'));
-      assert.ok(r.body.includes('Turn coding-agent work into documents your team can use'));
-      assert.ok(r.body.includes('Your free access'));
-      assert.ok(r.body.includes('We will be in touch'));
-      assert.ok(!r.body.includes('$18'));
-      assert.ok(r.body.includes('Accept your invitation'));
-      assert.ok(r.body.includes('Install SmallDocs Cloud'));
-      assert.ok(r.body.includes('Copy install prompt'));
-      assert.ok(r.body.includes('sdoc setup --cloud --yes'));
-      assert.ok(r.body.includes('sdoc FILE.md'));
-      assert.ok(r.body.includes('Open a few SmallDocs'));
-      assert.ok(r.body.includes('href="/developers"'));
-      assert.ok(!r.body.includes('__CLOUD_TERMS_VERSION__'));
-      assert.ok(!r.body.includes('__CLOUD_TERMS_LABEL__'));
-      assert.ok(r.body.includes('<a class="provider-button provider-link" data-provider="google"'));
-      assert.ok(r.body.includes('<a hidden class="provider-button provider-link" data-provider="github"'));
+    await testAsync('old business invitation URLs use the normal library invitation flow', async () => {
+      const r = await get(BASE + '/cloud/business-invite?token=old-token&preview=signin');
+      assert.strictEqual(r.status, 303);
+      assert.strictEqual(r.headers.location, '/cloud/invite?token=old-token');
       assert.strictEqual(r.headers['cache-control'], 'no-store');
-      assert.strictEqual(r.headers['x-robots-tag'], 'noindex, nofollow');
-      assert.strictEqual(r.headers['x-frame-options'], 'DENY');
-      assert.ok(r.headers['content-security-policy'].includes("default-src 'none'"));
-    });
-
-    await testAsync('asset-versioning: /cloud/business-invite is versioned', async () => {
-      const v = JSON.parse((await get(BASE + '/version-check')).body).version;
-      await assertEveryAssetVersioned('/cloud/business-invite?preview=signin', v);
     });
 
     let googleOAuthState;
@@ -1224,7 +1203,7 @@ module.exports = function(harness) {
       assert.strictEqual(location.searchParams.get('client_id'), 'http-test-google-client');
       assert.strictEqual(location.searchParams.get('redirect_uri'),
         BASE + '/api/cloud/auth/oauth/google/callback');
-      assert.strictEqual(location.searchParams.get('scope'), 'openid email');
+      assert.strictEqual(location.searchParams.get('scope'), 'openid email profile');
       assert.strictEqual(location.searchParams.get('code_challenge_method'), 'S256');
       assert.ok(location.searchParams.get('code_challenge'));
       assert.ok(location.searchParams.get('nonce'));
@@ -1243,7 +1222,7 @@ module.exports = function(harness) {
         encodeURIComponent(googleOAuthState) + '&error_description=' +
         encodeURIComponent('private provider detail'), { Cookie: googleOAuthCookie });
       assert.strictEqual(denied.status, 303);
-      assert.strictEqual(denied.headers.location, '/cloud/sign-in?error=oauth_denied');
+      assert.strictEqual(denied.headers.location, '/cloud/sign-in?error=oauth_denied&return=%2Fcloud%2Fadmin');
       assert.ok(!denied.headers.location.includes('private'));
       assert.ok(denied.headers['set-cookie'][0].includes('Max-Age=0'));
 
@@ -1341,7 +1320,7 @@ module.exports = function(harness) {
 
       const settings = await get(BASE + '/cloud/admin', { Cookie: cookie });
       assert.strictEqual(settings.status, 200);
-      assert.ok(settings.body.includes('Cloud settings'));
+      assert.ok(settings.body.includes('Account settings'));
       assert.ok(settings.body.includes('Connected machines'));
       assert.ok(settings.body.includes('/public/cloud-admin.js?v='));
       assert.ok(/script-src[^;]*'self'/.test(settings.headers['content-security-policy'] || ''));
@@ -1422,7 +1401,7 @@ module.exports = function(harness) {
       assert.strictEqual(homepage.status, 200);
       assert.strictEqual(homepage.headers['cache-control'], 'private, no-store');
       assert.strictEqual(homepage.headers.vary, 'Cookie');
-      assert.ok(homepage.body.includes('var cloudAuthenticated = \'true\''),
+      assert.ok(homepage.body.includes('data-cloud-authenticated="true"'),
         'signed-in root should route the browser to Cloud Library');
       assert.ok(homepage.body.includes('class="nav-link" href="/cloud"'),
         'signed-in users should retain the Cloud route in the product navigation');
@@ -1499,7 +1478,7 @@ module.exports = function(harness) {
       assert.ok(response.body.includes('Billing'));
       assert.ok(!response.body.includes('Agent access'));
       assert.ok(response.body.includes('Connected machines'));
-      assert.ok(response.body.includes('Cloud settings'));
+      assert.ok(response.body.includes('Account settings'));
       assert.ok(response.body.includes('data-sdocs-site-page="settings"'));
       assert.ok(response.body.includes('/public/css/site-sidebar.css'));
       assert.ok(response.body.includes('/public/sdocs-site-sidebar.js'));
@@ -1778,7 +1757,8 @@ module.exports = function(harness) {
 
       const reused = await post(BASE + '/api/cloud/v1/invitations/' + encodeURIComponent(token) + '/accept', {},
         { Origin: BASE, Cookie: cloudMemberCookie });
-      assert.strictEqual(reused.status, 404);
+      assert.strictEqual(reused.status, 200);
+      assert.strictEqual(JSON.parse(reused.body).workspace_id, cloudTeamWorkspace.workspaceId);
     });
 
     await testAsync('Cloud notifications batch documents without granting or inviting access', async () => {
@@ -2234,6 +2214,7 @@ module.exports = function(harness) {
       assert.strictEqual(head.status, 200);
       assert.deepStrictEqual(JSON.parse(head.body).document, {
         id: targetDocument.id,
+        workspace_id: cloudProject.workspaceId,
         current_revision_id: mergedDocument.current_revision_id,
         revision_number: mergedDocument.revision_number,
         updated_at: mergedDocument.updated_at,
@@ -2472,13 +2453,14 @@ module.exports = function(harness) {
     // ── Teams-interest endpoint ──
     await testAsync('POST /api/teams-interest relays a valid submission to SmallCRM', async () => {
       const r = await post(BASE + '/api/teams-interest', {
-        email: 'lead@example.com', company: 'Acme', message: 'We ship reports weekly.',
+        name: ' Alex Smith ', email: 'lead@example.com', company: 'Acme', message: 'We ship reports weekly.',
       });
       assert.strictEqual(r.status, 201);
       assert.strictEqual(teamsFormSubmissions.length, 1);
       const form = teamsFormSubmissions[0];
       assert.strictEqual(form.get('_scrm_form'), 'teams-interest-test');
       assert.strictEqual(form.get('inbound_leads.email'), 'lead@example.com');
+      assert.strictEqual(form.get('inbound_leads.name'), 'Alex Smith');
       assert.strictEqual(form.get('inbound_leads.company'), 'Acme');
       assert.strictEqual(form.get('inbound_leads.message'), 'We ship reports weekly.');
     });
@@ -2506,6 +2488,7 @@ module.exports = function(harness) {
       const form = teamsFormSubmissions[1];
       assert.strictEqual(form.get('inbound_leads.email'), 'solo@example.com');
       assert.strictEqual(form.has('inbound_leads.company'), false);
+      assert.strictEqual(form.has('inbound_leads.name'), false);
       assert.strictEqual(form.has('inbound_leads.message'), false);
     });
 
@@ -2515,6 +2498,29 @@ module.exports = function(harness) {
       teamsFormStatus = 200;
       assert.strictEqual(r.status, 502);
       assert.deepStrictEqual(JSON.parse(r.body), { error: 'submission_failed' });
+    });
+
+    await testAsync('install requests store their email and source in SmallCRM', async () => {
+      const before = teamsFormSubmissions.length;
+      const r = await post(BASE + '/api/install-interest', { email: 'install@example.com' });
+      assert.strictEqual(r.status, 201);
+      assert.strictEqual(teamsFormSubmissions.length, before + 1);
+      const form = teamsFormSubmissions.at(-1);
+      assert.strictEqual(form.get('inbound_leads.email'), 'install@example.com');
+      assert.strictEqual(form.get('inbound_leads.source'), 'homepage_install');
+      assert.strictEqual(form.get('inbound_leads.status'), 'new');
+    });
+    await testAsync('install requests reject invalid emails without storing a lead', async () => {
+      const before = teamsFormSubmissions.length;
+      const r = await post(BASE + '/api/install-interest', { email: 'invalid' });
+      assert.strictEqual(r.status, 400);
+      assert.strictEqual(teamsFormSubmissions.length, before);
+    });
+    await testAsync('install requests report receiver failures', async () => {
+      teamsFormStatus = 503;
+      const r = await post(BASE + '/api/install-interest', { email: 'failure@example.com' });
+      teamsFormStatus = 200;
+      assert.strictEqual(r.status, 502);
     });
 
     cloudBilling.close();
@@ -2534,6 +2540,7 @@ module.exports = function(harness) {
       const hiddenServer = spawn('node', [path.join(__dirname, '..', 'server.js')], {
         env: {
           PATH: process.env.PATH,
+          NODE_PATH: process.env.NODE_PATH,
           HOME: process.env.HOME,
           HOST: '127.0.0.1',
           PORT: String(hiddenPort),
@@ -2542,6 +2549,7 @@ module.exports = function(harness) {
           CLOUD_PUBLIC_MODE: 'hidden',
           SHORT_LINKS_DB: testShortLinksDbPath,
           SMALLCRM_TEAMS_FORM_ACTION: teamsFormAction,
+        SMALLCRM_INSTALL_FORM_ACTION: teamsFormAction,
           FEEDBACK_DB: testDbPath,
         },
         stdio: 'pipe',

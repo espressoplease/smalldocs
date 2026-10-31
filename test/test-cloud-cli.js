@@ -7,7 +7,7 @@ module.exports = function(harness) {
   const io = require('../cli/lib/io');
   const credentials = require('../cli/lib/cloud-credentials');
   const bindings = require('../cli/lib/cloud-bindings');
-  const { CloudClient, runCloudCommand, autoSyncOpen, filterTags, skillInstallCommand, CLOUD_HELP } =
+  const { CloudClient, runCloudCommand, autoSyncOpen, openCloudDocument, filterTags, skillInstallCommand, CLOUD_HELP, CLOUD_TAG_HELP, CLOUD_CREATE_HELP, CLOUD_SEARCH_HELP, searchRequest } =
     require('../cli/lib/cloud-commands');
 
   test('setup parser captures Cloud-first edition and preferred account', () => {
@@ -16,6 +16,15 @@ module.exports = function(harness) {
     assert.strictEqual(parsed.skillEdition, 'cloud');
     assert.strictEqual(parsed.accountFlag, 'acct-1');
     assert.strictEqual(parsed.yesFlag, true);
+  });
+
+  test('normal file opens accept a one-command Cloud opt-in', () => {
+    const parsed = io.parseArgs(['report.md', '--cloud', '--account', 'acct-1', '--json', '--no-open']);
+    assert.strictEqual(parsed.subcommand, null);
+    assert.strictEqual(parsed.file, 'report.md');
+    assert.strictEqual(parsed.skillEdition, 'cloud');
+    assert.strictEqual(parsed.accountFlag, 'acct-1');
+    assert.strictEqual(parsed.noOpenFlag, true);
   });
 
   test('cloud CLI parser captures nested action flags', () => {
@@ -62,13 +71,86 @@ module.exports = function(harness) {
   });
 
   test('Cloud help documents search result fields and read/update workflows', () => {
-    assert.ok(CLOUD_HELP.includes('Search is case-insensitive substring matching'));
+    assert.ok(CLOUD_HELP.includes('Search finds all query words'));
+    assert.ok(CLOUD_SEARCH_HELP.includes('Inner double quotes preserve a phrase'));
+    assert.ok(CLOUD_SEARCH_HELP.includes('--query-file'));
+    assert.ok(CLOUD_SEARCH_HELP.includes('next_cursor'));
     assert.ok(CLOUD_HELP.includes('matches[]'));
     assert.ok(CLOUD_HELP.includes('--no-bind'));
     assert.ok(CLOUD_HELP.includes('sdoc cloud push ./plan.md --json'));
   });
 
+  test('Cloud search preserves positional terms and reports unknown or incomplete options', () => {
+    const opts = io.parseArgs(['cloud', 'search', '(incident', 'OR', 'outage)', 'response', '--json']);
+    assert.strictEqual(opts.extra, '(incident OR outage) response');
+    assert.deepStrictEqual(opts.searchArgumentErrors, []);
+    assert.ok(io.parseArgs(['cloud', 'search', 'incident', '--auther', 'me']).searchArgumentErrors[0].includes('--auther'));
+    assert.ok(io.parseArgs(['cloud', 'search', '--author', '--json']).searchArgumentErrors[0].includes('requires a value'));
+    assert.strictEqual(io.parseArgs(['cloud', 'search', '--', '--literal']).extra, '--literal');
+  });
+
+  test('Cloud search maps metadata, pagination, evidence and facet flags', () => {
+    const opts = io.parseArgs(['cloud', 'search', '--tag', 'planning', '--any-tag', 'engineering',
+      '--exclude-tag', 'archived', '--author', 'me', '--updated-by', 'user-b', '--document', 'doc-a',
+      '--field', 'body', '--created-after', '2026-01-01', '--updated-before', '2026-10-20',
+      '--sort', 'created_desc', '--cursor', 'next', '--limit', '20', '--facets', 'tags,authors',
+      '--facet-limit', '30', '--match-limit', '4', '--json']);
+    const request = searchRequest(opts, { loadCredential: () => ({ user_id: 'user-a' }) });
+    assert.deepStrictEqual(request.tags, ['planning']);
+    assert.deepStrictEqual(request.tags_any, ['engineering']);
+    assert.deepStrictEqual(request.tags_none, ['archived']);
+    assert.deepStrictEqual(request.author_user_ids, ['user-a']);
+    assert.deepStrictEqual(request.updated_by_user_ids, ['user-b']);
+    assert.deepStrictEqual(request.document_ids, ['doc-a']);
+    assert.deepStrictEqual(request.fields, ['body']);
+    assert.strictEqual(request.created_after, '2026-01-01');
+    assert.strictEqual(request.updated_before, '2026-10-20');
+    assert.strictEqual(request.sort, 'created_desc');
+    assert.strictEqual(request.cursor, 'next');
+    assert.strictEqual(request.limit, 20);
+    assert.deepStrictEqual(request.facets, ['tags', 'authors']);
+    assert.strictEqual(request.facet_limit, 30);
+    assert.strictEqual(request.match_limit, 4);
+  });
+
+  test('Cloud starred search uses the shared browser filter without treating the flag as query text', () => {
+    const opts = io.parseArgs(['cloud', 'search', 'release', '--starred', '--literal', '--json']);
+    const request = searchRequest(opts, {});
+    assert.strictEqual(request.starred_only, true);
+    assert.strictEqual(request.query, 'release');
+    assert.deepStrictEqual(opts.searchArgumentErrors, []);
+    assert.strictEqual(io.parseArgs(['cloud', 'ls', '--starred']).starredOnlyFlag, true);
+  });
+
+  test('Cloud search distinguishes expressions, phrases and literal substrings', () => {
+    const words = searchRequest(io.parseArgs(['cloud', 'search', 'incident response']), {});
+    const phrase = searchRequest(io.parseArgs(['cloud', 'search', '"incident response"']), {});
+    const literal = searchRequest(io.parseArgs(['cloud', 'search', 'incident response', '--literal']), {});
+    assert.strictEqual(words.expression.op, 'and');
+    assert.strictEqual(phrase.expression.match, 'phrase');
+    assert.strictEqual(literal.query, 'incident response');
+    assert.strictEqual(literal.expression, undefined);
+    assert.throws(() => searchRequest({ extra: 'incident OR' }, {}), /--literal/);
+    assert.throws(() => searchRequest({ limitFlag: 101 }, {}), /between 1 and 100/);
+    assert.throws(() => searchRequest({ fieldFlags: ['unknown'] }, {}), /Fields must/);
+    assert.throws(() => searchRequest({ updatedAfterFlag: 'yesterday' }, {}), /ISO date/);
+    const discovery = searchRequest(io.parseArgs(['cloud', 'search', 'policy', '--word-forms', '--match-limit', '0']), {});
+    assert.strictEqual(discovery.word_forms, true);
+    assert.strictEqual(discovery.match_limit, 0);
+    const literalForms = searchRequest(io.parseArgs(['cloud', 'search', 'policy', '--literal', '--word-forms']), {});
+    assert.strictEqual(literalForms.query, 'policy');
+  });
+
   return async function() {
+    await testAsync('Cloud star commands use idempotent per-user sets on the same API as the browser', async () => {
+      const calls = [];
+      const client = { origin: 'https://cloud.example.test', authenticated: async (url, options) => {
+        calls.push({ url, options }); return { document_id: 'doc-a', starred: JSON.parse(options.body).starred };
+      }};
+      for (const action of ['star', 'star', 'unstar']) await runCloudCommand({ file: action, extra: 'doc-a', silent: true }, { client });
+      assert.deepStrictEqual(calls.map(call => JSON.parse(call.options.body)), [{ starred: true }, { starred: true }, { starred: false }]);
+      assert.ok(calls.every(call => call.url === '/api/cloud/v1/documents/doc-a/star' && call.options.method === 'PUT'));
+    });
     console.log('\n-- Cloud CLI Tests ------------------------------------\n');
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sdocs-cloud-cli-'));
     const previousHome = process.env.SDOCS_HOME;
@@ -352,6 +434,7 @@ module.exports = function(harness) {
       loadCredential() { return account; },
       async authenticated(endpoint, options) {
         calls.push({ endpoint, options });
+        if (endpoint === '/api/cloud/v1/account') return { account: { id: 'acct-1' } };
         if (endpoint === '/api/cloud/v1/account/documents') {
           return { account: { id: 'acct-1' }, document: { id: 'doc-1',
             current_revision_id: 'rev-1', revision_number: 1,
@@ -536,8 +619,33 @@ module.exports = function(harness) {
       const result = await capture(() => runCloudCommand({ file: 'create', extra: accountSource,
         jsonFlag: true }, { client: fakeClient }));
       assert.strictEqual(result.account_id, 'acct-1');
+      assert.strictEqual(result.url, 'https://cloud.test/docs?cloud-document=doc-1');
       assert.strictEqual(Object.hasOwn(result, 'project_id'), false);
       assert.ok(calls.some((call) => call.endpoint === '/api/cloud/v1/account/documents'));
+    });
+
+    await testAsync('create retry keeps the resolved library when the computer default changes after a lost response', async () => {
+      const retrySource = path.join(dir, 'retry-default.md');
+      fs.writeFileSync(retrySource, '# Retry destination');
+      let selected = 'library-original', attempts = 0;
+      const uploads = [];
+      const client = { origin: 'https://cloud.test', loadCredential: () => account,
+        authenticated: async (endpoint, options) => {
+          if (endpoint === '/api/cloud/v1/account') return { account: { id: selected } };
+          uploads.push(JSON.parse(options.body));
+          if (++attempts === 1) throw new Error('response lost after upload');
+          return { account: { id: uploads.at(-1).account_id }, document: {
+            id: 'retry-document', current_revision_id: 'retry-revision', revision_number: 1 } };
+        } };
+      const options = { file: 'create', extra: retrySource, jsonFlag: true };
+      await captureStreams(() => runCloudCommand(options, { client }));
+      assert.strictEqual(attempts, 1);
+      selected = 'library-new-default';
+      const result = await capture(() => runCloudCommand(options, { client }));
+      assert.strictEqual(result.account_id, 'library-original');
+      assert.strictEqual(uploads[0].idempotency_key, uploads[1].idempotency_key);
+      assert.strictEqual(uploads[1].account_id, 'library-original');
+      assert.strictEqual(result.url, 'https://cloud.test/docs?cloud-document=retry-document');
     });
 
     await testAsync('Cloud-first open creates once, pushes later, and keeps +tags out of the file', async () => {
@@ -608,6 +716,7 @@ module.exports = function(harness) {
       const result = await capture(() => runCloudCommand({ file: 'push', extra: source,
         jsonFlag: true }, { client: fakeClient }));
       assert.strictEqual(result.revision_id, 'rev-2');
+      assert.strictEqual(result.url, 'https://cloud.test/docs?cloud-document=doc-1');
       const request = JSON.parse(calls.find((call) => call.endpoint.endsWith('/revisions')).options.body);
       assert.strictEqual(request.target_revision_id, 'rev-1');
       assert.strictEqual(request.target_markdown,
@@ -637,6 +746,7 @@ module.exports = function(harness) {
       bindings.cacheBase('usr-1', 'doc-merge', 'rev-base', '# Plan\n\nBase.');
       let request;
       const mergedClient = {
+        origin: 'https://cloud.test',
         loadCredential() { return account; },
         async authenticated(endpoint, options) {
           request = JSON.parse(options.body);
@@ -665,6 +775,7 @@ module.exports = function(harness) {
         revision_id: 'rev-base', content_sha256: bindings.hash('# Plan\n\nBase.'),
         updated_at: '2026-08-14T00:00:00.000Z' });
       const changingClient = {
+        origin: 'https://cloud.test',
         loadCredential() { return account; },
         async authenticated() {
           fs.writeFileSync(changingSource, '# Plan\n\nSecond agent edit.');
@@ -682,6 +793,171 @@ module.exports = function(harness) {
       assert.strictEqual(result.local_updated_from_cloud, false);
     });
 
+    await testAsync('Cloud push preview never saves, writes bindings, or changes its local file', async () => {
+      const file = path.join(dir, 'preview.md');
+      fs.writeFileSync(file, '# New\n');
+      bindings.set('usr-1', file, { document_id: 'preview-doc', revision_id: 'base', content_sha256: bindings.hash('# Old\n') });
+      bindings.cacheBase('usr-1', 'preview-doc', 'base', '# Old\n');
+      const before = fs.readFileSync(bindings.bindingsFile(), 'utf8');
+      const pending = fs.existsSync(bindings.pendingFile()) ? fs.readFileSync(bindings.pendingFile(), 'utf8') : null;
+      const result = await capture(() => runCloudCommand(io.parseArgs(['cloud', 'push', file, '--dry-run', '--reject-conflicts', '--if-current', 'head', '--json']), {
+        client: { origin: fakeClient.origin, loadCredential: () => account, async authenticated(endpoint, options) {
+          assert.strictEqual(endpoint, '/api/cloud/v1/documents/preview-doc/revisions/preview');
+          const body = JSON.parse(options.body);
+          assert.strictEqual(body.target_revision_id, 'base');
+          assert.strictEqual(body.expected_current_revision_id, 'head');
+          assert.strictEqual(body.reject_conflicts, true);
+          assert.strictEqual(body.filename, undefined);
+          assert.strictEqual(body.idempotency_key, undefined);
+          return { document: { markdown: '# New\n', would_change: true, current_revision_id: 'head' } };
+        } },
+      }));
+      assert.strictEqual(result.dry_run, true);
+      assert.strictEqual(result.would_change, true);
+      assert.strictEqual(fs.readFileSync(file, 'utf8'), '# New\n');
+      assert.strictEqual(fs.readFileSync(bindings.bindingsFile(), 'utf8'), before);
+      assert.strictEqual(fs.existsSync(bindings.pendingFile()) ? fs.readFileSync(bindings.pendingFile(), 'utf8') : null, pending);
+    });
+
+    await testAsync('Cloud pull preserves a new local edit made while a download is in flight', async () => {
+      const file = path.join(dir, 'pull-race.md');
+      fs.writeFileSync(file, '# Before');
+      bindings.set('usr-1', file, { document_id: 'race', revision_id: 'base', content_sha256: bindings.hash('# Before') });
+      const result = await captureStreams(() => runCloudCommand({ file: 'pull', extra: 'race', outputPath: file, jsonFlag: true, forceFlag: true }, {
+        client: { loadCredential: () => account, async authenticated() {
+          fs.writeFileSync(file, '# Local work during request');
+          return { document: { id: 'race', markdown: '# Remote', current_revision_id: 'remote' } };
+        } },
+      }));
+      assert.strictEqual(JSON.parse(result.stdout).error, 'unsafe_local_state');
+      assert.strictEqual(fs.readFileSync(file, 'utf8'), '# Local work during request');
+      assert.strictEqual(bindings.get('usr-1', file).revision_id, 'base');
+    });
+
+    await testAsync('Cloud pull refuses a binding changed during download', async () => {
+      const file = path.join(dir, 'pull-binding-race.md');
+      const result = await captureStreams(() => runCloudCommand({ file: 'pull', extra: 'race', outputPath: file, jsonFlag: true }, {
+        client: { loadCredential: () => account, async authenticated() {
+          bindings.set('usr-1', file, { document_id: 'another', revision_id: 'other' });
+          return { document: { id: 'race', markdown: '# Remote', current_revision_id: 'remote' } };
+        } },
+      }));
+      assert.strictEqual(JSON.parse(result.stdout).error, 'unsafe_local_state');
+      assert.strictEqual(fs.existsSync(file), false);
+      assert.strictEqual(bindings.get('usr-1', file).document_id, 'another');
+    });
+
+    await testAsync('Cloud unchanged push verifies current access and reports newer Cloud content honestly', async () => {
+      const file = path.join(dir, 'no-change.md');
+      fs.writeFileSync(file, '# Same');
+      bindings.set('usr-1', file, { document_id: 'unchanged', revision_id: 'base', content_sha256: bindings.hash('# Same') });
+      const client = { origin: fakeClient.origin, loadCredential: () => account, async authenticated(endpoint, options) {
+        assert.strictEqual(options, undefined);
+        return { document: { id: 'unchanged', current_revision_id: 'newer', markdown: '# Remote edit' } };
+      } };
+      const result = await capture(() => runCloudCommand({ file: 'push', extra: file, jsonFlag: true }, { client }));
+      assert.strictEqual(result.revision_id, 'newer');
+      assert.strictEqual(result.no_local_changes, true);
+      assert.strictEqual(result.remote_changed_since_pull, true);
+      assert.strictEqual(result.cloud_matches_local, false);
+      assert.strictEqual(bindings.get('usr-1', file).revision_id, 'base');
+      client.authenticated = async () => { throw Object.assign(new Error('Unavailable'), { code: 'resource_unavailable' }); };
+      const denied = await captureStreams(() => runCloudCommand({ file: 'push', extra: file, jsonFlag: true }, { client }));
+      assert.strictEqual(JSON.parse(denied.stdout).error, 'resource_unavailable');
+    });
+
+    await testAsync('Cloud read historical content and diff need no local file or binding', async () => {
+      const before = fs.readFileSync(bindings.bindingsFile(), 'utf8');
+      const client = { origin: fakeClient.origin, async authenticated(endpoint) {
+        return { document: { id: 'compare', current_revision_id: endpoint.endsWith('/old') ? 'old' : 'new',
+          markdown: endpoint.endsWith('/old') ? '# Policy\nCap: 10\n' : '# Policy\nCap: 20\n', filename: 'policy.md' } };
+      } };
+      const historical = await capture(() => runCloudCommand(io.parseArgs(['cloud', 'read', 'compare', '--revision', 'old', '--json']), { client }));
+      assert.strictEqual(historical.revision_id, 'old');
+      assert.strictEqual(historical.markdown, '# Policy\nCap: 10\n');
+      const result = await capture(() => runCloudCommand(io.parseArgs(['cloud', 'diff', 'compare', '--from', 'old', '--to', 'new', '--json']), { client }));
+      assert.strictEqual(result.from_revision_id, 'old');
+      assert.strictEqual(result.to_revision_id, 'new');
+      assert.strictEqual(result.diff.changed, true);
+      assert.strictEqual(result.diff.added_lines, 1);
+      assert.strictEqual(result.diff.removed_lines, 1);
+      assert.strictEqual(fs.readFileSync(bindings.bindingsFile(), 'utf8'), before);
+    });
+
+    await testAsync('Cloud restore preview is read-only and a real restore honors the reviewed base', async () => {
+      const before = fs.readFileSync(bindings.pendingFile(), 'utf8');
+      const requests = [];
+      const client = { origin: fakeClient.origin, loadCredential: () => account, async authenticated(endpoint, options) {
+        requests.push({ endpoint, options });
+        if (options) return { document: { id: 'reviewed', current_revision_id: 'saved', revision_number: 3 } };
+        return { document: { id: 'reviewed', current_revision_id: 'latest', markdown: endpoint.endsWith('/old') ? '# Old' : '# Latest' } };
+      } };
+      const result = await capture(() => runCloudCommand(io.parseArgs(['cloud', 'restore', 'reviewed', '--revision', 'old', '--dry-run', '--json']), { client }));
+      assert.strictEqual(result.dry_run, true);
+      assert.strictEqual(result.base_revision_id, 'latest');
+      assert.strictEqual(result.markdown, '# Old');
+      assert.ok(requests.every(request => !request.options));
+      assert.strictEqual(fs.readFileSync(bindings.pendingFile(), 'utf8'), before);
+      await capture(() => runCloudCommand(io.parseArgs(['cloud', 'restore', 'reviewed', '--revision', 'old', '--base-revision', 'reviewed-head', '--json']), { client }));
+      const write = requests.find(request => request.options);
+      assert.strictEqual(JSON.parse(write.options.body).expected_head_revision_id, 'reviewed-head');
+    });
+
+    await testAsync('Unsupported dry runs cannot mutate Cloud or auto-open a document', async () => {
+      let called = false;
+      const client = { origin: fakeClient.origin, loadCredential: () => account, async authenticated() { called = true; } };
+      for (const action of ['create', 'delete', 'undelete', 'notify', 'tag', 'access', 'library-default', 'login', 'logout']) {
+        const result = await captureStreams(() => runCloudCommand({ file: action, extra: source, dryRunFlag: true, jsonFlag: true }, { client }));
+        assert.strictEqual(JSON.parse(result.stdout).error, 'invalid_request');
+      }
+      const result = await captureStreams(() => openCloudDocument({ file: source, dryRunFlag: true, jsonFlag: true }, { client, openBrowser() { called = true; } }));
+      assert.strictEqual(JSON.parse(result.stdout).error, 'invalid_request');
+      assert.strictEqual(called, false);
+    });
+
+    await testAsync('Cloud access without change flags inspects permissions without writing', async () => {
+      let method;
+      const result = await capture(() => runCloudCommand({ file: 'access', extra: 'doc-1', jsonFlag: true }, {
+        client: { async authenticated(endpoint, options) { method = options; return { permission: { mode: 'custom', can_edit: true } }; } },
+      }));
+      assert.strictEqual(result.permission.can_edit, true);
+      assert.strictEqual(method, undefined);
+    });
+
+    await testAsync('Cloud history diffs expose retained changes and identify an unavailable parent', async () => {
+      const client = { origin: fakeClient.origin, async authenticated(endpoint) {
+        if (endpoint.includes('?')) return { revisions: [
+          { id: 'new', parent_revision_id: 'old', revision_number: 3, created_by_user_id: 'author-b', created_at: '2026-10-20T00:00:00Z' },
+          { id: 'old', parent_revision_id: 'pruned', revision_number: 2, created_by_user_id: 'author-a' },
+        ] };
+        return { document: { markdown: endpoint.endsWith('/new') ? '# Plan\nCap: 20\n' : '# Plan\nCap: 10\n' } };
+      } };
+      const result = await capture(() => runCloudCommand(io.parseArgs(['cloud', 'history', 'plan', '--diffs', '--json']), { client }));
+      assert.strictEqual(result.revisions[0].created_by_user_id, 'author-b');
+      assert.strictEqual(result.revisions[0].diff.added_lines, 1);
+      assert.strictEqual(result.revisions[0].diff.hunks[0].before.join(''), 'Cap: 10\n');
+      assert.strictEqual(result.revisions[0].diff.hunks[0].after.join(''), 'Cap: 20\n');
+      assert.strictEqual(result.revisions[1].diff_available, false);
+      assert.strictEqual(result.revisions[1].diff_unavailable_reason, 'parent_not_retained');
+    });
+
+    await testAsync('Cloud push preserves another process binding and a local deletion during upload', async () => {
+      const file = path.join(dir, 'push-binding-race.md'); fs.writeFileSync(file, '# Local');
+      bindings.set('usr-1', file, { document_id: 'race', revision_id: 'base' });
+      const result = await capture(() => runCloudCommand({ file: 'push', extra: file, jsonFlag: true }, {
+        client: { origin: fakeClient.origin, loadCredential: () => account, async authenticated() {
+          bindings.set('usr-1', file, { document_id: 'race', revision_id: 'newer-binding' });
+          fs.unlinkSync(file);
+          return { document: { id: 'race', current_revision_id: 'saved', revision_number: 2, markdown: '# Local', merge_classification: 'clean' } };
+        } },
+      }));
+      assert.strictEqual(result.ok, true);
+      assert.strictEqual(result.local_changed_after_upload, true);
+      assert.strictEqual(result.binding_changed_during_upload, true);
+      assert.strictEqual(bindings.get('usr-1', file).revision_id, 'newer-binding');
+      assert.strictEqual(fs.existsSync(file), false);
+    });
+
     await testAsync('cloud history returns stable revision JSON', async () => {
       const result = await capture(() => runCloudCommand({ file: 'history', extra: 'doc-1',
         jsonFlag: true }, { client: fakeClient }));
@@ -694,31 +970,27 @@ module.exports = function(harness) {
       assert.strictEqual(result.next_cursor, null);
     });
 
-    await testAsync('cloud ls follows cursors until it returns the requested limit', async () => {
-      const pageCalls = [];
-      const pages = {
-        '': { documents: [{ id: 'doc-a', title: 'A', tags: [] }], next_cursor: 'cursor-1' },
-        'cursor-1': { documents: [{ id: 'doc-b', title: 'B', tags: [] }], next_cursor: 'cursor-2' },
-        'cursor-2': { documents: [{ id: 'doc-c', title: 'C', tags: [] }], next_cursor: 'cursor-3' },
-      };
-      const pagingClient = {
-        async authenticated(endpoint) {
-          const url = new URL(endpoint, 'https://cloud.test');
-          const cursor = url.searchParams.get('cursor') || '';
-          pageCalls.push({ cursor, limit: url.searchParams.get('limit'),
-            account: url.searchParams.get('workspace_id') });
-          return pages[cursor];
-        },
-      };
+    await testAsync('cloud ls sends filters and a resumable cursor through server-side discovery', async () => {
+      let request;
+      const pagingClient = { origin: 'https://cloud.test', async authenticated(endpoint, options) {
+        assert.strictEqual(endpoint, '/api/cloud/v1/search');
+        request = JSON.parse(options.body);
+        return { documents: [{ id: 'doc-b', title: 'B', tags: ['planning'] }],
+          total_count: 3, has_more: true, next_cursor: 'cursor-2' };
+      } };
       const result = await capture(() => runCloudCommand({ file: 'ls', accountFlag: 'acct-docs',
-        limitFlag: 3, jsonFlag: true }, { client: pagingClient }));
-      assert.deepStrictEqual(result.documents.map((document) => document.id), ['doc-a', 'doc-b', 'doc-c']);
-      assert.strictEqual(result.next_cursor, 'cursor-3');
-      assert.deepStrictEqual(pageCalls, [
-        { cursor: '', limit: '3', account: 'acct-docs' },
-        { cursor: 'cursor-1', limit: '2', account: 'acct-docs' },
-        { cursor: 'cursor-2', limit: '1', account: 'acct-docs' },
-      ]);
+        tagFilters: ['planning'], cursorFlag: 'cursor-1', limitFlag: 1, jsonFlag: true }, { client: pagingClient }));
+      assert.deepStrictEqual(request.tags, ['planning']);
+      assert.strictEqual(request.workspace_id, 'acct-docs');
+      assert.strictEqual(request.cursor, 'cursor-1');
+      assert.strictEqual(request.sort, 'updated_desc');
+      assert.strictEqual(request.limit, 1);
+      assert.strictEqual(result.command, 'cloud.ls');
+      assert.deepStrictEqual(result.documents.map(document => document.id), ['doc-b']);
+      assert.strictEqual(result.documents[0].url, 'https://cloud.test/docs?cloud-document=doc-b');
+      assert.strictEqual(result.total_count, 3);
+      assert.strictEqual(result.has_more, true);
+      assert.strictEqual(result.next_cursor, 'cursor-2');
     });
 
     await testAsync('cloud restore reads the current head and sends an idempotent expected-head write', async () => {
@@ -738,6 +1010,7 @@ module.exports = function(harness) {
         ok: true,
         command: 'cloud.restore',
         document_id: 'doc-1',
+        url: 'https://cloud.test/docs?cloud-document=doc-1',
         base_revision_id: 'rev-2',
         restored_from_revision_id: 'rev-1',
         revision_id: 'rev-3',
@@ -786,9 +1059,189 @@ module.exports = function(harness) {
       assert.strictEqual(fs.existsSync(historicalOutput), false);
     });
 
+    await testAsync('Cloud search JSON preserves facets and continuation metadata', async () => {
+      const client = { origin: 'https://cloud.test', async authenticated(endpoint, options) {
+        const request = JSON.parse(options.body);
+        assert.strictEqual(request.expression.op, 'or');
+        assert.strictEqual(request.shared_with_me, true);
+        assert.deepStrictEqual(request.facets, ['tags', 'authors', 'libraries']);
+        assert.strictEqual(request.cursor, 'page-1');
+        return { documents: [{ id: 'doc-1', title: 'Incident', library: { id: 'lib-1', name: 'Operations' },
+          matches: [{ field: 'title', snippet: 'Incident', line: null }] }],
+          total_count: 2, has_more: true, next_cursor: 'page-2',
+          facets: { tags: [{ tag: 'operations', document_count: 2 }] } };
+      } };
+      const result = await capture(() => runCloudCommand(io.parseArgs(['cloud', 'search',
+        'incident OR outage', '--shared-with-me', '--facets', '--cursor', 'page-1', '--json']), { client }));
+      assert.strictEqual(result.total_count, 2);
+      assert.strictEqual(result.has_more, true);
+      assert.strictEqual(result.next_cursor, 'page-2');
+      assert.strictEqual(result.facets.tags[0].document_count, 2);
+      assert.strictEqual(result.documents[0].library.name, 'Operations');
+    });
+
+    await testAsync('Cloud search JSON files combine structured requests with explicit overrides', async () => {
+      const requestFile = path.join(dir, 'query.json');
+      const documentFile = path.join(dir, 'documents.txt');
+      fs.writeFileSync(requestFile, JSON.stringify({ query: 'AND NOT', tags: ['planning'],
+        document_ids: ['doc-a'], author_user_ids: ['me'], limit: 10 }));
+      fs.writeFileSync(documentFile, 'doc-b\n\ndoc-c\r\n');
+      const opts = io.parseArgs(['cloud', 'search', '--query-file', requestFile,
+        '--documents-file', documentFile, '--tag', 'engineering', '--limit', '20']);
+      const request = searchRequest(opts, { loadCredential: () => ({ user_id: 'user-a' }) });
+      assert.strictEqual(request.query, 'AND NOT');
+      assert.deepStrictEqual(request.tags, ['planning', 'engineering']);
+      assert.deepStrictEqual(request.document_ids, ['doc-a', 'doc-b', 'doc-c']);
+      assert.deepStrictEqual(request.author_user_ids, ['user-a']);
+      assert.strictEqual(request.limit, 20);
+      opts.extra = 'incident OR outage';
+      const replacement = searchRequest(opts, { loadCredential: () => ({ user_id: 'user-a' }) });
+      assert.strictEqual(replacement.query, undefined);
+      assert.strictEqual(replacement.expression.op, 'or');
+      fs.writeFileSync(requestFile, '[]');
+      assert.throws(() => searchRequest(opts, {}), /JSON object/);
+    });
+
+    await testAsync('Cloud search compact output preserves evidence, IDs and complete top-level metadata', async () => {
+      const client = { origin: 'https://cloud.test', async authenticated(endpoint, options) {
+        assert.strictEqual(JSON.parse(options.body).word_forms, true);
+        return { documents: [{ id: 'doc-a', title: 'Policy', tags: ['operations'], workspace_id: 'lib-a',
+          created_by_user_id: 'usr-a', updated_by_user_id: 'usr-b', current_revision_id: 'rev-a',
+          score: 4, matches: [{ field: 'title', snippet: 'Policy', line: null }],
+          filename: 'policy.md', updated_at: '2026-10-20T00:00:00Z', project: { name: 'Documents' } }],
+          total_count: 1, has_more: false, next_cursor: null,
+          facets: { tags: [{ tag: 'operations', document_count: 1 }] }, facet_totals: { tags: 1 },
+          facets_truncated: { tags: false }, coverage: { libraries: 1 } };
+      } };
+      const result = await capture(() => runCloudCommand(io.parseArgs(['cloud', 'search',
+        'policy', '--word-forms', '--compact', '--json']), { client }));
+      assert.strictEqual(result.documents[0].created_by_user_id, 'usr-a');
+      assert.strictEqual(result.documents[0].updated_by_user_id, 'usr-b');
+      assert.strictEqual(result.documents[0].current_revision_id, 'rev-a');
+      assert.strictEqual(result.documents[0].url, 'https://cloud.test/docs?cloud-document=doc-a');
+      assert.strictEqual(result.documents[0].score, 4);
+      assert.strictEqual(result.documents[0].matches[0].snippet, 'Policy');
+      assert.strictEqual(result.documents[0].filename, undefined);
+      assert.strictEqual(result.documents[0].project, undefined);
+      assert.deepStrictEqual(result.coverage, { libraries: 1 });
+      assert.deepStrictEqual(result.facet_totals, { tags: 1 });
+      assert.deepStrictEqual(result.facets_truncated, { tags: false });
+      assert.strictEqual(result.pages_fetched, 1);
+      assert.strictEqual(result.returned_count, 1);
+      assert.strictEqual(result.complete, true);
+      assert.strictEqual(result.stopped_reason, 'complete');
+    });
+
+    await testAsync('Cloud search explicitly collects pages and caps results without losing continuation', async () => {
+      const calls = [];
+      const client = { origin: 'https://cloud.test', async authenticated(endpoint, options) {
+        const request = JSON.parse(options.body); calls.push(request);
+        const start = Number(request.cursor || 0), end = Math.min(start + request.limit, 7);
+        return { documents: Array.from({ length: end - start }, (_, n) => ({ id: 'doc-' + (start + n) })),
+          total_count: 7, has_more: end < 7, next_cursor: end < 7 ? String(end) : null };
+      } };
+      const first = await capture(() => runCloudCommand(io.parseArgs(['cloud', 'search',
+        '--limit', '2', '--json']), { client }));
+      assert.strictEqual(first.returned_count, 2);
+      assert.strictEqual(first.pages_fetched, 1);
+      assert.strictEqual(first.complete, false);
+      assert.strictEqual(first.stopped_reason, 'page_limit');
+      calls.length = 0;
+      const capped = await capture(() => runCloudCommand(io.parseArgs(['cloud', 'search',
+        '--limit', '2', '--pages', '3', '--max-results', '3', '--json']), { client }));
+      assert.deepStrictEqual(calls.map(request => request.limit), [2, 1]);
+      assert.strictEqual(capped.returned_count, 3);
+      assert.strictEqual(capped.pages_fetched, 2);
+      assert.strictEqual(capped.stopped_reason, 'max_results');
+      assert.strictEqual(capped.complete, false);
+      assert.strictEqual(capped.next_cursor, '3');
+      assert.strictEqual(capped.has_more, true);
+      const all = await capture(() => runCloudCommand(io.parseArgs(['cloud', 'search',
+        '--limit', '2', '--all', '--cursor', '3', '--json']), { client }));
+      assert.strictEqual(all.returned_count, 4);
+      assert.strictEqual(all.pages_fetched, 2);
+      assert.strictEqual(all.started_from_cursor, true);
+      assert.strictEqual(all.complete, true);
+      assert.strictEqual(all.next_cursor, null);
+    });
+
+    await testAsync('Cloud search deduplicates live pages and marks a later request failure as partial', async () => {
+      let call = 0;
+      const client = { origin: 'https://cloud.test', async authenticated() {
+        call++;
+        if (call === 1) return { documents: [{ id: 'doc-a', title: 'Old' }], has_more: true, next_cursor: 'c1' };
+        if (call === 2) return { documents: [{ id: 'doc-a', title: 'New' }, { id: 'doc-b' }],
+          has_more: true, next_cursor: 'c2' };
+        throw Object.assign(new Error('Try later.'), { code: 'rate_limited', data: { retry_after_ms: 1000 } });
+      } };
+      const result = await capture(() => runCloudCommand(io.parseArgs(['cloud', 'search', '--all', '--json']), { client }));
+      assert.strictEqual(result.ok, false);
+      assert.strictEqual(result.error, 'rate_limited');
+      assert.strictEqual(result.retry_after_ms, 1000);
+      assert.strictEqual(result.partial_result.returned_count, 2);
+      assert.strictEqual(result.partial_result.documents[0].title, 'New');
+      assert.strictEqual(result.partial_result.pages_fetched, 2);
+      assert.strictEqual(result.partial_result.complete, false);
+      assert.strictEqual(result.partial_result.stopped_reason, 'request_failed');
+      assert.strictEqual(result.partial_result.next_cursor, 'c2');
+    });
+
+    await testAsync('Cloud search rejects invalid aggregation options before requesting data', async () => {
+      const client = { origin: 'https://cloud.test', async authenticated() { throw new Error('must not request'); } };
+      for (const args of [['--all', '--pages', '2'], ['--pages', '0'], ['--max-results', '-1']]) {
+        const result = await capture(() => runCloudCommand(io.parseArgs(['cloud', 'search', ...args, '--json']), { client }));
+        assert.strictEqual(result.error, 'invalid_request');
+      }
+    });
+
+    await testAsync('Cloud read returns Markdown and its Cloud URL without files or bindings', async () => {
+      const before = fs.readdirSync(dir).sort();
+      const client = { origin: 'https://cloud.test', async authenticated(endpoint, options) {
+        assert.strictEqual(endpoint, '/api/cloud/v1/documents/doc-a');
+        assert.strictEqual(options, undefined);
+        return { document: { id: 'doc-a', title: 'Reference', filename: 'reference.md', tags: ['research'],
+          markdown: '# Reference\n', current_revision_id: 'rev-a', revision_number: 2 } };
+      } };
+      const oldSet = bindings.set;
+      bindings.set = () => { throw new Error('read must not bind a path'); };
+      try {
+        const result = await capture(() => runCloudCommand(io.parseArgs(['cloud', 'read', 'doc-a', '--json']), { client }));
+        assert.strictEqual(result.command, 'cloud.read');
+        assert.strictEqual(result.markdown, '# Reference\n');
+        assert.strictEqual(result.url, 'https://cloud.test/docs?cloud-document=doc-a');
+        assert.strictEqual(result.revision_id, 'rev-a');
+        const plain = await captureStreams(() => runCloudCommand(io.parseArgs(['cloud', 'read', 'doc-a']), { client }));
+        assert.strictEqual(plain.stdout, '# Reference\n');
+        assert.deepStrictEqual(fs.readdirSync(dir).sort(), before);
+      } finally { bindings.set = oldSet; }
+      const denied = await capture(() => runCloudCommand({ file: 'read', extra: 'private', jsonFlag: true }, {
+        client: { async authenticated() { throw Object.assign(new Error('Unavailable.'), { code: 'resource_unavailable' }); } },
+      }));
+      assert.strictEqual(denied.error, 'resource_unavailable');
+      assert.strictEqual(denied.markdown, undefined);
+    });
+
+    await testAsync('Cloud search help and invalid arguments do not request Cloud data', async () => {
+      const client = { origin: 'https://cloud.test', async authenticated() { throw new Error('must not request'); } };
+      const output = await captureStreams(() => runCloudCommand({ file: 'search', helpFlag: true }, { client }));
+      assert.ok(output.stdout.includes('SmallDocs Cloud search'));
+      assert.ok(output.stdout.includes('--updated-by'));
+      assert.strictEqual(output.stderr, '');
+      const readHelp = await captureStreams(() => runCloudCommand({ file: 'read', helpFlag: true }, { client }));
+      assert.ok(readHelp.stdout.includes('SmallDocs Cloud read'));
+      assert.ok(readHelp.stdout.includes('without a local file or binding'));
+      const invalid = await capture(() => runCloudCommand(io.parseArgs(['cloud', 'search',
+        'incident', '--unknown', '--json']), { client }));
+      assert.strictEqual(invalid.ok, false);
+      assert.strictEqual(invalid.error, 'invalid_request');
+      assert.ok(invalid.message.includes('--unknown'));
+      assert.strictEqual(process.exitCode, 2);
+    });
+
     await testAsync('cloud search sends tag filters before the server limit', async () => {
       let requestBody;
       const searchClient = {
+        origin: 'https://cloud.test',
         async authenticated(endpoint, options) {
           assert.strictEqual(endpoint, '/api/cloud/v1/search');
           requestBody = JSON.parse(options.body);
@@ -802,6 +1255,7 @@ module.exports = function(harness) {
       assert.strictEqual(requestBody.limit, 1);
       assert.strictEqual(requestBody.workspace_id, 'acct-platform');
       assert.strictEqual(result.documents[0].id, 'doc-tagged');
+      assert.strictEqual(result.documents[0].url, 'https://cloud.test/docs?cloud-document=doc-tagged');
     });
 
     await testAsync('local Cloud file commands report login_required before using account state', async () => {
@@ -856,6 +1310,21 @@ module.exports = function(harness) {
       assert.strictEqual(result.exitCode, 4);
     });
 
+    await testAsync('missing Cloud library returns an origin-bound setup URL and recovery step', async () => {
+      const client = new CloudClient({ origin: 'https://cloud-staging.smalldocs.org',
+        credentials: { load() { return account; }, save() {}, remove() {} },
+        fetch: async () => ({ ok: false, status: 404,
+          json: async () => ({ ok: false, error: 'account_required' }) }),
+      });
+      const result = await captureStreams(() => runCloudCommand({ file: 'status', jsonFlag: true }, { client }));
+      const body = JSON.parse(result.stdout);
+      assert.strictEqual(result.exitCode, 4);
+      assert.strictEqual(body.origin, 'https://cloud-staging.smalldocs.org');
+      assert.strictEqual(body.setup_url, 'https://cloud-staging.smalldocs.org/cloud/start');
+      assert.ok(body.message.includes(body.setup_url));
+      assert.ok(body.next_action.includes('retry'));
+    });
+
     await testAsync('cloud create explains a required subscription and exits nonzero', async () => {
       const fresh = path.join(dir, 'new-cloud-file.md');
       fs.writeFileSync(fresh, '# New document');
@@ -865,6 +1334,38 @@ module.exports = function(harness) {
       assert.strictEqual(result.exitCode, 4);
       assert.ok(result.stderr.includes('active SmallDocs Cloud subscription'));
       assert.ok(result.stderr.includes('Subscribe: https://cloud.test/cloud#pricing'));
+    });
+
+    await testAsync('Cloud Terms recovery points to the installed origin for human acceptance', async () => {
+      const result = await captureStreams(() => runCloudCommand({ file: 'status', jsonFlag: true },
+        { client: entitlementClient('terms_acceptance_required', 403) }));
+      const body = JSON.parse(result.stdout);
+      assert.strictEqual(result.exitCode, 4);
+      assert.strictEqual(body.acceptance_url, 'https://cloud.test/cloud/terms');
+      assert.ok(body.message.includes('human'));
+      assert.ok(body.message.includes('retry'));
+    });
+
+    await testAsync('refresh preserves credentials for Terms acceptance and temporary failures', async () => {
+      for (const [status, error, expected] of [[403, 'terms_acceptance_required', 'terms_acceptance_required'],
+        [503, 'temporary_service_failure', 'temporary_service_failure'], [429, 'rate_limited', 'rate_limited']]) {
+        let removed = false;
+        const client = new CloudClient({ origin: 'https://cloud.test',
+          credentials: { remove() { removed = true; } },
+          fetch: async () => ({ ok: false, status, json: async () => ({ ok: false, error }) }) });
+        await assert.rejects(() => client.refresh({ refresh_token: 'unchanged' }), failure =>
+          failure.code === expected && (error !== 'terms_acceptance_required' || failure.data.acceptance_url === 'https://cloud.test/cloud/terms'));
+        assert.strictEqual(removed, false);
+      }
+    });
+
+    await testAsync('refresh removes a credential only when authorization is rejected', async () => {
+      let removed = false;
+      const client = new CloudClient({ origin: 'https://cloud.test',
+        credentials: { remove() { removed = true; } },
+        fetch: async () => ({ ok: false, status: 401, json: async () => ({ ok: false, error: 'invalid_token' }) }) });
+      await assert.rejects(() => client.refresh({ refresh_token: 'revoked' }), failure => failure.code === 'login_required');
+      assert.strictEqual(removed, true);
     });
 
     await testAsync('cloud push emits one stable JSON error for a read-only subscription', async () => {
@@ -903,6 +1404,122 @@ module.exports = function(harness) {
       assert.strictEqual(body.ok, false);
       assert.strictEqual(result.exitCode, 4);
       assert.strictEqual(result.stderr, '');
+    });
+
+    await testAsync('Cloud tag help is read-only and distinguishes additions from replacement', async () => {
+      const client = { authenticated() { throw new Error('Help must not contact Cloud'); } };
+      for (const action of ['tag', 'tags', 'create']) {
+        const result = await captureStreams(() => runCloudCommand(io.parseArgs(['cloud', action, '--help']), { client }));
+        assert.strictEqual(result.exitCode, 0);
+        assert.strictEqual(result.stdout, (action === 'create' ? CLOUD_CREATE_HELP : CLOUD_TAG_HELP) + '\n');
+        assert.ok(result.stdout.includes('preserve existing ones'));
+        assert.ok(result.stdout.includes('replaces all tags'));
+        assert.ok(result.stdout.includes('Check ok, tags, and the returned Cloud url'));
+      }
+    });
+
+    await testAsync('Cloud open prints and opens the same stable URL after confirmed saves', async () => {
+      const file = path.join(dir, 'canonical-cloud.md');
+      fs.writeFileSync(file, '# Canonical Cloud\nFirst version');
+      const opened = [];
+      const dependencies = { client: fakeClient, openBrowser: (url) => opened.push(url) };
+      const first = await capture(() => openCloudDocument({ file, jsonFlag: true,
+        accountFlag: 'acct-1', addTags: ['planning'] }, dependencies));
+      assert.strictEqual(first.command, 'cloud.open');
+      assert.strictEqual(first.url, 'https://cloud.test/docs?cloud-document=doc-1');
+      assert.deepStrictEqual(opened, [first.url]);
+      assert.strictEqual(first.created, true);
+      assert.deepStrictEqual(first.tags, ['release', 'planning']);
+      fs.writeFileSync(file, '# Canonical Cloud\nSecond version');
+      const second = await capture(() => openCloudDocument({ file, jsonFlag: true }, dependencies));
+      assert.strictEqual(second.created, false);
+      assert.strictEqual(second.url, first.url);
+      assert.strictEqual(second.revision_id, 'rev-2');
+      assert.deepStrictEqual(second.tags, ['release']);
+      assert.deepStrictEqual(opened, [first.url, first.url]);
+      const callCount = calls.length;
+      const third = await capture(() => openCloudDocument({ file, jsonFlag: true,
+        noOpenFlag: true }, dependencies));
+      assert.strictEqual(third.url, first.url);
+      assert.strictEqual(calls.length, callCount + 1);
+      assert.strictEqual(calls[calls.length - 1].options, undefined);
+      assert.strictEqual(opened.length, 2);
+    });
+
+    await testAsync('Cloud open human output contains the full browser URL without create chatter', async () => {
+      const file = path.join(dir, 'canonical-human.md');
+      fs.writeFileSync(file, '# Human output');
+      let opened;
+      const result = await captureStreams(() => openCloudDocument({ file }, {
+        client: fakeClient, openBrowser: (url) => { opened = url; },
+      }));
+      assert.strictEqual(result.exitCode, 0);
+      assert.strictEqual(result.stdout.trim(), opened);
+      assert.strictEqual(result.stderr, '');
+    });
+
+    await testAsync('Cloud open upload failures preserve local work and never launch a document', async () => {
+      const file = path.join(dir, 'failed-cloud.md');
+      const content = '# Keep my local work';
+      fs.writeFileSync(file, content);
+      let opened = false;
+      const client = { origin: fakeClient.origin, loadCredential: () => account,
+        async authenticated() { throw Object.assign(new Error('Offline'), { code: 'temporary_service_failure' }); } };
+      const result = await captureStreams(() => openCloudDocument({ file, jsonFlag: true }, {
+        client, openBrowser: () => { opened = true; },
+      }));
+      assert.strictEqual(result.exitCode, 7);
+      assert.strictEqual(JSON.parse(result.stdout).ok, false);
+      assert.strictEqual(JSON.parse(result.stdout).url, undefined);
+      assert.strictEqual(opened, false);
+      assert.strictEqual(fs.readFileSync(file, 'utf8'), content);
+      assert.strictEqual(bindings.get(account.user_id, file), null);
+      assert.ok(bindings.getPending(account.user_id, file));
+    });
+
+    await testAsync('Cloud open requires sign-in and reports it as structured output', async () => {
+      const file = path.join(dir, 'unsigned-cloud.md');
+      fs.writeFileSync(file, '# Not signed in');
+      const result = await captureStreams(() => openCloudDocument({ file, jsonFlag: true }, {
+        client: { origin: fakeClient.origin, loadCredential: () => null,
+          authenticated() { throw new Error('must not upload'); } },
+        openBrowser() { throw new Error('must not open'); },
+      }));
+      assert.strictEqual(result.exitCode, 3);
+      assert.strictEqual(JSON.parse(result.stdout).error, 'login_required');
+    });
+
+    await testAsync('Cloud open launches payment after the trial, while no-open remains headless', async () => {
+      const file = path.join(dir, 'payment-cloud.md');
+      fs.writeFileSync(file, '# Unchanged local work');
+      const client = { origin: fakeClient.origin, loadCredential: () => account,
+        async authenticated() { throw Object.assign(new Error('Subscribe to continue.'),
+          { code: 'trial_payment_required' }); } };
+      const opened = [];
+      for (const noOpenFlag of [false, true]) {
+        const result = await captureStreams(() => openCloudDocument({ file, jsonFlag: true, noOpenFlag }, {
+          client, openBrowser: url => opened.push(url),
+        }));
+        assert.strictEqual(result.exitCode, 4);
+        assert.strictEqual(JSON.parse(result.stdout).error, 'trial_payment_required');
+        assert.strictEqual(fs.readFileSync(file, 'utf8'), '# Unchanged local work');
+      }
+      assert.deepStrictEqual(opened, [fakeClient.origin + '/cloud/subscribe']);
+    });
+
+    await testAsync('Cloud open warns when a file changes during upload', async () => {
+      const file = path.join(dir, 'changing-cloud.md');
+      fs.writeFileSync(file, '# Uploaded version');
+      const client = { origin: fakeClient.origin, loadCredential: () => account,
+        async authenticated(endpoint, options) {
+          const result = await fakeClient.authenticated(endpoint, options);
+          fs.writeFileSync(file, '# New local version');
+          return result;
+        } };
+      const result = await capture(() => openCloudDocument({ file, jsonFlag: true, noOpenFlag: true }, { client }));
+      assert.strictEqual(result.local_changed_after_upload, true);
+      assert.strictEqual(fs.readFileSync(file, 'utf8'), '# New local version');
+      assert.strictEqual(result.url, 'https://cloud.test/docs?cloud-document=doc-1');
     });
 
     process.exitCode = 0;

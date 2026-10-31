@@ -66,7 +66,7 @@
       return body.classList.contains('sdocs-site-menu-open');
     },
   });
-  shared.bindMobileDrawer({
+  var drawer = shared.bindMobileDrawer({
     body: body,
     sidebar: aside,
     button: menu,
@@ -77,6 +77,10 @@
     backgrounds: Array.from(body.children).filter(function (element) {
       return element !== aside && element !== mobile;
     }),
+  });
+
+  aside.querySelector('#_sd_btn-info').addEventListener('click', function () {
+    if (drawer) drawer.setOpen(false, false);
   });
 
   if (menu && mobileHeader) {

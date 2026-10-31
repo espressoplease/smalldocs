@@ -172,12 +172,11 @@ module.exports = function (harness) {
     assert.strictEqual(CC.resolveLine(c, shifted), 6);
   });
 
-  test('resolveLine picks the nearest match when the anchor text repeats', () => {
+  test('resolveLine leaves repeated text ambiguous without surviving context', () => {
     const src = ['return 1', 'x', 'return 1', 'y', 'return 1'];
     const c = { id: 'c1', kind: 'line', line: 3, anchorText: 'return 1' };
-    // index 3 (y) does not match; nearest "return 1" to 3 is index 2 or 4 (tie);
-    // the spiral checks lo before hi, so 2 wins.
-    assert.strictEqual(CC.resolveLine(c, src), 2);
+    assert.strictEqual(CC.resolveLine(c, src), -1);
+    assert.strictEqual(CC.resolveLineTarget(c, src).status, 'ambiguous');
   });
 
   test('resolveLine returns -1 when the anchor is gone (orphan)', () => {
@@ -185,11 +184,38 @@ module.exports = function (harness) {
     assert.strictEqual(CC.resolveLine(c, SRC), -1);
   });
 
-  test('resolveLine trusts the stored index when anchorText is empty', () => {
+  test('resolveLine does not attach a missing text anchor to unrelated source', () => {
     const c = { id: 'c1', kind: 'line', line: 2, anchorText: '' };
-    assert.strictEqual(CC.resolveLine(c, SRC), 2);
+    assert.strictEqual(CC.resolveLine(c, SRC), -1);
     const oob = { id: 'c1', kind: 'line', line: 99, anchorText: '' };
     assert.strictEqual(CC.resolveLine(oob, SRC), -1);
+  });
+
+  test('line context identifies repeated lines after insertion', () => {
+    const comment = { line: 1, anchorText: 'target()', line_prefix: 'other()\nsecond()', line_suffix: 'tail()' };
+    assert.strictEqual(CC.resolveLine(comment, ['first()', 'target()', 'other()', 'second()', 'target()', 'tail()']), 4);
+  });
+
+  test('block fingerprints follow a fence when another fence is inserted before it', () => {
+    const comment = { block: 'pre:0', block_text: 'before()\ntarget()', line: 1, anchorText: 'target()' };
+    assert.deepStrictEqual(CC.resolveBlock(comment, ['unrelated()', 'before()\ntarget()']), { index: 1, status: 'attached' });
+    assert.strictEqual(CC.resolveBlock(comment, ['before()\ntarget()', 'before()\ntarget()']).status, 'ambiguous');
+  });
+
+  test('tokens require a unique phrase or surviving phrase context', () => {
+    const comment = { kind: 'token', line: 0, anchorText: 'target + target', quote: 'target' };
+    assert.strictEqual(CC.resolveLineTarget(comment, ['target + target']).status, 'ambiguous');
+    comment.quote_prefix = 'target + ';
+    assert.strictEqual(CC.resolveLine(comment, ['target + target']), 0);
+    assert.strictEqual(CC.resolveQuote(comment, 'target + target').start, 9);
+  });
+
+  test('code normalizer preserves thread history and anchor context through JSON persistence', () => {
+    const comment = CC.normalize({ id: 'c1', kind: 'line', line: 1, anchorText: 'target()', uid: 'cm_one',
+      block_text: 'before()\ntarget()', line_prefix: 'before()', line_suffix: '', author_user_id: 'usr_one',
+      updated_at: 'now', resolved_at: 'later', replies: JSON.stringify([{ id: 'rp_one', author: 'a', at: 'now', text: 'done' }]) });
+    assert.deepStrictEqual(CC.parse(CC.serialize([comment]))[0], comment);
+    assert.strictEqual(comment.replies[0].text, 'done');
   });
 
   // ── serialize / parse ─────────────────────────────────────────────────────
@@ -283,14 +309,14 @@ module.exports = function (harness) {
     assert.ok(/\[3\] whole block - user: block note/.test(out), 'block comment kept as whole-block');
   });
 
-  test('serializeBlockComments drops a non-block comment whose anchor is gone', () => {
+  test('serializeBlockComments preserves a note whose anchor is gone', () => {
     const src = ['a', 'b', 'c'];
     const list = [
       { id: 'c1', kind: 'inline', quote: 'NOT HERE', text: 'lost' },
       { id: 'c2', kind: 'block', text: 'kept' },
     ];
     const out = CC.serializeBlockComments(list, src, { fileName: 'x', lang: '' });
-    assert.ok(out.indexOf('lost') === -1, 'lost anchor dropped');
+    assert.ok(out.indexOf('anchor missing or ambiguous - user: lost') !== -1, 'lost note retained with its status');
     assert.ok(out.indexOf('whole block - user: kept') !== -1, 'block kept');
   });
 

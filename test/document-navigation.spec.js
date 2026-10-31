@@ -22,11 +22,11 @@ test('signed-out desktop navigation explains how to connect each library', async
   await expect(cloudLearnMore).toBeVisible();
   await expect(cloudLearnMore).toHaveAttribute('href', '/cloud');
   await expect(page.locator('#_sd_sidebar').getByRole('link', { name: 'Sign in', exact: true })).toBeVisible();
-  await expect(page.locator('#_sd_sidebar').getByText('You agree to our', { exact: false })).toBeVisible();
+  await expect(page.locator('#_sd_sidebar .sdocs-sidebar-legal')).toHaveCount(0);
   await expect(page.locator('#doc-site-menu')).toHaveCount(0);
 });
 
-test('toolbar mode buttons use a stable selection ring and toggle panels closed', async ({ page }) => {
+test('document and account mode buttons retain their dimensions and toggle panels closed', async ({ page }) => {
   await page.setViewportSize({ width: 1200, height: 800 });
   await page.goto('/docs');
 
@@ -37,7 +37,7 @@ test('toolbar mode buttons use a stable selection ring and toggle panels closed'
   await expect(read).toHaveAttribute('aria-pressed', 'true');
   await expect(read).toHaveCSS('border-color', 'rgb(212, 207, 201)');
   await expect(info).toHaveAttribute('aria-pressed', 'false');
-  await expect(info).toHaveCSS('border-color', 'rgba(0, 0, 0, 0)');
+  await expect(info).toHaveCSS('border-color', 'rgb(212, 207, 201)');
 
   await info.click();
   await expect(page.locator('body')).toHaveClass(/info-mode/);
@@ -459,26 +459,23 @@ test('connected Local Library uses indexed documents and excludes the open file'
   ]);
 });
 
-test('connected Cloud Library loads paginated documents and links directly to them', async ({ page }) => {
+test('Cloud sidebar uses bounded recent and related searches and opens relevant documents by default', async ({ page }) => {
   const requests = [];
-  await page.route('**/api/cloud/v1/documents?**', route => {
-    const url = new URL(route.request().url());
-    requests.push(url.search);
-    if (!url.searchParams.get('cursor')) return route.fulfill({ json: {
-      documents: [
-        { id: 'cloud-current', title: 'Open Cloud document', filename: 'open.md', tags: ['design'], updated_at: '2026-08-28T12:00:00Z' },
-        { id: 'cloud-related', title: 'Cloud design notes', filename: 'design.md', tags: ['design'], updated_at: '2026-08-27T12:00:00Z' },
-      ],
-      next_cursor: 'page-2',
-    } });
+  await page.route('**/api/cloud/v1/search', route => {
+    const request = route.request().postDataJSON();
+    requests.push(request);
+    const documents = [
+      { id: 'cloud-current', title: 'Open Cloud document', filename: 'open.md', tags: ['design'], updated_at: '2026-08-28T12:00:00Z' },
+      { id: 'cloud-related', title: 'Cloud design notes', filename: 'design.md', tags: ['design'], updated_at: '2026-08-27T12:00:00Z' },
+      { id: 'cloud-recent', title: 'Cloud release notes', filename: 'release.md', tags: ['release'], updated_at: '2026-08-26T12:00:00Z' },
+    ];
     return route.fulfill({ json: {
-      documents: [
-        { id: 'cloud-recent', title: 'Cloud release notes', filename: 'release.md', tags: ['release'], updated_at: '2026-08-26T12:00:00Z' },
-      ],
-      next_cursor: null,
+      documents: request.tags_any ? documents.slice(0, 2) : documents,
+      total_count: 100000, next_cursor: 'not-needed-for-a-sidebar-preview',
     } });
   });
   await page.goto('/docs');
+  await page.waitForFunction(() => window.SDocs._appReady);
   await page.evaluate(() => {
     const sidebar = document.getElementById('_sd_sidebar');
     sidebar.dataset.cloudAuthenticated = 'true';
@@ -487,16 +484,15 @@ test('connected Cloud Library loads paginated documents and links directly to th
     window.SDocs.sidebarRefresh();
   });
 
-  await page.getByText('Cloud library', { exact: true }).click();
   const panel = page.locator('#_sd_sidebar_cloud_connected');
   const shared = panel.getByRole('button', { name: 'Shared tags 1', exact: true });
   const recent = panel.getByRole('button', { name: 'Recent 2', exact: true });
   await expect(shared).toBeVisible();
   await expect(recent).toBeVisible();
   expect(requests).toHaveLength(2);
-  expect(requests[0]).toContain('workspace_id=account-1');
-  expect(requests[1]).toContain('cursor=page-2');
-  await shared.click();
+  expect(requests.every(request => request.workspace_id === 'account-1' && request.limit === 11 && !request.cursor)).toBe(true);
+  expect(requests[1].tags_any).toEqual(['design']);
+  await expect(shared).toHaveAttribute('aria-expanded', 'true');
   const related = page.locator('#_sd_sidebar_cloud_tag_groups').getByText('Cloud design notes', { exact: true });
   await expect(related).toHaveAttribute('href', '/docs?cloud-document=cloud-related');
   await expect(panel.getByText('Open Cloud document', { exact: true })).toHaveCount(0);
@@ -522,7 +518,7 @@ test('library loading failures provide recovery actions', async ({ page }) => {
   await expect(localStatus).toBeHidden();
   await expect(page.locator('#_sd_sidebar_local_recent_count')).toHaveText('0');
 
-  await page.route('**/api/cloud/v1/documents?**', route => route.fulfill({ status: 401, json: {
+  await page.route('**/api/cloud/v1/search', route => route.fulfill({ status: 401, json: {
     ok: false, error: 'authentication_required',
   } }));
   await page.evaluate(() => {
@@ -744,15 +740,12 @@ test('expanded short-link sections keep row height and scroll the whole sidebar'
   await expect(page.getByText('Private by design', { exact: true })).toBeVisible();
 });
 
-test('Renderer SDK expansion links to the live integration guide', async ({ page }) => {
+test('reader sidebar omits the SDK option and loaded-file message', async ({ page }) => {
   await page.goto('/docs');
-  await page.getByText('Renderer SDK', { exact: true }).click();
-
-  await expect(page.getByText('Render agent-generated Markdown as rich, interactive documents inside your application with configurable styling.', { exact: true })).toBeVisible();
-  const guide = page.locator('#_sd_sidebar_sdk_panel').getByRole('link', { name: 'Open SDK guide', exact: true });
-  await expect(guide).toBeVisible();
-  await expect(guide).toHaveAttribute('href', '/developers');
-  await expect(guide).toHaveClass(/sdocs-sidebar-cta/);
+  await page.evaluate(() => window.SDocs.loadText('# A small clearing\n\nA quiet morning.', 'A Small Clearing.md'));
+  await expect(page.locator('#_sd_sidebar [data-sidebar-section="sdk"]')).toHaveCount(0);
+  await expect(page.locator('#_sd_status-text')).toBeEmpty();
+  await expect(page.locator('#_sd_sidebar')).not.toContainText('Loaded:');
 });
 
 test('desktop document shell uses a sidebar and full-width action rail', async ({ page }) => {
@@ -940,7 +933,7 @@ test('non-scrolling expanded sections stay tight and do not cast a shadow', asyn
   expect(boundary.nextTop - boundary.panelBottom).toBeLessThanOrEqual(4);
 });
 
-test('sidebar rows and expanded content use one normal-case font size', async ({ page }) => {
+test('sidebar rows and expanded content share typography with a smaller footer', async ({ page }) => {
   await page.setViewportSize({ width: 1200, height: 800 });
   await page.goto('/docs?sidebar=preview');
   await page.locator('#_sd_btn-library').click();
@@ -955,7 +948,6 @@ test('sidebar rows and expanded content use one normal-case font size', async ({
       '.sdocs-sidebar-subitem',
       '.sdocs-sidebar-preview-entry',
       '.sdocs-sidebar-tag',
-      '.sdocs-sidebar-footer > a',
     ];
     return selectors.map(selector => {
       const target = element.querySelector(selector);
@@ -965,5 +957,6 @@ test('sidebar rows and expanded content use one normal-case font size', async ({
   });
   expect(styles.every(style => style.fontSize === '13px')).toBe(true);
   expect(styles.every(style => style.textTransform === 'none')).toBe(true);
+  await expect(page.locator('.sdocs-sidebar-footer > a').first()).toHaveCSS('font-size', '11px');
   await expect(page.locator('.sdocs-sidebar-legal')).toHaveCSS('font-size', '11px');
 });

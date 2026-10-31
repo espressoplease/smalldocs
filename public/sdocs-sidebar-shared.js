@@ -5,7 +5,6 @@
     local: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V5"/><path d="M8 19V7"/><path d="M12 19V4"/><path d="m16 5 4 14"/></svg>',
     cloud: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>',
     capabilities: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2v20"/><path d="m4.93 4.93 14.14 14.14"/><path d="M2 12h20"/><path d="m19.07 4.93-14.14 14.14"/></svg>',
-    sdk: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 9-3 3 3 3"/><path d="m16 9 3 3-3 3"/><path d="m14 5-4 14"/></svg>',
     signIn: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 21a8 8 0 0 1 13.292-6"/><circle cx="10" cy="8" r="5"/><path d="m16 19 2 2 4-4"/></svg>',
     shield: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-8 9-4.5-1.5-8-4-8-9V5l8-3 8 3z"/><path d="m9 12 2 2 4-4"/></svg>',
     github: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3v12"/><path d="M18 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M15 6a9 9 0 0 0-9 9"/><path d="M18 15v6"/><path d="M21 18h-6"/></svg>',
@@ -13,27 +12,6 @@
     external: '<svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-7"/><path d="m9 15 12-12"/><path d="M15 3h6v6"/></svg>',
     chevron: '<svg class="sdocs-sidebar-row-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>'
   };
-
-  var capabilities = [
-    { label: 'Diagrams', href: '/docs#sec=diagrams' },
-    { label: 'Slides', href: '/docs#sec=slides' },
-    { label: 'Spreadsheets', href: '/advanced-spreadsheets' },
-    { label: 'Charts', href: '/docs#sec=charts' },
-    { label: 'Runnable HTML', href: '/runnable-html' },
-    { label: 'Walkthroughs', href: '/docs#sec=document-walkthroughs' },
-    { label: 'Formatting', href: '/docs#sec=formatting' },
-    { label: 'Code', href: '/docs#sec=code' },
-  ];
-
-  var sdkDescription = 'Render agent-generated Markdown as rich, interactive documents inside your application with configurable styling.';
-
-  function capabilitiesHtml(className, ctaClassName) {
-    var homepage = '<a class="' + (ctaClassName || className) + '" href="/home" ' +
-      'target="_blank" rel="noopener"><span>View homepage</span>' + icons.external + '</a>';
-    return homepage + capabilities.map(function (item) {
-      return '<a class="' + className + '" href="' + item.href + '">' + item.label + '</a>';
-    }).join('');
-  }
 
   function topRowHtml(options) {
     options = options || {};
@@ -66,37 +44,10 @@
       '<div class="sdocs-sidebar-expander-clip">' + options.content + '</div></div></div>';
   }
 
-  function supportingSectionsHtml(options) {
-    options = options || {};
-    var rowClass = options.rowClass || '';
-    var idPrefix = options.idPrefix || '_sd_sidebar';
-    var capabilityContent = '<div class="sdocs-sidebar-preview sdocs-sidebar-preview-compact" ' +
-      'data-sdocs-shared-capabilities>' +
-      capabilitiesHtml('sdocs-sidebar-subitem',
-        'sdocs-sidebar-library-row sdocs-sidebar-library-open') + '</div>';
-    var sdkContent = '<div class="sdocs-sidebar-preview"><p class="sdocs-sidebar-explainer">' +
-      sdkDescription + '</p><a class="sdocs-sidebar-cta" href="/developers">' +
-      'Open SDK guide</a></div>';
-    return sectionHtml({
-      id: 'capabilities',
-      idPrefix: idPrefix,
-      rowClass: rowClass,
-      icon: icons.capabilities,
-      label: 'Capabilities',
-      dataHref: '/docs#sec=formatting',
-      content: capabilityContent,
-    }) + sectionHtml({
-      id: 'sdk',
-      idPrefix: idPrefix,
-      rowClass: rowClass,
-      icon: icons.sdk,
-      label: 'Renderer SDK',
-      dataHref: '/developers',
-      content: sdkContent,
-    });
-  }
-
   function sitePrimaryHtml(active, rowClass) {
+    var legacy = typeof document === 'undefined' || !document.querySelector('[data-legacy-library="false"]');
+    if (!legacy) return topRowHtml({ href: '/library?scope=cloud', rowClass: rowClass,
+      icon: icons.local, label: 'Library', active: active === 'cloud' });
     return topRowHtml({
       href: '/library',
       rowClass: rowClass,
@@ -113,6 +64,108 @@
     });
   }
 
+  function applyLibraryPreference(legacy) {
+    if (typeof document === 'undefined') return;
+    document.body.dataset.legacyLibrary = legacy ? 'true' : 'false';
+    var reader = document.getElementById('_sd_sidebar');
+    if (reader) {
+      reader.dataset.legacyLibrary = legacy ? 'true' : 'false';
+      var local = reader.querySelector('[data-sidebar-section="library"]');
+      if (local) local.hidden = !legacy;
+      var cloud = reader.querySelector('[data-sidebar-section="cloud"] > .sdocs-sidebar-top-row');
+      if (cloud) {
+        var label = cloud.querySelector('span');
+        if (label) label.textContent = legacy ? 'Cloud library' : 'Library';
+        var icon = cloud.querySelector('svg');
+        if (icon) icon.outerHTML = legacy ? icons.cloud : icons.local;
+        cloud.dataset.railLabel = legacy ? 'Cloud library' : 'Library';
+      }
+    }
+    var site = document.querySelector('.sdocs-site-sidebar');
+    if (site) {
+      var localLink = site.querySelector('.sdocs-site-sidebar-local');
+      if (localLink) localLink.hidden = !legacy;
+      var link = site.querySelector('a[href="/library?scope=cloud"]');
+      if (link) {
+        link.querySelector('span').textContent = legacy ? 'Cloud library' : 'Library';
+        link.querySelector('svg').outerHTML = legacy ? icons.cloud : icons.local;
+        link.dataset.railLabel = legacy ? 'Cloud library' : 'Library';
+      }
+    }
+  }
+
+  async function bindSubscriptionUi() {
+    if (typeof document === 'undefined') return;
+    var marker = document.querySelector('[data-legacy-library]');
+    if (marker) applyLibraryPreference(marker.dataset.legacyLibrary !== 'false');
+    if (!document.querySelector('[data-cloud-authenticated="true"]')) return;
+    var sidebar = document.querySelector('.sdocs-sidebar-shell');
+    if (!sidebar) return;
+    try {
+      var response = await fetch('/api/cloud/billing/subscription');
+      if (!response.ok) return;
+      var data = await response.json();
+      var status = data.subscription || data;
+      var previous = sidebar.querySelector('[data-subscription-status]');
+      if (previous) previous.remove();
+      if (status.phase === 'active') return;
+      var footer = sidebar.querySelector('.sdocs-sidebar-footer');
+      if (!footer) return;
+      var section = document.createElement('div');
+      section.className = 'sdocs-sidebar-subscription';
+      section.setAttribute('data-subscription-status', status.phase);
+      var trial = status.phase === 'trial';
+      var warning = status.phase === 'trial_warning';
+      var paymentIssue = ['past_due_grace', 'past_due', 'read_only'].includes(status.phase);
+      var end = trial ? status.trial_ends_at_ms : status.paywall_starts_at_ms;
+      var now = Date.now();
+      var heading = document.createElement('div');
+      heading.className = 'sdocs-sidebar-subscription-heading';
+      var label = document.createElement('strong');
+      label.textContent = trial ? 'Free trial' : warning ? 'Trial ended'
+        : status.phase === 'payment_required' ? 'Subscription required'
+        : status.phase === 'past_due_grace' ? 'Payment needs attention'
+        : paymentIssue || status.phase === 'canceled' ? 'Read-only access' : 'Subscription inactive';
+      heading.appendChild(label);
+      if ((trial || warning) && Number.isFinite(end)) {
+        var days = Math.max(0, Math.ceil((end - now) / 86400000));
+        var remaining = document.createElement('span');
+        remaining.textContent = days + (days === 1 ? ' day' : ' days') + (warning ? ' of access left' : ' left');
+        heading.appendChild(remaining);
+        section.title = (trial ? 'Trial ends ' : 'Cloud access ends ') + new Date(end).toLocaleString(undefined,
+          { day: 'numeric', month: 'long', year: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' });
+      }
+      section.appendChild(heading);
+      var start = trial ? status.trial_starts_at_ms : status.trial_ends_at_ms;
+      if ((trial || warning) && Number.isFinite(start) && Number.isFinite(end) && end > start) {
+        var percent = Math.max(0, Math.min(100, (end - now) / (end - start) * 100));
+        var progress = document.createElement('div');
+        progress.className = 'sdocs-sidebar-subscription-progress';
+        progress.setAttribute('role', 'meter');
+        progress.setAttribute('aria-label', trial ? 'Free trial remaining' : 'Cloud access remaining');
+        progress.setAttribute('aria-valuemin', '0');
+        progress.setAttribute('aria-valuemax', '100');
+        progress.setAttribute('aria-valuenow', String(Math.round(percent)));
+        progress.setAttribute('aria-valuetext', remaining.textContent);
+        var fill = document.createElement('span');
+        fill.style.width = percent + '%';
+        progress.appendChild(fill);
+        section.appendChild(progress);
+      }
+      var link = document.createElement('a');
+      link.className = 'sdocs-sidebar-subscribe';
+      link.href = paymentIssue ? status.billing_url || '/cloud/admin?panel=billing' : status.subscribe_url || '/cloud/subscribe';
+      link.textContent = paymentIssue ? 'Update billing' : 'Subscribe';
+      section.appendChild(link);
+      if ((warning || status.phase === 'payment_required') && status.feedback_url) {
+        var feedback = document.createElement('a');
+        feedback.className = 'sdocs-sidebar-trial-feedback'; feedback.href = status.feedback_url;
+        feedback.textContent = 'Share feedback'; section.appendChild(feedback);
+      }
+      footer.appendChild(section);
+    } catch (_) { /* Navigation stays usable when billing status is unavailable. */ }
+  }
+
   function brandHtml(options) {
     options = options || {};
     var text = options.responsive
@@ -124,37 +177,25 @@
       ' class="sdocs-sidebar-brand" href="/" title="SmallDocs homepage">' + text + '</a>';
   }
 
-  function footerInnerHtml(options) {
+  function accountActionsHtml(options) {
     options = options || {};
-    var status = options.statusId
-      ? '<div id="' + options.statusId + '" class="sdocs-sidebar-status" aria-live="polite"></div>' : '';
-    var returnTo = options.returnTo || '/docs';
-    var account = options.authenticated
-      ? '<a class="sdocs-sidebar-footer-link sdocs-sidebar-account-link" href="/cloud/admin" data-rail-label="Account settings">' +
-        icons.settings + '<span>Account settings</span></a>'
-      : '<a class="sdocs-sidebar-footer-link sdocs-sidebar-account-link" href="/cloud/sign-in?return=' +
-        encodeURIComponent(returnTo) + '" data-sdocs-sign-in-return data-rail-label="Sign in">' +
-        icons.signIn + '<span>Sign in</span></a>';
-    var legal = options.termsAccepted ? '' :
-      '<div class="sdocs-sidebar-legal">You agree to our ' +
-      '<a href="/legal" target="_blank" rel="noopener">Terms</a></div>';
-    return status +
-      account +
-      '<a class="sdocs-sidebar-footer-link" href="/privacy" target="_blank" rel="noopener" data-rail-label="Private by design">' +
-      icons.shield + '<span>Private by design</span></a>' +
-      '<a class="sdocs-sidebar-footer-link" href="https://github.com/espressoplease/smalldocs" target="_blank" rel="noopener" data-rail-label="Source on GitHub">' +
-      icons.github + '<span>Source on GitHub</span></a>' +
-      legal;
+    var label = options.authenticated ? 'Account settings' : 'Sign in';
+    var href = options.authenticated ? '/cloud/admin'
+      : '/cloud/sign-in?return=' + encodeURIComponent(options.returnTo || '/docs');
+    return '<div class="sdocs-sidebar-account-actions">' +
+      '<a class="sdocs-sidebar-icon-shortcut sdocs-sidebar-settings-shortcut" href="' + href +
+      '" aria-label="' + label + '" title="' + label + '"' +
+      (options.authenticated ? '' : ' data-sdocs-sign-in-return') + '>' +
+      (options.authenticated ? icons.settings : icons.signIn) + '</a>' +
+      '<button class="sdocs-sidebar-icon-shortcut btn-with-dot" id="_sd_btn-info" type="button" aria-label="What\'s new" title="What\'s new" aria-controls="_sd_info-panel" aria-pressed="false">' +
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>' +
+      '<span class="info-dot" aria-hidden="true"></span></button></div>';
   }
 
   function renderShell(element, options) {
     options = options || {};
-    var footerOptions = {
-      statusId: options.statusId,
-      authenticated: Boolean(options.authenticated),
-      termsAccepted: Boolean(options.termsAccepted),
-      returnTo: options.returnTo || '/docs',
-    };
+    var status = options.statusId
+      ? '<div id="' + options.statusId + '" hidden aria-live="polite"></div>' : '';
     element.innerHTML = '<div class="sdocs-sidebar-main"><div class="sdocs-sidebar-header">' + brandHtml({
       id: options.brandId,
       responsive: options.responsiveBrand,
@@ -164,8 +205,8 @@
       '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/><path d="m16 15-3-3 3-3"/></svg>' +
       '</button></div><nav class="sdocs-sidebar-nav' + (options.navClass ? ' ' + options.navClass : '') +
       '" aria-label="SmallDocs navigation">' + (options.primaryHtml || '') +
-      supportingSectionsHtml({ idPrefix: options.idPrefix, rowClass: options.rowClass }) +
-      '</nav></div><footer class="sdocs-sidebar-footer">' + footerInnerHtml(footerOptions) + '</footer>';
+      '</nav></div>' + status + '<footer class="sdocs-sidebar-footer sdocs-sidebar-account-footer">' +
+      accountActionsHtml(options) + '</footer>';
     element.setAttribute('data-sdocs-sidebar-renderer', 'shared');
     if (options.active === 'settings') {
       var accountSettings = element.querySelector('a[href="/cloud/admin"]');
@@ -344,7 +385,7 @@
 
     sidebar.addEventListener('click', function (event) {
       if (!body.classList.contains('sdocs-sidebar-collapsed')) return;
-      if (event.target.closest('.sdocs-sidebar-collapse-toggle')) return;
+      if (event.target.closest('.sdocs-sidebar-collapse-toggle, .sdocs-sidebar-account-actions')) return;
       var interactive = event.target.closest('a, button');
       if (interactive && interactive.matches('a')) event.preventDefault();
       manualState = 'expanded';
@@ -373,18 +414,18 @@
         returnTo: window.location.pathname + window.location.search,
       });
     });
+    var marker = document.querySelector('[data-legacy-library]');
+    if (marker) applyLibraryPreference(marker.dataset.legacyLibrary !== 'false');
   }
 
   exports.icons = icons;
-  exports.capabilities = capabilities;
-  exports.sdkDescription = sdkDescription;
-  exports.capabilitiesHtml = capabilitiesHtml;
   exports.topRowHtml = topRowHtml;
   exports.sectionHtml = sectionHtml;
-  exports.supportingSectionsHtml = supportingSectionsHtml;
   exports.sitePrimaryHtml = sitePrimaryHtml;
+  exports.applyLibraryPreference = applyLibraryPreference;
+  exports.bindSubscriptionUi = bindSubscriptionUi;
   exports.brandHtml = brandHtml;
-  exports.footerInnerHtml = footerInnerHtml;
+  exports.accountActionsHtml = accountActionsHtml;
   exports.renderShell = renderShell;
   exports.setExpanded = setExpanded;
   exports.bindExpandableSections = bindExpandableSections;
@@ -394,4 +435,8 @@
 })(typeof module !== 'undefined' && module.exports
   ? module.exports : (window.SDocsSidebarShared = {}));
 
-if (typeof document !== 'undefined') window.SDocsSidebarShared.hydrate(document);
+if (typeof document !== 'undefined') {
+  window.SDocsSidebarShared.hydrate(document);
+  if (document.readyState !== 'complete') document.addEventListener('DOMContentLoaded', window.SDocsSidebarShared.bindSubscriptionUi, { once: true });
+  else window.SDocsSidebarShared.bindSubscriptionUi();
+}

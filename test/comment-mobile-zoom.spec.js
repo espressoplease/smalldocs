@@ -20,6 +20,8 @@ async function enterCommentModeWithBlockComposer(page) {
     const btn = document.getElementById('_sd_btn-comment');
     if (btn && !document.body.classList.contains('comment-mode')) btn.click();
   });
+  await page.locator('#_sd_comment-toolbar').evaluate(el =>
+    Promise.all(el.getAnimations({ subtree: true }).map(animation => animation.finished)));
   await page.locator('.sdoc-gutter-add').first().click({ force: true });
   return page.locator('.sdoc-card-sidecar .sdoc-card-input').first();
 }
@@ -27,7 +29,7 @@ async function enterCommentModeWithBlockComposer(page) {
 test.describe('mobile viewport (390px)', () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
-  test('comment toolbar travels with the mobile header stack', async ({ page }) => {
+  test('comment toolbar follows the document icons below the mobile header', async ({ page }) => {
     await page.goto(BASE + '/docs');
     await page.waitForFunction(() => !!window.SDocs && !!window.SDocs.render);
     await page.evaluate(() => document.getElementById('_sd_btn-comment').click());
@@ -44,8 +46,8 @@ test.describe('mobile viewport (390px)', () => {
       };
     });
 
-    expect(positions.headerHeight).toBeCloseTo(78, 1);
-    expect(positions.commentToolbarTop).toBeCloseTo(positions.documentToolbarBottom, 1);
+    expect(positions.headerHeight).toBeCloseTo(44, 1);
+    expect(positions.commentToolbarTop).toBeGreaterThanOrEqual(positions.documentToolbarBottom);
 
     const mobileHeader = page.locator('#_sd_mobile-header');
     await page.evaluate(() => {

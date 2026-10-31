@@ -95,11 +95,9 @@ async function main() {
       billingUrl }],
     ['cancellation-effective', { type: 'cancellation_effective', accountName: 'SmallDocs Demo',
       deletionDate: '1 October 2026', billingUrl }],
-    ['deletion-warning', { type: 'deletion_warning', accountName: 'SmallDocs Demo',
-      deletionDate: '1 October 2026', billingUrl }],
   ];
   for (const [recipient, input] of billingPreviews) {
-    await sendPreview(recipient + '@preview.smalldocs.test', templates.billingState(input));
+    await sendPreview(recipient + '@preview.smalldocs.test', templates.billingState({ ...input, retainDocuments: true, deletionDate: '' }));
   }
   process.stdout.write('\nCaptured ' + (3 + billingPreviews.length) +
     ' preview messages.\nOpen ' + uiOrigin + '\n');

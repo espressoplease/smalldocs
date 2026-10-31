@@ -33,7 +33,7 @@ module.exports = function (harness) {
         { type: 'retrieve', input: { subscriptionId: 'sub_123' } },
         { type: 'update', input: { subscriptionItemId: 'si_123', quantity: 4,
           prorationBehavior: 'create_prorations',
-          idempotencyKey: 'workspace-seats-workspace-123-change-1' } },
+          idempotencyKey: 'workspace-seats-workspace-123-change-1:sub_123:4' } },
       ]);
     });
 
@@ -66,6 +66,20 @@ module.exports = function (harness) {
       });
       assert.deepStrictEqual(result, { updated: false, reason: 'not_stripe_team' });
       assert.strictEqual(usageReads, 0);
+    });
+
+    await testAsync('single-plan coverage updates unique seats on a retained personal price without changing its price', async () => {
+      let update;
+      const result = await syncTeamSeatQuantity({ workspaceId: 'payer', quantityOverride: 2,
+        idempotencyKey: 'single-plan-retained-price',
+        billing: { getSubscription: () => ({ plan: 'personal', provider: 'stripe', providerSubscriptionId: 'sub_existing' }) },
+        store: { getWorkspaceUsage: () => { throw new Error('Do not count physical library memberships'); } },
+        stripe: { retrieveSubscription: async () => ({ items: { data: [{ id: 'si_existing', quantity: 1 }] } }),
+          updateSubscriptionItemQuantity: async input => { update = input; } } });
+      assert.strictEqual(result.quantity, 2);
+      assert.strictEqual(update.subscriptionItemId, 'si_existing');
+      assert.strictEqual(update.quantity, 2);
+      assert.strictEqual(update.priceId, undefined);
     });
 
     await testAsync('surfaces Stripe failures so the caller can queue a retry', async () => {
@@ -115,9 +129,9 @@ module.exports = function (harness) {
       }));
       assert.strictEqual(remoteQuantity, 3);
       assert.deepStrictEqual(keys, [
-        'workspace-seats-workspace-123-change-a',
-        'workspace-seats-workspace-123-change-b',
-        'workspace-seats-workspace-123-change-c',
+        'workspace-seats-workspace-123-change-a:sub_123:3',
+        'workspace-seats-workspace-123-change-b:sub_123:4',
+        'workspace-seats-workspace-123-change-c:sub_123:3',
       ]);
     });
   };

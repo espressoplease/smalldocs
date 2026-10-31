@@ -37,6 +37,10 @@ var cloudLibraryLoading = false;
 var cloudLibraryError = '';
 var cloudLibraryStatus = 0;
 var cloudLibraryScope = null;
+var cloudRelatedEntries = null;
+var cloudDocumentCount = 0;
+var cloudDefaultOpened = false;
+var sidebarInteracted = false;
 
 function previewMode() {
   return SIDEBAR_PREVIEW_MODE;
@@ -139,8 +143,10 @@ function renderEntryList(host, list, emptyText, onOpen, fallbackHref) {
 }
 
 function currentDocumentTags() {
-  var tags = S && S.currentMeta && Array.isArray(S.currentMeta.tags)
-    ? S.currentMeta.tags.map(String).filter(Boolean)
+  var savedTags = S && S.cloudDocument && Array.isArray(S.cloudDocument.tags)
+    ? S.cloudDocument.tags : S && S.currentMeta && S.currentMeta.tags;
+  var tags = Array.isArray(savedTags)
+    ? savedTags.map(String).filter(Boolean)
     : [];
   return tags.length || !usingPreviewData ? tags : LOCAL_PREVIEW_TAGS.slice();
 }
@@ -234,6 +240,21 @@ function selectedCloudWorkspaceId() {
   return '';
 }
 
+function cloudPreviewKey() {
+  return JSON.stringify([selectedCloudWorkspaceId(), currentDocumentRef('cloud').id, currentDocumentTags()]);
+}
+
+function openCloudLibraryByDefault() {
+  if (usingPreviewData || !cloudLibraryLoaded || cloudDocumentCount <= 1 || sidebarInteracted ||
+      document.body.classList.contains('sdocs-sidebar-collapsed')) return;
+  var section = document.querySelector('[data-sidebar-section="cloud"]');
+  if (!section) return;
+  if (!cloudDefaultOpened) {
+    SharedSidebar.setExpanded(section, true);
+    cloudDefaultOpened = true;
+  }
+}
+
 function setLibrarySubsectionExpanded(section, expanded) {
   if (!section) return;
   section.classList.toggle('is-expanded', expanded);
@@ -318,7 +339,7 @@ function renderCloudLibrary() {
 
   setDataStatus('_sd_sidebar_cloud_status', '');
   setLibraryContentVisible('cloud', true);
-  var sharedCount = renderTagGroups(document.getElementById('_sd_sidebar_cloud_tag_groups'), currentDocumentTags(), cloudEntries, 'cloud');
+  var sharedCount = renderTagGroups(document.getElementById('_sd_sidebar_cloud_tag_groups'), currentDocumentTags(), cloudRelatedEntries || cloudEntries, 'cloud');
   var sharedSection = document.getElementById('_sd_sidebar_cloud_shared_section');
   if (sharedSection) sharedSection.hidden = sharedCount === 0;
   setLibraryCount('_sd_sidebar_cloud_shared_count', sharedCount);
@@ -327,12 +348,15 @@ function renderCloudLibrary() {
   renderEntryList(document.getElementById('_sd_sidebar_cloud_recent'), recent, 'No recent documents', null,
     function (entry) { return entry.preview ? '/library?scope=cloud' : '/docs?cloud-document=' + encodeURIComponent(entry.id); });
   syncLibrarySubsections(connectedPanel);
+  openCloudLibraryByDefault();
 }
 
 function renderSidebar() {
-  var nextCloudScope = selectedCloudWorkspaceId();
-  if (!usingPreviewData && cloudLibraryLoaded && cloudLibraryScope !== nextCloudScope) {
+  var nextCloudScope = cloudPreviewKey();
+  if (!usingPreviewData && cloudLibraryScope !== null && cloudLibraryScope !== nextCloudScope) {
     cloudEntries = [];
+    cloudRelatedEntries = null;
+    cloudDocumentCount = 0;
     cloudLibraryLoaded = false;
     cloudLibraryError = '';
     cloudLibraryStatus = 0;
@@ -340,7 +364,8 @@ function renderSidebar() {
   renderLocalLibrary();
   renderCloudLibrary();
   var cloudSection = document.querySelector('[data-sidebar-section="cloud"]');
-  if (cloudSection && cloudSection.classList.contains('is-expanded')) loadCloudLibrary();
+  if (cloudSection && !cloudLibraryError &&
+      (cloudSection.classList.contains('is-expanded') || S._appReady)) loadCloudLibrary();
 }
 
 function loadLibrary() {
@@ -375,6 +400,8 @@ function loadLibrary() {
 
 function loadCloudLibrary() {
   if (!cloudConnected() || cloudLibraryLoaded || cloudLibraryLoading) return;
+  var requestedDocument = new URLSearchParams(window.location.search).get('cloud-document');
+  if (requestedDocument && currentDocumentRef('cloud').id !== requestedDocument) return;
   if (previewMode() === 'preview') {
     renderCloudLibrary();
     return;
@@ -384,14 +411,16 @@ function loadCloudLibrary() {
   cloudLibraryStatus = 0;
   renderCloudLibrary();
 
-  var documents = [];
   var workspaceId = selectedCloudWorkspaceId();
-
-  function loadPage(cursor) {
-    var params = new URLSearchParams({ limit: '100' });
-    if (workspaceId) params.set('workspace_id', workspaceId);
-    if (cursor) params.set('cursor', cursor);
-    return fetch('/api/cloud/v1/documents?' + params.toString(), { credentials: 'same-origin' })
+  var key = cloudPreviewKey();
+  cloudLibraryScope = key;
+  var tags = currentDocumentTags();
+  function searchPreview(related) {
+    var request = { limit: SIDEBAR_RECENT_LIMIT + 1, sort: 'updated_desc' };
+    if (workspaceId) request.workspace_id = workspaceId;
+    if (related) request.tags_any = tags;
+    return fetch('/api/cloud/v1/search', { credentials: 'same-origin', method: 'POST',
+      headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(request) })
       .then(function (response) {
         if (!response.ok) {
           var error = new Error('Cloud returned ' + response.status);
@@ -399,20 +428,20 @@ function loadCloudLibrary() {
           throw error;
         }
         return response.json();
-      })
-      .then(function (page) {
-        documents.push.apply(documents, Array.isArray(page.documents) ? page.documents : []);
-        return page.next_cursor ? loadPage(page.next_cursor) : documents;
       });
   }
 
-  loadPage(null)
-    .then(function (loadedDocuments) {
-      cloudEntries = loadedDocuments.map(cloudEntry);
+  Promise.all([searchPreview(false), tags.length ? searchPreview(true) : Promise.resolve({ documents: [] })])
+    .then(function (pages) {
+      if (key !== cloudPreviewKey()) return;
+      cloudEntries = (pages[0].documents || []).map(cloudEntry);
+      cloudRelatedEntries = (pages[1].documents || []).map(cloudEntry);
+      cloudDocumentCount = Number(pages[0].total_count) || cloudEntries.length;
       cloudLibraryLoaded = true;
-      cloudLibraryScope = workspaceId;
+      cloudLibraryScope = key;
     })
     .catch(function (error) {
+      if (key !== cloudPreviewKey()) return;
       cloudLibraryStatus = error && error.status || 0;
       if (cloudLibraryStatus === 401) cloudLibraryError = 'Sign in to load Cloud documents.';
       else if (cloudLibraryStatus === 402) cloudLibraryError = 'Cloud Library is not available for this account.';
@@ -421,20 +450,20 @@ function loadCloudLibrary() {
     })
     .finally(function () {
       cloudLibraryLoading = false;
-      renderCloudLibrary();
+      renderSidebar();
     });
 }
 
 var mobileMenuButton = document.getElementById('_sd_mobile_menu');
 var mobileSidebar = document.getElementById('_sd_sidebar');
 var mobileBackground = [
-  document.querySelector('.sdocs-mobile-toolbar-scroll'),
+  document.querySelector('.sdocs-mobile-toolbar-brand'),
   document.getElementById('_sd_content-area'),
   document.getElementById('_sd_right'),
   document.getElementById('_sd_statusbar'),
 ].filter(Boolean);
 
-SharedSidebar.bindMobileDrawer({
+var mobileDrawer = SharedSidebar.bindMobileDrawer({
   body: document.body,
   sidebar: mobileSidebar,
   button: mobileMenuButton,
@@ -445,8 +474,13 @@ SharedSidebar.bindMobileDrawer({
   backgrounds: mobileBackground,
 });
 
+document.getElementById('_sd_btn-info').addEventListener('click', function () {
+  if (mobileDrawer) mobileDrawer.setOpen(false, false);
+});
+
 SharedSidebar.bindExpandableSections(mobileSidebar, {
   onToggle: function (sectionName) {
+    sidebarInteracted = true;
     if (sectionName === 'library') {
       loadLibrary();
     } else if (sectionName === 'cloud') {
@@ -477,6 +511,8 @@ document.querySelectorAll('.sdocs-sidebar-library-toggle').forEach(function (tri
 });
 
 S.sidebarRefresh = renderSidebar;
+document.addEventListener('sdocs-app-ready', renderSidebar, { once: true });
+window.addEventListener('resize', openCloudLibraryByDefault);
 renderSidebar();
 
 })();

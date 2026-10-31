@@ -39,6 +39,22 @@ module.exports = function (harness) {
   const scenarios = [];
   const scenario = (name, fn) => scenarios.push([name, fn]);
 
+  scenario('setup help exits without prompts, installing skills, or changing state', async () => {
+    for (const args of ['setup --help', 'setup -h', 'setup --cloud --yes --help']) {
+      const fx = createFixture({ agents: ['claude'] });
+      try {
+        const result = await fx.run(args);
+        assert.strictEqual(result.exitCode, 0, result.stderr);
+        assert.ok(result.stdout.includes('SmallDocs agent skill setup'));
+        assert.ok(result.stdout.includes('sdoc cloud login'));
+        assert.ok(!result.stdout.includes('Install?'));
+        assert.strictEqual(fx.read(skillRel), null);
+        assert.strictEqual(fx.readSetupState(), null);
+        assert.strictEqual(fx.readlink('.claude/skills/smalldocs'), null);
+      } finally { fx.cleanup(); }
+    }
+  });
+
   // ── 1. Fresh install, no agent configs detected ───────────
   // The canonical skill is always written (it is the single source of truth
   // and any ~/.agents/skills reader picks it up), so declined stays false.
@@ -231,7 +247,9 @@ module.exports = function (harness) {
       const skill = fx.read(skillRel);
       assert.ok(skill.includes('<!-- sdocs-skill-edition: cloud -->'));
       assert.ok(skill.includes('Cloud-first mode'));
-      assert.ok(skill.includes('automatically creates or updates the Cloud copy'));
+      assert.ok(skill.includes('sdoc FILE.md --cloud --json'));
+      assert.ok(skill.includes('always use the returned Cloud url'));
+      assert.ok(skill.includes('never the underlying local file path'));
       const state = fx.readSetupState();
       assert.strictEqual(state.skillEdition, 'cloud');
       assert.strictEqual(state.cloudAccountId, 'workspace-humanlayer');

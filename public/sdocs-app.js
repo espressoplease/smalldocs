@@ -69,7 +69,7 @@ function codeCommentCountFor(blockId) {
   var n = 0;
   for (var i = 0; i < list.length; i++) {
     var c = list[i];
-    if (c && c.block === blockId && (c.kind === 'line' || c.kind === 'method' || c.kind === 'token')) n++;
+    if (c && codeCommentBlockFor(c) === blockId && (c.kind === 'line' || c.kind === 'method' || c.kind === 'token')) n++;
   }
   return n;
 }
@@ -79,9 +79,18 @@ function codeCommentColorFor(blockId) {
   if (!Array.isArray(list)) return '';
   for (var i = 0; i < list.length; i++) {
     var c = list[i];
-    if (c && c.block === blockId && (c.kind === 'line' || c.kind === 'method' || c.kind === 'token')) return c.color || '';
+    if (c && codeCommentBlockFor(c) === blockId && (c.kind === 'line' || c.kind === 'method' || c.kind === 'token')) return c.color || '';
   }
   return '';
+}
+
+function codeCommentBlockFor(c) {
+  if (S.commentsUi && S.commentsUi._resolveCodeBlock &&
+      (c.kind === 'line' || c.kind === 'method' || c.kind === 'token')) {
+    var target = S.commentsUi._resolveCodeBlock(c);
+    if (target.index >= 0) return 'pre:' + target.index;
+  }
+  return c.block;
 }
 // Count valid agent annotations (read-only notes in front matter, line-numbered,
 // not block-tagged). Mirrors the validation in the viewer's getAnnotations.
@@ -632,7 +641,8 @@ var BRIDGE_SCREEN_SHARE_OFF_SVG = ''
   + '</svg>';
 
 function dataRowHtml(key, label, value, isLocal, isShort, extraHtml) {
-  var pill = isLocal ? '<span class="fic-local-tag" title="Only visible on this device, not included in shared sdocs">Local only</span>' : '';
+  var pill = isLocal && isLocal !== 'creator'
+    ? '<span class="fic-local-tag" title="Only visible on this device, not included in shared sdocs">Local only</span>' : '';
   var cls = 'fic-row' + (isShort ? ' fic-row-short' : '');
   return '<div class="' + cls + '" data-key="' + key + '">'
     + '<span class="fic-label">' + label + '</span>'
@@ -647,7 +657,7 @@ function renderFileInfoCard() {
   var card = document.getElementById('_sd_sdocs-file-info');
   if (!card) return;
   var meta = S.currentMeta || {};
-  var local = S.localMeta || {};
+  var local = S.fileInfoPaths();
   var rowsEl = card.querySelector('.fic-rows');
 
   // The "Edits" row only renders when a bridge session is *or has been*
@@ -662,7 +672,7 @@ function renderFileInfoCard() {
   // Edits is a local-only row, but it only renders in editing modes — so
   // only count it toward the privacy-note flag when it'll actually appear.
   var bridgeRowWillRender = !!bridge && bridgeShouldRender(S.currentMode);
-  var hasLocalRow = !!(local.path || local.fullPath || bridgeRowWillRender);
+  var hasLocalRow = !!(!local.creatorOnly && (local.path || local.fullPath) || bridgeRowWillRender);
 
   if (!hasDoc && !meta.file && !hasLocalRow && !bridge) {
     card.hidden = true;
@@ -679,7 +689,7 @@ function renderFileInfoCard() {
   // right after Filename, so the row doesn't jump around as the user moves
   // between the intro / shorten / shortened states.
   var slots = [];
-  if (meta.file || bridgeFile) {
+  if ((meta.file || bridgeFile) && !(local.creatorOnly && (local.path || local.fullPath))) {
     // When the bridge is live and the Edits row isn't showing (read /
     // style / export / info), drop a small "live" chip next to the
     // filename so the reader still knows the file is connected. We never
@@ -696,7 +706,7 @@ function renderFileInfoCard() {
   // points at the canonical production URL so it's shareable from anywhere.
   var blogMatch = /^\/blogs\/[A-Za-z0-9_-]+$/.test(location.pathname || '');
   if (blogMatch) {
-    slots.push({ type: 'data', html: dataRowHtml('shortUrl', 'Short URL', 'https://smalldocs.org' + location.pathname, false, true) });
+    slots.push({ type: 'data', html: dataRowHtml('shortUrl', 'Share URL', 'https://smalldocs.org' + location.pathname, false, true) });
   }
 
   // Don't offer a short URL for the built-in default document (bare / or
@@ -705,12 +715,13 @@ function renderFileInfoCard() {
   // a file, opens a shared link, or edits anything.
   if (hasDoc && !S._isDefaultState) {
     slots.push(S.shortUrl
-      ? { type: 'data', html: dataRowHtml('shortUrl', 'Short URL', S.shortUrl, false, true) }
+      ? { type: 'data', html: dataRowHtml('shortUrl', 'Share URL', S.shortUrl, false, true) }
       : { type: 'intro' });
   }
 
-  if (local.path)     slots.push({ type: 'data', html: dataRowHtml('path', 'Rel. Path', local.path, true, false) });
-  if (local.fullPath) slots.push({ type: 'data', html: dataRowHtml('fullPath', 'Abs. Path', local.fullPath, true, false) });
+  var pathPrivacy = local.creatorOnly ? 'creator' : true;
+  if (local.path && local.path !== local.fullPath) slots.push({ type: 'data', html: dataRowHtml('path', 'Rel. Path', local.path, pathPrivacy, false) });
+  if (local.fullPath) slots.push({ type: 'data', html: dataRowHtml('fullPath', 'Abs. Path', local.fullPath, pathPrivacy, false) });
 
   // Tags row: YAML front-matter tags only. Editing is gated to "the
   // Bridge is connected and can save" - the Bridge is the single write
@@ -815,10 +826,10 @@ function renderFileInfoCard() {
       var introRow = document.createElement('div');
       introRow.className = 'fic-row fic-row-short-intro';
       introRow.innerHTML = ''
-        + '<span class="fic-label">Short URL</span>'
+        + '<span class="fic-label">Share URL</span>'
         + '<button class="fic-shorten-button" title="Generate a short link for this document">Generate</button>'
         + '<span class="fic-short-intro-text">'
-        +   'Encrypted document on our server, but decryption key stays with you '
+        +   'Share a copy of this document by link '
         +   '(<a class="fic-short-intro-learn" href="' + SHORT_LINKS_LEARN_URL + '" target="_blank" rel="noopener">learn more</a>)'
         + '</span>'
         + '<span class="fic-shorten-error" hidden></span>'
@@ -901,6 +912,9 @@ function setStatus(msg) {
 // ── Load content ──────────────────────────────────
 
 function loadText(text, filename) {
+  // A Cloud refresh can replace both source and comments while the viewer is
+  // open. Dismiss its old working set before any action can edit the new doc.
+  if (S.codeFocus && S.codeFocus.close) S.codeFocus.close();
   var parsed = SDocYaml.parseFrontMatter(text);
   S.currentMeta = parsed.meta;
   S.currentBody = parsed.body;
@@ -914,7 +928,7 @@ function loadText(text, filename) {
     var fn = window.SDocComments.parseFootnotes
       ? window.SDocComments.parseFootnotes(S.currentBody)
       : { comments: [], body: S.currentBody };
-    var existing = (S.currentMeta.comments || []).filter(function (c) {
+    var existing = (Array.isArray(S.currentMeta.comments) ? S.currentMeta.comments : []).filter(function (c) {
       return !fn.comments.some(function (n) { return n.id === c.id; });
     });
     // The store holds BOTH prose kinds (inline/block/slide) and code kinds
@@ -961,7 +975,7 @@ function loadText(text, filename) {
   });
   S.currentMeta = Object.assign({}, S.currentMeta, { styles: S.collectStyles() });
   S.rawEl.value = SDocYaml.serializeFrontMatter(S.currentMeta) + '\n' + S.currentBody;
-  setStatus(filename ? 'Loaded: ' + filename : '');
+  setStatus('');
   syncAll('load');
 }
 
@@ -1664,7 +1678,9 @@ var _defaultMdPath = _defaultMetaEl && _defaultMetaEl.content;
 // Guard against the server-side template placeholder leaking through
 // (e.g. a stale service-worker cache serving an older index.html).
 if (!_defaultMdPath || _defaultMdPath.charAt(0) !== '/') _defaultMdPath = '/public/sdoc.md';
-var _defaultReady = fetch(_defaultMdPath).then(function(r) { return r.text(); }).then(function(t) { DEFAULT_MD = t; });
+var _defaultReady = new URLSearchParams(window.location.search).has('cloud-document')
+  ? Promise.resolve()
+  : fetch(_defaultMdPath).then(function(r) { return r.text(); }).then(function(t) { DEFAULT_MD = t; });
 
 // ── Register on SDocs for cross-module access ──────────
 
@@ -2022,6 +2038,9 @@ S.Sources.register({
 });
 
 (async function () {
+  if (document.readyState === 'loading') {
+    await new Promise(function (resolve) { document.addEventListener('DOMContentLoaded', resolve, { once: true }); });
+  }
   await _defaultReady;
   if (!document.documentElement.classList.contains('sdocs-embed')) {
     var source = S.Sources.select();

@@ -11,6 +11,7 @@
     "test": "node test/run.js",
     "parity": "node scripts/sdocs-parity.js",
     "test:cloud-e2e": "playwright test --config=playwright.cloud.config.js",
+    "test:onboarding": "playwright test --config=playwright.onboarding.config.js",
     "email:preview": "node scripts/email-preview.js",
     "email:preview:stop": "docker compose -p smalldocs-email-preview -f test/mailpit.compose.yml down",
     "eval:skill": "node scripts/smalldocs-skill-eval.js",

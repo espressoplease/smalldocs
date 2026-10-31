@@ -1,14 +1,16 @@
 #!/bin/sh
 set -eu
 
-if [ "$#" -ne 1 ]; then
-  echo "Usage: ops/deploy-staging.sh SSH_TARGET" >&2
+if [ "$#" -lt 1 ] || [ "$#" -gt 2 ]; then
+  echo "Usage: ops/deploy-staging.sh SSH_TARGET [PUBLISHED_BRANCH]" >&2
   exit 2
 fi
 
 deploy_target=$1
 release_commit=$(git rev-parse HEAD)
-remote_commit=$(git ls-remote --heads origin refs/heads/main | cut -f1)
+release_ref=refs/heads/${2:-main}
+git check-ref-format "$release_ref"
+remote_commit=$(git ls-remote --heads origin "$release_ref" | cut -f1)
 release_tmp=$(mktemp -d)
 release_archive="$release_tmp/smalldocs-$release_commit.tar.gz"
 remote_archive="/tmp/smalldocs-$release_commit.tar.gz"
@@ -20,7 +22,7 @@ if ! git diff --quiet || ! git diff --cached --quiet; then
   exit 1
 fi
 if [ -z "$remote_commit" ] || [ "$remote_commit" != "$release_commit" ]; then
-  echo "Refusing to deploy a commit that is not the published main tip." >&2
+  echo "Refusing to deploy a commit that is not the published branch tip: $release_ref" >&2
   exit 1
 fi
 
@@ -68,6 +70,7 @@ sudo rm -f -- "$remote_archive"
 sudo mkdir -p "$release_dir/.git"
 printf '%s\n' "$release_commit" | sudo tee "$release_dir/.git/HEAD" >/dev/null
 sudo env PATH=/usr/local/bin:/usr/bin:/bin npm --prefix "$release_dir" ci --omit=dev
+sudo node "$release_dir/scripts/package-staging-cli.js" "$release_dir/cli-artifacts/sdocs-dev.tgz"
 sudo chown -R root:root "$release_dir"
 sudo chmod -R go-w "$release_dir"
 sudo systemd-analyze verify "$unit_source"

@@ -6,6 +6,7 @@
 }
 .cloud-library-nav[hidden],
 .cloud-library-actions[hidden],
+.cloud-manage-members[hidden],
 .cloud-library-heading[hidden],
 .workspace-menu[hidden] { display: none; }
 .cloud-library-actions svg,
@@ -18,7 +19,7 @@
   stroke-linecap: round;
   stroke-linejoin: round;
 }
-.cloud-library-actions { display: flex; align-items: center; gap: 8px; }
+.cloud-library-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .workspace-switcher { position: relative; }
 .workspace-button {
   height: 32px;
@@ -42,17 +43,20 @@
   align-items: center;
   justify-content: center;
   border-radius: 5px;
-  background: #3158a6;
-  color: #fff;
-  font-size: 11px;
-  font-weight: 600;
+  flex: 0 0 auto;
+  color: var(--text);
 }
-.workspace-mark.personal { background: #687069; }
+.workspace-mark svg { width: 20px; height: 20px; }
+.cloud-create-library,
+.cloud-manage-members { padding: 3px 10px; text-decoration: none; }
+.personal-library-note { margin: 8px 0 16px; color: var(--text-2); font: 12px/1.6 var(--font-ui); }
+.personal-library-note[hidden] { display: none; }
+.personal-library-note a { color: var(--accent-text); }
 .workspace-menu {
   position: absolute;
   z-index: 20;
   top: calc(100% + 6px);
-  right: 0;
+  left: 0;
   width: 250px;
   padding: 7px;
   border: 1px solid var(--border);
@@ -303,3 +307,16 @@ body.cloud-library-loading #results { display: none; }
     text-align: center;
   }
 }
+
+/* Person pills share the document controls' base CSS. */
+.cloud-library-person { max-width: 100%; }
+.cloud-library-person > span { min-width: 0; overflow-wrap: anywhere; }
+.cloud-library-person-option[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent-light);
+  color: var(--accent-text);
+}
+.cloud-library .res-overflow { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 10px; }
+.cloud-library .res-overflow .btn { min-height: 32px; }
+.cloud-library .res-overflow .btn:disabled { opacity: .55; cursor: default; background: var(--bg-input); color: var(--text-2); }
+.cloud-library .syntax-hint[hidden] { display: none; }

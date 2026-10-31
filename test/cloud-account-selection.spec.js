@@ -16,6 +16,14 @@ async function installCloudLibraryApi(page, workspaces, canRead = true, document
         can_write: canRead } } });
     if (path === '/api/cloud/v1/documents') return route.fulfill({ json: { ok: true,
       documents, next_cursor: null } });
+    if (path === '/api/cloud/v1/search') {
+      const query = route.request().postDataJSON();
+      const matches = documents.filter(doc => (!query.shared_with_me || doc.shared_with_me) &&
+        (query.tags || []).every(tag => (doc.tags || []).includes(tag)));
+      return route.fulfill({ json: { ok: true, documents: matches, total_count: matches.length, next_cursor: null } });
+    }
+    if (path === '/api/cloud/v1/account/tags') return route.fulfill({ json: { ok: true, tags: [] } });
+    if (path === '/api/cloud/v1/account/members') return route.fulfill({ json: { ok: true, members: [] } });
     return route.fulfill({ status: 404, json: { ok: false, error: 'resource_unavailable' } });
   });
 }
@@ -25,6 +33,7 @@ async function openCloudLibrary(page, extraQuery) {
   await page.evaluate(() => { document.body.dataset.cloudAuthenticated = 'true'; });
   await page.addStyleTag({ url: '/public/library/cloud-library-prototype.css' });
   await page.addScriptTag({ url: '/public/sdocs-cloud-account-selection.js' });
+  await page.addScriptTag({ url: '/public/sdocs-library-header.js' });
   await page.addScriptTag({ url: '/public/library/cloud-library-prototype.js' });
 }
 
@@ -36,6 +45,7 @@ test('signed-out Cloud Library explains the feature without calling Cloud APIs',
   await page.goto('/public/library/library.html?scope=cloud');
   await page.addStyleTag({ url: '/public/library/cloud-library-prototype.css' });
   await page.addScriptTag({ url: '/public/sdocs-cloud-account-selection.js' });
+  await page.addScriptTag({ url: '/public/sdocs-library-header.js' });
   await page.addScriptTag({ url: '/public/library/cloud-library-prototype.js' });
 
   await expect(page.getByRole('heading', { name: 'Cloud Library' })).toBeVisible();
@@ -63,13 +73,17 @@ test('signed-in user without an account sees subscription onboarding without ano
   await expect(page.locator('.input-block')).toBeHidden();
 });
 
-test('one-account Library opens directly and hides the account switcher', async ({ page }) => {
+test('one-library page opens directly and keeps Personal and team creation visible', async ({ page }) => {
   await installCloudLibraryApi(page, [
     { id: 'personal-1', name: 'Personal', kind: 'personal', role: 'owner' },
   ]);
   await openCloudLibrary(page);
 
-  await expect(page.locator('#cloud-library-actions')).toBeHidden();
+  await expect(page.locator('#cloud-library-actions')).toBeVisible();
+  await expect(page.locator('#workspace-button')).toContainText('Personal');
+  await expect(page.locator('#workspace-button [data-library-kind="personal"]')).toBeVisible();
+  await expect(page.locator('#personal-library-note')).toContainText('for you only');
+  await expect(page.locator('.cloud-create-library')).toBeVisible();
   await expect.poll(() => page.evaluate(() => window.SDocsCloudLibrary &&
     window.SDocsCloudLibrary.workspaceId))
     .toBe('personal-1');
@@ -78,7 +92,7 @@ test('one-account Library opens directly and hides the account switcher', async 
   await expect(page.locator('[data-facet="project"]')).toBeHidden();
   await expect(page.locator('[data-facet="path"]')).toBeHidden();
   await expect(page.locator('#facet-panel')).toHaveAttribute('aria-hidden', 'true');
-  await expect(page.locator('#results')).toContainText('Open a document in SmallDocs and choose Add to Cloud.');
+  await expect(page.locator('#results')).toContainText('No Cloud documents yet.');
 });
 
 test('Cloud Library filters documents shared with the signed-in user', async ({ page }) => {
@@ -156,15 +170,21 @@ test('multi-account Library asks once, uses account names, and remembers the cho
   await openCloudLibrary(page);
 
   await expect(page.locator('#cloud-library-actions')).toBeVisible();
-  await expect(page.locator('#workspace-button')).toContainText('Choose account');
-  await expect(page.locator('.cloud-access-note')).toContainText('Choose an account');
+  await expect(page.locator('#workspace-button')).toContainText('Choose library');
+  await expect(page.locator('.cloud-access-note')).toContainText('Choose a library');
   await page.locator('#workspace-button').click();
   const menu = page.locator('#workspace-menu');
-  await expect(menu).toContainText('Josh Summers');
+  await expect(menu).toContainText('Personal');
   await expect(menu).toContainText('SmallDocs');
   await expect(menu).not.toContainText('Team workspace');
-  await expect(menu).not.toContainText('Personal');
+  await expect(menu.locator('[data-library-kind="personal"]')).toHaveCount(1);
+  await expect(menu.locator('[data-library-kind="team"]')).toHaveCount(1);
+  const colors = await menu.locator('.workspace-mark').evaluateAll(nodes => nodes.map(node => getComputedStyle(node).color));
+  expect(new Set(colors).size).toBe(2);
   await menu.getByRole('menuitem', { name: 'SmallDocs' }).click();
+  await expect(page.locator('#personal-library-note')).toBeHidden();
+  const selectedColor = await page.locator('#workspace-button .workspace-mark').evaluate(node => getComputedStyle(node).color);
+  expect(selectedColor).toBe(colors[1]);
   await expect.poll(() => page.evaluate(() => window.SDocsCloudLibrary.workspaceId)).toBe('team-1');
   await expect.poll(() => page.evaluate(() => localStorage.getItem('sdocs.cloud.account_id')))
     .toBe('team-1');

@@ -8,6 +8,7 @@ var APP_SHELL = [
   '/public/css/layout.css',
   '/public/css/rendered.css',
   '/public/css/panel.css',
+  '/public/css/info.css',
   '/public/css/write.css',
   '/public/css/comments.css',
   '/public/css/mobile.css',
@@ -26,6 +27,7 @@ var APP_SHELL = [
   '/public/sdocs-comments.js',
   '/public/sdocs-comments-ui.js',
   '/public/sdocs-info.js',
+  '/public/sdocs-info-panel.js',
   '/public/notifications.json',
   '/public/vendor/marked.min.js',
   '/public/fonts/inter-400.woff2',
@@ -116,6 +118,17 @@ self.addEventListener('fetch', function (e) {
   // keeps authentication checks authoritative after sign-in and sign-out.
   if (url.origin === self.location.origin && isNetworkOnlyRoute(url)) {
     e.respondWith(freshFetch(e.request));
+    return;
+  }
+
+  // Reader navigation reflects the current account. Retain the anonymous
+  // reader shell as an offline fallback for fragment documents.
+  if (url.origin === self.location.origin && (url.pathname === '/docs' || url.pathname.indexOf('/s/') === 0)) {
+    e.respondWith(freshFetch(e.request).catch(function () {
+      return caches.match(e.request).then(function (cached) {
+        return cached || caches.match('/docs');
+      });
+    }));
     return;
   }
 

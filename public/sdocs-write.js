@@ -727,12 +727,29 @@ document.getElementById('_sd_wb-code').addEventListener('click', function() {
   writeEl.focus();
   execInlineCode();
 });
-document.getElementById('_sd_wb-h1').addEventListener('click', function() { writeEl.focus(); wrapBlock('h1'); });
-document.getElementById('_sd_wb-h2').addEventListener('click', function() { writeEl.focus(); wrapBlock('h2'); });
-document.getElementById('_sd_wb-h3').addEventListener('click', function() { writeEl.focus(); wrapBlock('h3'); });
-document.getElementById('_sd_wb-h4').addEventListener('click', function() { writeEl.focus(); wrapBlock('h4'); });
-document.getElementById('_sd_wb-h5').addEventListener('click', function() { writeEl.focus(); wrapBlock('h5'); });
-document.getElementById('_sd_wb-p').addEventListener('click', function() { writeEl.focus(); wrapBlock('p'); });
+var blockStyle = document.getElementById('_sd_wb-block');
+var blockStyleRange = null;
+function rememberBlockSelection() {
+  var selection = window.getSelection();
+  if (selection.rangeCount && writeEl.contains(selection.anchorNode)) {
+    blockStyleRange = selection.getRangeAt(0).cloneRange();
+  }
+}
+if (blockStyle) {
+  blockStyle.addEventListener('pointerdown', rememberBlockSelection);
+  blockStyle.addEventListener('focus', rememberBlockSelection);
+  blockStyle.addEventListener('change', function () {
+    var tag = blockStyle.value;
+    writeEl.focus();
+    if (blockStyleRange && writeEl.contains(blockStyleRange.startContainer)) {
+      var selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(blockStyleRange);
+    }
+    wrapBlock(tag);
+    updateToolbarState();
+  });
+}
 document.getElementById('_sd_wb-ul').addEventListener('click', function() {
   writeEl.focus();
   document.execCommand('insertUnorderedList', false, null);
@@ -756,8 +773,8 @@ document.getElementById('_sd_wb-clear').addEventListener('click', function() {
 
 // ── Active toolbar state tracking ──────────────────────
 
-var BLOCK_BTN_MAP = { H1: '_sd_wb-h1', H2: '_sd_wb-h2', H3: '_sd_wb-h3', H4: '_sd_wb-h4', H5: '_sd_wb-h5', P: '_sd_wb-p', DIV: '_sd_wb-p' };
-var BLOCK_BTN_IDS = ['_sd_wb-h1', '_sd_wb-h2', '_sd_wb-h3', '_sd_wb-h4', '_sd_wb-h5', '_sd_wb-p', '_sd_wb-ul', '_sd_wb-ol', '_sd_wb-bq', '_sd_wb-codeblock'];
+var BLOCK_BTN_MAP = { H1: 'h1', H2: 'h2', H3: 'h3', H4: 'h4', H5: 'h5', P: 'p', DIV: 'p' };
+var BLOCK_BTN_IDS = ['_sd_wb-ul', '_sd_wb-ol', '_sd_wb-bq', '_sd_wb-codeblock'];
 
 function updateToolbarState() {
   var sel = window.getSelection();
@@ -783,6 +800,9 @@ function updateToolbarState() {
   for (var i = 0; i < BLOCK_BTN_IDS.length; i++) {
     document.getElementById(BLOCK_BTN_IDS[i]).classList.toggle('active', BLOCK_BTN_IDS[i] === activeBlock);
   }
+  if (blockStyle && document.activeElement !== blockStyle) {
+    blockStyle.value = /^(p|h[1-5])$/.test(activeBlock || '') ? activeBlock : 'p';
+  }
 
   document.getElementById('_sd_wb-bold').classList.toggle('active', document.queryCommandState('bold'));
   document.getElementById('_sd_wb-italic').classList.toggle('active', document.queryCommandState('italic'));
@@ -790,7 +810,10 @@ function updateToolbarState() {
 }
 
 document.addEventListener('selectionchange', function() {
-  if (S.currentMode === 'write') updateToolbarState();
+  if (S.currentMode === 'write') {
+    rememberBlockSelection();
+    updateToolbarState();
+  }
 });
 
 // ── Convert title→data-tip for CSS tooltips ──────────
@@ -798,6 +821,9 @@ document.addEventListener('selectionchange', function() {
 var tipBtns = document.querySelectorAll('.write-tb-btn[title]');
 for (var t = 0; t < tipBtns.length; t++) {
   tipBtns[t].setAttribute('data-tip', tipBtns[t].getAttribute('title'));
+  if (!tipBtns[t].hasAttribute('aria-label')) {
+    tipBtns[t].setAttribute('aria-label', tipBtns[t].getAttribute('title'));
+  }
   tipBtns[t].removeAttribute('title');
 }
 

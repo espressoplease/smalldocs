@@ -6,12 +6,19 @@
 const path = require('path');
 const os   = require('os');
 
-exports.DEFAULT_URL       = 'https://smalldocs.org';
+const channel = require('./install-channel');
+exports.INSTALLATION_CHANNEL = channel.readInstallationChannel();
+exports.DEFAULT_URL       = exports.INSTALLATION_CHANNEL
+  ? exports.INSTALLATION_CHANNEL.origin : channel.PRODUCTION_ORIGIN;
+exports.resolveBaseUrl = (candidate) => channel.resolveInstallationUrl(
+  candidate || process.env.SDOCS_URL, exports.INSTALLATION_CHANNEL, exports.DEFAULT_URL);
+exports.resolveCloudOrigin = (candidate) => channel.resolveInstallationUrl(
+  candidate || process.env.SDOCS_CLOUD_URL, exports.INSTALLATION_CHANNEL, exports.DEFAULT_URL);
 exports.VERSION           = require('../package.json').version;
 exports.UPDATE_CACHE      = path.join(os.homedir(), '.sdocs', 'update-check.json');
 exports.SETUP_CACHE       = path.join(os.homedir(), '.sdocs', 'setup.json');
 exports.ONE_DAY           = 86400000;
-exports.AGENT_CHANGES_URL = 'https://smalldocs.org/agent-changes';
+exports.AGENT_CHANGES_URL = exports.DEFAULT_URL + '/agent-changes';
 exports.INSTALL_SH_URL    = exports.DEFAULT_URL + '/install';
 exports.GITHUB_REPO_URL   = 'https://github.com/espressoplease/SDocs';
 

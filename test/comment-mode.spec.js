@@ -43,6 +43,8 @@ async function setBody(page, md) {
       window.SDocs.commentsUi.onHostRender();
     }
   }, md);
+  await page.locator('#_sd_comment-toolbar').evaluate(el =>
+    Promise.all(el.getAnimations({ subtree: true }).map(animation => animation.finished)));
 }
 
 // Apply a selection comment via the same API the composer uses.
@@ -274,7 +276,7 @@ test.describe('multiple comments', () => {
 
   test('50-comment stress test: all render, none orphaned', async ({ page }) => {
     // Build a doc with 50 distinct phrases, comment on each.
-    const phrases = Array.from({ length: 50 }, (_, i) => 'phrase' + i);
+    const phrases = Array.from({ length: 50 }, (_, i) => 'phrase' + String(i).padStart(2, '0'));
     const body = phrases.join(' ') + '.\n';
     await setBody(page, body);
     for (let i = 0; i < 50; i++) {
@@ -509,6 +511,7 @@ test.describe('comments on links', () => {
     // than hitting the network; we assert the URL is unchanged regardless.
     await page.route('https://example.com/**', (route) => route.abort());
     await setBody(page, LINK_DOC);
+    const originalUrl = page.url();
     await openComposerOnLinkSubset(page);
     const composerInAnchor = await page.evaluate(() => {
       var input = document.querySelector('.sdoc-card-input');
@@ -528,7 +531,7 @@ test.describe('comments on links', () => {
       quote: (window.SDocs.currentMeta.comments || [])[0] &&
              window.SDocs.currentMeta.comments[0].quote,
     }));
-    expect(state.url).toBe(BASE + '/docs');
+    expect(state.url).toBe(originalUrl);
     expect(state.count).toBe(1);
     expect(state.quote).toBe('full documentation');
   });
@@ -1195,9 +1198,7 @@ test.describe('edge-case content', () => {
     expect(state.insideTable).toBe(false);
   });
 
-  test('card for pre-block anchor renders INLINE in the pre (like blockquote)', async ({ page }) => {
-    // Cards flow naturally inline-block inside a <pre>. Only <table>
-    // needs special-cased outside-placement (column grid).
+  test('card for a code anchor renders below the pre without covering source', async ({ page }) => {
     await setBody(page, '```js\nconst x = 42;\n```\n');
     await saveInline(page, 'const x = 42;', {});
     const state = await page.evaluate(() => {
@@ -1205,10 +1206,12 @@ test.describe('edge-case content', () => {
       return {
         found: !!card,
         insidePre: !!(card && card.closest('pre')),
+        below: card && card.getBoundingClientRect().top >= document.querySelector('pre').getBoundingClientRect().bottom,
       };
     });
     expect(state.found).toBe(true);
-    expect(state.insidePre).toBe(true);
+    expect(state.insidePre).toBe(false);
+    expect(state.below).toBe(true);
   });
 
   // Regression: syntax highlighting is lazy-loaded (async) and rewrites a code
@@ -1224,9 +1227,9 @@ test.describe('edge-case content', () => {
       var c = document.querySelector('#_sd_rendered pre code');
       return !!(c && c.classList.contains('hljs'));
     }, null, { timeout: 10000 });
-    // anchor AND card both survive the re-highlight, both still inside the pre
+    // The highlight remains on code; the card stays below the pre.
     await expect(page.locator('#_sd_rendered pre span.sdoc-anchor[data-c="c1"]')).toHaveCount(1);
-    await expect(page.locator('#_sd_rendered pre .sdoc-card[data-c="c1"]')).toHaveCount(1);
+    await expect(page.locator('#_sd_rendered .sdoc-card[data-c="c1"]')).toHaveCount(1);
     // and the card's text was not absorbed into the highlighted code
     const cardBody = await page.locator('.sdoc-card[data-c="c1"]').innerText();
     expect(cardBody).toContain('note');

@@ -49,10 +49,9 @@
  *   `slide_text` is the visible text of the targeted shape (or the slide's
  *   leading text for a whole-slide note), kept as a human/AI-readable hint.
  *
- * Anchor resolution at render time uses a three-tier fallback:
- *   1. Block-scoped:  find block → locate (prefix+quote+suffix) in its text.
- *   2. Global:        search the whole rendered body for (prefix+quote+suffix).
- *   3. Quote-only:    last-resort global search for just the quote.
+ * Unchanged document fingerprints preserve precise source positions. After
+ * edits, a unique surviving block or quote context identifies the target.
+ * Missing and ambiguous targets retain their feedback as unplaced cards.
  *
  * UMD module so Node tests can call it directly.
  */
@@ -139,17 +138,37 @@ function toIndex(v) {
   return (isFinite(n) && n >= 0) ? Math.floor(n) : null;
 }
 
+// The same compact two-word fingerprint used by form revisions. It records
+// whether source positions still describe the unchanged document body.
+function documentFingerprint(body) {
+  var text = String(body || '').replace(/\r\n/g, '\n').replace(/\n*$/, ''), left = 0x811c9dc5, right = 0xcbf29ce4;
+  for (var i = 0; i < text.length; i++) {
+    var code = text.charCodeAt(i);
+    left = Math.imul(left ^ code, 0x01000193) >>> 0;
+    right = Math.imul(right ^ (code + 0x100), 0x01000193) >>> 0;
+  }
+  return text.length + ':' + ('00000000' + left.toString(16)).slice(-8) + ('00000000' + right.toString(16)).slice(-8);
+}
+
+function newCommentUid() {
+  var threads = typeof module !== 'undefined' && module.exports
+    ? require('../cli/shared/sdocs-comment-data') : window.SDocsCommentData;
+  return threads && threads.newId ? threads.newId('cm') : undefined;
+}
+
 function normalizeComment(c) {
-  if (!isValidId(c.id)) return null;
+  if (!c || !isValidId(c.id)) return null;
   var out = {
     id: c.id,
     kind: c.kind || (c.slide != null ? 'slide' : (c.quote ? 'inline' : 'block')),
   };
   // Anchor fields
   if (out.kind === 'inline') {
-    out.quote = c.quote || '';
-    if (c.prefix) out.prefix = c.prefix;
-    if (c.suffix) out.suffix = c.suffix;
+    out.quote = typeof c.quote === 'string' ? c.quote : '';
+    if (typeof c.prefix === 'string' && c.prefix) out.prefix = c.prefix;
+    if (typeof c.suffix === 'string' && c.suffix) out.suffix = c.suffix;
+    var offset = toIndex(c.quote_offset);
+    if (offset != null) out.quote_offset = offset;
   }
   if (out.kind === 'element') {
     if (!c.block || typeof c.element !== 'string' || !ELEMENT_PATH.test(c.element)) {
@@ -181,8 +200,10 @@ function normalizeComment(c) {
     // `shapes` (array) is the multi-element form; a single index collapses to
     // `shape` so single-element notes keep their existing on-disk shape. A
     // whole-slide note carries neither.
-    if (Array.isArray(c.shapes)) {
-      var arr = c.shapes.map(toIndex).filter(function (n) { return n != null; });
+    var shapeIndices = c.shapes;
+    if (typeof shapeIndices === 'string') { try { shapeIndices = JSON.parse(shapeIndices); } catch (_) {} }
+    if (Array.isArray(shapeIndices)) {
+      var arr = shapeIndices.map(toIndex).filter(function (n) { return n != null; });
       if (arr.length === 1) out.shape = arr[0];
       else if (arr.length > 1) out.shapes = arr;
     } else {
@@ -190,12 +211,18 @@ function normalizeComment(c) {
       if (shp != null) out.shape = shp;
     }
     if (c.slide_text) out.slide_text = c.slide_text;
+    if (typeof c.slide_source === 'string') out.slide_source = c.slide_source;
+    var shapeTexts = c.shape_texts;
+    if (typeof shapeTexts === 'string') { try { shapeTexts = JSON.parse(shapeTexts); } catch (_) {} }
+    if (Array.isArray(shapeTexts)) out.shape_texts = shapeTexts.filter(function (text) { return typeof text === 'string'; });
   }
-  if (c.block) out.block = c.block;
+  if (typeof c.block === 'string' && c.block) out.block = c.block;
   // block_text: first ~60 chars of the block at write time. Used as a
   // text-based fallback when the block index has drifted (e.g. a paragraph
   // was inserted upstream). Block-comment analogue of inline's quote.
-  if (c.block_text) out.block_text = c.block_text;
+  if (typeof c.block_text === 'string' && c.block_text) out.block_text = c.block_text;
+  if (typeof c.document_hash === 'string') out.document_hash = c.document_hash;
+  if (c.anchor_status === 'orphaned' || c.anchor_status === 'ambiguous') out.anchor_status = c.anchor_status;
   // Author metadata
   out.author = c.author || 'user';
   out.color = sanitizeColor(c.color);
@@ -206,6 +233,9 @@ function normalizeComment(c) {
   // because the YAML parser intentionally keeps "true"/"false" as
   // strings (its general contract); we apply boolean semantics here.
   if (c.resolved === true || c.resolved === 'true') out.resolved = true;
+  var threads = typeof module !== 'undefined' && module.exports
+    ? require('../cli/shared/sdocs-comment-data') : window.SDocsCommentData;
+  if (threads && threads.normalizeThreadFields) threads.normalizeThreadFields(c, out);
   return out;
 }
 
@@ -220,11 +250,15 @@ function addSelectionComment(meta, anchor, noteMeta) {
   var id = nextId(meta);
   var c = normalizeComment({
     id: id,
+    uid: newCommentUid(),
     kind: 'inline',
     quote: anchor.quote,
     prefix: anchor.prefix || '',
     suffix: anchor.suffix || '',
     block: anchor.block || '',
+    block_text: anchor.block_text || '',
+    document_hash: anchor.document_hash,
+    quote_offset: anchor.quote_offset,
     author: (noteMeta || {}).author,
     color: (noteMeta || {}).color,
     at: (noteMeta || {}).at,
@@ -243,9 +277,11 @@ function addBlockComment(meta, anchor, noteMeta) {
   var id = nextId(meta);
   var c = normalizeComment({
     id: id,
+    uid: newCommentUid(),
     kind: 'block',
     block: anchor.block,
     block_text: anchor.block_text || '',
+    document_hash: anchor.document_hash,
     author: (noteMeta || {}).author,
     color: (noteMeta || {}).color,
     at: (noteMeta || {}).at,
@@ -266,12 +302,14 @@ function addElementComment(meta, anchor, noteMeta) {
   var id = nextId(meta);
   var c = normalizeComment({
     id: id,
+    uid: newCommentUid(),
     kind: 'element',
     block: anchor.block,
     block_text: anchor.block_text || '',
     element: anchor.element,
     element_text: anchor.element_text || '',
     element_scope: anchor.element_scope,
+    document_hash: anchor.document_hash,
     author: (noteMeta || {}).author,
     color: (noteMeta || {}).color,
     at: (noteMeta || {}).at,
@@ -292,6 +330,7 @@ function addTableComment(meta, anchor, noteMeta) {
   var id = nextId(meta);
   var c = normalizeComment({
     id: id,
+    uid: newCommentUid(),
     kind: 'table',
     block: anchor.block,
     block_text: anchor.block_text || '',
@@ -301,6 +340,7 @@ function addTableComment(meta, anchor, noteMeta) {
     row_text: anchor.row_text || '',
     column_text: anchor.column_text || '',
     cell_text: anchor.cell_text || '',
+    document_hash: anchor.document_hash,
     author: (noteMeta || {}).author,
     color: (noteMeta || {}).color,
     at: (noteMeta || {}).at,
@@ -321,11 +361,15 @@ function addSlideComment(meta, anchor, noteMeta) {
   var id = nextId(meta);
   var c = normalizeComment({
     id: id,
+    uid: newCommentUid(),
     kind: 'slide',
     slide: anchor.slide,
     shape: anchor.shape,
     shapes: anchor.shapes,
     slide_text: anchor.slide_text || '',
+    slide_source: anchor.slide_source,
+    shape_texts: anchor.shape_texts,
+    document_hash: anchor.document_hash,
     author: (noteMeta || {}).author,
     color: (noteMeta || {}).color,
     at: (noteMeta || {}).at,
@@ -348,7 +392,9 @@ function updateComment(meta, id, patch) {
   var list = getComments(meta).map(function (c) {
     if (c.id !== id) return c;
     changed = true;
-    return normalizeComment(Object.assign({}, c, patch || {}));
+    return normalizeComment(Object.assign({}, c, patch || {}, {
+      uid: c.uid || newCommentUid(), updated_at: new Date().toISOString(),
+    }));
   });
   return changed ? setComments(meta, list) : meta;
 }
@@ -461,7 +507,8 @@ function serializeFootnotes(meta, body) {
       var idx = body.indexOf(needle);
       if (idx !== -1) pos = idx + (c.prefix || '').length;
     }
-    if (pos === -1) pos = body.indexOf(c.quote);
+    if (pos === -1 && !c.prefix && !c.suffix && !c.anchor_status) pos = body.indexOf(c.quote);
+    if (c.anchor_status === 'orphaned' || c.anchor_status === 'ambiguous') pos = -1;
     if (pos !== -1) {
       hits.push({ start: pos, end: pos + c.quote.length, id: c.id, quote: c.quote });
     }
@@ -534,9 +581,18 @@ function serializeFootnotes(meta, body) {
       }
       label += ' (' + slideTag + ')';
     }
+    (Array.isArray(c.replies) ? c.replies : []).forEach(function (reply) {
+      label += '; reply by ' + sanitizeText(reply.author || 'user') + ': ' + sanitizeText(reply.text || '');
+    });
     footnotes.push('[^' + c.id + ']: ' + label);
   });
-  return out.replace(/\n*$/, '') + '\n\n' + footnotes.join('\n') + '\n';
+  // Ordinary Markdown keeps the readable footnotes. This hidden sidecar carries
+  // the precise targets and thread history when the copy returns to SmallDocs.
+  var portable = encodeURIComponent(JSON.stringify(comments.map(function (comment, index) {
+    return Object.assign({}, comment, { _footnote_label: footnotes[index].slice(footnotes[index].indexOf(':') + 1).trim() });
+  })));
+  return out.replace(/\n*$/, '') + '\n\n' + footnotes.join('\n') +
+    '\n\n<!-- sdoc-comments:v1 ' + portable + ' -->\n';
 }
 
 // Index of the n-th (0-indexed) occurrence of `needle` in `hay`, or -1.
@@ -589,7 +645,37 @@ function parseFootnotes(body) {
   if (typeof body !== 'string' || body.indexOf('[^c') === -1) {
     return { comments: [], body: body };
   }
+  var originalBody = body;
+  var crlf = body.indexOf('\r\n') !== -1 && body.replace(/\r\n/g, '').indexOf('\n') === -1;
+  body = body.replace(/\r\n/g, '\n');
   var ID_RE = /^c\d+$/;
+  var portable = {};
+  // Literal examples inside fenced code are document content, including cN
+  // footnotes. Hide them from the prose parser and restore their bytes below.
+  var fences = [], fence = null, buffered = [], protectedLines = [];
+  body.split('\n').forEach(function (line) {
+    var match = /^[ ]{0,3}(`{3,}|~{3,})(.*)$/.exec(line);
+    if (!fence && match) { fence = match[1]; buffered = [line]; return; }
+    if (fence) {
+      buffered.push(line);
+      if (match && match[1][0] === fence[0] && match[1].length >= fence.length && /^\s*$/.test(match[2])) {
+        protectedLines.push('\uE000SDOCFENCE' + fences.length + '\uE001');
+        fences.push(buffered.join('\n')); fence = null; buffered = [];
+      }
+      return;
+    }
+    protectedLines.push(line);
+  });
+  if (buffered.length) { protectedLines.push('\uE000SDOCFENCE' + fences.length + '\uE001'); fences.push(buffered.join('\n')); }
+  body = protectedLines.join('\n');
+  body = body.replace(/\n?<!-- sdoc-comments:v1 ([^\s]+) -->\n?/g, function (source, encoded) {
+    try {
+      var list = JSON.parse(decodeURIComponent(encoded));
+      if (!Array.isArray(list)) return source;
+      list.forEach(function (c) { if (c && isValidId(c.id)) portable[c.id] = c; });
+      return '';
+    } catch (_) { return source; }
+  });
   // Pull out definitions first. Anchored at line start; tolerate trailing
   // whitespace/newlines. Also tolerate `[^cN]:`-only lines (no text).
   var defs = {};
@@ -625,10 +711,11 @@ function parseFootnotes(body) {
     }
     // Trailing "(block tag:n)" hint, if present, gets stripped from text and
     // surfaced separately.
-    var tag = (out.text || '').match(/\s*\(block\s+(\w+:\d+)\)\s*$/);
+    var tag = (out.text || '').match(/\s*\(block\s+(\w+:\d+)(?:\s+"(.*)\.\.\.")?\)\s*$/);
     if (tag) {
       out.block = tag[1];
-      out.text = out.text.replace(/\s*\(block\s+\w+:\d+\)\s*$/, '');
+      if (tag[2]) out.block_text = tag[2];
+      out.text = out.text.slice(0, tag.index);
     }
     // Trailing nested-element hint emitted for list-item comments.
     var eTag = (out.text || '').match(
@@ -682,12 +769,16 @@ function parseFootnotes(body) {
   var seen = {};
 
   // Inline: [quote][^cN]
-  body = body.replace(/\[([^\]\n]+?)\]\[\^(c\d+)\]/g, function (_m, quote, id) {
+  body = body.replace(/\[([^\]\n]+?)\]\[\^(c\d+)\]/g, function (_m, quote, id, offset, source) {
     if (!ID_RE.test(id)) return _m;
     if (seen[id]) return _m;
     seen[id] = true;
     var d = decodeDef(defs[id]);
     var c = { id: id, kind: 'inline', quote: quote, text: d.text };
+    var before = source.slice(0, offset).replace(/\[([^\]\n]+?)\]\[\^c\d+\]/g, '$1');
+    var after = source.slice(offset + _m.length).replace(/\[([^\]\n]+?)\]\[\^c\d+\]/g, '$1');
+    c.prefix = before.slice(Math.max(before.lastIndexOf('\n\n') + 2, before.length - 60));
+    c.suffix = after.slice(0, 60).split('\n\n')[0];
     if (d.author) c.author = d.author;
     if (d.resolved) c.resolved = true;
     comments.push(c);
@@ -753,19 +844,37 @@ function parseFootnotes(body) {
     } else {
       c3 = { id: id, kind: 'block', text: d3.text };
       if (d3.block) c3.block = d3.block;
+      if (d3.block_text) c3.block_text = d3.block_text;
     }
     if (d3.author) c3.author = d3.author;
     if (d3.resolved) c3.resolved = true;
     comments.push(c3);
   });
 
-  body = body.replace(/\n{3,}$/, '\n').replace(/[ \t]+$/gm, '');
+  comments = comments.map(function (c) {
+    if (!portable[c.id]) return c;
+    var original = Object.assign({}, portable[c.id]);
+    var label = original._footnote_label; delete original._footnote_label;
+    var merged = Object.assign({}, c, original);
+    // The structured sidecar preserves targets and history. Visible edits to a
+    // footnote definition still win, so an agent can revise portable feedback.
+    if (typeof label === 'string' && defs[c.id] !== label) {
+      merged.text = c.text; merged.author = c.author || original.author;
+      if (c.resolved) merged.resolved = true;
+      else { delete merged.resolved; delete merged.resolved_at; }
+    }
+    return merged;
+  });
+  body = body.replace(/\uE000SDOCFENCE(\d+)\uE001/g, function (_m, index) { return fences[Number(index)]; });
+  body = body.replace(/\n{3,}$/, '\n');
   // Return in chronological (id) order rather than parse-pass order.
   comments.sort(function (a, b) {
     var na = parseInt((a.id || '').slice(1), 10);
     var nb = parseInt((b.id || '').slice(1), 10);
     return na - nb;
   });
+  if (!comments.length) return { comments: [], body: originalBody };
+  if (crlf) body = body.replace(/\n/g, '\r\n');
   return { comments: comments, body: body };
 }
 
@@ -777,6 +886,7 @@ exports.getComments         = getComments;
 exports.setComments         = setComments;
 exports.nextId              = nextId;
 exports.normalizeComment    = normalizeComment;
+exports.documentFingerprint = documentFingerprint;
 exports.addSelectionComment = addSelectionComment;
 exports.addBlockComment     = addBlockComment;
 exports.addElementComment   = addElementComment;

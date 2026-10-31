@@ -174,7 +174,7 @@ function withComments(markdown, comments) {
 }
 
 function runCli(args, env) {
-  const cli = path.join(__dirname, '..', 'cli', 'bin', 'sdocs-dev.js');
+  const cli = process.env.CLOUD_E2E_CLI_PATH || path.join(__dirname, '..', 'cli', 'bin', 'sdocs-dev.js');
   const child = spawn(process.execPath, [cli].concat(args), {
     cwd: path.join(__dirname, '..'), env, stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -596,7 +596,7 @@ test('reusable staging identities enforce access and merge two-account edits', a
     expect(afterDeniedComment.body.document.markdown).not.toContain('This must not be saved');
     document = afterDeniedComment.body.document;
 
-    const ownerPage = await owner.newPage();
+    let ownerPage = await owner.newPage();
     await ownerPage.setViewportSize({ width: 390, height: 844 });
     await ownerPage.goto('/library?scope=cloud&account_id=' + encodeURIComponent(accountId));
     await expect(ownerPage.getByRole('link', { name: 'Local' })).toBeHidden();
@@ -605,7 +605,9 @@ test('reusable staging identities enforce access and merge two-account edits', a
     const libraryRow = ownerPage.locator('.res[data-id="' + document.id + '"]');
     await expect(libraryRow.locator('.res-title')).toHaveText(document.title);
     await expect(libraryRow.locator('.tag')).toHaveText(['#permission-matrix', '#shared-test']);
-    await libraryRow.click();
+    const openedDocument = owner.waitForEvent('page');
+    await libraryRow.locator('.res-title').click();
+    ownerPage = await openedDocument;
     await expect.poll(() => new URL(ownerPage.url()).searchParams.get('cloud-document'))
       .toBe(document.id);
     await expect(ownerPage.locator('#_sd_rendered')).toContainText('Selected edit from a pruned target.');
@@ -712,6 +714,99 @@ test('live Team billing opens the reviewed Stripe portal and returns to the acco
     }
   });
 
+test('rich search keeps pages, evidence and facets within live document permissions', async ({ browser }, testInfo) => {
+  test.setTimeout(60000);
+  const baseURL = String(testInfo.project.use.baseURL).replace(/\/$/, '');
+  const owner = await ownerContext(browser, baseURL);
+  const selected = await login(browser, baseURL, TEST_IDENTITIES.selected, configuredSecret());
+  const outsider = await login(browser, baseURL, TEST_IDENTITIES.outsider, configuredSecret());
+  const documents = [];
+  const marker = 'searchcanary' + Date.now() + Math.random().toString(16).slice(2);
+  try {
+    const libraries = await json(owner, baseURL, 'GET', '/api/cloud/v1/workspaces');
+    const accountId = libraries.body.workspaces.find(item => item.name === 'SmallDocs Acceptance').id;
+    const members = await json(owner, baseURL, 'GET', '/api/cloud/v1/account/members?account_id=' + encodeURIComponent(accountId));
+    const selectedId = members.body.members.find(item => item.email === TEST_IDENTITIES.selected).user_id;
+    const ownerId = members.body.members.find(item => item.email === TEST_IDENTITIES.owner).user_id;
+    for (let index = 0; index < 3; index++) {
+      const created = await json(owner, baseURL, 'POST', '/api/cloud/v1/account/documents', {
+        account_id: accountId, filename: marker + '-' + index + '.md', idempotency_key: marker + '-' + index,
+        markdown: '---\ntags:\n  - ' + marker + '\n  - ' + (index === 2 ? 'hiddenfacet' + marker : 'visiblefacet' + marker) + '\n---\n# Search record ' + index + '\n\n' + marker + ' durable queues.\n\nPayments use retries.\n' + (index === 2 ? '\nprivateword' + marker : ''),
+      });
+      expect(created.response.status()).toBe(201);
+      documents.push(created.body.document);
+      if (index < 2) {
+        const shared = await json(owner, baseURL, 'PATCH', '/api/cloud/v1/documents/' + created.body.document.id + '/permission', { mode: 'custom', member_user_ids: [selectedId] });
+        expect(shared.response.status()).toBe(200);
+      }
+    }
+    const body = { workspace_id: accountId, mode: 'query', query: marker + ' AND "durable queues"', tags: [marker], author_user_ids: [ownerId], facets: true, limit: 1 };
+    const first = await json(selected, baseURL, 'POST', '/api/cloud/v1/search', body);
+    expect(first.response.status()).toBe(200);
+    expect(first.body.total_count).toBe(2);
+    expect(first.body.documents).toHaveLength(1);
+    expect(first.body.next_cursor).toBeTruthy();
+    expect(first.body.documents[0].url).toBe(baseURL + '/docs?cloud-document=' + first.body.documents[0].id);
+    expect(JSON.stringify(first.body)).not.toContain('hiddenfacet' + marker);
+    expect(JSON.stringify(first.body)).not.toContain('privateword' + marker);
+    const libraryPage = await selected.newPage();
+    await libraryPage.goto(baseURL + '/library?scope=cloud&workspace=' + encodeURIComponent(accountId));
+    await libraryPage.locator('#q').fill(marker);
+    await expect(libraryPage.locator('#count')).toHaveText('2 results');
+    await expect(libraryPage.locator('.res')).toHaveCount(2);
+    await libraryPage.locator('[data-facet="author"]').click();
+    await libraryPage.locator('[data-person-choice="' + ownerId + '"]').click();
+    await expect(libraryPage.locator('#count')).toHaveText('2 results');
+    await expect(libraryPage.locator('.res')).toHaveCount(2);
+    await expect(libraryPage.locator('.res').first().locator('[data-cloud-person="' + ownerId + '"]')).toBeVisible();
+    await expect(libraryPage.locator('#results')).not.toContainText('privateword' + marker);
+    const starredId = documents[0].id;
+    const starResponse = libraryPage.waitForResponse(response => response.request().method() === 'PUT'
+      && response.url().endsWith('/documents/' + starredId + '/star'));
+    await libraryPage.locator('.res[data-id="' + starredId + '"] .res-star').click();
+    expect((await starResponse).status()).toBe(200);
+    await libraryPage.reload();
+    await libraryPage.locator('#q').fill(marker);
+    await expect(libraryPage.locator('.res[data-id="' + starredId + '"] .res-star')).toHaveAttribute('aria-pressed', 'true');
+    await libraryPage.locator('#star-toggle').click();
+    await expect(libraryPage.locator('#count')).toHaveText('1 result');
+    const ownerStars = await json(owner, baseURL, 'POST', '/api/cloud/v1/search', {
+      workspace_id: accountId, query: marker, starred_only: true });
+    expect(ownerStars.body.total_count).toBe(0);
+    const deniedStar = await json(outsider, baseURL, 'PUT', '/api/cloud/v1/documents/' + starredId + '/star', { starred: true });
+    expect(deniedStar.response.status()).toBe(404);
+    expect((await json(selected, baseURL, 'PUT', '/api/cloud/v1/documents/' + starredId + '/star', { starred: false })).response.status()).toBe(200);
+    await libraryPage.close();
+
+    const tampered = await json(selected, baseURL, 'POST', '/api/cloud/v1/search', { ...body, query: marker, cursor: first.body.next_cursor });
+    expect(tampered.response.status()).toBe(400);
+    const unreturned = documents.slice(0, 2).find(item => item.id !== first.body.documents[0].id);
+    expect((await json(owner, baseURL, 'PATCH', '/api/cloud/v1/documents/' + unreturned.id + '/permission', { mode: 'custom', member_user_ids: [] })).response.status()).toBe(200);
+    const next = await json(selected, baseURL, 'POST', '/api/cloud/v1/search', { ...body, cursor: first.body.next_cursor });
+    expect(next.response.status()).toBe(200);
+    expect(next.body.total_count).toBe(1);
+    expect(next.body.documents.map(item => item.id)).not.toContain(unreturned.id);
+    const privateQuery = { workspace_id: accountId, mode: 'query', query: 'privateword' + marker, facets: true };
+    expect((await json(selected, baseURL, 'POST', '/api/cloud/v1/search', privateQuery)).body.total_count).toBe(0);
+    expect((await json(outsider, baseURL, 'POST', '/api/cloud/v1/search', privateQuery)).response.status()).toBe(404);
+    expect((await json(owner, baseURL, 'PATCH', '/api/cloud/v1/documents/' + documents[2].id + '/permission', { mode: 'custom', member_user_ids: [selectedId] })).response.status()).toBe(200);
+    const granted = await json(selected, baseURL, 'POST', '/api/cloud/v1/search', privateQuery);
+    expect(granted.body.documents.map(item => item.id)).toEqual([documents[2].id]);
+    expect(granted.body.facets.tags.map(item => item.tag)).toContain('hiddenfacet' + marker);
+    expect((await json(owner, baseURL, 'PATCH', '/api/cloud/v1/documents/' + documents[2].id + '/permission', { mode: 'custom', member_user_ids: [] })).response.status()).toBe(200);
+    expect((await json(selected, baseURL, 'POST', '/api/cloud/v1/search', privateQuery)).body.total_count).toBe(0);
+    const wordForms = await json(selected, baseURL, 'POST', '/api/cloud/v1/search', { workspace_id: accountId, document_ids: documents.map(item => item.id), mode: 'query', query: 'payment retry', word_forms: true });
+    expect(wordForms.body.total_count).toBe(1);
+  } finally {
+    try {
+      for (const document of documents) {
+        const removed = await json(owner, baseURL, 'DELETE', '/api/cloud/v1/documents/' + document.id, { expected_head_revision_id: document.current_revision_id });
+        expect(removed.response.status()).toBe(200);
+      }
+    } finally { await Promise.all([owner.close(), selected.close(), outsider.close()]); }
+  }
+});
+
 test('a fresh CLI authorizes, manages a Cloud document, persists, and revokes its credential',
   async ({ browser }, testInfo) => {
     test.setTimeout(120000);
@@ -776,6 +871,16 @@ test('a fresh CLI authorizes, manages a Cloud document, persists, and revokes it
       const found = await cliJson(['cloud', 'search', runId, '--account', accountId], cliEnv);
       expect(found.documents).toHaveLength(1);
       documentId = found.documents[0].id;
+      expect((await cliJson(['cloud', 'star', documentId], cliEnv)).starred).toBe(true);
+      const cliStars = await cliJson(['cloud', 'search', runId, '--literal', '--starred', '--account', accountId], cliEnv);
+      expect(cliStars.documents).toHaveLength(1);
+      expect(cliStars.documents[0]).toMatchObject({ id: documentId, starred: true });
+      const browserStars = await json(owner, baseURL, 'POST', '/api/cloud/v1/search', {
+        workspace_id: accountId, query: runId, starred_only: true });
+      expect(browserStars.body.documents.map(item => item.id)).toEqual([documentId]);
+      expect((await cliJson(['cloud', 'unstar', documentId], cliEnv)).starred).toBe(false);
+      expect((await cliJson(['cloud', 'ls', '--starred', '--account', accountId, '--document', documentId], cliEnv)).documents).toEqual([]);
+
 
       fs.appendFileSync(source, '\nUpdated by an ordinary Cloud-first sdoc open.\n');
       const secondOpen = await runCli([source, '--no-open'], cliEnv).completed;
@@ -814,19 +919,39 @@ test('a fresh CLI authorizes, manages a Cloud document, persists, and revokes it
       expect(listed.documents.map(item => item.id)).toContain(documentId);
       const searched = await cliJson(['cloud', 'search', runId], cliEnv);
       expect(searched.documents.map(item => item.id)).toContain(documentId);
+      const richSearch = await cliJson(['cloud', 'search', runId, '--tag', 'cli-acceptance',
+        '--author', 'me', '--facets', '--limit', '1', '--all', '--compact', '--json'], cliEnv);
+      expect(richSearch).toMatchObject({ total_count: 1, returned_count: 1, complete: true, has_more: false });
+      expect(richSearch.documents[0].url).toBe(baseURL + '/docs?cloud-document=' + documentId);
+      const read = await cliJson(['cloud', 'read', documentId], cliEnv);
+      expect(read.markdown).toContain('Created from a fresh machine.');
+      expect(read.url).toBe(richSearch.documents[0].url);
 
       const pulledPath = path.join(cliHome, 'pulled-' + runId + '.md');
       const pulled = await cliJson(['cloud', 'pull', documentId, '--output', pulledPath], cliEnv);
       expect(pulled).toMatchObject({ document_id: documentId, binding_created: true });
       expect(fs.readFileSync(pulledPath, 'utf8')).toContain('Created from a fresh machine.');
       fs.appendFileSync(pulledPath, '\nUpdated through the CLI.\n');
+      const preview = await cliJson(['cloud', 'push', pulledPath, '--dry-run'], cliEnv);
+      expect(preview).toMatchObject({ dry_run: true, would_change: true,
+        current_revision_id: pulled.revision_id });
+      expect(preview.diff.changed).toBe(true);
+      expect((await json(owner, baseURL, 'GET', '/api/cloud/v1/documents/' + documentId))
+        .body.document.current_revision_id).toBe(pulled.revision_id);
       const pushed = await cliJson(['cloud', 'push', pulledPath], cliEnv);
       expect(pushed).toMatchObject({ document_id: documentId, no_change: false });
       expect((await json(owner, baseURL, 'GET',
         '/api/cloud/v1/documents/' + documentId)).body.document.markdown)
         .toContain('Updated through the CLI.');
-      const history = await cliJson(['cloud', 'history', documentId], cliEnv);
+      expect(pushed.filename).toBe(read.filename);
+      const committed = await cliJson(['cloud', 'read', documentId, '--revision', pushed.revision_id], cliEnv);
+      expect(committed.sha256).toBe(pushed.saved_sha256);
+      const compared = await cliJson(['cloud', 'diff', documentId, '--from', pulled.revision_id,
+        '--to', pushed.revision_id], cliEnv);
+      expect(compared.diff.changed).toBe(true);
+      const history = await cliJson(['cloud', 'history', documentId, '--diffs'], cliEnv);
       expect(history.revisions.length).toBeGreaterThanOrEqual(2);
+      expect(history.revisions.find(revision => revision.id === pushed.revision_id).diff.changed).toBe(true);
 
       const deleted = await cliJson(['cloud', 'delete', documentId,
         '--base-revision', pushed.revision_id], cliEnv);
@@ -862,3 +987,44 @@ test('a fresh CLI authorizes, manages a Cloud document, persists, and revokes it
       fs.rmSync(cliHome, { recursive: true, force: true });
     }
   });
+
+
+test('live cleanup retains every recent revision beyond the old count cap', async ({ browser }, testInfo) => {
+  const baseURL = String(testInfo.project.use.baseURL).replace(/\/$/, '');
+  const owner = await ownerContext(browser, baseURL);
+  const marker = 'historycanary' + Date.now();
+  let document;
+  try {
+    const libraries = await json(owner, baseURL, 'GET', '/api/cloud/v1/workspaces');
+    const accountId = libraries.body.workspaces.find(item => item.name === 'SmallDocs Acceptance').id;
+    const created = await json(owner, baseURL, 'POST', '/api/cloud/v1/account/documents', {
+      account_id: accountId, filename: marker + '.md', markdown: '# History canary\n\nRevision 1.',
+      idempotency_key: marker + '-1',
+    });
+    expect(created.response.status()).toBe(201);
+    document = created.body.document;
+    const firstRevision = document.current_revision_id;
+    for (let revision = 2; revision <= 8; revision++) {
+      const saved = await json(owner, baseURL, 'POST', '/api/cloud/v1/documents/' + document.id + '/revisions', {
+        expected_head_revision_id: document.current_revision_id,
+        markdown: '# History canary\n\nRevision ' + revision + '.',
+        idempotency_key: marker + '-' + revision,
+      });
+      expect(saved.response.status()).toBe(201);
+      document = saved.body.document;
+    }
+    // Let the staging worker process its cleanup jobs before checking history.
+    await new Promise(resolve => setTimeout(resolve, 2500));
+    const history = await json(owner, baseURL, 'GET', '/api/cloud/v1/documents/' + document.id + '/revisions');
+    expect(history.response.status()).toBe(200);
+    expect(history.body.revisions.map(revision => revision.revision_number)).toEqual([8, 7, 6, 5, 4, 3, 2, 1]);
+    const original = await json(owner, baseURL, 'GET', '/api/cloud/v1/documents/' + document.id + '/revisions/' + firstRevision);
+    expect(original.response.status()).toBe(200);
+    expect(original.body.document.markdown).toContain('Revision 1.');
+  } finally {
+    try {
+      if (document) expect((await json(owner, baseURL, 'DELETE', '/api/cloud/v1/documents/' + document.id,
+        { expected_head_revision_id: document.current_revision_id })).response.status()).toBe(200);
+    } finally { await owner.close(); }
+  }
+});

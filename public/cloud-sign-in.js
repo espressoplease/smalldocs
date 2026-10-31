@@ -56,6 +56,16 @@
     link.href += '?return_to=' + encodeURIComponent(returnPath);
   });
 
+  var initialEmail = params.get('email');
+  if (initialEmail) emailInput.value = initialEmail;
+  if (initialEmail && params.get('challenge')) {
+    document.getElementById('sent-email').textContent = initialEmail;
+    document.getElementById('email-challenge').value = params.get('challenge');
+    choiceView.hidden = true;
+    codeView.hidden = false;
+    codeInput.focus();
+  }
+
   emailForm.addEventListener('submit', async function (event) {
     event.preventDefault();
     if (previewMode) {

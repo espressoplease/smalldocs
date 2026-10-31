@@ -4,12 +4,28 @@ const { mergeTargetRevision } = require('../lib/cloud-merge.js');
 
 test.use({ serviceWorkers: 'block' });
 
+// These module fixtures install their own Cloud source after resetting Sources.
+// Strip the server's automatic copy so two independent save/poll loops cannot run.
+const fixturePages = new WeakSet();
+async function openFixtureDocument(page) {
+  if (!fixturePages.has(page)) {
+    fixturePages.add(page);
+    await page.route('**/docs', async route => {
+      const response = await route.fetch();
+      const body = (await response.text()).replace(/<script[^>]+src="[^"]*sdocs-cloud-prototype\.js[^"]*"[^>]*><\/script>/g, '');
+      await route.fulfill({ response, body });
+    });
+  }
+  await page.goto('/docs');
+}
+
+
 test('signed-out Cloud document links preserve the document while redirecting to sign in', async ({ page }) => {
   await page.route('**/api/cloud/v1/documents/restricted-document', route => route.fulfill({
     status: 401, json: { ok: false, error: 'login_required' },
   }));
 
-  await page.goto('/docs');
+  await openFixtureDocument(page);
   await page.evaluate(() => {
     window.SDocs.Sources._reset();
     history.replaceState(null, '', '/docs?cloud-document=restricted-document');
@@ -26,7 +42,7 @@ test('signed-in users without access stay on a generic unavailable document page
     status: 404, json: { ok: false, error: 'resource_unavailable' },
   }));
 
-  await page.goto('/docs');
+  await openFixtureDocument(page);
   await page.evaluate(() => {
     window.SDocs.Sources._reset();
     history.replaceState(null, '', '/docs?cloud-document=restricted-document');
@@ -44,7 +60,7 @@ test('signed-out Cloud helper follows the inline Short URL row layout', async ({
     status: 401, json: { ok: false, error: 'login_required' },
   }));
 
-  await page.goto('/docs');
+  await openFixtureDocument(page);
   await page.addStyleTag({ url: '/public/css/cloud-ui-lab.css' });
   await page.evaluate(() => {
     window.SDocs._isDefaultState = false;
@@ -156,7 +172,7 @@ test('real Cloud document controls save, share, tag, and remove through account 
     return route.fulfill({ status: 404, json: { ok: false, error: 'resource_unavailable' } });
   });
 
-  await page.goto('/docs');
+  await openFixtureDocument(page);
   await page.addStyleTag({ url: '/public/css/cloud-ui-lab.css' });
   await page.evaluate(() => {
     window.SDocs._isDefaultState = false;
@@ -173,7 +189,7 @@ test('real Cloud document controls save, share, tag, and remove through account 
   await expect.poll(() => calls.some(call => call.path === '/api/cloud/v1/account')).toBe(true);
   await expect(page.locator('.fic-row-cloud')).not.toContainText('paid feature');
   await page.locator('.sdoc-cloud-lab-add-link').click();
-  await expect(page.locator('.sdoc-cloud-lab-access')).toContainText('You');
+  await expect(page.locator('[data-cloud-open="access"]')).toContainText('You');
   await expect(page.locator('.fic-row-tags')).toHaveCount(0);
   await expect(page.locator('.fic-row-cloud .sdoc-cloud-lab-tag')).toHaveCount(4);
   await expect(page.locator('.fic-row-cloud .sdoc-cloud-lab-tag:visible')).toHaveCount(4);
@@ -228,12 +244,12 @@ test('real Cloud document controls save, share, tag, and remove through account 
     call.path === '/api/cloud/v1/documents/doc-1/revisions')[1]
     .body.target_markdown).toBe(savedComment);
 
-  await page.locator('.sdoc-cloud-lab-access').click();
+  await page.locator('[data-cloud-open="access"]').click();
   await expect(page.getByRole('textbox', { name: 'Company email domain' })).toHaveCount(0);
   await expect(page.getByRole('textbox', { name: 'Email address' })).toHaveCount(0);
 
   await page.getByRole('button', { name: 'Everyone' }).click();
-  await expect(page.locator('.sdoc-cloud-lab-access')).toContainText('Everyone');
+  await expect(page.locator('[data-cloud-open="access"]')).toContainText('Everyone');
 
   await page.getByRole('button', { name: 'Edit Cloud tags' }).click();
   const tagSuggestions = page.locator('[data-cloud-add-tag]');
@@ -319,7 +335,7 @@ test('Add to Cloud asks before uploading when several accounts have no saved cho
     return route.fulfill({ status: 404, json: { ok: false, error: 'resource_unavailable' } });
   });
 
-  await page.goto('/docs');
+  await openFixtureDocument(page);
   await page.addStyleTag({ url: '/public/css/cloud-ui-lab.css' });
   await page.evaluate(() => { window.SDocs._isDefaultState = false; });
   await page.addScriptTag({ url: '/public/sdocs-cloud-account-selection.js' });
@@ -332,7 +348,7 @@ test('Add to Cloud asks before uploading when several accounts have no saved cho
   expect(calls.some(call => call.path === '/api/cloud/v1/account/documents')).toBe(false);
 
   await page.getByRole('button', { name: 'SmallDocs' }).click();
-  await expect(page.locator('.sdoc-cloud-lab-access')).toBeVisible();
+  await expect(page.locator('[data-cloud-open="access"]')).toBeVisible();
   expect(calls.some(call => call.path === '/api/cloud/v1/account'
     && call.query === '?account_id=team-1')).toBe(true);
   expect(calls.some(call => call.path === '/api/cloud/v1/account/documents')).toBe(true);
@@ -369,7 +385,7 @@ test('Add to Cloud releases a live bridge before later Cloud autosaves', async (
     return route.fulfill({ status: 404, json: { ok: false, error: 'resource_unavailable' } });
   });
 
-  await page.goto('/docs');
+  await openFixtureDocument(page);
   await page.addStyleTag({ url: '/public/css/cloud-ui-lab.css' });
   await page.evaluate(() => {
     window.SDocs._isDefaultState = false;
@@ -472,7 +488,7 @@ test('Cloud checks apply remote updates when clean and merge them with local edi
     return route.fulfill({ status: 404, json: { ok: false, error: 'resource_unavailable' } });
   });
 
-  await page.goto('/docs');
+  await openFixtureDocument(page);
   await page.addStyleTag({ url: '/public/css/cloud-ui-lab.css' });
   await page.addScriptTag({ url: '/public/sdocs-cloud-account-selection.js' });
   await page.addScriptTag({ url: '/public/sdocs-cloud-prototype.js' });
@@ -529,7 +545,7 @@ test('Cloud comments sync across people, reopen cleanly, and stop after access r
     ];
 
     async function createSession(user) {
-      const context = await browser.newContext({ baseURL: 'http://localhost:3000',
+      const context = await browser.newContext({ baseURL: test.info().project.use.baseURL || 'http://localhost:3000',
         serviceWorkers: 'block' });
       await context.route('**/api/cloud/v1/**', async route => {
         const request = route.request();
@@ -595,7 +611,7 @@ test('Cloud comments sync across people, reopen cleanly, and stop after access r
     }
 
     async function openDocument(page, accessible = true) {
-      await page.goto('/docs');
+      await openFixtureDocument(page);
       await page.evaluate(() => {
         window.SDocs.Sources._reset();
         history.replaceState(null, '', '/docs?cloud-document=doc-comments');
@@ -718,7 +734,7 @@ test('an expired target preserves the local edit and offers copy recovery', asyn
     return route.fulfill({ status: 404, json: { ok: false, error: 'resource_unavailable' } });
   });
 
-  await page.goto('/docs');
+  await openFixtureDocument(page);
   await page.addStyleTag({ url: '/public/css/cloud-ui-lab.css' });
   await page.addScriptTag({ url: '/public/sdocs-cloud-account-selection.js' });
   await page.addScriptTag({ url: '/public/sdocs-cloud-prototype.js' });
@@ -756,7 +772,7 @@ test('local comments do not create Cloud documents or revisions', async ({ page 
     return route.fulfill({ status: 404, json: { ok: false, error: 'resource_unavailable' } });
   });
 
-  await page.goto('/docs');
+  await openFixtureDocument(page);
   await page.addStyleTag({ url: '/public/css/cloud-ui-lab.css' });
   await page.addScriptTag({ url: '/public/sdocs-cloud-account-selection.js' });
   await page.addScriptTag({ url: '/public/sdocs-cloud-prototype.js' });
