@@ -1018,7 +1018,18 @@ function cloudAuthSession(req) {
   if (!cloudAuth) return { ok: false, reason: 'not_configured' };
   const secure = new URL(CLOUD_AUTH_PUBLIC_ORIGIN).protocol === 'https:';
   const token = cloudAuthHttp.sessionTokenFromCookies(req.headers.cookie, secure);
-  return cloudAuth.authenticateSession(token);
+  const response = req.cloudAuthResponse;
+  const renew = Boolean(response && !response.headersSent);
+  const authenticated = cloudAuth.authenticateSession(token, { renew });
+  if (authenticated.ok && renew) {
+    const cookie = cloudAuthHttp.sessionCookie(token, { secure,
+      maxAge: Math.max(1, Math.floor((authenticated.session.expiresAtMs - Date.now()) / 1000)) });
+    const existing = response.getHeader('Set-Cookie');
+    const cookies = existing == null ? [] : Array.isArray(existing) ? existing : [existing];
+    response.setHeader('Set-Cookie', cookies.filter(value =>
+      !/^(?:__Host-)?sdocs_cloud=/.test(String(value))).concat(cookie));
+  }
+  return authenticated;
 }
 
 function cloudTermsAccepted(user) {
@@ -3364,6 +3375,7 @@ function handleCloudLogout(req, res) {
 }
 
 const server = http.createServer((req, res) => {
+  req.cloudAuthResponse = res;
   const url = new URL(req.url, `http://localhost:${PORT}`);
   const pathname = url.pathname;
 

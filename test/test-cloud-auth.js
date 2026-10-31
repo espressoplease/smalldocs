@@ -275,6 +275,45 @@ module.exports = function(harness) {
       assert.strictEqual(auth.authenticateSession(revocable.token).reason, 'revoked');
     });
 
+    test('browser usage renews the inactivity window without resetting sign-in time or token identity', () => {
+      const session = auth.createBrowserSession(githubUser.id);
+      const signedInAt = clock;
+      const hash = auth.db.prepare('SELECT token_hash FROM cloud_auth_sessions WHERE id=?').get(session.id).token_hash;
+      clock += 80000;
+      const used = auth.authenticateSession(session.token, { renew: true });
+      assert.strictEqual(used.ok, true);
+      assert.strictEqual(used.session.createdAtMs, signedInAt);
+      assert.strictEqual(used.session.expiresAtMs, clock + auth.sessionTtlMs);
+      assert.strictEqual(auth.db.prepare('SELECT token_hash FROM cloud_auth_sessions WHERE id=?').get(session.id).token_hash, hash);
+      clock = session.expiresAtMs + 1;
+      assert.strictEqual(auth.authenticateSession(session.token).ok, true);
+      clock = used.session.expiresAtMs;
+      assert.strictEqual(auth.authenticateSession(session.token, { renew: true }).reason, 'expired');
+    });
+    test('renewed browser sessions persist across auth-store connections and expire monotonically', () => {
+      const session = auth.createBrowserSession(githubUser.id);
+      clock += 80000;
+      const renewed = auth.authenticateSession(session.token, { renew: true });
+      const another = createAuthStore({ dbPath, pepper: 'test-only-pepper-with-more-than-16-bytes', now: () => clock, sessionTtlMs: 120000 });
+      try {
+        assert.strictEqual(another.authenticateSession(session.token).session.expiresAtMs, renewed.session.expiresAtMs);
+        clock -= 40000;
+        assert.strictEqual(another.authenticateSession(session.token, { renew: true }).session.expiresAtMs, renewed.session.expiresAtMs);
+      } finally { another.close(); }
+    });
+    test('renewal cannot revive a revoked session or extend a disabled user session', () => {
+      const revoked = auth.createBrowserSession(githubUser.id);
+      auth.revokeSession({ sessionToken: revoked.token });
+      assert.strictEqual(auth.authenticateSession(revoked.token, { renew: true }).reason, 'revoked');
+      assert.strictEqual(auth.db.prepare('SELECT expires_at_ms FROM cloud_auth_sessions WHERE id=?').get(revoked.id).expires_at_ms, revoked.expiresAtMs);
+      const user = auth.signInWithVerifiedEmail('disabled-session@example.com').user;
+      const session = auth.createBrowserSession(user.id);
+      auth.db.prepare('UPDATE cloud_auth_users SET disabled_at_ms=? WHERE id=?').run(clock, user.id);
+      clock += 1000;
+      assert.strictEqual(auth.authenticateSession(session.token, { renew: true }).reason, 'invalid_session');
+      assert.strictEqual(auth.db.prepare('SELECT expires_at_ms FROM cloud_auth_sessions WHERE id=?').get(session.id).expires_at_ms, session.expiresAtMs);
+    });
+
     let cliCredential;
     let originalRefresh;
     test('device authorization stores only keyed device and user codes', () => {
