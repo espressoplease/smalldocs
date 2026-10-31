@@ -1350,8 +1350,27 @@ function setToolbarOverflowOpen(open) {
   button.dataset.tip = open ? 'Less' : 'More';
 }
 
+function captureReadingPosition() {
+  var mobile = window.matchMedia('(max-width: 768px)').matches;
+  if (!(mobile ? window.scrollY : contentArea.scrollTop)) return null;
+  var tools = document.getElementById('_sd_document-tools');
+  if (!tools) return null;
+  var top = tools.getBoundingClientRect().bottom;
+  var bottom = mobile ? window.innerHeight : contentArea.getBoundingClientRect().bottom;
+  var blocks = S.renderedEl.querySelectorAll('h1, h2, h3, h4, h5, h6, p, pre, li, blockquote, table');
+  for (var i = 0; i < blocks.length; i++) {
+    var box = blocks[i].getBoundingClientRect();
+    if (box.height && box.bottom > top && box.top < bottom) {
+      return { element: blocks[i], top: box.top, mobile: mobile };
+    }
+  }
+  return null;
+}
+
 function setMode(mode, skipHash) {
   var prev = S.currentMode;
+  var readingPosition = ((prev === 'read' && mode === 'comment') || (prev === 'comment' && mode === 'read'))
+    ? captureReadingPosition() : null;
   S.currentMode = mode;
 
   // Exit write mode — extract markdown back
@@ -1409,13 +1428,21 @@ function setMode(mode, skipHash) {
   }
 
   if (mode === 'read' && !document.documentElement.classList.contains('sdocs-embed')) {
-    document.getElementById('_sd_content-area').focus();
+    document.getElementById('_sd_content-area').focus({ preventScroll: true });
   }
 
   // The Edits row in the file-info card only shows in editing modes, so a
   // mode change needs to re-render the card. Bridge-less sessions skip the
   // call — there's no row whose visibility depends on this.
   if (S.bridge) renderFileInfoCard();
+
+  // Comment hosts change block margins. Keep the passage in view while the
+  // context pills animate, rather than retaining an unrelated pixel offset.
+  if (readingPosition && readingPosition.element.isConnected) {
+    var shift = readingPosition.element.getBoundingClientRect().top - readingPosition.top;
+    if (readingPosition.mobile) window.scrollBy(0, shift);
+    else contentArea.scrollTop += shift;
+  }
 
   if (!skipHash) updateHash();
 }

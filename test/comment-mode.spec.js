@@ -531,7 +531,8 @@ test.describe('comments on links', () => {
       quote: (window.SDocs.currentMeta.comments || [])[0] &&
              window.SDocs.currentMeta.comments[0].quote,
     }));
-    expect(state.url).toBe(originalUrl);
+    // Saving mode or comment state can update the fragment without navigating.
+    expect(state.url.split('#')[0]).toBe(originalUrl.split('#')[0]);
     expect(state.count).toBe(1);
     expect(state.quote).toBe('full documentation');
   });

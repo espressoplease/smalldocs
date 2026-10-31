@@ -1,10 +1,11 @@
 const { test, expect } = require('@playwright/test');
 const { startFixture } = require('./cloud-onboarding-fixture');
 test.use({ serviceWorkers: 'block' });
-let f, url, savedDocument;
+let f, url, savedDocument, workspaceId;
 test.beforeEach(async ({ page }) => {
   f = await startFixture({ singlePlan: true });
   const setup = await f.api('josh', '/api/cloud/v1/onboarding/complete', 'POST', {});
+  workspaceId = setup.data.workspaces[0].id;
   const saved = await f.api('josh', '/api/cloud/v1/account/documents', 'POST', {
     account_id: setup.data.workspaces[0].id, filename: 'guide.md',
     markdown: '# A working guide\n\n## First section\n\nFirst passage.\n\n## Second section\n\nSecond passage.\n',
@@ -71,6 +72,84 @@ for (const width of [1328, 390, 320]) {
   });
 }
 test.afterEach(async () => { await f.close(); });
+
+for (const width of [1328, 390, 320]) {
+  test('actions and context pills stay together while scrolling at ' + width + 'px', async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 844 });
+    const markdown = '# A longer guide\n\n' + Array.from({ length: 36 }, (_, i) =>
+      '## Section ' + i + '\n\nPassage ' + i + '. ' + 'A practical detail for this section. '.repeat(12)).join('\n\n');
+    const saved = await f.api('josh', '/api/cloud/v1/account/documents', 'POST', {
+      account_id: workspaceId, filename: 'longer-guide.md', markdown,
+      idempotency_key: 'sticky-tools-document',
+    });
+    expect(saved.status).toBe(201);
+    const note = await f.api('josh', '/api/cloud/v1/documents/' + saved.data.document.id + '/comments/actions', 'POST', {
+      action: 'add', anchor: { kind: 'inline', quote: 'Passage 18.' }, text: 'Check this detail.',
+      base_revision_id: saved.data.document.current_revision_id, idempotency_key: 'sticky-tools-comment',
+    });
+    expect(note.status).toBe(201);
+    await page.goto(f.origin + '/docs?cloud-document=' + saved.data.document.id);
+    const surface = page.locator('#_sd_document-tools');
+    const top = width <= 768 ? 44 : 0;
+    const initial = await surface.boundingBox();
+    expect(initial.y).toBeGreaterThan(top);
+    await page.getByRole('button', { name: 'Expand all', exact: true }).click();
+    await page.locator('#_sd_rendered p').filter({ hasText: 'Passage 18.' }).evaluate(el =>
+      el.scrollIntoView({ block: 'start' }));
+    async function checkSticky() {
+      await expect.poll(async () => Math.round((await surface.boundingBox()).y)).toBe(top);
+      const background = await page.evaluate(() => ({
+        tools: getComputedStyle(document.getElementById('_sd_document-tools')).backgroundColor,
+        document: getComputedStyle(document.getElementById('_sd_rendered')).backgroundColor,
+      }));
+      expect(background.tools).toBe(background.document);
+      expect(background.tools).not.toBe('rgba(0, 0, 0, 0)');
+    }
+    await checkSticky();
+    const passage = page.locator('#_sd_rendered p').filter({ hasText: 'Passage 18.' });
+    const passageBefore = await passage.boundingBox();
+    // Click the visible sticky icon as a reader would. Locator.click first
+    // scrolls its flow position into view, moving the passage before the click.
+    const commentButton = await page.getByRole('button', { name: 'Comment mode', exact: true }).boundingBox();
+    await page.mouse.click(commentButton.x + commentButton.width / 2, commentButton.y + commentButton.height / 2);
+    const comments = page.getByRole('toolbar', { name: 'Comment tools' });
+    await expect(comments).toBeVisible();
+    await comments.evaluate(el => Promise.all(el.getAnimations({ subtree: true }).map(animation => animation.finished)));
+    await checkSticky();
+    const passageAfter = await passage.boundingBox();
+    expect(Math.abs(passageAfter.y - passageBefore.y)).toBeLessThan(200);
+    const actions = await page.locator('#_sd_left-toolbar').boundingBox();
+    const pills = await comments.boundingBox();
+    expect(pills.y).toBeGreaterThanOrEqual(actions.y + actions.height);
+    expect(pills.y + pills.height).toBeLessThan(844);
+    await comments.getByRole('button', { name: 'Next comment', exact: true }).click();
+    await expect.poll(async () => {
+      const card = await page.locator('.sdoc-card').filter({ hasText: 'Check this detail.' }).first().boundingBox();
+      const tools = await surface.boundingBox();
+      return card && card.y >= tools.y + tools.height && card.y + card.height <= 844;
+    }).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath('sticky-comment-tools.png') });
+    await page.getByRole('button', { name: 'Edit document', exact: true }).click();
+    const editing = page.getByRole('toolbar', { name: 'Editing tools' });
+    await expect(editing).toBeVisible();
+    await editing.evaluate(el => Promise.all(el.getAnimations({ subtree: true }).map(animation => animation.finished)));
+    await checkSticky();
+    const editBox = await editing.boundingBox();
+    expect(editBox.y + editBox.height).toBeLessThan(844);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.getByRole('button', { name: 'Read', exact: true }).click();
+    await expect(editing).toBeHidden();
+    await page.getByRole('button', { name: 'Toggle dark mode', exact: true }).click();
+    await checkSticky();
+    await page.evaluate(() => window.SDocs.applyStylesFromMeta({ background: '#123142', color: '#f4ede1' }));
+    await expect.poll(async () => page.evaluate(() => getComputedStyle(document.getElementById('_sd_document-tools')).backgroundColor)).toBe('rgb(18, 49, 66)');
+    await checkSticky();
+    await page.screenshot({ path: testInfo.outputPath('sticky-tools.png') });
+    await page.evaluate(() => { if (innerWidth <= 768) scrollTo(0, 0); else document.getElementById('_sd_content-area').scrollTop = 0; });
+    await expect.poll(async () => (await surface.boundingBox()).y).toBeGreaterThan(top);
+    await expect(page.locator('#_sd_rendered h1')).toBeInViewport();
+  });
+}
 
 test('document actions sit between file info and the title and retain their handlers', async ({ page, context }) => {
   await page.setViewportSize({ width: 1328, height: 801 });

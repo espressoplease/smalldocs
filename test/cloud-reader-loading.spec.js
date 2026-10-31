@@ -21,6 +21,7 @@ test('empty and single-document libraries stay closed, including when others hav
   await page.goto(f.origin + '/docs');
   const trigger = page.locator('[data-sidebar-section="cloud"] > button');
   await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+  workspace = (await f.store.createTeamWorkspace({ userId: f.users.josh.id, name: 'Design', projectName: 'Documents' })).workspaceId;
   const current = await document('josh', 'Current document', ['design']);
   f.store.addWorkspaceMember({ actorUserId: f.users.josh.id, workspaceId: workspace, userId: f.users.member.id, role: 'member' });
   const project = (await f.store.listProjects(f.users.josh.id, workspace))[0];

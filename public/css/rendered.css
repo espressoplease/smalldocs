@@ -228,7 +228,7 @@
 #_sd_rendered .header-copy-btn:hover { opacity: 1; }
 
 /* ── Scroll padding for anchor jumps ── */
-#_sd_content-area { scroll-padding-top: 24px; }
+#_sd_content-area { scroll-padding-top: calc(var(--sdocs-document-tools-height, 0px) + 24px); }
 
 :is(#_sd_rendered, #_sd_write) code {
   background: var(--md-code-bg);

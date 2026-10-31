@@ -47,7 +47,7 @@ html.sdocs-cloud-document-loading #_sd_content-area {
   visibility: hidden;
   pointer-events: none;
 }
-html.sdocs-cloud-document-error :is(#_sd_left-toolbar, #_sd_write-toolbar, #_sd_comment-toolbar, #_sd_sdocs-file-info) {
+html.sdocs-cloud-document-error :is(#_sd_document-tools, #_sd_sdocs-file-info) {
   display: none;
 }
 @media (prefers-reduced-motion: reduce) {
@@ -374,7 +374,19 @@ html.sdocs-short-link-visit #_sd_sidebar .doc-site-action.sdocs-short-link-only 
 }
 #_sd_mobile-header { display: contents; }
 #_sd_mobile-header-spacer { display: none; }
-/* Document actions align with the file info and scroll with the document. */
+/* Keep document actions and their context pills together while scrolling. */
+#_sd_document-tools {
+  position: sticky;
+  top: 0;
+  z-index: 7;
+  padding-bottom: 10px;
+  margin-bottom: -10px;
+  background: var(--sdocs-document-bg, #fff);
+}
+html[data-theme="dark"] #_sd_document-tools {
+  background: var(--sdocs-document-bg, #2c2a26);
+}
+/* Document actions retain their alignment with the file info and title. */
 #_sd_left-toolbar {
   position: relative;
   z-index: 6;
@@ -402,7 +414,7 @@ html.sdocs-short-link-visit #_sd_sidebar .doc-site-action.sdocs-short-link-only 
 }
 .sdocs-mobile-toolbar-scroll::-webkit-scrollbar { display: none; }
 .sdocs-mobile-toolbar-scroll > .toggle-group { flex: 0 0 auto; }
-#_sd_left-toolbar ~ :is(#_sd_rendered, #_sd_write) { padding-top: 16px; }
+#_sd_document-tools ~ :is(#_sd_rendered, #_sd_write) { padding-top: 16px; }
 #_sd_mobile-navigation,
 .sdocs-mobile-toolbar-brand,
 .sdocs-mobile-menu-button { display: none; }

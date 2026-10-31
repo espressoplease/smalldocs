@@ -228,6 +228,16 @@
   S.applyChromeTint = scheduleApply;
 })();
 
+// Match anchor scrolling to the complete tools surface, including wrapped pills.
+(function () {
+  if (typeof window === 'undefined' || !window.document) return;
+  var tools = document.getElementById('_sd_document-tools');
+  if (!tools || typeof ResizeObserver === 'undefined') return;
+  new ResizeObserver(function () {
+    document.documentElement.style.setProperty('--sdocs-document-tools-height', tools.getBoundingClientRect().height + 'px');
+  }).observe(tools);
+})();
+
 // Mobile top header -------------------------------------------------------
 (function () {
   if (typeof window === 'undefined' || !window.document) return;
