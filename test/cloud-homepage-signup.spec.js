@@ -60,8 +60,7 @@ for (const width of [390, 1440]) {
       await page.goto(f.origin + '/cloud/start');
       expect((await (await page.request.get(f.origin + '/api/cloud/v1/workspaces')).json()).workspaces).toHaveLength(1);
       await page.goto(f.origin + '/home-next');
-      await page.getByRole('link', { name: 'Log in', exact: true }).click();
-      await page.getByRole('link', { name: 'Continue with Google' }).click();
+      await page.getByRole('link', { name: 'Open library', exact: true }).click();
       await expect(page).toHaveURL(f.origin + '/library?scope=cloud');
       expect((await (await page.request.get(f.origin + '/api/cloud/v1/workspaces')).json()).workspaces.map(w => w.id)).toEqual([id]);
     });

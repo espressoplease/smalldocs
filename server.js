@@ -3621,7 +3621,7 @@ const server = http.createServer((req, res) => {
   // through serveHtmlWithRewrite so any future asset additions get
   // cache-busted. Hash-encoded document links (#md=...) that land on the
   // root belong to the app at /docs; fragments never reach the server, so
-  // an inline script in the page forwards them client-side.
+  // the shared entry script forwards them client-side.
   if (pathname === '/' || pathname === '/home' || pathname === '/home-next') {
     const homepageNav = homepageNavigation(req);
     serveHtmlWithRewrite(res, path.join(__dirname, 'public',
@@ -3629,6 +3629,8 @@ const server = http.createServer((req, res) => {
       {
         ...homepageNav.substitutions,
         '__HOME_CLOUD_AUTHENTICATED__': homepageNav.authenticated ? 'true' : 'false',
+        '__HOME_ACCOUNT_HREF__': homepageNav.authenticated ? '/library?scope=cloud' : '/cloud/sign-in?return=%2Flibrary%3Fscope%3Dcloud',
+        '__HOME_ACCOUNT_LABEL__': homepageNav.authenticated ? 'Open library' : 'Log in',
         '__HOME_GOOGLE_ENABLED__': cloudGoogleOAuth && CLOUD_DEPLOYMENT.publicEnabled ? 'true' : 'false',
       }, {
       'Cache-Control': homepageNav.authenticated ? 'private, no-store' : 'no-cache',

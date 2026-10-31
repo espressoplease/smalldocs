@@ -211,7 +211,7 @@ module.exports = function(harness) {
       const r = await get(BASE + '/');
       assert.ok(r.body.includes('id="install"'),
         'root should contain the landing install section');
-      assert.ok(r.body.includes('var cloudAuthenticated = \'false\''),
+      assert.ok(r.body.includes('data-cloud-authenticated="false"'),
         'signed-out root should leave Cloud library routing disabled');
       assert.ok(r.body.includes('curl -fsSL https://smalldocs.org/install | sh'),
         'root should show the canonical install command');
@@ -744,7 +744,7 @@ module.exports = function(harness) {
       const r = await get(BASE + '/home');
       assert.strictEqual(r.status, 200);
       assert.ok(r.body.includes('<title>SmallDocs - an office suite for coding agents</title>'));
-      assert.ok(r.body.includes("var explicitHomepage = location.pathname === '/home';"));
+      assert.ok(r.body.includes('/public/sdocs-home-entry.js?v='));
       assert.ok(r.body.includes("source = (sourceParams.get('src') || '').trim().toLowerCase();"),
         'homepage should lowercase the explicit source label');
       assert.ok(!r.body.includes("sourceParams.get('utm_source')"),
@@ -1401,7 +1401,7 @@ module.exports = function(harness) {
       assert.strictEqual(homepage.status, 200);
       assert.strictEqual(homepage.headers['cache-control'], 'private, no-store');
       assert.strictEqual(homepage.headers.vary, 'Cookie');
-      assert.ok(homepage.body.includes('var cloudAuthenticated = \'true\''),
+      assert.ok(homepage.body.includes('data-cloud-authenticated="true"'),
         'signed-in root should route the browser to Cloud Library');
       assert.ok(homepage.body.includes('class="nav-link" href="/cloud"'),
         'signed-in users should retain the Cloud route in the product navigation');

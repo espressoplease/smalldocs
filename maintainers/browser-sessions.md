@@ -38,3 +38,18 @@ original sign-in time, persistence, expiry, revocation and disabled users.
 storage, a reopened browser context, logout, expired and revoked cookies,
 recent-authentication checks and static file requests. Existing authentication,
 account linking and CLI token suites cover the connected flows.
+
+## Homepage entry
+
+A normal visit to `/` by a signed-in browser opens Cloud Library. The library
+uses the existing browser selection and checks it against current memberships
+before opening it. A stale or inaccessible choice cannot grant access to a
+library. Without a remembered choice, the existing one-library or chooser
+behaviour applies. Sign-in itself is not repeated.
+
+Both marketing templates load `sdocs-home-entry.js` before rendering. That
+shared entry script keeps root fragment documents directed to `/docs`, and
+preserves explicit marketing pages (`/home`, `/home-next`) and section anchors.
+Those explicit pages show Open library to signed-in readers. Signed-out visitors
+continue to see the marketing page and its login options. A remembered Local
+Library connection only affects the legacy homepage.
