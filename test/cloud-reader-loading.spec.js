@@ -38,6 +38,7 @@ test('empty and single-document libraries stay closed, including when others hav
 test('multiple documents open Library with its subsections collapsed and respect later user choices', async ({ page }) => {
   const current = await document('josh', 'Current document', ['design']);
   const related = await document('josh', 'Related document', ['design']);
+  await document('josh', 'Another related document', ['design']);
   const requests = [];
   page.on('request', request => { if (new URL(request.url()).pathname === '/api/cloud/v1/search') requests.push(request.postDataJSON()); });
   await page.goto(f.origin + '/docs?cloud-document=' + current.id);
@@ -48,7 +49,8 @@ test('multiple documents open Library with its subsections collapsed and respect
   const relatedLink = page.locator('#_sd_sidebar_cloud_tag_groups').getByRole('link', { name: 'Related document', exact: true });
   await expect(shared).toHaveAttribute('aria-expanded', 'false');
   await expect(recent).toHaveAttribute('aria-expanded', 'false');
-  await expect(page.locator('#_sd_sidebar_cloud_shared_count')).toHaveText('1');
+  await expect(page.locator('#_sd_sidebar_cloud_shared_count')).toHaveText('2');
+  await expect(page.locator('#_sd_sidebar_cloud_tag_groups .sdocs-sidebar-preview-entry')).toHaveCount(2);
   await expect(relatedLink).toHaveAttribute('href', '/docs?cloud-document=' + related.id);
   await expect(page.locator('#_sd_sidebar_cloud_shared_content')).toHaveCSS('height', '0px');
   await expect(page.locator('#_sd_sidebar_cloud_shared_content')).toHaveCSS('opacity', '0');

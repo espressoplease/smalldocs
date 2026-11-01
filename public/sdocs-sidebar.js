@@ -170,7 +170,7 @@ function renderTagGroups(host, currentTags, entries, scope) {
   }
 
   host.hidden = false;
-  var sharedTagCount = SidebarData.sharedTagCount(ordered);
+  var relatedDocumentCount = SidebarData.sharedDocumentCount(ordered);
 
   ordered.forEach(function (group) {
     var groupElement = document.createElement('section');
@@ -194,7 +194,7 @@ function renderTagGroups(host, currentTags, entries, scope) {
         : function (entry) { return entry.preview ? '/library?scope=cloud' : '/docs?cloud-document=' + encodeURIComponent(entry.id); }
     );
   });
-  return sharedTagCount;
+  return relatedDocumentCount;
 }
 
 function setLibraryCount(id, count) {
