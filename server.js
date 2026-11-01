@@ -315,6 +315,7 @@ const cloudSinglePlan = SINGLE_PLAN_ENABLED && cloudBilling && cloudStore
   ? new (require('./lib/cloud-single-plan').SinglePlan)({ billing: cloudBilling, store: cloudStore }) : null;
 const cloudReferrals = cloudSinglePlan && cloudAuth
   ? new (require('./lib/cloud-referrals').CloudReferrals)({ billing: cloudBilling, auth: cloudAuth,
+    store: cloudStore, single: cloudSinglePlan,
     secret: CLOUD_AUTH_PEPPER, origin: CLOUD_AUTH_PUBLIC_ORIGIN }) : null;
 const cloudReferralBilling = cloudReferrals && cloudStripe && process.env.STRIPE_STANDARD_PRICE_ID
   ? new (require('./lib/cloud-referral-billing').ReferralBilling)({ referrals: cloudReferrals,
@@ -1287,20 +1288,21 @@ function cloudApiError(res, error) {
 }
 
 function cloudSubscriptionState(userId) {
-  const { applyTrialPolicy, trialStatus } = require('./lib/cloud-trial-policy');
+  const { trialStatus } = require('./lib/cloud-trial-policy');
   const own = cloudSinglePlan.ownAccount(userId);
   const sponsor = cloudSinglePlan.coverage(userId);
   const payer = sponsor && cloudSinglePlan.hasSponsoredMembership(userId, sponsor.account_id)
     ? sponsor.account_id : own && own.id;
   const original = cloudBilling.db.prepare('SELECT starts_at_ms, ends_at_ms FROM cloud_billing_personal_trials WHERE user_id=?').get(userId);
-  const access = applyTrialPolicy(cloudBilling.computeEntitlements(payer || '__none__'),
-    cloudBilling.now(), original && original.ends_at_ms);
+  const access = cloudSinglePlan.trialEntitlements(userId,cloudBilling.computeEntitlements(payer || '__none__'));
   const status = trialStatus(access, cloudBilling.now(), CLOUD_AUTH_PUBLIC_ORIGIN);
-  const trial = status.trial_ends_at_ms && original && original.ends_at_ms === status.trial_ends_at_ms
+  const trial = status.trial_ends_at_ms && original
     ? original : status.trial_ends_at_ms && cloudBilling.db.prepare(
       'SELECT starts_at_ms FROM cloud_billing_personal_trials WHERE workspace_id=? AND ends_at_ms=?'
     ).get(payer, status.trial_ends_at_ms);
-  return { ...status, trial_starts_at_ms: trial ? trial.starts_at_ms : null };
+  return { ...status, trial_starts_at_ms: trial ? trial.starts_at_ms : null,
+    original_trial_ends_at_ms: original && original.ends_at_ms || null,
+    referral_access_ends_at_ms: access.referralAccessEndsAtMs || null };
 }
 
 function redirectForTrialPayment(res, authenticated) {
@@ -1321,7 +1323,10 @@ function cloudApiPrincipal(req, res) {
     sendJson(res, 401, { ok: false, error: 'login_required' });
     return null;
   }
-  if (cloudReferrals && authenticated.credential) cloudReferrals.recordInstallation(authenticated.user.id);
+  if (cloudReferrals) {
+    if (authenticated.credential) cloudReferrals.recordInstallation(authenticated.user.id);
+    else cloudReferrals.recordActivity(authenticated.user.id);
+  }
   if (!cloudTermsAccepted(authenticated.user)) {
     sendJson(res, 403, { ok: false, error: 'terms_acceptance_required',
       terms_version: CURRENT_TERMS_VERSION, terms_url: '/legal',
@@ -2072,6 +2077,7 @@ async function handleCloudApi(req, res, url) {
           fileBytes: cloudMarkdownBytes(body.markdown),
         }),
       });
+      if (cloudReferrals) cloudReferrals.recordActivity(user.id);
       scheduleRevisionPrune(document, entitlements);
       const permission = cloudStore.getDocumentPermission({ userId: user.id, documentId: document.id });
       sendJson(res, 201, { ok: true, account: { id: selected.workspace.id,
@@ -2478,6 +2484,7 @@ async function handleCloudApi(req, res, url) {
           fileBytes: cloudMarkdownBytes(body.markdown),
         }),
       });
+      if (cloudReferrals) cloudReferrals.recordActivity(user.id);
       scheduleRevisionPrune(document, entitlements);
       sendJson(res, 201, { ok: true, document });
       return;
@@ -2637,6 +2644,7 @@ async function handleCloudApi(req, res, url) {
       if (hasTarget) {
         cloudCollaborationMetrics.recordTargetSave(document, Date.now() - mergeStartedAt);
       }
+      if (cloudReferrals) cloudReferrals.recordActivity(user.id);
       scheduleRevisionPrune(document, entitlements);
       sendJson(res, 200, { ok: true, document });
       return;
@@ -2782,6 +2790,7 @@ async function handleCloudApi(req, res, url) {
         : await cloudStore.saveTargetRevision(input);
       if (!editsMatch[2]) {
         cloudCollaborationMetrics.recordTargetSave(document, Date.now() - started);
+        if (cloudReferrals) cloudReferrals.recordActivity(user.id);
         scheduleRevisionPrune(document, entitlements);
       }
       sendJson(res, editsMatch[2] ? 200 : 201, { ok: true,
@@ -2929,6 +2938,7 @@ async function handleCloudApi(req, res, url) {
             }),
         });
       }
+      if (cloudReferrals) cloudReferrals.recordActivity(user.id);
       scheduleRevisionPrune(document, entitlements);
       sendJson(res, 201, { ok: true, document });
       return;
@@ -2958,6 +2968,7 @@ async function handleCloudApi(req, res, url) {
         beforeCommit: () => requireCloudEntitlement(
           user.id, context.workspaceId, 'store_revision'),
       });
+      if (cloudReferrals) cloudReferrals.recordActivity(user.id);
       scheduleRevisionPrune(document, entitlements);
       sendJson(res, 201, { ok: true, document });
       return;
@@ -3508,12 +3519,8 @@ const server = http.createServer((req, res) => {
     const coverage = sponsor && cloudSinglePlan.hasSponsoredMembership(userId, sponsor.account_id)
       ? cloudSinglePlan.subscriptionAccess(sponsor.account_id) : null;
     const subscription = account && cloudBilling.getSubscription(account.id);
-    const trial = cloudBilling.db.prepare('SELECT ends_at_ms FROM cloud_billing_personal_trials WHERE user_id=?').get(userId);
-    const trialEnd = coverage && coverage.trialEndsAtMs
-      ? Math.min(coverage.trialEndsAtMs, trial ? trial.ends_at_ms : Infinity) : trial && trial.ends_at_ms;
     const subscriptionState = cloudSubscriptionState(userId);
     sendJson(res, 200, { ok: true, ...subscriptionState, email: verifiedCloudEmail(userId),
-      trial_ends_at_ms: trialEnd || null,
       trial_active: subscriptionState.phase === 'trial',
       subscription_status: subscription ? subscription.status : null,
       payment_pending: Boolean(subscription && subscription.initialPaymentPending && subscription.status !== 'canceled'),
@@ -3658,8 +3665,8 @@ const server = http.createServer((req, res) => {
     const referral = cloudReferrals && cloudReferrals.resolve(url.searchParams.get('ref'));
     const referralName = referral && referral.name.replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
     const referralNotice = referral ? '<aside class="homepage-referral"><p><strong>' + referralName +
-      ' shared SmallDocs with you.</strong></p><p>After you connect your agent and make your first monthly payment, ' + referralName +
-      ' receives credit covering one person for one month.</p><p>They can see your name, whether you have signed up and connected your agent, and whether their reward has been earned. This link does not share your email address or give them access to your documents.</p></aside>' : '';
+      ' shared SmallDocs with you.</strong></p><p>Sign up through this link for an extra trial month. ' + referralName +
+      ' earns one month when you connect an agent and create your first tagged Cloud document, plus two more when you start paying for your own subscription.</p><p>They can see your name and referral progress, including which rewards you have earned them. The referral does not share your email address, document content or tags.</p></aside>' : '';
     serveHtmlWithRewrite(res, path.join(__dirname, 'public',
       pathname === '/home-next' || SINGLE_PLAN_ENABLED ? 'homepage-next.html' : 'homepage.html'),
       {

@@ -26,9 +26,13 @@ people and overview open library management; --account selects that library.
 Install can use --account to select where the first documents are saved.
 Browser sign-in is independent of CLI authorization. Never collect card details.
 Referrals returns your shareable homepage link, available person-month credits,
-and referral progress. Someone who signs up through your link must connect an
-agent and make their first monthly payment before you earn credit. Rewards cover
-one person for one month, accumulate across billed seats, and carry forward. --cursor paginates
+and referral progress. New referred users get an extra trial month. Earn one month
+when they connect an agent and create their first tagged Cloud document, plus two
+more after their first nonzero monthly payment on their own subscription.
+That subscription may cover them alone or a team. Unpaid users receive personal free access;
+subscribers receive one-person-month billing credits that carry forward.
+People covered by another paid account keep credit for their own future bill.
+Rewards never extend a whole team's trial. --cursor paginates
 referral history. This command does not invite people or change document access.
 
 Invitations queue an email when delivery is configured and return an accept_url.

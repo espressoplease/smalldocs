@@ -73,7 +73,8 @@
     var refer = options.authenticated ? sectionHtml({ id: 'refer', idPrefix: prefix,
       rowClass: options.rowClass, label: 'Refer', icon: icons.refer,
       content: '<div class="sdocs-sidebar-preview" data-referral-panel>' +
-        '<p class="sdocs-sidebar-explainer">Share your link. Every time someone joins, connects an agent and makes their first monthly payment, you earn credit for one person for one month. Credits add up and carry forward.</p>' +
+        '<p class="sdocs-sidebar-explainer">Give a friend an extra trial month. Earn one month when they connect an agent and create their first tagged Cloud document. Earn two more when they start paying for their own subscription.</p>' +
+        '<p class="sdocs-sidebar-explainer">Rewards extend your own free access or become credit for your own subscription. Each credit covers one person for one month. Unused billing credit carries forward.</p>' +
         '<label class="sdocs-sidebar-explainer sdocs-referral-link-label">Your referral link<input class="sdocs-referral-link" aria-label="Your referral link" readonly></label>' +
         '<button class="sdocs-sidebar-cta" type="button" data-referral-copy disabled>Copy link</button>' +
         '<p class="sdocs-sidebar-explainer" data-referral-balance></p>' +
@@ -113,8 +114,10 @@
         var item = document.createElement('li');
         var name = document.createElement('span'); name.textContent = person.name;
         var detail = document.createElement('small');
-        detail.textContent = person.status === 'rewarded' ? '1 person-month earned'
-          : person.status === 'installed' ? 'Agent connected, reward pending' : 'Signed up';
+        detail.textContent = person.status === 'rewarded' ? person.earned_person_months + ' person-months earned'
+          : person.status === 'activated' ? '1 month earned, 2 more when they start paying for their own subscription'
+          : person.status === 'installed' ? 'Agent connected, waiting for first tagged document'
+          : person.status === 'document_saved' ? 'Document saved, waiting for agent connection' : 'Signed up';
         item.appendChild(name); item.appendChild(detail); list.appendChild(item);
       });
     }
@@ -134,10 +137,14 @@
         if (!response.ok) throw new Error('unavailable');
         state = await response.json(); loadedAt = Date.now();
         input.value = state.url; copy.disabled = false;
-        panel.querySelector('[data-referral-balance]').textContent = state.available_person_months +
-          (state.available_person_months === 1 ? ' person-month available.' : ' person-months available.') +
+        panel.querySelector('[data-referral-balance]').textContent = (state.available_person_months || !state.access_person_months ? state.available_person_months +
+          (state.available_person_months === 1 ? ' person-month available.' : ' person-months available.') : '') +
           (state.reserved_person_months ? ' ' + state.reserved_person_months +
-            (state.reserved_person_months === 1 ? ' person-month set aside for a pending bill.' : ' person-months set aside for a pending bill.') : '');
+            (state.reserved_person_months === 1 ? ' person-month set aside for a pending bill.' : ' person-months set aside for a pending bill.') : '') +
+          (state.access_person_months ? ' ' + state.access_person_months +
+            (state.access_person_months === 1 ? ' earned month added to your free access.' : ' earned months added to your free access.') : '') +
+          (state.personal_access_ends_at_ms ? ' Personal free-access deadline: ' + new Date(state.personal_access_ends_at_ms).toLocaleDateString(undefined,
+            { day: 'numeric', month: 'long', year: 'numeric' }) + '.' : '');
         panel.querySelector('[data-referral-total]').textContent = String(state.total_referrals);
         if (!append) panel.querySelector('.sdocs-referral-list').replaceChildren();
         appendPeople(state.referrals);

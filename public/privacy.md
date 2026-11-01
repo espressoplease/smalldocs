@@ -59,9 +59,9 @@ You can opt out of cohort attribution on the analytics page or clear site data i
 
 ## Referral links
 
-If you sign up through someone's referral link, SmallDocs records that introduction with your signup. We retain signup, agent-connection and reward progress to award credit once and reconcile its use. A keyed hash of your verified email address prevents repeat referral rewards for that address.
+If you sign up through someone's referral link, SmallDocs records that introduction with your signup. We retain signup, agent-connection, first tagged document and reward progress to award each benefit once and reconcile its use. A keyed hash of your verified email address prevents repeat referral rewards for that address.
 
-The referrer can see your name, whether you have signed up and connected your agent, and whether their reward has been earned. They do not receive your email address, payment details, documents or library access. The referred homepage explains this before signup. Referral attribution uses the email verification or Google sign-in transaction; it does not add a persistent referral tracking cookie.
+The referrer can see your name, whether you have signed up and connected your agent, and when your first tagged document and first monthly payment earn a reward. They do not receive your email address, payment details, document content, tags or library access. The referred homepage explains this before signup. Referral attribution uses the email verification or Google sign-in transaction; it does not add a persistent referral tracking cookie.
 
 ## Who receives data
 

@@ -1,24 +1,33 @@
 # Referrals and Learn
 
-Implemented on the Cloud-first branch, 1 November 2026. Production has not been changed.
+Implemented on the Cloud-first branch, 1 November 2026; expanded to two reward milestones on 2 November 2026. Production has not been changed. See [the accepted milestone spec](../plans/referral-milestones.md).
 
 ## Product rules
 
 - Each signed-in person has an opaque `/home?ref=CODE` link. `/home` uses the new homepage in the single-plan deployment.
 - The referral is bound to the email verification challenge or browser-bound OAuth transaction that creates the account. The homepage passes its explicit referral code into that signup action. No persistent referral tracking cookie is set. A completed referral cannot be overwritten by another link or linked identity.
 - Email and Google signup attach the new account to that introduction. Existing accounts and linked sign-in methods cannot generate another referral.
-- The referral appears after verified signup. Agent authorization updates its progress. It earns one person-month only after both a connected CLI and the referred subscriber's first nonzero paid monthly invoice have been confirmed. Their order does not matter.
+- The referral appears after verified signup, which gives the friend one extra calendar month of personal trial access. Onboarding can finish later without losing the bonus.
+- The referrer earns one person-month when the friend has connected a CLI and saved a tagged Cloud document they created. Tagging an initially untagged own document also qualifies. Connecting alone, failed saves and editing someone else's shared document do not qualify.
+- The referrer earns two additional person-months after activation and the referred subscriber's first nonzero paid monthly invoice. A subscription can cover one person or a team, but being sponsored on someone else's bill is not a payment by the referred person. Each referral earns three referrer person-months in total; event order does not matter.
 - The referred person is shown the referrer's first name and a notice that their name and referral progress will be visible. Email addresses, invoice details, and document or library access are not shared.
-- A referrer's credit belongs to their own billing account. It is retained if someone else currently sponsors them. It does not silently transfer to their employer's bill.
+- Rewards earned without paid coverage become personal free access, starting at the later of the current free-access deadline and the award time. Paid users receive billing credit. A referrer's credit belongs to their own billing account. It is retained if someone else currently sponsors them. It does not silently transfer to their employer's bill.
 - Credits apply before tax at the configured monthly per-person price. Ten seats plus one credit discounts one seat. Five seats plus five credits covers that invoice. Excess credits carry forward. Rewards do not extend an entire team's trial or move its billing date.
-- Existing trial deadlines are preserved. Credits are applied at Checkout or a subsequent monthly invoice, rather than extending a team's free access.
+- Original trial rows are preserved. Separate personal-access grants extend only the recipient, including when they own a team or join one. The effective personal deadline appears in billing/status, document receipts, the subscription page and Refer. The seven-day warning follows that deadline. Paid coverage takes priority over personal free access. Subscribing starts payment immediately; unused trial time is not converted to billing credit.
+- A reward spent on personal access cannot also discount an invoice. Balances include `access_person_months`, `billed_person_months` and `personal_access_ends_at_ms` alongside available, reserved and used totals.
 - Self referrals, repeated webhook delivery, repeated CLI installation, and a recreated account using an already-referred verified email do not generate another reward. Different verified email addresses can still belong to the same human; this implementation does not claim to detect that.
 
 Referral progress and credits are available in the shared sidebar on document, library and account pages, and through `sdoc cloud referrals --json`. Learn reuses the existing sidebar accordion and document renderer.
 
 ## Storage and recovery
 
-`cloud_referral_links`, `cloud_referrals`, `cloud_referral_rewards` and `cloud_referral_redemptions` live in the billing database. They are additive tables. Credits are earned once per referred account, reserved transactionally, and consumed only after Stripe confirms the invoice was paid with the corresponding discount. Checkout expiry and voided invoices release reservations.
+`cloud_referral_links`, `cloud_referrals`, `cloud_referral_rewards` and `cloud_referral_redemptions` live in the billing database. Reward units are unique by referral, milestone and unit number. Billing credits are reserved transactionally and consumed only after Stripe confirms the invoice was paid with the corresponding discount. Checkout expiry and voided invoices release reservations.
+
+`cloud_billing_person_access_grants` stores once-only calendar-month access grants per person. An unpaid reward's grant and consumption commit together with its milestone. Signup grants may be pending until the original personal trial exists. Deadline reads normally use read-only queries; pending grants materialize in a billing transaction. Original trial rows and team subscription clocks are never rewritten.
+
+`cloud_document_activation_events` in the content database records each creator's first tagged save in the revision transaction. It contains only the actor, document identifier and time, not document text or tags. Authenticated activity and invoice qualification recover this evidence into referral progress after a temporary billing failure. History exposes the milestone, never the document identifier or metadata.
+
+The original reward table had a unique referral identifier. Startup migrates it transactionally to milestone units, preserving reward IDs, invoice reservations and consumed state. Its one existing paid reward counts as the first of the two payment units. Once activation is established, only the remaining units are added, to a total of three. Existing attributed users get the signup bonus once when their referral progress is recovered.
 
 An auth-database outbox keeps the verified new-account introduction available if writing attribution to billing temporarily fails. Sign-in and CLI connection remain usable, and the attribution is retried on the next continuation or authenticated CLI operation. Outbox entries contain a keyed intent hash, not OAuth tokens or sign-in codes.
 
@@ -52,7 +61,7 @@ The first subscription invoice finalizes immediately, so its coupon must be atta
 
 ## Verification
 
-`test/test-cloud-referrals.js` runs isolated signup, CLI authorization and signed billing-webhook flows against a temporary application database and `test/stripe-referral-fixture.js`. It never uses real customer data or payment credentials. Browser coverage exercises Google/email attribution, shared sidebar presentation, copy, mobile layout and the Learn tour.
+`test/test-cloud-referrals.js` and `test/test-cloud-referral-milestones.js` run isolated signup, CLI authorization, personal access and signed billing-webhook flows against a temporary application database and `test/stripe-referral-fixture.js`. They cover active trials, warning/paywall recovery, personal and team payers, sponsored members, cross-company access, event ordering, retried saves, calendar boundaries and legacy reserved credits. They never use real customer data or payment credentials. Browser coverage exercises Google/email attribution, shared sidebar presentation, copy, mobile layout and the Learn prompts.
 
 The real SmallDocs Stripe sandbox also passed four checks on 1 November 2026: ten seats with one credit charged $45; five seats with five credits charged $0; one GBP seat with one credit charged £0; adding one credit to a real draft monthly invoice for ten seats reduced it to $45. See `maintainers/qa/referrals/stripe-sandbox-2026-11-01.json`. All test subscriptions were cancelled, test customers and coupons deleted, and test prices/products archived. No live payments or existing customers were used.
 

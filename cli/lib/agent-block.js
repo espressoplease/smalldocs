@@ -28,8 +28,8 @@ const path = require('path');
 const { SETUP_CACHE, INSTALLATION_CHANNEL } = require('./constants');
 
 // ── Skill model ────────────────────────────────────────────
-const SKILL_VERSION = 45;
-const SKILL_REASON  = 'Select Cloud libraries from folder configuration or SDOCS_LIBRARY and report the effective destination.';
+const SKILL_VERSION = 46;
+const SKILL_REASON  = 'Explain referral activation, payment bonuses and personal free-access extensions.';
 const SKILL_NAME    = 'smalldocs';
 
 // Always-in-context preamble. Concise trigger text; the full reference lives
@@ -106,6 +106,8 @@ This user has enabled Cloud-first mode. Treat Cloud as the normal destination fo
 ### Account and subscription management
 
 Run \`sdoc cloud billing --help\` for the management reference. Use \`sdoc cloud billing --json\` to read the human's current trial, paid coverage, and subscription links. Open precise settings with \`sdoc cloud settings people --account LIBRARY_UUID --json\`, \`settings billing\`, \`settings install\`, \`settings machines\`, or \`settings preferences\`. Add \`--no-open\` when working headlessly and return the URL to the human.
+
+Use \`sdoc cloud referrals --json\` for the human's referral link and reward progress. New referred users get an extra trial month. The referrer earns one person-month after their friend connects an agent and creates a tagged Cloud document, then two more after the friend's first nonzero monthly payment on their own subscription. Rewards extend personal free access for unpaid users, or become billing credit for paid users. Sponsored users keep billing credit for their own future subscription. A reward never extends a whole team's trial. Read the returned billing/trial deadline rather than calculating it from signup; a free-access reward is already used and cannot also discount an invoice.
 
 Successful document receipts include \`subscription\` and \`notices\`. During the free calendar month, work normally. After its deadline, a seven-day warning week allows normal use. When a receipt reports \`trial_warning\`, deliver the saved Cloud link and tell the human the paywall date, using \`subscription.subscribe_url\`. Offer \`subscription.feedback_url\` and ask how the trial went. Avoid repeating the same notice in one conversation; \`dedupe_key\` identifies it. A warning does not mean the save failed.
 

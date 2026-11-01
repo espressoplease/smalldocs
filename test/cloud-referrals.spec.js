@@ -27,11 +27,13 @@ async function openMenu(page,width) {
 }
 
 for(const width of [1440,390]) for(const method of ['email','google']) {
-  test(method+' referral reaches a usable library, waits for payment and earns one credit at '+width,async({page,browser},testInfo)=>{
+  test(method+' referral reaches a usable library, earns activation and payment rewards at '+width,async({page,browser},testInfo)=>{
     await page.setViewportSize({width,height:900});
     await page.context().grantPermissions(['clipboard-read','clipboard-write']);
     await page.context().addCookies([{name:'sdocs_cloud',value:f.users.josh.sessionToken,url:f.origin}]);
     await f.api('josh','/api/cloud/v1/onboarding/complete','POST',{});
+    const account=f.billing.db.prepare('SELECT id FROM cloud_single_accounts WHERE owner_user_id=?').get(f.users.josh.id);
+    f.billing.upsertSubscription({workspaceId:account.id,plan:'team',provider:'manual',status:'active'});
     await page.goto(f.origin+'/library?scope=cloud');
     await openMenu(page,width);
     await page.getByRole('button',{name:'Refer',exact:true}).click();
@@ -54,7 +56,7 @@ for(const width of [1440,390]) for(const method of ['email','google']) {
       });
       await signup.goto(referralUrl);
       await expect(signup.locator('.homepage-referral')).toContainText('Josh shared SmallDocs with you.');
-      await expect(signup.locator('.homepage-referral')).toContainText('first monthly payment');
+      await expect(signup.locator('.homepage-referral')).toContainText('start paying for your own subscription');
       expect((await guest.cookies()).some(cookie=>cookie.name.includes('referral'))).toBe(false);
       if(method==='email') {
         const form=signup.locator('[data-install-form]').first();
@@ -89,8 +91,8 @@ for(const width of [1440,390]) for(const method of ['email','google']) {
       const saved=await created.json();expect(saved.document.tags).toContain('getting-started');
       expect((await f.api('josh','/api/cloud/v1/documents/'+saved.document.id)).status).toBe(404);
       const ownerSummary=await f.api('josh','/api/cloud/v1/referrals');
-      expect(ownerSummary.data.available_person_months).toBe(0);
-      expect(ownerSummary.data.referrals[0].status).toBe('installed');
+      expect(ownerSummary.data.available_person_months).toBe(1);
+      expect(ownerSummary.data.referrals[0].status).toBe('activated');
       expect(JSON.stringify(ownerSummary.data)).not.toContain('getting-started');
       const checkout=await signup.request.post(f.origin+'/api/cloud/billing/subscribe',{headers,data:{}});
       expect(checkout.status()).toBe(200);
@@ -103,14 +105,14 @@ for(const width of [1440,390]) for(const method of ['email','google']) {
       expect((await stripe.webhook(f.origin,'invoice.paid',invoice)).status).toBe(200);
       await page.reload();await openMenu(page,width);
       await page.getByRole('button',{name:/^Refer(?:\s|$)/}).click();
-      await expect(page.locator('[data-referral-balance]')).toHaveText('1 person-month available.');
+      await expect(page.locator('[data-referral-balance]')).toHaveText('3 person-months available.');
       await page.getByRole('button',{name:/^Referrals(?:\s|$)/}).click();
       await page.locator('.sdocs-sidebar-referral-history').evaluate(el=>Promise.all(el.getAnimations({subtree:true}).map(animation=>animation.finished)));
       await expect(page.getByRole('list',{name:'People you referred'})).toContainText('Robin Walker');
       await expect(page.getByRole('list',{name:'People you referred'})).toBeVisible();
       expect((await page.locator('.sdocs-referral-history-toggle').boundingBox()).height).toBe(32);
       expect((await page.locator('.sdocs-referral-history-toggle svg').boundingBox()).width).toBe(13);
-      await expect(page.getByRole('list',{name:'People you referred'})).toContainText('1 person-month earned');
+      await expect(page.getByRole('list',{name:'People you referred'})).toContainText('3 person-months earned');
       await expect(page.locator('[data-sidebar-section="refer"] > .sdocs-sidebar-top-row .sdocs-sidebar-count')).toBeHidden();
       expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
       await page.screenshot({path:testInfo.outputPath('refer.png')});
@@ -135,4 +137,38 @@ test('unknown and hostile referral parameters do not disclose identities, track 
   await page.goto(summary.data.url);
   await expect(page.locator('.homepage-referral script')).toHaveCount(0);
   await expect(page.locator('.homepage-referral')).toContainText('<script>alert(1)</script>');
+});
+
+for (const width of [1440,390]) test('unpaid referrer sees extended access in Refer and subscription at '+width,async({page})=>{
+  await page.setViewportSize({width,height:900});
+  await page.context().addCookies([{name:'sdocs_cloud',value:f.users.josh.sessionToken,url:f.origin}]);
+  await f.api('josh','/api/cloud/v1/onboarding/complete','POST',{});
+  const {CloudReferrals}=require('../lib/cloud-referrals');
+  const referrals=new CloudReferrals({billing:f.billing,auth:f.auth,store:f.store,secret:f.auth.pepper,origin:f.origin});
+  const signed=f.auth.signInWithVerifiedEmail('new-friend@example.test');
+  f.auth.updateUserProfile({userId:signed.user.id,firstName:'Robin',lastName:'Walker'});
+  const key='browser-free-access';
+  referrals.rememberIntent(key,referrals.link(f.users.josh.id).code);
+  referrals.attribute({...signed,intentKey:key});
+  f.auth.acceptCurrentTerms({userId:signed.user.id,termsVersion:require('../lib/cloud-terms').CURRENT_TERMS_VERSION});
+  const personal=await f.store.ensurePersonalWorkspace(signed.user.id);
+  const single=new (require('../lib/cloud-single-plan').SinglePlan)({billing:f.billing,store:f.store});
+  single.initialize(signed.user.id,personal.workspaceId,'new-friend@example.test');
+  const projects=await f.store.listProjects(signed.user.id,personal.workspaceId);
+  await f.store.createDocument({userId:signed.user.id,projectId:projects[0].id,filename:'first.md',
+    markdown:'---\ntags: [getting-started]\n---\n# First document',idempotencyKey:'browser-free-first-document'});
+  referrals.installed(signed.user.id);
+  await page.goto(f.origin+'/library?scope=cloud');
+  await openMenu(page,width);
+  await page.getByRole('button',{name:/^Refer(?:\s|$)/}).click();
+  await expect(page.locator('[data-referral-balance]')).toContainText('1 earned month added to your free access.');
+  await expect(page.locator('[data-referral-balance]')).toContainText('Personal free-access deadline:');
+  await page.getByRole('button',{name:/^Referrals(?:\s|$)/}).click();
+  await expect(page.getByRole('list',{name:'People you referred'})).toContainText('1 month earned, 2 more when they start paying for their own subscription');
+  await page.goto(f.origin+'/cloud/subscribe');
+  await expect(page.locator('#subscription-state')).toContainText('Your free trial ends on');
+  await expect(page.locator('#subscription-referral-access')).toContainText('Referral benefits added personal free access through');
+  await expect(page.locator('#subscription-referral-credit')).toBeHidden();
+  await expect(page.getByRole('button',{name:'Subscribe',exact:true})).toBeVisible();
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
 });

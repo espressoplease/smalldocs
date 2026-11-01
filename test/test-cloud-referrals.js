@@ -3,9 +3,12 @@ module.exports = function(h) {
   return async function() {
     const stripe=await require('./stripe-referral-fixture').startStripe();
     const f=await require('./cloud-onboarding-fixture').startFixture({singlePlan:true,stripeApiBase:stripe.origin,logErrors:true});
-    const referrals=new (require('../lib/cloud-referrals').CloudReferrals)({billing:f.billing,auth:f.auth,secret:f.auth.pepper,origin:f.origin});
+    const referrals=new (require('../lib/cloud-referrals').CloudReferrals)({billing:f.billing,auth:f.auth,store:f.store,secret:f.auth.pepper,origin:f.origin});
     const single=new (require('../lib/cloud-single-plan').SinglePlan)({billing:f.billing,store:f.store});
     let serial=0, friend;
+    await f.api('josh','/api/cloud/v1/onboarding/complete','POST',{});
+    const joshAccount=single.ownAccount(f.users.josh.id);
+    f.billing.upsertSubscription({workspaceId:joshAccount.id,plan:'team',provider:'manual',status:'active'});
     async function api(cookie,path,method='GET',body) {
       const response=await fetch(f.origin+path,{method,headers:{Origin:f.origin,Cookie:cookie||'', 'Content-Type':'application/json'},body:body ? JSON.stringify(body):undefined,redirect:'manual'});
       return {status:response.status,data:await response.json(),cookie:response.headers.get('set-cookie')?.split(';')[0]};
@@ -45,12 +48,24 @@ module.exports = function(h) {
     }
     async function earn(userId,count) {
       const code=referrals.link(userId).code;
+      const account=single.ownAccount(userId);
+      const before=account && f.billing.getSubscription(account.id);
+      if (account && (!before || before.status==='canceled')) f.billing.upsertSubscription({workspaceId:account.id,plan:'team',provider:'manual',status:'active'});
       for(let i=0;i<count;i++) {
         const signed=f.auth.signInWithVerifiedEmail('earned-'+(++serial)+'@new-company.test');
         const intentKey='fixture-earned-'+serial;
         referrals.rememberIntent(intentKey,code);
-        referrals.attribute({...signed,intentKey}); referrals.installed(signed.user.id); referrals.paid(signed.user.id,'in_earned_'+serial);
+        referrals.attribute({...signed,intentKey});
+        f.store.db.prepare('INSERT INTO cloud_document_activation_events VALUES(?,?,?)').run(signed.user.id,'fixture-doc-'+serial,Date.now());
+        referrals.installed(signed.user.id);
       }
+      if (account && (!before || before.status==='canceled')) f.billing.upsertSubscription({workspaceId:account.id,plan:'team',provider:'manual',status:'canceled'});
+    }
+    async function document(person) {
+      const result=await api(person.cookie,'/api/cloud/v1/account/documents','POST',{
+        account_id:person.workspace,filename:'first.md',markdown:'---\ntags: [getting-started]\n---\n# First document',idempotency_key:'first-document'});
+      assert.strictEqual(result.status,201,JSON.stringify(result));
+      return result;
     }
     try {
       await testAsync('referral links use opaque codes and a private escaped homepage notice',async()=>{
@@ -60,7 +75,7 @@ module.exports = function(h) {
         assert.ok(!summary.data.url.includes(f.users.josh.id));
         const landing=await fetch(summary.data.url), html=await landing.text();
         assert.ok(html.includes('Josh shared SmallDocs with you.'));
-        assert.ok(html.includes('first monthly payment'));
+        assert.ok(html.includes('start paying for your own subscription'));
         assert.strictEqual(landing.headers.get('cache-control'),'private, no-store');
         assert.strictEqual(landing.headers.get('set-cookie'),null);
       });
@@ -74,16 +89,20 @@ module.exports = function(h) {
         assert.ok(!JSON.stringify(summary).includes('new-company.test'));
       });
       await testAsync('the first paid monthly invoice awards once and repeated webhooks cannot duplicate it',async()=>{
+        await document(friend);
+        assert.strictEqual(referrals.summary(f.users.josh.id).available_person_months,1);
         const {invoice}=await pay(friend);
-        assert.strictEqual(referrals.summary(f.users.josh.id).available_person_months,1);
+        assert.strictEqual(referrals.summary(f.users.josh.id).available_person_months,3);
         for(let i=0;i<3;i++) assert.strictEqual((await stripe.webhook(f.origin,'invoice.paid',invoice)).status,200);
-        assert.strictEqual(referrals.summary(f.users.josh.id).available_person_months,1);
+        assert.strictEqual(referrals.summary(f.users.josh.id).available_person_months,3);
       });
       await testAsync('payment before connection waits for the agent and then awards the referral',async()=>{
         const person=await signup(); await pay(person);
-        assert.strictEqual(referrals.summary(f.users.josh.id).available_person_months,1);
+        assert.strictEqual(referrals.summary(f.users.josh.id).available_person_months,3);
         await connect(person);
-        assert.strictEqual(referrals.summary(f.users.josh.id).available_person_months,2);
+        assert.strictEqual(referrals.summary(f.users.josh.id).available_person_months,3);
+        await document(person);
+        assert.strictEqual(referrals.summary(f.users.josh.id).available_person_months,6);
       });
       await testAsync('existing accounts, self referrals and forged signup intents cannot earn a new referral',async()=>{
         const count=referrals.summary(f.users.josh.id).total_referrals;

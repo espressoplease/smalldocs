@@ -32,6 +32,14 @@
       var paid = data.subscription_status && data.subscription_status !== 'canceled' && !data.payment_pending;
       var covered = data.covered_elsewhere;
       var credits = data.referral_credits;
+      var accessNote = document.getElementById('subscription-referral-access');
+      if (!accessNote) {
+        accessNote = document.createElement('p'); accessNote.id = 'subscription-referral-access';
+        byId('subscription-referral-credit').after(accessNote);
+      }
+      accessNote.hidden = !data.referral_access_ends_at_ms;
+      accessNote.textContent = data.referral_access_ends_at_ms ? 'Referral benefits added personal free access through ' +
+        new Date(data.referral_access_ends_at_ms).toLocaleDateString(undefined,{day:'numeric',month:'long',year:'numeric'}) + '.' : '';
       var creditCount = credits ? credits.available_person_months + credits.reserved_person_months : 0;
       var creditNote = byId('subscription-referral-credit');
       creditNote.hidden = !creditCount;
