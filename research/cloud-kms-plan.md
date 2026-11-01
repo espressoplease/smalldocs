@@ -112,11 +112,16 @@ The existing implementation has a bounded least-recently-used cache:
 ```text
 default lifetime:       5 minutes
 default maximum:        256 entries
+expiry behavior:        one background timer wipes expired keys without a new request
 eviction behavior:      overwrite the Buffer with zeroes, then remove it
 process shutdown:       clear the cache
 ```
 
 This reduces KMS latency and request volume. It also means a process-memory capture may contain recently used plaintext data keys. The cache limits that exposure but does not eliminate it.
+
+Expiration uses a monotonic clock and does not extend when a key is read. A single unreferenced timer targets the next expiry; it neither adds KMS calls nor keeps the process alive during shutdown. Expiry runs when the Node event loop can execute the timer, so it is not a hard real-time memory erasure guarantee.
+
+Concurrent requests share the KMS operation but receive independent working key buffers. Cache entries and temporary delivery buffers are separate, so clearing or evicting a cached key cannot overwrite another request's working key. Temporary delivery keys and workspace plaintext buffers are cleared after use, including error paths. Cache and caller key copies use dedicated buffers outside Node's shared small-buffer pool. JavaScript strings and internal runtime copies remain outside this best-effort clearing guarantee.
 
 Cache lifetime and size will be explicit production settings. Changes should be driven by measured KMS latency, request volume, and memory exposure rather than by convenience.
 
