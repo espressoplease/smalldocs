@@ -87,7 +87,7 @@ module.exports = function (h) {
     const entitlement = workspaceId => ({ plan: 'team', subscriptionStatus: denied.has(workspaceId) ? 'expired' : 'active',
       access: { read: !denied.has(workspaceId), write: !denied.has(workspaceId) } });
     const context = vm.createContext({ URL, console,
-      cloudStore: f.store, cloudSinglePlan: null, SINGLE_PLAN_ENABLED: false,
+      cloudStore: f.store, cloudSinglePlan: null, cloudReferrals: null, SINGLE_PLAN_ENABLED: false,
       cloudBilling: { computeEntitlements: entitlement },
       cloudWorkspaceUsage(userId, workspaceId) {
         f.store._requireWorkspaceRole(userId, workspaceId, ['owner', 'admin', 'member']);

@@ -31,6 +31,13 @@
       byId('subscription-identity').textContent = data.email;
       var paid = data.subscription_status && data.subscription_status !== 'canceled' && !data.payment_pending;
       var covered = data.covered_elsewhere;
+      var credits = data.referral_credits;
+      var creditCount = credits ? credits.available_person_months + credits.reserved_person_months : 0;
+      var creditNote = byId('subscription-referral-credit');
+      creditNote.hidden = !creditCount;
+      creditNote.textContent = creditCount ? 'Your referral credit covers ' + creditCount +
+        (creditCount === 1 ? ' person for one month. ' : ' people for one month. ') +
+        (covered ? 'It is saved for your own subscription.' : 'It will be applied to your bill. Unused credit carries forward.') : '';
       byId('subscription-summary').hidden = Boolean(paid || covered);
       if (paid || covered) {
         clearTimeout(pollTimer); pending = false;

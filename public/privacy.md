@@ -5,7 +5,7 @@ description: What SmallDocs receives, why it is processed, where it is stored, a
 
 # Privacy Notice
 
-**Last updated: 26 October 2026**
+**Last updated: 1 November 2026**
 
 This notice explains how **Odd Solutions Ltd**, company number 16186575, handles personal data when it operates SmallDocs. Odd Solutions Ltd is the controller for account, service, support, security, and billing records. For document content uploaded by a Team customer, the customer may be the controller and Odd Solutions Ltd may act as its processor.
 
@@ -56,6 +56,12 @@ The public application records a cohort week, current week, coarse device catego
 The public reader stores the cohort value and application preferences in browser storage. Cloud uses a Secure, HttpOnly, SameSite session cookie after sign-in. The cookie contains an opaque credential, not a document.
 
 You can opt out of cohort attribution on the analytics page or clear site data in your browser. Necessary authentication storage cannot be disabled while remaining signed in.
+
+## Referral links
+
+If you sign up through someone's referral link, SmallDocs records that introduction with your signup. We retain signup, agent-connection and reward progress to award credit once and reconcile its use. A keyed hash of your verified email address prevents repeat referral rewards for that address.
+
+The referrer can see your name, whether you have signed up and connected your agent, and whether their reward has been earned. They do not receive your email address, payment details, documents or library access. The referred homepage explains this before signup. Referral attribution uses the email verification or Google sign-in transaction; it does not add a persistent referral tracking cookie.
 
 ## Who receives data
 

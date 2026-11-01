@@ -29,6 +29,28 @@ module.exports = function (h) {
     }
     let library, teamLibrary, document, file, invitation;
     try {
+      await testAsync('an agent retrieves its own referral link, balances and paginated history', async () => {
+        const referrals = new (require('../lib/cloud-referrals').CloudReferrals)({billing,auth,secret:auth.pepper,origin:f.origin});
+        const initial = cli(['cloud','referrals']);
+        assert.strictEqual(initial.code,0,JSON.stringify(initial.data));
+        assert.ok(initial.data.url.startsWith(f.origin+'/home?ref='));
+        const intro = referrals.link(users.josh.id).code;
+        for(let i=0;i<22;i++) {
+          const person = auth.signInWithVerifiedEmail('pagination-'+i+'@example.test');
+          const intentKey = 'agent-referral-'+i;
+          referrals.rememberIntent(intentKey,intro);referrals.attribute({...person,intentKey});
+        }
+        const first = cli(['cloud','referrals']);
+        assert.strictEqual(first.data.referrals.length,20);
+        assert.ok(first.data.next_cursor);
+        const second = cli(['cloud','referrals','--cursor',first.data.next_cursor]);
+        assert.strictEqual(second.code,0,JSON.stringify(second.data));
+        assert.strictEqual(second.data.referrals.length,2);
+        assert.ok(second.data.referrals.every(person=>!first.data.referrals.some(value=>value.id===person.id)));
+        assert.strictEqual(cli(['cloud','referrals'],'outsider').data.total_referrals,0);
+        assert.strictEqual(cli(['cloud','referrals','--cursor','invalid']).code,2);
+        assert.strictEqual(cli(['cloud','referrals','--cursor']).code,2);
+      });
       await testAsync('old accounts keep legacy navigation, new accounts default to Cloud, and preferences survive restart', async () => {
         const dbPath = path.join(f.dir, 'auth-migration.db');
         const options = { dbPath, pepper: 'migration-test-secret'.repeat(4) };

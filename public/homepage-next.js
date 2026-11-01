@@ -1,6 +1,12 @@
 (function () {
   'use strict';
   const login = document.querySelector('.homepage-login');
+  const referralCode = new URLSearchParams(location.search).get('ref');
+  if (referralCode && /^[A-Za-z0-9_-]{24}$/.test(referralCode)) {
+    document.querySelectorAll('.homepage-google').forEach(link => {
+      const target = new URL(link.href); target.searchParams.set('ref',referralCode); link.href = target.href;
+    });
+  }
   function revealLogin() {
     setTimeout(() => { login.classList.add('is-visible'); }, 500);
   }
@@ -22,10 +28,11 @@
     try {
       const response = await fetch('/api/cloud/auth/email/request', { method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, return_to: '/cloud/profile' }) });
+        body: JSON.stringify({ email, return_to: '/cloud/profile', referral_code: referralCode }) });
       const data = await response.json();
       if (!response.ok) throw new Error();
-      location.assign('/cloud/sign-in?return=%2Fcloud%2Fprofile&email=' + encodeURIComponent(email) + '&challenge=' + encodeURIComponent(data.challenge_id));
+      location.assign('/cloud/sign-in?return=%2Fcloud%2Fprofile&email=' + encodeURIComponent(email) + '&challenge=' + encodeURIComponent(data.challenge_id) +
+        (referralCode ? '&ref=' + encodeURIComponent(referralCode) : ''));
     } catch (_) {
       status.textContent = document.body.dataset.googleEnabled === 'true'
         ? 'The code could not be sent. Try again, or continue with Google.'

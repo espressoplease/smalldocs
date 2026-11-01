@@ -313,6 +313,12 @@ if (process.env.CLOUD_BILLING_DB) {
 const SINGLE_PLAN_ENABLED = process.env.CLOUD_SINGLE_PLAN_ENABLED === '1';
 const cloudSinglePlan = SINGLE_PLAN_ENABLED && cloudBilling && cloudStore
   ? new (require('./lib/cloud-single-plan').SinglePlan)({ billing: cloudBilling, store: cloudStore }) : null;
+const cloudReferrals = cloudSinglePlan && cloudAuth
+  ? new (require('./lib/cloud-referrals').CloudReferrals)({ billing: cloudBilling, auth: cloudAuth,
+    secret: CLOUD_AUTH_PEPPER, origin: CLOUD_AUTH_PUBLIC_ORIGIN }) : null;
+const cloudReferralBilling = cloudReferrals && cloudStripe && process.env.STRIPE_STANDARD_PRICE_ID
+  ? new (require('./lib/cloud-referral-billing').ReferralBilling)({ referrals: cloudReferrals,
+    single: cloudSinglePlan, stripe: cloudStripe, priceId: process.env.STRIPE_STANDARD_PRICE_ID }) : null;
 
 let cloudJobs = null;
 const CLOUD_JOB_WORKER_ID = 'cloud-server-' + process.pid;
@@ -1315,6 +1321,7 @@ function cloudApiPrincipal(req, res) {
     sendJson(res, 401, { ok: false, error: 'login_required' });
     return null;
   }
+  if (cloudReferrals && authenticated.credential) cloudReferrals.recordInstallation(authenticated.user.id);
   if (!cloudTermsAccepted(authenticated.user)) {
     sendJson(res, 403, { ok: false, error: 'terms_acceptance_required',
       terms_version: CURRENT_TERMS_VERSION, terms_url: '/legal',
@@ -1431,6 +1438,7 @@ async function prepareCloudAccount(user) {
 }
 
 async function cloudSignInContinuation(user, requestedReturn) {
+  if (cloudReferrals) cloudReferrals.recoverSignup(user.id);
   const target = cloudOnboardingDestination(requestedReturn);
   if (!cloudTermsAccepted(user)) return { return_to: cloudTermsLocation(target), onboarding_complete: false };
   if (!SINGLE_PLAN_ENABLED) return { return_to: target };
@@ -1688,6 +1696,7 @@ async function handleCloudApi(req, res, url) {
           : result.reason === 'terms_acceptance_required' ? 403 : 400;
         return sendJson(res, status, { ok: false, error: result.reason });
       }
+      if (cloudReferrals) cloudReferrals.recordInstallation(result.userId);
       sendJson(res, 200, { ok: true, credential_id: result.credentialId, user_id: result.userId,
         access_token: result.accessToken, access_token_expires_at: new Date(result.accessExpiresAtMs).toISOString(),
         refresh_token: result.refreshToken, token_type: 'Bearer' });
@@ -1706,6 +1715,15 @@ async function handleCloudApi(req, res, url) {
     const principal = cloudApiPrincipal(req, res);
     if (!principal || !cloudApiMutationAllowed(req, res)) return;
     const user = principal.user;
+    if (cloudReferrals && req.method === 'GET' && pathname === base + '/referrals') {
+      sendJson(res, 200, { ok: true, ...cloudReferrals.summary(user.id, url.searchParams.get('after')) });
+      return;
+    }
+    if (cloudReferrals && req.method === 'POST' && pathname === base + '/referrals/seen') {
+      const body = await cloudAuthHttp.readJson(req);
+      cloudReferrals.seen(user.id, body.seen_through_ms);
+      sendJson(res, 200, { ok: true }); return;
+    }
     if (req.method === 'POST' && pathname === base + '/trial-feedback') {
       if (!cloudBilling) throw Object.assign(new Error('billing_not_configured'), { code: 'billing_not_configured' });
       const body = await cloudAuthHttp.readJson(req);
@@ -2972,6 +2990,7 @@ async function handleCloudEmailRequest(req, res) {
     if (body.link_email) cloudIdentityLinking.recentSession(tokens.session);
     const issued = cloudAuth.issueEmailCode({ email, ip: getClientIp(req),
       ...(body.link_email ? { purpose: 'link', sessionToken: tokens.session } : {}) });
+    if (cloudReferrals && !body.link_email && !body.link_google) cloudReferrals.rememberIntent(issued.requestId,body.referral_code);
     if (body.link_google) cloudIdentityLinking.setChallenge(tokens.pending, tokens.session, issued.requestId);
     if (CLOUD_AUTH_DEV_LOG_CODES) {
       console.log('[cloud-auth-code] ' + issued.requestId + ' ' + issued.code);
@@ -3016,6 +3035,7 @@ async function handleCloudEmailVerify(req, res) {
     if (!result.ok) return sendJson(res, result.reason === 'identity_in_use' ? 409 : 400, { ok: false,
       error: result.reason === 'identity_in_use' ? 'identity_in_use' : 'invalid_or_expired_code' });
     const session = cloudAuth.createBrowserSession(result.user.id);
+    if (cloudReferrals) cloudReferrals.recordSignup({ ...result, intentKey: body.challenge_id });
     const continuation = await cloudSignInContinuation(result.user, body.return_to);
     const secure = new URL(CLOUD_AUTH_PUBLIC_ORIGIN).protocol === 'https:';
     sendJson(res, 200, { ok: true, ...continuation }, {
@@ -3077,6 +3097,9 @@ function beginCloudOAuth(req, res, url, provider) {
       key: getClientIp(req), limit: 30, windowMs: 15 * 60 * 1000 });
     if (!rate.allowed) return sendJson(res, 429, { ok: false, error: 'rate_limited' });
     const started = adapter.begin({ returnTo: url.searchParams.get('return_to') });
+    if (cloudReferrals && url.searchParams.get('link') !== '1') {
+      cloudReferrals.rememberIntent(new URL(started.authorizationUrl).searchParams.get('state'),url.searchParams.get('ref'));
+    }
     if (url.searchParams.get('link') === '1') {
       if (provider !== 'google') throw new Error('unsupported link provider');
       try {
@@ -3148,6 +3171,7 @@ async function handleCloudIdentityLink(req, res, url) {
     const result = cloudIdentityLinking.complete(tokens.pending, tokens.session, body);
     if (!result.ok) return sendJson(res, 400, { ok: false, error: 'invalid_or_expired_code' });
     applyGoogleProfile(result, row.identity);
+    if (cloudReferrals) cloudReferrals.recordSignup({ ...result, intentKey: tokens.pending });
     const session = cloudAuth.createBrowserSession(result.user.id);
     const continuation = await cloudSignInContinuation(result.user, result.returnTo);
     sendJson(res, 200, { ok: true, ...continuation }, { 'Set-Cookie': [
@@ -3190,7 +3214,9 @@ async function finishCloudOAuth(req, res, url, provider) {
       // expiry. Do not reflect provider descriptions into our redirect.
       const transaction = cloudOAuthTransactions.consume({ provider, state });
       const publicError = providerError ? 'oauth_denied' : 'invalid_oauth_request';
-      res.writeHead(303, { Location: '/cloud/sign-in?error=' + publicError + '&return=' + encodeURIComponent(transaction.returnTo),
+      const introduction = cloudReferrals && cloudReferrals.intent(state);
+      res.writeHead(303, { Location: '/cloud/sign-in?error=' + publicError + '&return=' + encodeURIComponent(transaction.returnTo) +
+        (introduction ? '&ref=' + encodeURIComponent(introduction.code) : ''),
         'Set-Cookie': clearBinding, 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' });
       res.end();
       return;
@@ -3201,6 +3227,8 @@ async function finishCloudOAuth(req, res, url, provider) {
       const token = cloudIdentityLinking.createContext({ identity: completed.identity,
         sessionToken: intent ? cloudLinkTokens(req).session : null,
         returnTo: intent ? intent.return_to : completed.returnTo });
+      const introduction = cloudReferrals && cloudReferrals.intent(state);
+      if (introduction) cloudReferrals.rememberIntent(token,introduction.code);
       res.writeHead(303, { Location: '/cloud/link', 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer',
         'Set-Cookie': [clearBinding, cloudOAuthBindingCookie('link', token, { secure, maxAge: 600 })] });
       res.end(); return;
@@ -3208,6 +3236,7 @@ async function finishCloudOAuth(req, res, url, provider) {
     const signedIn = applyGoogleProfile(provider === 'google'
       ? cloudIdentityLinking.signInGoogle(completed.identity)
       : cloudAuth.signInWithExternalIdentity(completed.identity), completed.identity);
+    if (cloudReferrals) cloudReferrals.recordSignup({ ...signedIn, intentKey: state });
     const session = cloudAuth.createBrowserSession(signedIn.user.id);
     const continuation = await cloudSignInContinuation(signedIn.user, completed.returnTo);
     res.writeHead(303, { Location: continuation.return_to,
@@ -3289,6 +3318,7 @@ async function handleStripeWebhook(req, res) {
   try {
     const rawBody = await readRawBody(req);
     const event = cloudStripe.verifyWebhook(rawBody, String(req.headers['stripe-signature'] || ''));
+    if (cloudReferralBilling) await cloudReferralBilling.event(event);
     // Reconcile an interrupted upgrade and use the current provider state for its webhooks.
     // Older personal-plan events must not reverse a completed team upgrade.
     if (event.type.startsWith('customer.subscription.')) {
@@ -3490,6 +3520,7 @@ const server = http.createServer((req, res) => {
       covered_elsewhere: Boolean(sponsor && (!account || sponsor.account_id !== account.id) && coverage && coverage.access.write
         && cloudBilling.getSubscription(sponsor.account_id)),
       can_manage_payment: Boolean(subscription && subscription.providerCustomerId),
+      referral_credits: cloudReferrals ? cloudReferrals.balances(userId) : null,
       legacy_price: Boolean(account && subscription && subscription.provider === 'stripe' && account.standard_subscription_id !== subscription.providerSubscriptionId),
       quantity: account ? cloudSinglePlan.seatCount(account.id) : 1 });
     return;
@@ -3518,7 +3549,7 @@ const server = http.createServer((req, res) => {
     (async () => { try {
       requireRecentBrowser(principal);
       if (!cloudSinglePlan || !cloudStripe || !process.env.STRIPE_STANDARD_PRICE_ID) throw Object.assign(new Error('billing_not_configured'), { code: 'billing_not_configured' });
-      const session = await cloudSinglePlan.checkout({ userId: principal.user.id, stripe: cloudStripe, priceId: process.env.STRIPE_STANDARD_PRICE_ID, origin: CLOUD_AUTH_PUBLIC_ORIGIN, email: verifiedCloudEmail(principal.user.id) });
+      const session = await cloudSinglePlan.checkout({ userId: principal.user.id, stripe: cloudStripe, priceId: process.env.STRIPE_STANDARD_PRICE_ID, origin: CLOUD_AUTH_PUBLIC_ORIGIN, email: verifiedCloudEmail(principal.user.id), referrals: cloudReferralBilling });
       sendJson(res, 200, { ok: true, checkout_url: session.url });
     } catch (error) { cloudApiError(res, error); } })();
     return;
@@ -3624,6 +3655,11 @@ const server = http.createServer((req, res) => {
   // the shared entry script forwards them client-side.
   if (pathname === '/' || pathname === '/home' || pathname === '/home-next') {
     const homepageNav = homepageNavigation(req);
+    const referral = cloudReferrals && cloudReferrals.resolve(url.searchParams.get('ref'));
+    const referralName = referral && referral.name.replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
+    const referralNotice = referral ? '<aside class="homepage-referral"><p><strong>' + referralName +
+      ' shared SmallDocs with you.</strong></p><p>After you connect your agent and make your first monthly payment, ' + referralName +
+      ' receives credit covering one person for one month.</p><p>They can see your name, whether you have signed up and connected your agent, and whether their reward has been earned. This link does not share your email address or give them access to your documents.</p></aside>' : '';
     serveHtmlWithRewrite(res, path.join(__dirname, 'public',
       pathname === '/home-next' || SINGLE_PLAN_ENABLED ? 'homepage-next.html' : 'homepage.html'),
       {
@@ -3632,8 +3668,9 @@ const server = http.createServer((req, res) => {
         '__HOME_ACCOUNT_HREF__': homepageNav.authenticated ? '/library?scope=cloud' : '/cloud/sign-in?return=%2Flibrary%3Fscope%3Dcloud',
         '__HOME_ACCOUNT_LABEL__': homepageNav.authenticated ? 'Open library' : 'Log in',
         '__HOME_GOOGLE_ENABLED__': cloudGoogleOAuth && CLOUD_DEPLOYMENT.publicEnabled ? 'true' : 'false',
+        '__HOME_REFERRAL_NOTICE__': referralNotice,
       }, {
-      'Cache-Control': homepageNav.authenticated ? 'private, no-store' : 'no-cache',
+      'Cache-Control': homepageNav.authenticated || referral ? 'private, no-store' : 'no-cache',
       'Vary': 'Cookie',
     });
     return;
@@ -4562,7 +4599,7 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  if (pathname === '/docs' || pathname === '/new' || policyDocuments[pathname] || pathname === '/agent-changes' || pathname === '/cloud-search' || pathname === '/cloud-updates' || pathname === '/advanced-spreadsheets' || pathname === '/runnable-html' || pathname === '/upgrade' || blogSlug || /^\/s\/[A-Za-z0-9_-]{1,32}$/.test(pathname)) {
+  if (pathname === '/docs' || pathname === '/new' || pathname === '/learn' || policyDocuments[pathname] || pathname === '/agent-changes' || pathname === '/cloud-search' || pathname === '/cloud-updates' || pathname === '/advanced-spreadsheets' || pathname === '/runnable-html' || pathname === '/upgrade' || blogSlug || /^\/s\/[A-Za-z0-9_-]{1,32}$/.test(pathname)) {
     if (pathname === '/docs' && url.searchParams.has('cloud-document')) {
       const authenticated = cloudAuthSession(req);
       if (redirectForCloudTerms(res, authenticated, pathname + url.search)) return;
@@ -4571,7 +4608,7 @@ const server = http.createServer((req, res) => {
     }
     const documentNav = documentNavigation(req);
     const nonce = crypto.randomBytes(16).toString('base64');
-    const defaultMdPath = policyDocuments[pathname]
+    const defaultMdPath = pathname === '/learn' ? '/public/learn.md' : policyDocuments[pathname]
       ? policyDocuments[pathname]
       : pathname === '/cloud-search'
           ? '/public/cloud-search.md'

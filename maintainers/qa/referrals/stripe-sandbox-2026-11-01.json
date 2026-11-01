@@ -1,0 +1,54 @@
+{
+  "run": "94edc0498c19",
+  "livemode": false,
+  "cases": [
+    {
+      "seats": 10,
+      "credits": 1,
+      "currency": "usd",
+      "expected": 4500,
+      "actual": 4500,
+      "status": "paid"
+    },
+    {
+      "seats": 5,
+      "credits": 5,
+      "currency": "usd",
+      "expected": 0,
+      "actual": 0,
+      "status": "paid"
+    },
+    {
+      "seats": 1,
+      "credits": 1,
+      "currency": "gbp",
+      "expected": 0,
+      "actual": 0,
+      "status": "paid"
+    },
+    {
+      "case": "draft renewal update",
+      "seats": 10,
+      "credits": 1,
+      "expected": 4500,
+      "actual": 4500,
+      "status": "draft"
+    }
+  ],
+  "cleanup": [
+    "subscription cancelled",
+    "subscription cancelled",
+    "subscription cancelled",
+    "subscription cancelled",
+    "customer deleted",
+    "customer deleted",
+    "customer deleted",
+    "customer deleted",
+    "coupon deleted",
+    "coupon deleted",
+    "coupon deleted",
+    "coupon deleted",
+    "price archived",
+    "product archived"
+  ]
+}

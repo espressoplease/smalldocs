@@ -250,6 +250,12 @@ function parseArgs(argv) {
     }
 
     if (arg === '--role') { roleFlag = args[++i]; continue; }
+    if (subcommand === 'cloud' && file === 'referrals' && arg === '--cursor') {
+      const value = args[i + 1];
+      if (!value || value.startsWith('--')) discovery.searchArgumentErrors.push('--cursor requires a value');
+      else { discovery.cursorFlag = value; i++; }
+      continue;
+    }
     if (arg === '--rating') { ratingFlag = Number(args[++i]); continue; }
     if (arg === '--url') { url = args[++i]; continue; }
     if (arg === '--section' || arg === '-s') { section = args[++i]; continue; }

@@ -1,4 +1,6 @@
 .homepage-column { max-width: 71ch; margin: 0 auto; }
+.homepage-referral { margin-bottom: 24px; padding: 16px; border: 1px solid var(--line); border-radius: var(--r); font-size: 14px; line-height: 1.5; }
+.homepage-referral p + p { margin-top: 6px; color: var(--ink-3); }
 .home-next .homepage-login-nav { position: static; }
 .homepage-login-nav .wrap { max-width: none; padding: 0 8px; }
 .homepage-login-nav .nav-in { max-width: none; height: auto; min-height: 48px; align-items: flex-start; justify-content: flex-end; padding: 8px 0; }

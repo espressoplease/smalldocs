@@ -5,6 +5,7 @@ const crypto = require('crypto');
 const HELP = `Account management
 
   sdoc cloud billing --json
+  sdoc cloud referrals [--cursor ID] --json
   sdoc cloud subscribe [--no-open] --json
   sdoc cloud settings [install|libraries|people|billing|machines|preferences] [--account UUID] [--no-open] --json
   sdoc cloud invite EMAIL [--role member|admin] [--account UUID] --json
@@ -24,6 +25,11 @@ Billing, preferences and connected machines belong to your account. Libraries,
 people and overview open library management; --account selects that library.
 Install can use --account to select where the first documents are saved.
 Browser sign-in is independent of CLI authorization. Never collect card details.
+Referrals returns your shareable homepage link, available person-month credits,
+and referral progress. Someone who signs up through your link must connect an
+agent and make their first monthly payment before you earn credit. Rewards cover
+one person for one month, accumulate across billed seats, and carry forward. --cursor paginates
+referral history. This command does not invite people or change document access.
 
 Invitations queue an email when delivery is configured and return an accept_url.
 Check notification_scheduled before reporting delivery. They require the same
@@ -37,7 +43,7 @@ Use these commands on the human's instruction. Ask the human for trial feedback;
 submit their words rather than inventing feedback. Feedback is shared with SmallDocs.
 `;
 
-const ACTIONS = ['billing', 'subscribe', 'settings', 'invite', 'invitations',
+const ACTIONS = ['billing', 'referrals', 'subscribe', 'settings', 'invite', 'invitations',
   'revoke-invite', 'remove-member', 'trial-feedback'];
 
 async function run(opts, client, helpers) {
@@ -53,6 +59,11 @@ async function run(opts, client, helpers) {
   if (action === 'billing') {
     const data = await client.authenticated('/api/cloud/billing/subscription');
     return emit(opts, 'cloud.billing', data);
+  }
+  if (action === 'referrals') {
+    if (opts.searchArgumentErrors && opts.searchArgumentErrors.length) invalid(opts.searchArgumentErrors.join('; '));
+    const data = await client.authenticated('/api/cloud/v1/referrals' + (opts.cursorFlag ? '?after=' + encodeURIComponent(opts.cursorFlag) : ''));
+    return emit(opts, 'cloud.referrals', data);
   }
   if (action === 'subscribe' || action === 'settings') {
     const panels = ['install', 'libraries', 'people', 'billing', 'machines', 'preferences', 'overview'];

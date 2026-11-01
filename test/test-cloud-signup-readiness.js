@@ -146,7 +146,7 @@ module.exports = function (h) {
       // provider signature, nonce and PKCE checks have their own adapter tests.
       const source = fs.readFileSync(path.join(__dirname, '../server.js'), 'utf8');
       const context = { URL, Date, Number, Boolean, String, require: require('module').createRequire(path.join(__dirname, '../server.js')),
-        cloudAuth: f.auth, cloudIdentityLinking: new (require('../lib/cloud-auth-linking').IdentityLinking)(f.auth), cloudStore: f.store, cloudBilling: f.billing, cloudSinglePlan: single, SINGLE_PLAN_ENABLED: true,
+        cloudAuth: f.auth, cloudIdentityLinking: new (require('../lib/cloud-auth-linking').IdentityLinking)(f.auth), cloudStore: f.store, cloudBilling: f.billing, cloudSinglePlan: single, cloudReferrals: null, SINGLE_PLAN_ENABLED: true,
         CLOUD_AUTH_PUBLIC_ORIGIN: f.origin, CURRENT_TERMS_VERSION: terms, cloudAuthHttp: require('../cloud/auth/http'),
         verifiedCloudEmail: id => f.auth.getUser(id).identities.find(identity => identity.verifiedEmail).verifiedEmail,
         cloudAuthReady: () => true, getClientIp: () => 'oauth-readiness-test',

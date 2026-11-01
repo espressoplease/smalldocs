@@ -53,7 +53,7 @@
   });
 
   Array.prototype.forEach.call(document.querySelectorAll('[data-provider]'), function (link) {
-    link.href += '?return_to=' + encodeURIComponent(returnPath);
+    link.href += '?return_to=' + encodeURIComponent(returnPath) + (params.get('ref') ? '&ref=' + encodeURIComponent(params.get('ref')) : '');
   });
 
   var initialEmail = params.get('email');
@@ -87,7 +87,7 @@
       var response = await fetch(emailForm.action, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: value, return_to: returnPath })
+        body: JSON.stringify({ email: value, return_to: returnPath, referral_code: params.get('ref') })
       });
       var result = await response.json();
       if (!response.ok) throw new Error(result.error || 'request_failed');

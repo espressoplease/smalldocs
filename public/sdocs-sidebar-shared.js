@@ -12,6 +12,104 @@
     external: '<svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-7"/><path d="m9 15 12-12"/><path d="M15 3h6v6"/></svg>',
     chevron: '<svg class="sdocs-sidebar-row-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>'
   };
+  icons.refer = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M5 12v8h14v-8M12 8v12"/><path d="M12 8H7.5A2.5 2.5 0 1 1 10 5.5L12 8Zm0 0h4.5A2.5 2.5 0 1 0 14 5.5L12 8Z"/></svg>';
+  icons.learn = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3Z"/></svg>';
+
+  function discoveryHtml(options) {
+    var prefix = options.idPrefix;
+    var refer = options.authenticated ? sectionHtml({ id: 'refer', idPrefix: prefix,
+      rowClass: options.rowClass, label: 'Refer', icon: icons.refer,
+      content: '<div class="sdocs-sidebar-preview" data-referral-panel>' +
+        '<p class="sdocs-sidebar-explainer">Share your link. After someone joins, connects an agent and makes their first monthly payment, you earn credit for one person for one month. Credits add up and carry forward.</p>' +
+        '<label class="sdocs-sidebar-explainer sdocs-referral-link-label">Your referral link<input class="sdocs-referral-link" aria-label="Your referral link" readonly></label>' +
+        '<button class="sdocs-sidebar-cta" type="button" data-referral-copy disabled>Copy link</button>' +
+        '<p class="sdocs-sidebar-explainer" data-referral-balance></p>' +
+        '<div class="sdocs-sidebar-referral-history"><button class="sdocs-sidebar-top-row sdocs-referral-history-toggle" type="button" aria-expanded="false" aria-controls="' + prefix + '_referral_history">Referrals <span data-referral-total></span>' + icons.chevron + '</button>' +
+        '<div class="sdocs-sidebar-expander" id="' + prefix + '_referral_history"><div class="sdocs-sidebar-expander-clip">' +
+        '<ul class="sdocs-referral-list" aria-label="People you referred"></ul>' +
+        '<button class="sdocs-sidebar-cta" type="button" data-referral-more hidden>Show more</button></div></div></div>' +
+        '<p class="sdocs-sidebar-explainer" data-referral-status role="status">Loading your referral link...</p></div>' }) : '';
+    return refer + sectionHtml({ id: 'learn', idPrefix: prefix, rowClass: options.rowClass,
+      label: 'Learn', icon: icons.learn,
+      content: '<div class="sdocs-sidebar-preview sdocs-sidebar-actions">' +
+        '<a class="sdocs-sidebar-subitem" href="/learn">Getting started</a>' +
+        '<a class="sdocs-sidebar-subitem" href="/learn#your-library-and-tags">Library and tags</a>' +
+        '<a class="sdocs-sidebar-subitem" href="/cloud-search">Search with your agent</a>' +
+        '<a class="sdocs-sidebar-subitem" href="/cloud-updates">Editing and comments</a>' +
+        '<a class="sdocs-sidebar-subitem" href="/learn#manage-smalldocs-from-chat">Manage SmallDocs from chat</a>' +
+        '<a class="sdocs-sidebar-subitem" href="/home#learn">Examples</a></div>' });
+  }
+
+  function bindReferrals(sidebar) {
+    var panel = sidebar.querySelector('[data-referral-panel]');
+    if (!panel) return;
+    var state, loading = false, loadedAt = 0;
+    var input = panel.querySelector('.sdocs-referral-link');
+    var copy = panel.querySelector('[data-referral-copy]');
+    var status = panel.querySelector('[data-referral-status]');
+    var history = panel.querySelector('.sdocs-sidebar-referral-history');
+    var historyToggle = panel.querySelector('.sdocs-referral-history-toggle');
+    var more = panel.querySelector('[data-referral-more]');
+    var top = panel.closest('[data-sidebar-section="refer"]').querySelector('.sdocs-sidebar-top-row');
+    var unread = document.createElement('span'); unread.className = 'sdocs-sidebar-count'; unread.hidden = true;
+    top.insertBefore(unread, top.querySelector('.sdocs-sidebar-row-chevron'));
+    function appendPeople(people) {
+      var list = panel.querySelector('.sdocs-referral-list');
+      people.forEach(function (person) {
+        var item = document.createElement('li');
+        var name = document.createElement('span'); name.textContent = person.name;
+        var detail = document.createElement('small');
+        detail.textContent = person.status === 'rewarded' ? '1 person-month earned'
+          : person.status === 'installed' ? 'Agent connected, reward pending' : 'Signed up';
+        item.appendChild(name); item.appendChild(detail); list.appendChild(item);
+      });
+    }
+    async function markSeen() {
+      if (!state) return;
+      try {
+        var response = await fetch('/api/cloud/v1/referrals/seen', { method: 'POST', credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ seen_through_ms: state.as_of_ms }) });
+        if (response.ok) unread.hidden = true;
+      } catch (_) {}
+    }
+    async function load(append) {
+      if (loading) return;
+      loading = true;
+      try {
+        var response = await fetch('/api/cloud/v1/referrals' + (append && state.next_cursor ? '?after=' + encodeURIComponent(state.next_cursor) : ''), { credentials: 'same-origin' });
+        if (!response.ok) throw new Error('unavailable');
+        state = await response.json(); loadedAt = Date.now();
+        input.value = state.url; copy.disabled = false;
+        panel.querySelector('[data-referral-balance]').textContent = state.available_person_months +
+          (state.available_person_months === 1 ? ' person-month available.' : ' person-months available.') +
+          (state.reserved_person_months ? ' ' + state.reserved_person_months +
+            (state.reserved_person_months === 1 ? ' person-month set aside for a pending bill.' : ' person-months set aside for a pending bill.') : '');
+        panel.querySelector('[data-referral-total]').textContent = String(state.total_referrals);
+        if (!append) panel.querySelector('.sdocs-referral-list').replaceChildren();
+        appendPeople(state.referrals);
+        status.textContent = state.total_referrals ? '' : 'People who join through your link will appear here.';
+        more.hidden = !state.next_cursor;
+        unread.textContent = String(state.unread_count); unread.hidden = !state.unread_count;
+        unread.setAttribute('aria-label', state.unread_count + ' referral updates');
+        if (history.classList.contains('is-expanded')) await markSeen();
+      } catch (_) { status.textContent = 'Referrals could not be loaded. Try again.'; }
+      finally { loading = false; }
+    }
+    input.addEventListener('click', function () { input.select(); });
+    copy.addEventListener('click', async function () {
+      try { await navigator.clipboard.writeText(input.value); status.textContent = 'Link copied.'; }
+      catch (_) { input.focus(); input.select(); status.textContent = 'Copy the selected link.'; }
+    });
+    more.addEventListener('click', function () { load(true); });
+    historyToggle.addEventListener('click', function () {
+      var expanded = history.classList.toggle('is-expanded');
+      historyToggle.setAttribute('aria-expanded', String(expanded));
+      if (expanded) markSeen();
+    });
+    top.addEventListener('click', function () { if (Date.now() - loadedAt > 60000) load(false); });
+    window.addEventListener('focus', function () { if (Date.now() - loadedAt > 60000) load(false); });
+    load(false);
+  }
 
   function topRowHtml(options) {
     options = options || {};
@@ -204,10 +302,13 @@
       '<svg class="sdocs-sidebar-collapse-icon" viewBox="0 0 24 24" aria-hidden="true">' +
       '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/><path d="m16 15-3-3 3-3"/></svg>' +
       '</button></div><nav class="sdocs-sidebar-nav' + (options.navClass ? ' ' + options.navClass : '') +
-      '" aria-label="SmallDocs navigation">' + (options.primaryHtml || '') +
+      '" aria-label="SmallDocs navigation">' + (options.primaryHtml || '') + discoveryHtml({
+        idPrefix: options.idPrefix || element.id, rowClass: options.rowClass, authenticated: options.authenticated,
+      }) +
       '</nav></div>' + status + '<footer class="sdocs-sidebar-footer sdocs-sidebar-account-footer">' +
       accountActionsHtml(options) + '</footer>';
     element.setAttribute('data-sdocs-sidebar-renderer', 'shared');
+    bindReferrals(element);
     if (options.active === 'settings') {
       var accountSettings = element.querySelector('a[href="/cloud/admin"]');
       if (accountSettings) {

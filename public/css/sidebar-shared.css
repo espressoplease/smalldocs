@@ -215,7 +215,8 @@
               visibility .3s cubic-bezier(.4,0,.2,1);
 }
 
-.sdocs-sidebar-section.is-expanded > .sdocs-sidebar-expander {
+.sdocs-sidebar-section.is-expanded > .sdocs-sidebar-expander,
+.sdocs-sidebar-referral-history.is-expanded > .sdocs-sidebar-expander {
   grid-template-rows: 1fr;
   opacity: 1;
   transform: translateY(0);
@@ -441,6 +442,30 @@
 }
 
 .sdocs-sidebar-preview-compact { padding-bottom: 3px; }
+
+.sdocs-referral-link-label { display: block; }
+.sdocs-referral-link {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  margin-top: 7px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  color: var(--text);
+  font: inherit;
+}
+.sdocs-referral-history-toggle { width: 100%; border: 0; background: transparent; cursor: pointer; text-align: left; }
+.sdocs-referral-history-toggle > span { margin-left: auto; color: var(--text-3); }
+.sdocs-referral-history-toggle .sdocs-sidebar-row-chevron { margin-left: 0; }
+.sdocs-sidebar-referral-history.is-expanded .sdocs-sidebar-row-chevron { transform: rotate(90deg); }
+.sdocs-referral-list { list-style: none; margin: 0; padding: 0 10px; }
+.sdocs-referral-list li { padding: 7px 0; overflow-wrap: anywhere; }
+.sdocs-referral-list small { display: block; margin-top: 3px; color: var(--text-3); font-size: .85em; }
+.sdocs-sidebar-shell .sdocs-sidebar-count { margin-left: auto; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.sdocs-sidebar-shell .sdocs-sidebar-count[hidden] { display: none; }
+.sdocs-sidebar-shell [data-referral-more][hidden] { display: none; }
 
 .sdocs-sidebar-explainer {
   margin: 0;
