@@ -47,6 +47,18 @@ Run `sdoc cloud login`, complete authorization in the browser, then run `sdoc cl
 
 After you connect SmallDocs Cloud, run `sdoc setup --cloud --yes`. The Cloud edition has the same `smalldocs` name, so agents do not see two overlapping SmallDocs skills. In Cloud-first mode, `sdoc FILE.md` creates or updates the Cloud document before opening it. List your libraries with `sdoc cloud libraries --json`. Use `sdoc cloud library-default LIBRARY_UUID --json` to select the default for new documents from this connected computer. An explicit `--account UUID` takes priority; existing documents keep their bindings.
 
+For a project-specific destination, put a `.sdocs.json` file in its folder:
+
+```json
+{"library":"Engineering"}
+```
+
+Use `{"library":"LIBRARY_UUID"}` when you want the setting to survive a library rename. Commands use `.sdocs.json` in the current working directory, or the nearest parent folder containing it. This applies even when the Markdown file is elsewhere. `SDOCS_LIBRARY="Engineering" sdoc report.md --cloud --json +planning` selects a library for one command; exporting the variable applies it to the shell.
+
+New documents use `--account`, then `SDOCS_LIBRARY`, then folder configuration, then the installation/computer default or the only accessible library. Existing bound files keep their library. Run `sdoc cloud status --json` to inspect the selected account and `library_selection` source. Tags, members and permission-group discovery use the same selection. Search and listing retain their usual scope unless you pass `--account`.
+
+Names resolve only against libraries you can access. An exact name takes priority over a unique case-insensitive match. Duplicate names, invalid configuration and unavailable libraries return an error rather than choosing another library. A folder setting does not change your Cloud server or sign-in, and does not enable Cloud-first mode.
+
 The prompt in [Install settings](/cloud/admin?panel=install) connects your computer, selects your library and asks your agent to create one tagged getting-started document. It covers finding documents, working with comments and managing members and billing through chat. Ask for a document in ordinary language, such as "Write a document about our launch plan", or say "Make a SmallDoc". Your agent can open subscription or billing settings for you to complete payment or cancellation.
 
 The Cloud CLI also handles billing status, invitations and member removal. Run `sdoc cloud billing --help` for the reference. Document saves return subscription notices during the seven days after a free trial ends. After that extra week, Cloud access requires a subscription. `sdoc cloud subscribe` opens the payment page for you to complete. `sdoc cloud settings billing` opens subscription management, and `sdoc cloud settings preferences` lets you show the previous local-library navigation.

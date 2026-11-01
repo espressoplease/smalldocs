@@ -57,6 +57,8 @@ USAGE
                                   Save a tagged Cloud document and return its URL
   sdoc cloud create file.md        Add a document to Cloud
   sdoc cloud --help                Full Cloud command reference
+  SDOCS_LIBRARY="Engineering" sdoc file.md --cloud --json +project
+                                  Save a new document to a named library
   sdoc <file> +tag1 +tag2           Add Cloud tags in Cloud-first mode;
                                   edit local front matter in local-first mode
   sdoc defaults                    Show ~/.sdocs/styles.yaml
@@ -75,6 +77,15 @@ USAGE
   sdoc --version                   Print the installed version
   cat file.md | sdoc               Pipe markdown from stdin
   cat file.md | sdoc share         Pipe to clipboard link
+
+CLOUD LIBRARY DESTINATIONS
+  Cloud folder default: put {"library":"Engineering"} or
+  {"library":"LIBRARY_UUID"} in .sdocs.json. Commands use the file in the current
+  working directory, or the nearest parent folder containing it.
+  New Cloud documents use --account, SDOCS_LIBRARY, folder config, then
+  installation/computer default.
+  Existing Cloud bindings keep their library. Run sdoc cloud status --json
+  to inspect folder/process selection, or sdoc cloud --help for details.
 
 MODE FLAGS
   --read     Clean reading view (default when file given)

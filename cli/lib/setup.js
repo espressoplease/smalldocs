@@ -59,9 +59,14 @@ Setup makes SmallDocs the agent's default for documents and artifacts, unless
 you request another format or tool. Documents are organised with reusable tags.
 Setup installs agent instructions. It does not sign in or create a subscription.
 Run sdoc cloud login to connect this computer, then sdoc cloud status --json.
-With one library, new documents use it automatically. With several libraries,
-ask the user which to use, then run sdoc cloud library-default UUID --json.
+With one library, new documents use it automatically. If several libraries are
+available and no destination is configured, choose one, then run
+sdoc cloud library-default UUID --json.
 Use sdoc FILE.md --cloud --account UUID for one save instead of changing a default.
+For a project default, put {"library":"Engineering"} or
+{"library":"LIBRARY_UUID"} in .sdocs.json.
+SDOCS_LIBRARY overrides the folder default. Run sdoc cloud status --json to check
+the selection. Existing bound files keep their library.
 The Cloud skill treats relevant tagging as part of every new document.
 Inspect sdoc cloud tags --json, then save with sdoc FILE.md --cloud --json +subject +project.
 `;

@@ -10,6 +10,7 @@ const SDocYaml = require('../shared/sdocs-yaml.js');
 const searchQuery = require('../shared/sdocs-search-query.js');
 const cloudEdit = require('./cloud-edit');
 const cloudComments = require('./cloud-comments');
+const destinationConfig = require('./cloud-destination');
 
 const EXIT = { unexpected: 1, invalid_request: 2, login_required: 3,
   resource_unavailable: 4, account_required: 4, account_selection_required: 4,
@@ -76,7 +77,7 @@ uploading them again. The URL identifies a document; it does not grant access.
 Feedback and bridge commands still use local live sessions. A Cloud URL does
 not turn those sessions into Cloud-backed feedback.
 
-LIBRARIES AND COMPUTER DEFAULTS
+LIBRARIES, FOLDERS AND COMPUTER DEFAULTS
 
   sdoc cloud libraries --json
   sdoc cloud library-default --json
@@ -89,6 +90,24 @@ A library is the membership boundary. A paid subscription covers a person across
 libraries; payment never grants access to someone else's documents. A computer
 default applies only to new unbound documents from this authenticated CLI connection.
 An explicit --account takes priority. Existing file bindings keep their library.
+For a folder default, create .sdocs.json containing {"library":"Engineering"}
+or {"library":"LIBRARY_UUID"}. Commands run in that folder or a child folder
+use the nearest .sdocs.json, walking up from the current working directory.
+This uses the command's working directory, not the input file's directory.
+
+SDOCS_LIBRARY accepts a library name or ID for a process or shell:
+  SDOCS_LIBRARY="Engineering" sdoc report.md --cloud --json +planning
+
+New documents use --account, then SDOCS_LIBRARY, then the nearest .sdocs.json,
+then the installation/computer default or the sole accessible library.
+The file does not enable Cloud-first mode or change the connected Cloud server.
+Names resolve against your accessible libraries. Exact spelling wins, otherwise
+a unique case-insensitive match is accepted. Use an ID when names are ambiguous.
+An invalid configuration or unavailable library returns an error; it does not
+fall back to a different library. Changing a default does not move bound files.
+Status, tags, members and permission-groups use this folder/process selection.
+cloud status --json includes library_selection with its source and config path.
+Search and listing still span accessible libraries unless --account narrows them.
 When there are several libraries and no established destination, ask the user.
 Never use the last library viewed in a browser as the CLI destination.
 Moving preserves the document URL and revision history, resets access to Only you,
@@ -192,6 +211,8 @@ After login, run sdoc cloud status --json. The status result includes origin,
 so you can verify which service is connected. With one library, new documents
 use it automatically. With several libraries, ask the user which to use, then
 set sdoc cloud library-default LIBRARY_UUID --json or pass --account UUID.
+Folder/process defaults are also supported: .sdocs.json {"library":"Engineering"}
+or SDOCS_LIBRARY="Engineering". Status reports the selected account and source.
 If account_required is returned, open setup_url on the same service, finish
 profile and library setup, then retry. A staging-bound CLI already has its
 server address; it does not need an SDOCS_CLOUD_URL override.
@@ -1107,25 +1128,37 @@ function requireCredential(client) {
   return credential;
 }
 
+function configuredDestination(opts) {
+  const selected = destinationConfig.selection(opts);
+  if (selected) return selected;
+  const settings = require('./setup').cloudFirstSettings();
+  return settings && settings.accountId ? { source: 'installation_default', value: settings.accountId } : null;
+}
+
 async function create(opts, client) {
   const file = requireFile(opts.extra);
   const content = fs.readFileSync(file, 'utf8');
   const digest = bindings.hash(content);
   const credential = requireCredential(client);
+  const selected = configuredDestination(opts);
+  const selectionKey = JSON.stringify(selected);
   let pending = bindings.getPending(credential.user_id, file);
-  if (!pending || pending.operation !== 'create' || pending.sha256 !== digest) {
-    pending = { operation: 'create', destination: opts.accountFlag || 'unresolved-default', sha256: digest,
+  if (!pending || pending.operation !== 'create' || pending.sha256 !== digest ||
+      (pending.selection_key != null && pending.selection_key !== selectionKey) ||
+      (pending.selection_key == null && selected && selected.value !== pending.destination)) {
+    pending = { operation: 'create', destination: 'unresolved-default', selection_key: selectionKey, sha256: digest,
       source_file: sourceFileForPath(opts.extra, file), idempotency_key: crypto.randomUUID() };
     bindings.setPending(credential.user_id, file, pending);
   }
   let destination = opts.accountFlag || null;
   if (!destination && pending && pending.operation === 'create' && pending.sha256 === digest && !['default-account', 'unresolved-default'].includes(pending.destination)) destination = pending.destination;
+  if (!destination && selected) destination = await destinationConfig.resolve(client, selected);
   if (!destination) {
     const selected = await client.authenticated('/api/cloud/v1/account');
     destination = selected.account.id;
   }
   if (!pending || pending.operation !== 'create' || pending.destination !== destination || pending.sha256 !== digest) {
-    pending = { operation: 'create', destination, sha256: digest, source_file: pending && pending.source_file,
+    pending = { operation: 'create', destination, selection_key: selectionKey, sha256: digest, source_file: pending && pending.source_file,
       idempotency_key: crypto.randomUUID() };
     bindings.setPending(credential.user_id, file, pending);
   }
@@ -1144,7 +1177,8 @@ async function create(opts, client) {
   return emit(opts, 'cloud.create', { document_id: document.id, revision_id: document.current_revision_id,
     url: documentUrl(client, document.id),
     revision_number: document.revision_number,
-    account_id: response.account && response.account.id || opts.accountFlag || null, path: file,
+    account_id: response.account && response.account.id || destination, path: file,
+    library_selection: destinationConfig.receipt(selected, destination),
     tags: document.tags, sha256: digest, binding_created: true,
     local_changed_after_upload: localChanged }, 'Created ' + document.id + (localChanged ? '; the local file changed again during upload.' : '.'));
 }
@@ -1382,13 +1416,12 @@ async function autoSyncOpen(opts, dependencies) {
     'Use cloud push PATH --dry-run to preview an existing document. No changes were made.');
   if (!opts.file || !isMarkdownFile(opts.file)) return { synced: false };
   const client = dependencies && dependencies.client || new CloudClient();
-  const accountId = opts.accountFlag || dependencies && dependencies.accountId || null;
   const file = requireFile(opts.file);
   const credential = requireCredential(client);
   const binding = bindings.get(credential.user_id, file);
   const syncOpts = Object.assign({}, opts, {
     extra: opts.file,
-    accountFlag: accountId,
+    fallbackAccountId: dependencies && dependencies.accountId || null,
     jsonFlag: false,
     cloudFirst: true,
     silent: Boolean(dependencies && dependencies.silent),
@@ -1398,6 +1431,7 @@ async function autoSyncOpen(opts, dependencies) {
     { credential, file, silent: syncOpts.silent });
   return { synced: true, documentId: result.document_id,
     revisionId: tagged && tagged.current_revision_id || result.revision_id, created: !binding,
+    librarySelection: result.library_selection || { source: 'binding', library_id: result.workspace_id || null },
     tags: tagged && tagged.tags || result.tags || [],
     localChangedAfterUpload: Boolean(result.local_changed_after_upload) };
 }
@@ -1422,6 +1456,7 @@ async function openCloudDocument(opts, dependencies) {
     return emit(opts, 'cloud.open', {
       document_id: saved.documentId, revision_id: saved.revisionId,
       url: canonicalUrl, created: saved.created, tags: saved.tags,
+      library_selection: saved.librarySelection,
       local_changed_after_upload: saved.localChangedAfterUpload,
     }, canonicalUrl + (saved.localChangedAfterUpload
       ? '\nThe local file changed during upload. Run sdoc again to save the latest changes.' : ''));
@@ -1604,6 +1639,7 @@ async function status(opts, client) {
   const me = await client.authenticated('/api/cloud/v1/account' + query);
   const credential = client.loadCredential();
   emit(opts, 'cloud.status', { user: me.user, account: me.account, accounts: me.accounts,
+    library_selection: opts.librarySelection || destinationConfig.receipt(null, me.account.id),
     credential_id: credential.credential_id, origin: client.origin },
   'Signed in as ' + (me.user.email || me.user.id) + '. Account: ' + me.account.name + '.');
 }
@@ -1643,6 +1679,14 @@ async function runCloudCommand(opts, dependencies) {
     if (opts.dryRunFlag && !['push', 'edit', 'comments', 'restore', 'move', 'read', 'search', 'ls', 'history', 'diff',
       'status', 'tags', 'members', 'permission-groups', 'libraries', 'overview'].includes(action)) {
       throw new CloudCommandError('invalid_request', '--dry-run is not supported for cloud ' + action + '. No changes were made.');
+    }
+    if (['status', 'tags', 'members', 'permission-groups'].includes(action)) {
+      const selected = configuredDestination(opts);
+      if (selected) {
+        const accountId = await destinationConfig.resolve(client, selected);
+        opts = Object.assign({}, opts, { accountFlag: accountId,
+          librarySelection: destinationConfig.receipt(selected, accountId) });
+      }
     }
     if (action === 'overview') return overview(opts, client);
     if (management.ACTIONS.includes(action)) return await management.run(opts, client,

@@ -79,6 +79,7 @@ const runCloudDeploymentConfig = require('./test-cloud-deployment-config')(harne
 const runCloudSingleBilling = require('./test-cloud-single-billing')(harness);
 const runCloudReferrals = require('./test-cloud-referrals')(harness);
 const runCloudLibraryCli = require('./test-cloud-library-cli')(harness);
+const runCloudDestination = require('./test-cloud-destination')(harness);
 const runCloudSinglePlan = require('./test-cloud-single-plan')(harness);
 const runCloudAgentManagement = require('./test-cloud-agent-management')(harness);
 const runCloudLibraryUpgrade = require('./test-cloud-library-upgrade')(harness);
@@ -153,6 +154,7 @@ const runLibraryServer = require('./test-library-server')(harness);
   await runCloudAgentManagement();
   await runCloudSingleBilling();
   await runCloudLibraryCli();
+  await runCloudDestination();
   await runCloudStore();
   await runCloudRevisionRetention();
   await runCloudSearch();
