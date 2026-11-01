@@ -20,7 +20,7 @@
     var refer = options.authenticated ? sectionHtml({ id: 'refer', idPrefix: prefix,
       rowClass: options.rowClass, label: 'Refer', icon: icons.refer,
       content: '<div class="sdocs-sidebar-preview" data-referral-panel>' +
-        '<p class="sdocs-sidebar-explainer">Share your link. After someone joins, connects an agent and makes their first monthly payment, you earn credit for one person for one month. Credits add up and carry forward.</p>' +
+        '<p class="sdocs-sidebar-explainer">Share your link. Every time someone joins, connects an agent and makes their first monthly payment, you earn credit for one person for one month. Credits add up and carry forward.</p>' +
         '<label class="sdocs-sidebar-explainer sdocs-referral-link-label">Your referral link<input class="sdocs-referral-link" aria-label="Your referral link" readonly></label>' +
         '<button class="sdocs-sidebar-cta" type="button" data-referral-copy disabled>Copy link</button>' +
         '<p class="sdocs-sidebar-explainer" data-referral-balance></p>' +
