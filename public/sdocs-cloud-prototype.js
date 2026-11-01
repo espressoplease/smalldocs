@@ -108,6 +108,7 @@ async function saveCloudRevision() {
         target_revision_id: targetRevisionId, target_markdown: cloudTargetMarkdown,
         idempotency_key: crypto.randomUUID() }) })
     .then(function (data) {
+      if (!S.cloudDocument || S.cloudDocument.id !== documentId) return null;
       var current = currentMarkdown();
       var savedMarkdown = typeof data.document.markdown === 'string'
         ? data.document.markdown : markdown;
@@ -122,9 +123,11 @@ async function saveCloudRevision() {
       }
       setCloudSaveStatus(data.document.combined
         ? 'Saved and combined with Cloud changes.' : 'Saved to Cloud.');
+      if (S.publications) S.publications.refresh();
       return S.cloudDocument;
     })
     .catch(function (error) {
+      if (!S.cloudDocument || S.cloudDocument.id !== documentId) return null;
       if (error.data && (error.data.error === 'target_too_old' ||
           error.data.error === 'revision_conflict')) {
         cloudSaveBlocked = true;
@@ -180,6 +183,11 @@ function installCloudSaveHook() {
   };
   S._cloudSaveHooked = true;
   S.saveCloudNow = flushCloudSave;
+  S.cloudPublicationSource = function () {
+    return { id:S.cloudDocument && S.cloudDocument.id,
+      markdown:cloudLastSavedMarkdown,
+      saved:!cloudSaveBlocked && !cloudSavePromise && currentMarkdown() === cloudLastSavedMarkdown };
+  };
 }
 
 async function jsonRequest(url, options) {
@@ -771,13 +779,17 @@ function libraryPanelHtml() {
 function renderCloudPanel() {
   var panel = ensureCloudPanel();
   panel.dataset.cloudPanel = cloudState.panel;
-  panel.querySelector('[data-cloud-panel-title]').textContent = cloudState.panel === 'library' ? 'Library' : cloudState.panel === 'tags' ? 'Tags' : 'Access';
+  panel.querySelector('[data-cloud-panel-title]').textContent = cloudState.panel === 'publication' ? 'Public page' : cloudState.panel === 'library' ? 'Library' : cloudState.panel === 'tags' ? 'Tags' : 'Access';
   var body = panel.querySelector('.sdoc-cloud-lab-panel-body');
-  body.innerHTML = (cloudState.panel === 'library' ? libraryPanelHtml() : cloudState.panel === 'tags' ? tagsPanelHtml() : accessPanelHtml())
+  body.innerHTML = (cloudState.panel === 'publication' && S.publications ? S.publications.panelHtml() : cloudState.panel === 'library' ? libraryPanelHtml() : cloudState.panel === 'tags' ? tagsPanelHtml() : accessPanelHtml())
     + (cloudState.status ? '<p class="sdoc-cloud-lab-status" aria-live="polite">'
       + escapeHtml(cloudState.status) + '</p>' : '');
   wireCloudPanel(body);
+  if (cloudState.panel === 'publication' && S.publications) S.publications.wirePanel(body);
 }
+
+S.openPublicationPanel = function () { openCloudPanel('publication'); };
+S.refreshPublicationPanel = function () { if (cloudState.panel === 'publication') renderCloudPanel(); };
 
 function wireCloudPanel(body) {
   body.querySelectorAll('[data-library-choice]').forEach(function (button) {
@@ -906,7 +918,7 @@ async function saveTags(tags) {
 }
 
 function openCloudPanel(kind) {
-  cloudState.panel = kind === 'library' ? 'library' : kind === 'tags' ? 'tags' : 'access';
+  cloudState.panel = kind === 'publication' ? 'publication' : kind === 'library' ? 'library' : kind === 'tags' ? 'tags' : 'access';
   if (kind === 'library') {
     selectedLibrary = S.cloudDocument && S.cloudDocument.workspace_id; librarySettings = null;
     jsonRequest('/api/cloud/v1/library-settings').then(function (data) { librarySettings = data; if (cloudState.panel === 'library') renderCloudPanel(); })

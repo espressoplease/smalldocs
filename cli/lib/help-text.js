@@ -254,6 +254,8 @@ SHORT LINKS (sdoc share --short)
   placement id appear in the targeted-placement table at
   \`/analytics/sources?type=short\`.
 
+  Library tags are omitted from private copies. The source file keeps its tags.
+
   How it works:
     1. The CLI brotli-compresses the content, generates a 256-bit AES-GCM
        key + 96-bit nonce locally, and encrypts the compressed bytes.

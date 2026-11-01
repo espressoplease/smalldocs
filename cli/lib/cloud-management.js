@@ -6,6 +6,9 @@ const HELP = `Account management
 
   sdoc cloud billing --json
   sdoc cloud referrals [--cursor ID] --json
+  sdoc cloud publication DOCUMENT_ID --json
+  sdoc cloud publish DOCUMENT_ID --json
+  sdoc cloud unpublish DOCUMENT_ID --json
   sdoc cloud subscribe [--no-open] --json
   sdoc cloud settings [install|libraries|people|billing|machines|preferences] [--account UUID] [--no-open] --json
   sdoc cloud invite EMAIL [--role member|admin] [--account UUID] --json
@@ -35,6 +38,15 @@ People covered by another paid account keep credit for their own future bill.
 Rewards never extend a whole team's trial. --cursor paginates
 referral history. This command does not invite people or change document access.
 
+Publication reports the public URL and whether there are unpublished changes to
+the document's public content. Publish creates or updates one public page at the same URL, using the
+latest saved Cloud revision. Save local edits to Cloud before publishing. Only
+the document creator can publish or unpublish. Public pages can be read without
+sign-in and can appear in search results. Comments, private tags and source paths
+are excluded. Unpublish removes public access, including after a trial expires;
+search engines and readers may retain copies. Private encrypted share links
+remain separate, fixed copies and are unaffected by publication updates.
+
 Invitations queue an email when delivery is configured and return an accept_url.
 Check notification_scheduled before reporting delivery. They require the same
 library permissions as the UI.
@@ -47,7 +59,7 @@ Use these commands on the human's instruction. Ask the human for trial feedback;
 submit their words rather than inventing feedback. Feedback is shared with SmallDocs.
 `;
 
-const ACTIONS = ['billing', 'referrals', 'subscribe', 'settings', 'invite', 'invitations',
+const ACTIONS = ['billing', 'referrals', 'publication', 'publish', 'unpublish', 'subscribe', 'settings', 'invite', 'invitations',
   'revoke-invite', 'remove-member', 'trial-feedback'];
 
 async function run(opts, client, helpers) {
@@ -56,6 +68,20 @@ async function run(opts, client, helpers) {
   const invalid = message => { throw new CloudCommandError('invalid_request', message); };
   const json = body => ({ method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   const query = opts.accountFlag ? '?account_id=' + encodeURIComponent(opts.accountFlag) : '';
+  if (['publication','publish','unpublish'].includes(action)) {
+    if (!opts.extra) invalid('Supply the saved Cloud document ID.');
+    const endpoint = '/api/cloud/v1/documents/' + encodeURIComponent(opts.extra) + '/publication';
+    if (action === 'unpublish') return emit(opts,'cloud.unpublish',await client.authenticated(endpoint,{method:'DELETE'}));
+    const current = await client.authenticated(endpoint);
+    if (action === 'publish' && !current.can_publish) throw new CloudCommandError('permission_denied',
+      'Publishing requires the document creator and active Cloud access.');
+    if (action === 'publication' || current.publication && current.publication.active && current.publication.is_current) {
+      return emit(opts,'cloud.' + action,current);
+    }
+    return emit(opts,'cloud.publish',await client.authenticated(endpoint,json({
+      expected_revision_id:current.head_revision_id,idempotency_key:crypto.randomUUID()
+    })));
+  }
   async function account() {
     const value = await client.authenticated('/api/cloud/v1/account' + query);
     return value.account.id;

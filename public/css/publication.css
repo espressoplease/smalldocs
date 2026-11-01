@@ -1,0 +1,59 @@
+/* Public articles reuse the document reader's tokens and typography. */
+* { box-sizing: border-box; }
+html { color-scheme: light; }
+html[data-theme="dark"] { color-scheme: dark; }
+body.publication-page {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+}
+.publication-topbar {
+  min-height: var(--ui-toolbar-height);
+  padding: 6px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+}
+.publication-brand { color: var(--text); font-size: 13px; font-weight: 600; text-decoration: none; }
+.publication-theme {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-2);
+  cursor: pointer;
+}
+.publication-theme[hidden] { display: none; }
+.publication-theme:hover { background: var(--bg-hover); }
+.publication-theme:focus-visible, .publication-brand:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.publication-page main { padding: 32px 20px 64px; }
+.publication-page #_sd_rendered { width: 100%; min-height: calc(100vh - 136px); border-radius: var(--radius-md); overflow-wrap: anywhere; }
+.publication-page #_sd_rendered pre { margin: 1.2em 0; padding: var(--md-pre-padding); }
+.publication-page #_sd_rendered :is(h1,h2,h3,h4,h5,h6) { scroll-margin-top: 24px; }
+.publication-meta { display: flex; flex-wrap: wrap; gap: 6px 10px; margin-bottom: 24px; color: var(--text-2); font: 12px/1.6 var(--font-ui); }
+.publication-rich { margin: 1.2em 0; }
+.publication-rich-stage { min-width: 0; }
+.publication-table { max-width: 100%; overflow-x: auto; }
+.publication-table caption { padding-bottom: 8px; text-align: left; color: var(--md-color); font-weight: 500; }
+.publication-rich details { margin: .6em 0; color: var(--text-2); font-size: 13px; }
+.publication-rich summary { cursor: pointer; }
+.publication-rich details pre { font-size: 14px; }
+.publication-rich .chart-menu-btn, .publication-rich .chart-menu { display: none; }
+@media (max-width: 600px) {
+  .publication-page main { padding: 0; }
+  .publication-page #_sd_rendered { padding: 28px 20px 48px; border-radius: 0; min-height: calc(100vh - 40px); }
+}
+@media print {
+  .publication-topbar { display: none; }
+  .publication-page main { padding: 0; }
+  .publication-page #_sd_rendered { max-width: none; padding: 0; }
+  .publication-page #_sd_rendered pre { white-space: pre-wrap; }
+}

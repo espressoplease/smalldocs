@@ -486,7 +486,8 @@ html[data-theme="dark"] :is(#_sd_rendered, .sdoc-code-focus) {
 #_sd_sdocs-file-info .fic-label {
   color: var(--fic-muted);
   flex-shrink: 0;
-  min-width: 58px;
+  min-width: 6.5em;
+  flex-basis: 6.5em;
   font-weight: 500;
 }
 #_sd_sdocs-file-info .fic-value {
@@ -893,6 +894,34 @@ html[data-theme="dark"] :is(#_sd_rendered, .sdoc-code-focus) {
 }
 #_sd_sdocs-file-info .fic-short-intro-learn:hover {
   color: var(--md-p-color);
+}
+
+#_sd_sdocs-file-info .fic-share-actions {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+}
+#_sd_sdocs-file-info .fic-share-option {
+  display: inline-flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+#_sd_sdocs-file-info .fic-share-option .fic-short-intro-learn { font-size: 12px; }
+#_sd_sdocs-file-info .fic-share-actions .fic-shorten-error { flex-basis: 100%; }
+.fic-publication-url {
+  width: 100%;
+  box-sizing: border-box;
+  margin: 8px 0;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
 }
 
 /* ── Interactive form blocks (```form) ─────────────────────────

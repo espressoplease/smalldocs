@@ -143,11 +143,13 @@ The mitigation that does not exist: there is no cheap way for the bridge to know
 
 ### Short links
 
-Short links are an optional feature that produces a much shorter URL for sharing. When implementing them we've tried to balance our focus on privacy with the need to store some aspect of your document on our server (which is what enables the URL to be short). We feel we found a clever solution, but you can be the judge.
+Choose **Create private link** in the Share row to share a fixed copy. Its Private URL appears below with a copy icon on the right. Anyone with the complete link can open it. Later edits do not change that copy; create a new link to share a newer version.
+
+Private copies omit library tags. The original document keeps its tags in your library.
 
 To maximize privacy the document is encrypted in your browser before upload. The SmallDocs server only receives (and stores) ciphertext, not the original (human readable) text. The decryption key required to convert the ciphertext into readable text stays with you.
 
-Clicking **Generate** creates a short link of the form:
+Creating a private link produces a URL of the form:
 
 ```
   https://smalldocs.org/s/{short id}#k={encryption key}
@@ -163,7 +165,7 @@ The `{encryption key}` lives in the URL's **hash fragment** (everything after th
 
 The rest of this section walks through exactly what the server receives and what it doesn't.
 
-Before you click Generate, here's what each side has:
+Before you click Create private link, here's what each side has:
 
 ```
   Your browser                       SmallDocs server
@@ -223,9 +225,19 @@ Updated picture:
 
 When someone opens the link, their browser sends the short ID to the server, receives the encrypted blob back, reads the key from the URL hash, and decrypts the blob locally. The server never sees the plain document or the key, only ciphertext. This pattern is called [end-to-end encryption](https://en.wikipedia.org/wiki/End-to-end_encryption): the two "ends" are your browser and the recipient's browser, and everything in between (our server included) handles ciphertext only.
 
-To confirm this, open your browser's developer tools, switch to the Network tab, click **Generate**, and inspect the request body. You will see a base64-encoded blob of random bytes, not your document. The source is at [SmallDocs on GitHub](https://github.com/espressoplease/smalldocs) if you want to read the exact code that runs before the upload.
+To confirm this, open your browser's developer tools, switch to the Network tab, click **Create private link**, and inspect the request body. You will see a base64-encoded blob of encrypted bytes. The source is at [SmallDocs on GitHub](https://github.com/espressoplease/smalldocs).
 
 Snapshot short links are opt-in. URL-only `#md=...` documents remain available, and the browser does not send their fragment to the server.
+
+### Public pages
+
+Choose **Publish publicly** in a Cloud document's Share row to publish a page anyone can read. Its Public URL appears below with a copy icon on the right. The public page can appear in search results. Only the document creator can publish it.
+
+Each Cloud document has one public URL. Edits stay in Cloud until you choose **Update public page**. Updating keeps the same URL. The published copy includes the document text, public title and description, styling, and the publisher's display name. Private comments, tags, file paths and revision history are excluded.
+
+Open **Manage public page** beside the Share actions to view the page, check its last publication time or unpublish it. Unpublishing removes the page from SmallDocs. Search engines and readers may retain copies. Deleting the source document also unpublishes its page; restoring the source does not automatically republish it.
+
+An agent can check publication with `sdoc cloud publication DOCUMENT_ID --json`, publish or update the saved Cloud version with `sdoc cloud publish DOCUMENT_ID --json`, and remove it with `sdoc cloud unpublish DOCUMENT_ID --json`. Saving a document to Cloud does not publish it. Private encrypted links remain independent fixed copies.
 
 ### Formatting
 

@@ -104,13 +104,16 @@ async function buildShortUrl(content, opts) {
   opts = opts || {};
   const attributionQuery = buildAttributionQuery(opts.source, opts.placement);
 
-  // Mirror the hash-build's default-stripping so the encrypted payload is
-  // identical to what the browser would encode.
+  // Strip default styles and library-only tags before encrypting the copy.
   const parsed = SDocYaml.parseFrontMatter(content);
+  const hadTags = Object.prototype.hasOwnProperty.call(parsed.meta, 'tags');
+  delete parsed.meta.tags;
   if (parsed.meta && parsed.meta.styles) {
     const stripped = SDocStyles.stripStyleDefaults(parsed.meta.styles);
     if (Object.keys(stripped).length > 0) parsed.meta.styles = stripped;
     else delete parsed.meta.styles;
+    content = SDocYaml.serializeFrontMatter(parsed.meta) + '\n' + parsed.body;
+  } else if (hadTags) {
     content = SDocYaml.serializeFrontMatter(parsed.meta) + '\n' + parsed.body;
   }
 

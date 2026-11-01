@@ -27,7 +27,7 @@ module.exports = function (h) {
       let data; try { data = JSON.parse(result.stdout); } catch (_) { throw new Error(result.stdout + result.stderr); }
       return { code: result.status, data };
     }
-    let library, teamLibrary, document, file, invitation;
+    let library, teamLibrary, document, file, invitation, publicUrl;
     try {
       await testAsync('an agent retrieves its own referral link, balances and paginated history', async () => {
         const referrals = new (require('../lib/cloud-referrals').CloudReferrals)({billing,auth,secret:auth.pepper,origin:f.origin});
@@ -89,6 +89,19 @@ module.exports = function (h) {
         assert.deepStrictEqual(result.data.tags, ['operations']);
         document = result.data;
       });
+      await testAsync('the CLI publishes the saved Cloud document, reports its public URL and refuses foreign publishers', async () => {
+        const status = cli(['cloud','publication',document.document_id]);
+        assert.strictEqual(status.code,0,JSON.stringify(status.data));
+        assert.strictEqual(status.data.publication,null);
+        const published = cli(['cloud','publish',document.document_id]);
+        assert.strictEqual(published.code,0,JSON.stringify(published.data));
+        publicUrl = published.data.publication.url;
+        const response = await fetch(publicUrl);
+        assert.strictEqual(response.status,200);
+        assert.ok((await response.text()).includes('Operations report'));
+        assert.strictEqual(cli(['cloud','publish',document.document_id]).data.publication.url,publicUrl);
+        assert.notStrictEqual(cli(['cloud','publish',document.document_id],'outsider').code,0);
+      });
       await testAsync('the seven-day warning keeps saves working and returns payment and feedback links', async () => {
         billing.db.prepare('UPDATE cloud_billing_personal_trials SET ends_at_ms=? WHERE user_id=?').run(Date.now() - 1000, users.josh.id);
         fs.appendFileSync(file, '\nRetry with backoff.\n');
@@ -125,6 +138,16 @@ module.exports = function (h) {
           assert.strictEqual((await api('josh', url)).headers.get('location'), '/cloud/subscribe');
         }
         assert.strictEqual((await api('josh', '/cloud/subscribe')).status, 200);
+      });
+      await testAsync('the CLI can inspect and unpublish its public page after the trial paywall', async () => {
+        const status = cli(['cloud','publication',document.document_id]);
+        assert.strictEqual(status.code,0,JSON.stringify(status.data));
+        assert.strictEqual(status.data.can_publish,false);
+        assert.strictEqual(status.data.can_unpublish,true);
+        const removed = cli(['cloud','unpublish',document.document_id]);
+        assert.strictEqual(removed.code,0,JSON.stringify(removed.data));
+        assert.strictEqual(removed.data.publication.active,false);
+        assert.ok([404,410].includes((await fetch(publicUrl)).status));
       });
       await testAsync('billing and exact settings links remain available without charging or modifying a default', async () => {
         const summary = cli(['cloud','billing']); assert.strictEqual(summary.code, 0);

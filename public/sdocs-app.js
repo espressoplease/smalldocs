@@ -522,7 +522,7 @@ function updateDocumentTitle() {
 
 // ── File-info card ─────────────────────────────────────────
 
-var SHORT_LINKS_LEARN_URL = 'https://smalldocs.org/#sec=short-links';
+var SHORT_LINKS_LEARN_URL = '/docs#sec=short-links';
 
 function shortenErrorMessage(code) {
   return code === 'rate_limited' ? 'Too many requests, try again later.'
@@ -534,10 +534,13 @@ function shortenErrorMessage(code) {
 // staleness check uses. The reusable core behind both the prose file-info card's
 // Generate button and the code viewer's. Returns { url, id }.
 async function generateShortLink() {
-  var result = await shortenCurrentDocument();
+  var snapshot = serializeCurrentDocument();
+  var result = await shortenCurrentDocument(snapshot);
+  if (serializeCurrentDocument() !== snapshot) return result;
   S.shortUrl = result.url;
   S.shortLinkId = result.id;
-  S.shortLinkSnapshot = serializeCurrentDocument();
+  S.shortLinkSnapshot = snapshot;
+  reconcileShortLink();
   return result;
 }
 
@@ -659,6 +662,7 @@ function renderFileInfoCard() {
   var meta = S.currentMeta || {};
   var local = S.fileInfoPaths();
   var rowsEl = card.querySelector('.fic-rows');
+  var previousLinks = Array.from(rowsEl.querySelectorAll('.fic-row-short[data-key]')).map(function (row) {return row.dataset.key;});
 
   // The "Edits" row only renders when a bridge session is *or has been*
   // active. Opening a short URL or a regular shared URL has no bridge, and
@@ -714,9 +718,12 @@ function renderFileInfoCard() {
   // clutters the info card. The flag flips false as soon as the user drops
   // a file, opens a shared link, or edits anything.
   if (hasDoc && !S._isDefaultState) {
-    slots.push(S.shortUrl
-      ? { type: 'data', html: dataRowHtml('shortUrl', 'Share URL', S.shortUrl, false, true) }
-      : { type: 'intro' });
+    slots.push({ type: 'intro' });
+    if (S.shortUrl) slots.push({ type: 'data', html: dataRowHtml('shortUrl', 'Private URL', S.shortUrl, false, true) });
+    var publication = S.publications && S.publications.current();
+    if (publication && publication.url && publication.active) {
+      slots.push({ type: 'data', html: dataRowHtml('publicUrl', 'Public URL', publication.url, false, true) });
+    }
   }
 
   var pathPrivacy = local.creatorOnly ? 'creator' : true;
@@ -825,6 +832,11 @@ function renderFileInfoCard() {
     } else if (slot.type === 'intro') {
       var introRow = document.createElement('div');
       introRow.className = 'fic-row fic-row-short-intro';
+      if (S.publications) {
+        S.publications.renderActions(introRow);
+        rowsEl.appendChild(introRow);
+        return;
+      }
       introRow.innerHTML = ''
         + '<span class="fic-label">Share URL</span>'
         + '<button class="fic-shorten-button" title="Generate a short link for this document">Generate</button>'
@@ -858,6 +870,17 @@ function renderFileInfoCard() {
       copyWithIconFeedback(val, btn);
     });
   });
+  if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    rowsEl.querySelectorAll('.fic-row-short[data-key]').forEach(function (row) {
+      if (previousLinks.indexOf(row.dataset.key) !== -1 || !row.animate) return;
+      var style = getComputedStyle(row);
+      row.animate([
+        {height:'0px',opacity:0,paddingTop:'0px',paddingBottom:'0px',borderTopWidth:'0px',borderTopColor:'transparent',overflow:'hidden'},
+        {height:row.getBoundingClientRect().height+'px',opacity:1,paddingTop:style.paddingTop,paddingBottom:style.paddingBottom,
+          borderTopWidth:style.borderTopWidth,borderTopColor:style.borderTopColor,overflow:'hidden'}
+      ],{duration:300,easing:'cubic-bezier(.4,0,.2,1)'});
+    });
+  }
 
   // Wire any [data-tip] elements in this freshly re-rendered card (the live
   // chip, primarily) into the shared toolbar-tooltip styling.
@@ -1114,10 +1137,8 @@ async function unsealDocument(cipherB64, keyBytes) {
   return decompressText(compressedB64);
 }
 
-// Canonical serialization of the live document - the exact bytes a short link
-// (and the URL hash) encode. Used both to seal a short link and to detect
-// whether the live document has since diverged from one a short link points at,
-// so the two can never disagree about what "the same document" means.
+// Canonical source serialization for URL hashes and short-link staleness.
+// Sharing omits library tags from the copy without changing the source state.
 function serializeCurrentDocument() {
   var styles = SDocStyles.stripStyleDefaults(S.collectStyles());
   var meta = Object.assign({}, S.currentMeta);
@@ -1126,10 +1147,17 @@ function serializeCurrentDocument() {
   return SDocYaml.serializeFrontMatter(meta) + '\n' + S.currentBody;
 }
 
+function withoutLibraryTags(text) {
+  var parsed = SDocYaml.parseFrontMatter(text);
+  if (!Object.prototype.hasOwnProperty.call(parsed.meta, 'tags')) return text;
+  delete parsed.meta.tags;
+  return SDocYaml.serializeFrontMatter(parsed.meta) + '\n' + parsed.body;
+}
+
 // Compress current document, encrypt with a fresh key, upload ciphertext.
 // Returns { url, id } on success; throws on failure.
-async function shortenCurrentDocument() {
-  var full = serializeCurrentDocument();
+async function shortenCurrentDocument(snapshot) {
+  var full = withoutLibraryTags(typeof snapshot === 'string' ? snapshot : serializeCurrentDocument());
 
   var keyBytes = await generateShortLinkKey();
   var cipherB64 = await sealDocument(full, keyBytes);
@@ -1305,6 +1333,7 @@ function syncAll(source) {
     reconcileShortLink(source);
   } finally {
     S._syncing = false;
+    if (S.publications && S.cloudDocument && !S._loadingDocument) renderFileInfoCard();
     if (S.applyChromeTint) S.applyChromeTint();
     if (S.refreshCommentDot) S.refreshCommentDot();
   }
@@ -1751,6 +1780,7 @@ S.loadText = loadText;
 S.shortenCurrentDocument = shortenCurrentDocument;
 S.shortenErrorMessage = shortenErrorMessage;
 S.generateShortLink = generateShortLink;
+S.serializeCurrentDocument = serializeCurrentDocument;
 S.SHORT_LINKS_LEARN_URL = SHORT_LINKS_LEARN_URL;
 // Exposed seam: the bridge Source decodes its embedded `md=` snapshot through
 // the same brotli/deflate decode the fragment Source uses, so there's one decode
@@ -1989,7 +2019,9 @@ async function initShortLink(id) {
     S._isDefaultState = false;
     S._loadingDocument = true;
     S.resetAllStyles();
-    loadText(text);
+    // Older immutable copies may contain tags. Keep library organisation out
+    // of the shared reader as well as newly encrypted copies.
+    loadText(withoutLibraryTags(text));
     // loadText -> syncAll('load') -> updateHash queues a URL rewrite. Cancel
     // it so the short link stays visible in the address bar. On the first
     // real edit, updateHash runs again and normalizes the URL to / + #md=.

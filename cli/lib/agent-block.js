@@ -28,8 +28,8 @@ const path = require('path');
 const { SETUP_CACHE, INSTALLATION_CHANNEL } = require('./constants');
 
 // ── Skill model ────────────────────────────────────────────
-const SKILL_VERSION = 46;
-const SKILL_REASON  = 'Explain referral activation, payment bonuses and personal free-access extensions.';
+const SKILL_VERSION = 47;
+const SKILL_REASON  = 'Create and update public publications separately from private Cloud saves and encrypted links.';
 const SKILL_NAME    = 'smalldocs';
 
 // Always-in-context preamble. Concise trigger text; the full reference lives
@@ -102,6 +102,10 @@ For a presentation request, follow this sequence rather than treating it as an o
 const CLOUD_SKILL_SECTION = `### SmallDocs Cloud for agents
 
 This user has enabled Cloud-first mode. Treat Cloud as the normal destination for SmallDocs Markdown. Write or update the local Markdown working copy, choose relevant tags, then run \`sdoc FILE.md --cloud --json +subject +project\`. The CLI creates a Cloud document for an unbound file or pushes a revision for a bound file before it opens the browser. If the Cloud write fails, stop and report the error instead of presenting the local copy as saved.
+
+### Public publishing
+
+Cloud saves remain private to the document's permitted readers. When the human asks to publish a public page, use \`sdoc cloud publication DOCUMENT_ID --json\` to inspect its current publication, then \`sdoc cloud publish DOCUMENT_ID --json\` to publish or update the saved Cloud version at its stable public URL. Save working-copy edits to Cloud first. Only the creator can publish or unpublish. Public pages can appear in search results; private comments, tags, file paths and revision history are excluded. Return the publication URL, not the private Cloud URL, when sharing the published page. \`sdoc cloud unpublish DOCUMENT_ID --json\` removes public access, including after a trial expires. Readers and search engines may retain copies. Existing encrypted share links stay independent, fixed copies.
 
 ### Account and subscription management
 

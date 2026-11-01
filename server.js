@@ -280,6 +280,11 @@ if (cloudKeyProvider) {
   });
 }
 
+const cloudPublications = cloudStore ? new (require('./lib/cloud-publications').CloudPublications)({
+  store: cloudStore, origin: CLOUD_AUTH_PUBLIC_ORIGIN,
+  renderPage: options => require('./lib/publication-render').renderPublicationPage(options),
+}) : null;
+
 let cloudBilling = null;
 let cloudStripe = null;
 let stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET || '';
@@ -1739,7 +1744,8 @@ async function handleCloudApi(req, res, url) {
       sendJson(res, 200, { ok: true, feedback });
       return;
     }
-    if (cloudSinglePlan && /^\/api\/cloud\/v1\/(?:documents|search|projects|account\/(?:documents|tags|permission-groups))(?:\/|$)/.test(pathname) &&
+    if (cloudSinglePlan && !(['GET', 'DELETE'].includes(req.method) && /^\/api\/cloud\/v1\/documents\/[^/]+\/publication$/.test(pathname)) &&
+        /^\/api\/cloud\/v1\/(?:documents|search|projects|account\/(?:documents|tags|permission-groups))(?:\/|$)/.test(pathname) &&
         cloudSubscriptionState(user.id).phase === 'payment_required') {
       throw Object.assign(new Error('trial_payment_required'), { code: 'trial_payment_required' });
     }
@@ -2612,6 +2618,52 @@ async function handleCloudApi(req, res, url) {
       sendJson(res, 200, { ok: true, permission });
       return;
     }
+    const publicationMatch = pathname.match(/^\/api\/cloud\/v1\/documents\/([^/]+)\/publication$/);
+    if (publicationMatch && ['GET', 'POST', 'DELETE'].includes(req.method)) {
+      const input = { userId: user.id, documentId: publicationMatch[1] };
+      const requireCurrentAccount = document => {
+        const currentUser = cloudAuth.getUser(user.id);
+        if (!currentUser || currentUser.disabledAtMs != null) throw cloudReadUnavailable();
+        if (!cloudTermsAccepted(currentUser)) {
+          throw Object.assign(new Error('terms_acceptance_required'), { code: 'terms_acceptance_required' });
+        }
+        if (req.method === 'POST') requireCloudEntitlement(user.id, document.workspace_id, 'manage');
+        else if (req.method === 'GET' && input.requirePublicationRead) requireCloudEntitlement(user.id, document.workspace_id, 'read');
+      };
+      input.beforeCommit = requireCurrentAccount;
+      let result;
+      if (req.method === 'POST') {
+        const body = await cloudAuthHttp.readJson(req);
+        const profile = cloudAuth.getUser(user.id);
+        result = await cloudPublications.publish({ ...input,
+          expectedRevisionId: body.expected_revision_id, idempotencyKey: body.idempotency_key,
+          authorName: [profile.firstName, profile.lastName].filter(Boolean).join(' ') });
+      } else if (req.method === 'DELETE') result = cloudPublications.unpublish(input);
+      else {
+        const document = cloudPublications._document(user.id, input.documentId);
+        let canPublish = document.created_by_user_id === user.id;
+        if (canPublish) {
+          try { requireCloudEntitlement(user.id, document.workspace_id, 'manage'); }
+          catch (error) {
+            if (!['subscription_required', 'subscription_read_only', 'trial_payment_required', 'payment_grace_expired'].includes(error.code)) throw error;
+            canPublish = false;
+          }
+        }
+        if (document.created_by_user_id === user.id && !canPublish) result = cloudPublications.statusMetadata(input);
+        else {
+          input.requirePublicationRead = true;
+          result = await cloudPublications.status(input);
+        }
+        result.can_publish = canPublish;
+      }
+      if (req.method === 'DELETE') {
+        const document = cloudPublications._document(user.id, input.documentId);
+        try { requireCloudEntitlement(user.id, document.workspace_id, 'manage'); }
+        catch (_) { result.can_publish = false; }
+      }
+      sendJson(res, 200, { ok: true, ...result });
+      return;
+    }
     const documentTagsMatch = pathname.match(/^\/api\/cloud\/v1\/documents\/([^/]+)\/tags$/);
     if (documentTagsMatch && req.method === 'PATCH') {
       const body = await cloudAuthHttp.readJson(req, CLOUD_DOCUMENT_JSON_MAX_BYTES);
@@ -3415,10 +3467,60 @@ function handleCloudLogout(req, res) {
   res.end();
 }
 
+function publicationRobotsHeaders(req) {
+  const canonicalHost = new URL(CLOUD_AUTH_PUBLIC_ORIGIN).hostname;
+  const requestHost = String(req.headers.host || '').split(':')[0].toLowerCase();
+  const productionHosts = ['smalldocs.org', 'www.smalldocs.org'];
+  return productionHosts.includes(canonicalHost) && productionHosts.includes(requestHost) &&
+    CLOUD_DEPLOYMENT.mode !== 'staging' ? {} : { 'X-Robots-Tag': 'noindex, nofollow' };
+}
+
+function servePublicPublication(req, res, slug) {
+  const publication = cloudPublications && cloudPublications.getPublic(slug);
+  const headers = { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff',
+    ...publicationRobotsHeaders(req) };
+  if (!publication || !publication.active || !publication.rendered_html ||
+      publication.document_deleted != null || publication.project_deleted != null || publication.workspace_deleted != null) {
+    res.writeHead(publication ? 410 : 404, { ...headers, 'Content-Type': 'text/plain; charset=utf-8' });
+    res.end(req.method === 'HEAD' ? '' : 'This publication is unavailable.');
+    return;
+  }
+  const csp = ["default-src 'none'", "script-src 'self' https://cdn.jsdelivr.net",
+    "style-src 'self' 'unsafe-inline'", "font-src 'self'", "img-src 'self' https:",
+    "connect-src 'none'", "frame-src 'none'", "object-src 'none'", "base-uri 'none'",
+    "form-action 'none'", "frame-ancestors 'none'"].join('; ');
+  res.writeHead(200, { ...headers, 'Content-Type': 'text/html; charset=utf-8',
+    'Content-Security-Policy': csp, 'Referrer-Policy': 'strict-origin-when-cross-origin' });
+  res.end(req.method === 'HEAD' ? '' : rewriteAssets(publication.rendered_html));
+}
+
 const server = http.createServer((req, res) => {
   req.cloudAuthResponse = res;
   const url = new URL(req.url, `http://localhost:${PORT}`);
   const pathname = url.pathname;
+
+  if ((req.method === 'GET' || req.method === 'HEAD') && pathname.startsWith('/p/')) {
+    servePublicPublication(req, res, pathname.slice(3));
+    return;
+  }
+  if ((req.method === 'GET' || req.method === 'HEAD') && pathname === '/publications-sitemap.xml') {
+    const escapeXml = value => String(value).replace(/[&<>"']/g, character =>
+      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' })[character]);
+    const entries = cloudPublications ? cloudPublications.listPublic() : [];
+    const body = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' +
+      entries.map(entry => '<url><loc>' + escapeXml(CLOUD_AUTH_PUBLIC_ORIGIN + '/p/' + entry.slug) + '</loc><lastmod>' +
+        new Date(entry.updated_at_ms).toISOString() + '</lastmod></url>').join('') + '</urlset>';
+    res.writeHead(200, { 'Content-Type': 'application/xml; charset=utf-8', 'Cache-Control': 'no-store',
+      ...publicationRobotsHeaders(req) });
+    res.end(req.method === 'HEAD' ? '' : body);
+    return;
+  }
+  if ((req.method === 'GET' || req.method === 'HEAD') && pathname === '/robots.txt') {
+    res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store',
+      ...publicationRobotsHeaders(req) });
+    res.end(req.method === 'HEAD' ? '' : 'User-agent: *\nAllow: /\nSitemap: ' + CLOUD_AUTH_PUBLIC_ORIGIN + '/publications-sitemap.xml\n');
+    return;
+  }
 
   if (!CLOUD_DEPLOYMENT.publicEnabled &&
       (pathname === '/cloud' || pathname.startsWith('/cloud/') ||

@@ -5,7 +5,7 @@ description: What SmallDocs receives, why it is processed, where it is stored, a
 
 # Privacy Notice
 
-**Last updated: 1 November 2026**
+**Last updated: 2 November 2026**
 
 This notice explains how **Odd Solutions Ltd**, company number 16186575, handles personal data when it operates SmallDocs. Odd Solutions Ltd is the controller for account, service, support, security, and billing records. For document content uploaded by a Team customer, the customer may be the controller and Odd Solutions Ltd may act as its processor.
 
@@ -13,7 +13,7 @@ Contact: [hi@smalldocs.org](mailto:hi@smalldocs.org).
 
 Registered office: 98 Downhills Park Road, London, United Kingdom, N17 6PA.
 
-## The three document modes
+## Document modes
 
 SmallDocs handles documents differently depending on the feature you choose.
 
@@ -32,6 +32,12 @@ An encrypted short link uploads encrypted document bytes to SmallDocs. The serve
 Cloud stores selected documents for access across authorised people and connected machines. Document bodies, titles, filenames, tags, and revision metadata are encrypted at rest. SmallDocs manages the encryption keys and can decrypt an authorised document in application memory to render, search, edit, merge, export, and notify about it. Cloud is not end-to-end encrypted or zero knowledge.
 
 Access checks run before a Cloud document is decrypted. Search uses a permission-filtered index of keyed terms and positions. The database does not store plaintext search terms. Document metadata is decrypted in application memory when needed to display or filter results. Matching content may be decrypted to check matches and produce snippets. The index reveals term equality, frequency, word order, and some character relationships within a project. Access is checked again before results are returned. Search text, document text, and result snippets are excluded from application logs.
+
+### Public pages
+
+Publishing a Cloud document creates a separate public copy. Anyone can read it without signing in, and search engines can index it. The public copy includes the document text, selected styling, public title and description, and the publisher's display name. Private comments, tags, source file paths and revision history are excluded.
+
+Private Cloud edits do not change the public copy until the creator updates the publication. Unpublishing or deleting the source removes public access through SmallDocs. Search engines and readers may retain copies. Public pages do not expire with the source revision's 90-day history window.
 
 ## Personal data we process
 
