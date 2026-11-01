@@ -155,6 +155,7 @@ for(const width of [1440,390]) test('anonymous public slides match the document 
   await page.context().addCookies([{name:'sdocs_cloud',value:f.users.josh.sessionToken,url:f.origin}]);
   await page.goto(f.origin+'/docs?cloud-document='+doc.id);
   await expect(page.locator('.sdoc-slide')).toHaveCount(1);
+  await expect(page.locator('.sdoc-slide .sd-shape-stage')).toContainText('Email encryption protects different parts of a message');
   await page.evaluate(()=>document.fonts.ready);
   const baseline=await page.locator('.sdoc-slide').evaluate(el=>({width:el.clientWidth,
     text:el.querySelector('.sd-shape-stage').textContent,
@@ -166,6 +167,7 @@ for(const width of [1440,390]) test('anonymous public slides match the document 
     await reader.goto(url);
     await expect(reader.locator('html')).toHaveAttribute('data-publication-ready','true');
     await expect(reader.locator('.sdoc-slide')).toHaveCount(1);
+    await expect(reader.locator('.sdoc-slide .sd-shape-stage')).toContainText('Email encryption protects different parts of a message');
     await expect(reader.locator('pre code.language-slide')).toHaveCount(0);
     await expect(reader.getByRole('heading',{name:'Untitled document',exact:true})).toHaveCount(0);
     await reader.evaluate(()=>document.fonts.ready);
