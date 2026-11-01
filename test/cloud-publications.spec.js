@@ -140,3 +140,82 @@ test('a delayed private-link upload does not advertise an old copy as the change
   await expect(page.getByRole('button',{name:'Create new private link',exact:true})).toBeEnabled();
   await expect(page.locator('[data-key="shortUrl"]')).toHaveCount(0);
 });
+
+const fs=require('fs'),path=require('path');
+const slideMarkdown=fs.readFileSync(path.join(__dirname,'fixtures/publication-slide.md'),'utf8');
+async function publishedRich(markdown) {
+  doc=await update(markdown,'rich-'+Date.now());
+  const result=await f.api('josh','/api/cloud/v1/documents/'+doc.id+'/publication','POST',{
+    expected_revision_id:doc.current_revision_id,idempotency_key:'publish-rich'});
+  expect(result.status).toBe(200);return result.data.publication.url;
+}
+for(const width of [1440,390]) test('anonymous public slides match the document reader at '+width,async({page,browser},testInfo)=>{
+  const url=await publishedRich(slideMarkdown);
+  await page.setViewportSize({width,height:1000});
+  await page.context().addCookies([{name:'sdocs_cloud',value:f.users.josh.sessionToken,url:f.origin}]);
+  await page.goto(f.origin+'/docs?cloud-document='+doc.id);
+  await expect(page.locator('.sdoc-slide')).toHaveCount(1);
+  await page.evaluate(()=>document.fonts.ready);
+  const baseline=await page.locator('.sdoc-slide').evaluate(el=>({width:el.clientWidth,
+    text:el.querySelector('.sd-shape-stage').textContent,
+    cards:Array.from(el.querySelectorAll('.shape-rect')).map(card=>({width:card.getBoundingClientRect().width,height:card.getBoundingClientRect().height,background:getComputedStyle(card).backgroundColor}))}));
+  const guest=await browser.newContext({viewport:{width,height:1000}});
+  try {
+    const reader=await guest.newPage(),errors=[];reader.on('pageerror',e=>errors.push(e.message));
+    const requests=[];reader.on('request',r=>requests.push(r.url()));
+    await reader.goto(url);
+    await expect(reader.locator('html')).toHaveAttribute('data-publication-ready','true');
+    await expect(reader.locator('.sdoc-slide')).toHaveCount(1);
+    await expect(reader.locator('pre code.language-slide')).toHaveCount(0);
+    await expect(reader.getByRole('heading',{name:'Untitled document',exact:true})).toHaveCount(0);
+    await reader.evaluate(()=>document.fonts.ready);
+    const actual=await reader.locator('.sdoc-slide').evaluate(el=>({width:el.clientWidth,
+      text:el.querySelector('.sd-shape-stage').textContent,
+      cards:Array.from(el.querySelectorAll('.shape-rect')).map(card=>({width:card.getBoundingClientRect().width,height:card.getBoundingClientRect().height,background:getComputedStyle(card).backgroundColor}))}));
+    expect(actual.text).toBe(baseline.text);
+    expect(Math.abs(actual.width-baseline.width)).toBeLessThanOrEqual(1);
+    expect(actual.cards.length).toBe(baseline.cards.length);
+    actual.cards.forEach((card,i)=>{expect(Math.abs(card.width-baseline.cards[i].width)).toBeLessThanOrEqual(1);expect(Math.abs(card.height-baseline.cards[i].height)).toBeLessThanOrEqual(1);expect(card.background).toBe(baseline.cards[i].background);});
+    expect(errors).toEqual([]);expect(requests.filter(url=>url.includes('/api/cloud/'))).toEqual([]);
+    expect(await reader.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+    await reader.screenshot({path:testInfo.outputPath('public-slide-'+width+'.png')});
+    await reader.locator('.sdoc-slide-present').click();
+    await expect(reader.locator('.sdoc-present')).toBeVisible();
+    await reader.keyboard.press('Escape');
+  } finally {await guest.close();}
+});
+test('existing published snapshots gain rich rendering without reading a later private draft',async({browser})=>{
+  const url=await publishedRich(slideMarkdown);
+  const row=f.store.db.prepare('SELECT rendered_html FROM cloud_publications WHERE document_id=?').get(doc.id);
+  const legacy=row.rendered_html.replace(/<script id="publication-source" type="application\/json">[\s\S]*?<\/script>/,'')
+    .replace(/(<article id="_sd_rendered"[^>]*>)/,'$1<h1>Untitled document</h1>');
+  f.store.db.prepare('UPDATE cloud_publications SET rendered_html=? WHERE document_id=?').run(legacy,doc.id);
+  await update('# New private draft\n\nThis has never been published.','unpublished-draft');
+  const guest=await browser.newContext();
+  try {
+    const reader=await guest.newPage();await reader.goto(url);
+    await expect(reader.locator('html')).toHaveAttribute('data-publication-ready','true');
+    await expect(reader.locator('.sdoc-slide')).toHaveCount(1);
+    await expect(reader.locator('.sdoc-slide')).toContainText('Email encryption protects different parts of a message');
+    await expect(reader.locator('body')).not.toContainText('This has never been published.');
+    await expect(reader.getByRole('heading',{name:'Untitled document',exact:true})).toHaveCount(0);
+  } finally{await guest.close();}
+});
+test('anonymous rich pages render cells, math, charts and diagrams with inert raw HTML',async({browser})=>{
+  const markdown='---\nstyles:\n  baseFontSize: 22\n  color: "#123456"\n---\n# Rich public guide\n\n<script>window.publicationAttack=true</script>\n\n$$x^2 + y^2$$\n\n```cells Budget/Plan\nItem,Cost\nBooks,12\n```\n\n```chart\n{"type":"bar","labels":["Books"],"values":[12]}\n```\n\n```mermaid\nflowchart LR\n A[Start] --> B[Finish]\n```\n\n```html\n</script><script>window.publicationAttack=true</script>\n```';
+  const url=await publishedRich(markdown);
+  const guest=await browser.newContext({serviceWorkers:'allow'});
+  try {
+    const reader=await guest.newPage(),errors=[];reader.on('pageerror',e=>errors.push(e.message));
+    await reader.goto(url);
+    await expect(reader.locator('html')).toHaveAttribute('data-publication-ready','true',{timeout:30000});
+    await expect(reader.locator('.katex')).toBeVisible();
+    await expect(reader.locator('.sdoc-cells')).toBeVisible();
+    await expect(reader.locator('canvas')).toBeVisible();
+    await expect(reader.locator('.sdoc-mermaid-stage > svg')).toBeVisible();
+    await expect(reader.locator('#_sd_rendered')).toHaveCSS('font-size','22px');
+    await expect(reader.locator('#_sd_rendered')).toHaveCSS('color','rgb(18, 52, 86)');
+    expect(await reader.evaluate(()=>window.publicationAttack)).toBeUndefined();
+    expect(errors).toEqual([]);
+  } finally{await guest.close();}
+});

@@ -1,99 +1,87 @@
-/* Progressive public reading features. No account, document fetch, or app bootstrap. */
+/* Public host for the shared SmallDocs reader. It only reads the published copy. */
 (function () {
   'use strict';
-  var article = document.getElementById('_sd_rendered');
-  if (!article) return;
-  var dark = window.matchMedia('(prefers-color-scheme: dark)');
+  var fallback = document.getElementById('_sd_rendered');
+  if (!fallback) return;
   var themeButton = document.querySelector('.publication-theme');
-  var charts;
-  var diagrams;
+  var view;
   function applyTheme(theme) {
     document.documentElement.dataset.theme = theme;
     if (themeButton) themeButton.setAttribute('aria-pressed', theme === 'dark' ? 'true' : 'false');
   }
-  applyTheme(dark.matches ? 'dark' : 'light');
+  applyTheme(window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
   if (themeButton) {
     themeButton.hidden = false;
     themeButton.addEventListener('click', function () {
       applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
-      if (charts) charts.refreshChartColors();
-      if (diagrams) diagrams.rethemeMermaid();
     });
   }
 
-  function keepSource(figure, source, label) {
-    if (figure.querySelector('.publication-rich-stage pre')) return;
-    var details = document.createElement('details');
-    var summary = document.createElement('summary');
-    summary.textContent = label;
-    details.appendChild(summary);
-    details.appendChild(source);
-    figure.appendChild(details);
+  // Older snapshots contain public HTML rather than a Markdown source payload.
+  // Reuse that published HTML, recovering rich fence text from its code blocks.
+  // Never fetch a private document or substitute its newer draft.
+  function legacySource() {
+    var copy = fallback.cloneNode(true);
+    var metadata = copy.querySelector('.publication-meta');
+    if (metadata) {
+      var footer = document.createElement('footer');
+      footer.className = 'publication-meta';
+      footer.appendChild(metadata.cloneNode(true));
+      fallback.after(footer);
+      metadata.remove();
+    }
+    var inventedTitle = copy.querySelector(':scope > h1:not([id])');
+    if (inventedTitle) inventedTitle.remove();
+    copy.querySelectorAll('pre > code').forEach(function (code) {
+      if (!code.isConnected && !copy.contains(code)) return;
+      var pre = code.parentElement;
+      var block = pre.closest('.publication-rich') || pre;
+      var language = (code.className.match(/(?:^|\s)language-([\w+-]+)/) || [,''])[1];
+      var source = code.textContent;
+      var fence = '`'.repeat(Math.max(3, Math.max.apply(null, (source.match(/`+/g) || ['']).map(function (run) { return run.length; })) + 1));
+      block.replaceWith(document.createTextNode('\n\n' + fence + language + '\n' + source.replace(/\n$/, '') + '\n' + fence + '\n\n'));
+    });
+    return Array.prototype.map.call(copy.childNodes, function (node) {
+      return node.nodeType === 3 ? node.textContent : node.outerHTML;
+    }).join('\n\n');
   }
 
-  var chartFigures = Array.prototype.slice.call(article.querySelectorAll('[data-publication-feature="chart"]'));
-  if (chartFigures.length && window.SDocCharts && window.SDocStyles) {
-    charts = window.SDocCharts.create({
-      window: window, document: document, root: article, styleRoot: article,
-      styles: window.SDocStyles, controls: { copy: false, download: false }, blockCap: 50,
+  var payload = document.getElementById('publication-source');
+  var markdown;
+  try { markdown = payload ? JSON.parse(payload.textContent).markdown : legacySource(); }
+  catch (_) { return; }
+  if (typeof markdown !== 'string') return;
+  var mount = document.createElement('div');
+  mount.className = 'publication-reader-mount publication-reader-preparing';
+  fallback.before(mount);
+  // Rich components measure their font and colours while mounting. Apply the
+  // published style rules to the preparing reader before those measurements.
+  document.head.querySelectorAll('style').forEach(function (style) {
+    if (style.textContent.indexOf('html #_sd_rendered{') !== 0) return;
+    var sharedStyle = document.createElement('style');
+    sharedStyle.textContent = style.textContent.replace(/#_sd_rendered/g, '.publication-reader-mount .smalldocs-document');
+    document.head.appendChild(sharedStyle);
+  });
+  import('/sdk/0.3.1/smalldocs.js').then(function (sdk) {
+    return sdk.render(mount, markdown, {
+      navigation: false,
+      runnableHtml: false,
+      sections: { collapsible: true, defaultOpen: true },
+      controls: { copy: true, fullscreen: true, download: true }
     });
-    var sources = chartFigures.map(function (figure) { return figure.querySelector('pre').cloneNode(true); });
-    // The native renderer's existing per-document cap bounds chart work.
-    charts.processCharts(article).then(function () {
-      chartFigures.forEach(function (figure, i) {
-        var canvas = figure.querySelector('canvas');
-        if (canvas) {
-          canvas.setAttribute('role', 'img');
-          var caption = figure.querySelector('caption');
-          canvas.setAttribute('aria-label', caption ? caption.textContent : 'Chart');
-        }
-        keepSource(figure, sources[i], 'Chart source');
-      });
-    }).catch(function () {});
-  }
-
-  var diagramFigures = Array.prototype.slice.call(article.querySelectorAll('[data-publication-feature="mermaid"]'));
-  if (diagramFigures.length && window.SDocMermaidCore && window.DOMPurify) {
-    diagrams = window.SDocMermaidCore.create({
-      window: window, document: document, root: article, scope: article,
-      // Public diagrams use SVG text labels. Generated SVG lives in a shadow
-      // root so its theme CSS cannot affect the surrounding article.
-      loadMermaid: function () {
-        return new Promise(function (resolve, reject) {
-          var script = document.createElement('script');
-          script.src = 'https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js';
-          script.onload = function () {
-            var mermaid = window.mermaid;
-            resolve({
-              initialize: function (config) {
-                config.securityLevel = 'strict';
-                config.flowchart.htmlLabels = false;
-                config.sequence.htmlLabels = false;
-                config.themeCSS = '';
-                mermaid.initialize(config);
-              },
-              render: mermaid.render.bind(mermaid),
-            });
-          };
-          script.onerror = reject;
-          document.head.appendChild(script);
-        });
-      },
-      setSvgHTML: function (stage, source) {
-        var root = stage.shadowRoot || stage.attachShadow({ mode: 'open' });
-        root.innerHTML = window.DOMPurify.sanitize(source, {
-          USE_PROFILES: { svg: true, svgFilters: true },
-          FORBID_TAGS: ['foreignObject', 'script', 'iframe', 'object', 'embed', 'use', 'a', 'image', 'animate', 'set'],
-          FORBID_ATTR: ['href', 'xlink:href'],
-        });
-        var css = document.createElement('style');
-        css.textContent = 'svg{max-width:100%;height:auto;display:block;margin:auto}';
-        root.appendChild(css);
-      },
-    });
-    var diagramSources = diagramFigures.map(function (figure) { return figure.querySelector('pre').cloneNode(true); });
-    diagrams.processMermaid(article).then(function () {
-      diagramFigures.forEach(function (figure, i) { keepSource(figure, diagramSources[i], 'Diagram source'); });
-    }).catch(function () {});
-  }
+  }).then(function (reader) {
+    view = reader;
+    // Retain the exact validated document styles from the published HTML.
+    fallback.remove();
+    reader.element.id = '_sd_rendered';
+    reader.element.setAttribute('aria-label', document.title.replace(/ \| SmallDocs$/, ''));
+    mount.classList.remove('publication-reader-preparing');
+    document.documentElement.dataset.publicationReady = 'true';
+  }).catch(function () {
+    mount.remove();
+    document.documentElement.dataset.publicationReady = 'fallback';
+  });
+  window.addEventListener('pagehide', function (event) {
+    if (!event.persisted && view) view.destroy();
+  });
 })();

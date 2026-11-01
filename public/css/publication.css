@@ -5,7 +5,7 @@ html[data-theme="dark"] { color-scheme: dark; }
 body.publication-page {
   margin: 0;
   min-height: 100vh;
-  background: var(--bg);
+  background: var(--sdocs-document-bg);
   color: var(--text);
   font-family: var(--font-ui);
 }
@@ -16,7 +16,7 @@ body.publication-page {
   align-items: center;
   justify-content: space-between;
   border-bottom: 1px solid var(--border-subtle);
-  background: var(--bg-surface);
+  background: var(--sdocs-document-bg);
 }
 .publication-brand { color: var(--text); font-size: 13px; font-weight: 600; text-decoration: none; }
 .publication-theme {
@@ -34,11 +34,14 @@ body.publication-page {
 .publication-theme[hidden] { display: none; }
 .publication-theme:hover { background: var(--bg-hover); }
 .publication-theme:focus-visible, .publication-brand:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-.publication-page main { padding: 32px 20px 64px; }
-.publication-page #_sd_rendered { width: 100%; min-height: calc(100vh - 136px); border-radius: var(--radius-md); overflow-wrap: anywhere; }
+.publication-page main { position: relative; padding: 0; }
+.publication-page #_sd_rendered { width: 100%; min-height: calc(100vh - 40px); border-radius: 0; overflow-wrap: anywhere; }
+.publication-reader-preparing { position: absolute; inset: 0 0 auto; visibility: hidden; pointer-events: none; }
+.publication-reader-mount { --sdocs-background: var(--sdocs-document-bg); --sdocs-text-color: var(--text); --sdocs-muted-color: var(--text-2); --sdocs-border-color: var(--border); }
 .publication-page #_sd_rendered pre { margin: 1.2em 0; padding: var(--md-pre-padding); }
 .publication-page #_sd_rendered :is(h1,h2,h3,h4,h5,h6) { scroll-margin-top: 24px; }
-.publication-meta { display: flex; flex-wrap: wrap; gap: 6px 10px; margin-bottom: 24px; color: var(--text-2); font: 12px/1.6 var(--font-ui); }
+.publication-meta { display: flex; flex-wrap: wrap; gap: 6px 10px; max-width: 760px; margin: 0 auto; padding: 0 48px 32px; color: var(--text-2); font: 12px/1.6 var(--font-ui); }
+.publication-meta .publication-meta { padding: 0; }
 .publication-rich { margin: 1.2em 0; }
 .publication-rich-stage { min-width: 0; }
 .publication-table { max-width: 100%; overflow-x: auto; }
@@ -50,6 +53,7 @@ body.publication-page {
 @media (max-width: 600px) {
   .publication-page main { padding: 0; }
   .publication-page #_sd_rendered { padding: 28px 20px 48px; border-radius: 0; min-height: calc(100vh - 40px); }
+  .publication-meta { padding: 0 20px 28px; }
 }
 @media print {
   .publication-topbar { display: none; }

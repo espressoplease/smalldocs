@@ -17,7 +17,8 @@ module.exports = function (harness) {
     assert.ok(html.includes('<li>One</li>'));
     assert.ok(html.includes('<table>') && html.includes('<td>Books</td>'));
     assert.ok(html.includes('class="language-js">console.log(&quot;hello&quot;);'));
-    assert.ok(!html.includes('type="application/json"'));
+    const source = JSON.parse(/<script id="publication-source" type="application\/json">([\s\S]*?)<\/script>/.exec(html)[1]);
+    assert.ok(source.markdown.includes('# Public guide'));
   });
 
   test('publication supplies title, description, canonical, Open Graph, and dates', () => {
@@ -77,8 +78,7 @@ module.exports = function (harness) {
     assert.ok(html.includes('A[Start] --&gt; B[Finish]'));
     assert.ok(html.includes('<caption>Books</caption>'));
     assert.ok(html.includes('<th scope="row">April</th><td>12</td>'));
-    assert.ok(html.includes('/public/sdocs-mermaid.js'));
-    assert.ok(html.includes('/public/sdocs-charts.js'));
+    assert.ok(html.includes('/public/publication-reader.js'));
     assert.ok(!html.includes('/public/sdocs-app.js'));
     assert.ok(!html.includes('/api/cloud'));
   });
@@ -93,5 +93,22 @@ module.exports = function (harness) {
     assert.ok(html.includes('id="example"') && html.includes('id="example-1"'));
     assert.ok(html.includes('~$15 for ~17 years.'));
     assert.ok(html.includes('<del>Old</del>'));
+  });
+
+  test('publication retains complete rich fence source for the shared renderer without inventing a heading', () => {
+    const markdown = '```slide\ngrid 16 9\nr 1 1 14 7 | A real slide\n```\n\n```cells Budget/Plan\nItem,Cost\nBooks,12\n```';
+    const html = render({ markdown, title: 'Untitled document' });
+    const source = JSON.parse(/<script id="publication-source" type="application\/json">([\s\S]*?)<\/script>/.exec(html)[1]);
+    assert.strictEqual(source.markdown, markdown);
+    assert.ok(!html.includes('<h1>Untitled document</h1>'));
+  });
+
+  test('publication source payload cannot terminate its script element', () => {
+    const markdown = '```html\n</script><script>window.pwned=1</script>\n```';
+    const html = render({ markdown });
+    const source = /<script id="publication-source" type="application\/json">([\s\S]*?)<\/script>/.exec(html)[1];
+    assert.ok(!source.includes('<'));
+    assert.strictEqual(JSON.parse(source).markdown, markdown);
+    assert.ok(!html.includes('<script>window.pwned=1</script>'));
   });
 };

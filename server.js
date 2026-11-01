@@ -3486,8 +3486,8 @@ function servePublicPublication(req, res, slug) {
     return;
   }
   const csp = ["default-src 'none'", "script-src 'self' https://cdn.jsdelivr.net",
-    "style-src 'self' 'unsafe-inline'", "font-src 'self'", "img-src 'self' https:",
-    "connect-src 'none'", "frame-src 'none'", "object-src 'none'", "base-uri 'none'",
+    "style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'", "font-src 'self' https://cdn.jsdelivr.net", "img-src 'self' https: data: blob:",
+    "connect-src 'none'", "frame-src 'self' https://www.youtube-nocookie.com", "object-src 'none'", "base-uri 'none'",
     "form-action 'none'", "frame-ancestors 'none'"].join('; ');
   res.writeHead(200, { ...headers, 'Content-Type': 'text/html; charset=utf-8',
     'Content-Security-Policy': csp, 'Referrer-Policy': 'strict-origin-when-cross-origin' });

@@ -1,6 +1,6 @@
 # Public publishing
 
-First version, 2 November 2026. Implemented on the Cloud branch for local review; no production deployment.
+2 November 2026. Cloud staging candidate; no production deployment.
 
 ## File info
 
@@ -22,7 +22,9 @@ Public reads use only the stored public HTML and synchronous source-lifecycle ch
 
 ## Rendering and discovery
 
-The public route serves readable article HTML in its initial response, with document-specific title, description, canonical URL and Open Graph metadata. Prose, headings, tables and code work without JavaScript. Charts and Mermaid diagrams enhance the same page in the browser, retaining readable data or source fallbacks. Other rich fences currently remain source listings. Raw HTML is escaped. Relative Markdown links currently display their labels; absolute HTTP(S), mailto and section links are supported.
+The public route serves readable article HTML in its initial response, with document-specific title, description, canonical URL and Open Graph metadata. Prose, headings, tables and code work without JavaScript. A public-only Markdown payload lets the pinned SmallDocs 0.3.1 reader render the same canonical slides, code, cells, math, charts, diagrams and video components used by the application. Runnable HTML remains source. The initial HTML stays available if JavaScript cannot load. Raw HTML is escaped in the initial response and sanitised by the shared reader.
+
+Existing HTML-only snapshots recover rich fence source from their already published code blocks and use the same reader. This does not decrypt a Cloud document, fetch a newer draft or change the selected publication revision. New source payloads retain complete rich fence information, including workbook names. Both formats reuse the published, validated document style rules before rich components measure typography and geometry. Publication metadata appears after the document, and the reader does not invent an Untitled document heading.
 
 Publications are discoverable through publications-sitemap.xml and robots.txt. Local and staging deployments send noindex headers. Production indexing remains subject to search-engine discovery and selection. Public content is served without authenticated viewer-specific navigation or private hydration data. Public responses use no-store to make withdrawal effective on subsequent requests; already downloaded or indexed copies cannot be recalled.
 
@@ -46,6 +48,6 @@ Automated coverage lives in test/test-cloud-publications.js, test/test-publicati
 
 ## First-version verification
 
-The complete Node suite passed with 2,243 assertions on 2 November 2026. Browser coverage spans publication, private-link, code-sharing and document-action suites, including desktop and mobile layouts. The publication scenarios exercise delayed uploads, lost responses, unsaved edits and blocked Cloud saves. Private-link coverage checks browser and CLI payloads, unchanged source tags and older encrypted copies. JavaScript syntax and whitespace checks pass.
+The complete Node suite passed with 2,245 assertions on 2 November 2026. Browser coverage spans publication, private-link, code-sharing and document-action suites, including desktop and mobile layouts. The publication scenarios exercise delayed uploads, lost responses, unsaved edits and blocked Cloud saves. Private-link coverage checks browser and CLI payloads, unchanged source tags and older encrypted copies. Anonymous rich-content checks compare slide text, geometry and colours against the application at desktop and mobile widths, exercise fullscreen, and verify cells, math, charts, diagrams and published styles. Legacy snapshot coverage verifies a newer private draft stays private. JavaScript syntax and whitespace checks pass.
 
 Release checks include deployed-host configuration and matching CLI installation before production rollout. Local and staging publication URLs deliberately remain noindex.
