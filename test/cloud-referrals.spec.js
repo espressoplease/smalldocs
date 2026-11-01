@@ -108,10 +108,10 @@ for(const width of [1440,390]) for(const method of ['email','google']) {
       await page.locator('.sdocs-sidebar-referral-history').evaluate(el=>Promise.all(el.getAnimations({subtree:true}).map(animation=>animation.finished)));
       await expect(page.getByRole('list',{name:'People you referred'})).toContainText('Robin Walker');
       await expect(page.getByRole('list',{name:'People you referred'})).toBeVisible();
-      expect((await page.locator('.sdocs-referral-history-toggle').boundingBox()).height).toBe(36);
-      expect((await page.locator('.sdocs-referral-history-toggle svg').boundingBox()).width).toBe(16);
+      expect((await page.locator('.sdocs-referral-history-toggle').boundingBox()).height).toBe(32);
+      expect((await page.locator('.sdocs-referral-history-toggle svg').boundingBox()).width).toBe(13);
       await expect(page.getByRole('list',{name:'People you referred'})).toContainText('1 person-month earned');
-      await expect(page.locator('[data-sidebar-section="refer"] .sdocs-sidebar-count')).toBeHidden();
+      await expect(page.locator('[data-sidebar-section="refer"] > .sdocs-sidebar-top-row .sdocs-sidebar-count')).toBeHidden();
       expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
       await page.screenshot({path:testInfo.outputPath('refer.png')});
       await page.getByRole('button',{name:'Learn',exact:true}).click();

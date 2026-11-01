@@ -117,6 +117,7 @@ body.sdocs-site-shell .library-onboarding-nav {
   .sdocs-site-sidebar {
     top: 44px;
     width: min(320px, calc(100vw - 32px));
+    border: 0;
     padding-top: 18px;
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;

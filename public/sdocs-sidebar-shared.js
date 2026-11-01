@@ -24,20 +24,21 @@
         '<label class="sdocs-sidebar-explainer sdocs-referral-link-label">Your referral link<input class="sdocs-referral-link" aria-label="Your referral link" readonly></label>' +
         '<button class="sdocs-sidebar-cta" type="button" data-referral-copy disabled>Copy link</button>' +
         '<p class="sdocs-sidebar-explainer" data-referral-balance></p>' +
-        '<div class="sdocs-sidebar-referral-history"><button class="sdocs-sidebar-top-row sdocs-referral-history-toggle" type="button" aria-expanded="false" aria-controls="' + prefix + '_referral_history">Referrals <span data-referral-total></span>' + icons.chevron + '</button>' +
-        '<div class="sdocs-sidebar-expander" id="' + prefix + '_referral_history"><div class="sdocs-sidebar-expander-clip">' +
+        '<div class="sdocs-sidebar-library-subsection sdocs-sidebar-referral-history"><button class="sdocs-sidebar-library-row sdocs-referral-history-toggle" type="button" aria-expanded="false" aria-controls="' + prefix + '_referral_history"><span>Referrals</span><span class="sdocs-sidebar-count" data-referral-total></span>' +
+        '<svg class="sdocs-sidebar-library-chevron" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>' +
+        '<div class="sdocs-sidebar-subsection-content" id="' + prefix + '_referral_history"><div class="sdocs-sidebar-subsection-clip">' +
         '<ul class="sdocs-referral-list" aria-label="People you referred"></ul>' +
         '<button class="sdocs-sidebar-cta" type="button" data-referral-more hidden>Show more</button></div></div></div>' +
         '<p class="sdocs-sidebar-explainer" data-referral-status role="status">Loading your referral link...</p></div>' }) : '';
     return refer + sectionHtml({ id: 'learn', idPrefix: prefix, rowClass: options.rowClass,
       label: 'Learn', icon: icons.learn,
-      content: '<div class="sdocs-sidebar-preview sdocs-sidebar-actions">' +
-        '<a class="sdocs-sidebar-subitem" href="/learn">Getting started</a>' +
-        '<a class="sdocs-sidebar-subitem" href="/learn#your-library-and-tags">Library and tags</a>' +
-        '<a class="sdocs-sidebar-subitem" href="/cloud-search">Search with your agent</a>' +
-        '<a class="sdocs-sidebar-subitem" href="/cloud-updates">Editing and comments</a>' +
-        '<a class="sdocs-sidebar-subitem" href="/learn#manage-smalldocs-from-chat">Manage SmallDocs from chat</a>' +
-        '<a class="sdocs-sidebar-subitem" href="/home#learn">Examples</a></div>' });
+      content: '<div class="sdocs-sidebar-preview">' +
+        '<a class="sdocs-sidebar-library-row" href="/learn">Getting started</a>' +
+        '<a class="sdocs-sidebar-library-row" href="/learn#your-library-and-tags">Library and tags</a>' +
+        '<a class="sdocs-sidebar-library-row" href="/cloud-search">Search with your agent</a>' +
+        '<a class="sdocs-sidebar-library-row" href="/cloud-updates">Editing and comments</a>' +
+        '<a class="sdocs-sidebar-library-row" href="/learn#manage-smalldocs-from-chat">Manage SmallDocs from chat</a>' +
+        '<a class="sdocs-sidebar-library-row" href="/home#learn">Examples</a></div>' });
   }
 
   function bindReferrals(sidebar) {
