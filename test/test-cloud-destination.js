@@ -83,6 +83,17 @@ module.exports = function (h) {
           assert.strictEqual(uploads[1].account_id, 'library-a');
           assert.strictEqual(uploads[0].idempotency_key, uploads[1].idempotency_key);
           assert.strictEqual(lookups, 1);
+          const equivalentFile = path.join(nested, 'equivalent-selector.md'); fs.writeFileSync(equivalentFile, '# Equivalent selection');
+          const equivalentUploads = [];
+          const equivalentClient = { ...client, authenticated: async (endpoint, options) => {
+            if (endpoint === '/api/cloud/v1/library-settings') return { libraries: [{ id: 'library-a', name: 'Engineering' }] };
+            equivalentUploads.push(JSON.parse(options.body));
+            if (equivalentUploads.length === 1) throw new Error('response lost');
+            return { document: { id: 'equivalent-document', current_revision_id: 'revision-one', tags: [] } };
+          } };
+          await assert.rejects(autoSyncOpen({ file: equivalentFile }, { client: equivalentClient, silent: true }), /response lost/);
+          await autoSyncOpen({ file: equivalentFile, accountFlag: 'library-a' }, { client: equivalentClient, silent: true });
+          assert.strictEqual(equivalentUploads[0].idempotency_key, equivalentUploads[1].idempotency_key);
           const bindings = require('../cli/lib/cloud-bindings');
           const legacyFile = path.join(nested, 'legacy-create.md'); fs.writeFileSync(legacyFile, '# Legacy pending save');
           bindings.setPending('test-user', legacyFile, { operation: 'create', destination: 'old-default',

@@ -1143,15 +1143,15 @@ async function create(opts, client) {
   const selected = configuredDestination(opts);
   const selectionKey = JSON.stringify(selected);
   let pending = bindings.getPending(credential.user_id, file);
-  if (!pending || pending.operation !== 'create' || pending.sha256 !== digest ||
-      (pending.selection_key != null && pending.selection_key !== selectionKey) ||
-      (pending.selection_key == null && selected && selected.value !== pending.destination)) {
+  if (!pending || pending.operation !== 'create' || pending.sha256 !== digest) {
     pending = { operation: 'create', destination: 'unresolved-default', selection_key: selectionKey, sha256: digest,
       source_file: sourceFileForPath(opts.extra, file), idempotency_key: crypto.randomUUID() };
     bindings.setPending(credential.user_id, file, pending);
   }
   let destination = opts.accountFlag || null;
-  if (!destination && pending && pending.operation === 'create' && pending.sha256 === digest && !['default-account', 'unresolved-default'].includes(pending.destination)) destination = pending.destination;
+  const sameSelection = pending.selection_key === selectionKey ||
+    (pending.selection_key == null && (!selected || selected.value === pending.destination));
+  if (!destination && sameSelection && !['default-account', 'unresolved-default'].includes(pending.destination)) destination = pending.destination;
   if (!destination && selected) destination = await destinationConfig.resolve(client, selected);
   if (!destination) {
     const selected = await client.authenticated('/api/cloud/v1/account');
@@ -1160,6 +1160,10 @@ async function create(opts, client) {
   if (!pending || pending.operation !== 'create' || pending.destination !== destination || pending.sha256 !== digest) {
     pending = { operation: 'create', destination, selection_key: selectionKey, sha256: digest, source_file: pending && pending.source_file,
       idempotency_key: crypto.randomUUID() };
+    bindings.setPending(credential.user_id, file, pending);
+  } else if (pending.selection_key !== selectionKey) {
+    // A different name/ID/source for the same destination is still one save.
+    pending = { ...pending, selection_key: selectionKey };
     bindings.setPending(credential.user_id, file, pending);
   }
   const response = await client.authenticated('/api/cloud/v1/account/documents', {
