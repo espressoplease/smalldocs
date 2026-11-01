@@ -334,7 +334,8 @@ html.sdocs-short-link-visit #_sd_sidebar .doc-site-action.sdocs-short-link-only 
 /* Keep document actions and their context pills together while scrolling. */
 #_sd_document-tools {
   position: sticky;
-  top: 0;
+  /* Scroll away excess top padding when pinned, preserving the initial layout. */
+  top: -6px;
   z-index: 7;
   padding-bottom: 10px;
   margin-bottom: -10px;

@@ -21,7 +21,7 @@
   #_sd_left { overflow: visible; }
   #_sd_content-area { overflow: visible; }
   html { scroll-padding-top: calc(44px + var(--sdocs-document-tools-height, 0px) + 24px); }
-  #_sd_document-tools { top: 44px; }
+  #_sd_document-tools { top: 42px; }
 
   body.sdocs-reader-shell::after {
     content: '';

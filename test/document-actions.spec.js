@@ -90,7 +90,8 @@ for (const width of [1328, 390, 320]) {
     expect(note.status).toBe(201);
     await page.goto(f.origin + '/docs?cloud-document=' + saved.data.document.id);
     const surface = page.locator('#_sd_document-tools');
-    const top = width <= 768 ? 44 : 0;
+    const viewportTop = width <= 768 ? 44 : 0;
+    const top = width <= 768 ? 42 : -6;
     const initial = await surface.boundingBox();
     expect(initial.y).toBeGreaterThan(top);
     await page.getByRole('button', { name: 'Expand all', exact: true }).click();
@@ -106,6 +107,12 @@ for (const width of [1328, 390, 320]) {
       expect(background.tools).not.toBe('rgba(0, 0, 0, 0)');
     }
     await checkSticky();
+    const read = await page.getByRole('button', { name: 'Read', exact: true }).boundingBox();
+    const pinned = await surface.boundingBox();
+    const spaceAbove = read.y - viewportTop;
+    const spaceBelow = pinned.y + pinned.height - read.y - read.height;
+    expect(spaceAbove).toBeCloseTo(spaceBelow, 4);
+    expect(spaceAbove).toBe(12);
     const passage = page.locator('#_sd_rendered p').filter({ hasText: 'Passage 18.' });
     const passageBefore = await passage.boundingBox();
     // Click the visible sticky icon as a reader would. Locator.click first
