@@ -443,7 +443,8 @@
 .sdocs-sidebar-preview-compact { padding-bottom: 3px; }
 
 .sdocs-referral-link-label { display: block; }
-.sdocs-referral-link {
+.sdocs-referral-link,
+.sdocs-sidebar-copy-field {
   display: block;
   width: 100%;
   min-width: 0;
@@ -461,6 +462,7 @@
 .sdocs-sidebar-shell .sdocs-sidebar-count { margin-left: auto; color: var(--text-3); font-size: var(--sdocs-sidebar-font-size); font-variant-numeric: tabular-nums; }
 .sdocs-sidebar-shell .sdocs-sidebar-count[hidden] { display: none; }
 .sdocs-sidebar-shell [data-referral-more][hidden] { display: none; }
+.sdocs-sidebar-shell [data-learn-prompt][hidden] { display: none; }
 
 .sdocs-sidebar-explainer {
   margin: 0;
@@ -692,7 +694,8 @@
 }
 .sdocs-sidebar-subsection-clip > :first-child { margin: 2px 0 5px; }
 
-.sdocs-sidebar-library-open svg {
+.sdocs-sidebar-library-open svg,
+.sdocs-sidebar-copy-icon {
   flex: 0 0 auto;
   margin-left: auto;
   fill: none;

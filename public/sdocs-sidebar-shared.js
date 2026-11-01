@@ -14,6 +14,59 @@
   };
   icons.refer = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M5 12v8h14v-8M12 8v12"/><path d="M12 8H7.5A2.5 2.5 0 1 1 10 5.5L12 8Zm0 0h4.5A2.5 2.5 0 1 0 14 5.5L12 8Z"/></svg>';
   icons.learn = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3Z"/></svg>';
+  var learnCopyPaths = '<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>';
+  var learnTopics = [
+    { id: 'start', label: 'Getting started', prompt: 'Give me a short tour of SmallDocs. Explain how asking for a document, SmallDoc or sdoc creates a Cloud document. Make a getting-started document and show me how to open it, find it in Library and use its tags.' },
+    { id: 'library', label: 'Libraries and tags', prompt: 'Teach me how SmallDocs libraries and tags work. Explain personal and team libraries, the default library on this computer, and how tags connect documents. Reuse suitable tags from my library for a sample document, then show me how to find it by tag.' },
+    { id: 'search', label: 'Search', prompt: 'Teach me how to find documents in SmallDocs. Read sdoc cloud search --help. Create a sample document with a distinctive phrase and useful tags, find it with a phrase search and a tag filter, and show me how author filters and permissions affect results.' },
+    { id: 'diagrams', label: 'Diagrams', prompt: 'Teach me about diagrams in SmallDocs. Read sdoc diagrams, then create a document containing a Mermaid flowchart of a document moving from draft to review to publication. Explain how to expand and zoom the diagram and how I can ask you to change it.' },
+    { id: 'slides', label: 'Slides', prompt: 'Teach me about slides in SmallDocs. Read sdoc slides, then create a short three-slide deck about planning a project. Run sdoc slides verify FILE.md --json and fix any errors, then use sdoc present FILE.md to check its appearance. Show me how to present it and export it.' },
+    { id: 'sheets', label: 'Spreadsheets', prompt: 'Teach me about spreadsheets in SmallDocs. Read sdoc cells, then create a document with a small sample project budget, formulas and a total in a cells block. Run sdoc cells verify FILE.md --json and check the computed values. Show me how to expand the sheet, try changes in its scratch copy and download it as Excel.' },
+    { id: 'charts', label: 'Charts', prompt: 'Teach me about charts in SmallDocs. Read sdoc charts, then create a document containing sample monthly figures and a chart that makes the trend clear. Check that it renders, explain what the chart shows and show me how to ask you to update its data.' },
+    { id: 'comments', label: 'Comments', prompt: 'Teach me how feedback works in SmallDocs. Read sdoc cloud comments --help. Create a short sample document and add one comment anchored to a specific passage. Show me how to leave my own comment, how you can read comments as structured data, and how replying, resolving and deleting differ. Invite me to leave a comment so we can try the feedback loop.' },
+    { id: 'edits', label: 'Editing and history', prompt: 'Teach me how to edit SmallDocs with an agent. Read sdoc cloud edit --help and sdoc cloud history --help. Create a short sample document, make a targeted edit to one sentence, verify the saved change and show the revision history. Explain how an open browser tab picks up edits and what happens when people edit concurrently.' },
+    { id: 'code', label: 'Code files', prompt: 'Teach me how to read and review code in SmallDocs. Read sdoc code, then create a tagged Cloud walkthrough containing one small sample Python code block. Explain its syntax highlighting, fullscreen code viewer, line numbers, folding and comments. Show me how I can ask for a walkthrough of a source file.' },
+    { id: 'apps', label: 'Interactive tools', prompt: 'Teach me about interactive tools inside SmallDocs. Read sdoc apps, then create a small sample tool where I can adjust inputs and see a result change, such as a savings calculator. Test its controls inline and fullscreen, at narrow and wide sizes. Explain how to use it and how to ask you to change it.' },
+    { id: 'account', label: 'Teams and billing', prompt: 'Explain how I can manage SmallDocs from chat. Read sdoc cloud billing --help and check my current trial or subscription status. Create a short guide to team libraries, invitations, document permissions and per-person billing. Give me the relevant settings links and explain which actions you can perform and which payment or cancellation steps I complete.' },
+  ];
+
+  function learnPrompt(topic) {
+    var origin = window.location.origin;
+    return 'Help me learn SmallDocs at ' + origin + '. Use the SmallDocs skill and CLI. ' +
+      'If they are not installed or connected to this site yet, guide me through Install at ' + origin + '/cloud/admin?panel=install, then continue.\n\n' +
+      topic.prompt + '\n\nUse sample content for the demo and save it as a new tagged Cloud document in my selected library. ' +
+      'Verify the saved document and tags, return its Cloud URL, and give me two or three things to try. Explain the feature in plain language as we go.';
+  }
+
+  function bindLearn(sidebar) {
+    var panel = sidebar.querySelector('[data-learn-panel]');
+    if (!panel) return;
+    var status = panel.querySelector('[data-learn-status]');
+    var fallback = panel.querySelector('[data-learn-prompt]');
+    var buttons = Array.from(panel.querySelectorAll('[data-learn-topic]'));
+    buttons.forEach(function (button) {
+      button.addEventListener('click', async function () {
+        var topic = learnTopics.find(function (item) { return item.id === button.dataset.learnTopic; });
+        var prompt = learnPrompt(topic);
+        buttons.forEach(function (other) {
+          other.querySelector('svg').innerHTML = learnCopyPaths;
+          other.title = 'Copy prompt for ' + other.textContent.trim();
+        });
+        try {
+          await navigator.clipboard.writeText(prompt);
+          fallback.hidden = true;
+          button.querySelector('svg').innerHTML = '<path d="m5 12 4 4L19 6"/>';
+          button.title = 'Copied. Paste this prompt into your agent.';
+          status.textContent = topic.label + ' prompt copied. Paste it into your agent for an explanation and a demo.';
+        } catch (_) {
+          fallback.value = prompt;
+          fallback.hidden = false;
+          fallback.focus(); fallback.select();
+          status.textContent = 'Copy the selected prompt, then paste it into your agent for an explanation and a demo.';
+        }
+      });
+    });
+  }
 
   function discoveryHtml(options) {
     var prefix = options.idPrefix;
@@ -32,13 +85,13 @@
         '<p class="sdocs-sidebar-explainer" data-referral-status role="status">Loading your referral link...</p></div>' }) : '';
     return refer + sectionHtml({ id: 'learn', idPrefix: prefix, rowClass: options.rowClass,
       label: 'Learn', icon: icons.learn,
-      content: '<div class="sdocs-sidebar-preview">' +
-        '<a class="sdocs-sidebar-library-row" href="/learn">Getting started</a>' +
-        '<a class="sdocs-sidebar-library-row" href="/learn#your-library-and-tags">Library and tags</a>' +
-        '<a class="sdocs-sidebar-library-row" href="/cloud-search">Search with your agent</a>' +
-        '<a class="sdocs-sidebar-library-row" href="/cloud-updates">Editing and comments</a>' +
-        '<a class="sdocs-sidebar-library-row" href="/learn#manage-smalldocs-from-chat">Manage SmallDocs from chat</a>' +
-        '<a class="sdocs-sidebar-library-row" href="/home#learn">Examples</a></div>' });
+      content: '<div class="sdocs-sidebar-preview" data-learn-panel>' +
+        '<p class="sdocs-sidebar-explainer" data-learn-status role="status" aria-atomic="true" id="' + prefix + '_learn_status">Choose a feature to copy its prompt. Paste it into your agent for an explanation and a demo.</p>' +
+        '<textarea class="sdocs-sidebar-copy-field" data-learn-prompt aria-label="Prompt to copy" rows="6" readonly hidden></textarea>' +
+        learnTopics.map(function (topic) {
+          return '<button class="sdocs-sidebar-library-row" type="button" data-learn-topic="' + topic.id + '" title="Copy prompt for ' + topic.label + '"><span>' + topic.label + '</span>' +
+            '<svg class="sdocs-sidebar-copy-icon" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">' + learnCopyPaths + '</svg></button>';
+        }).join('') + '</div>' });
   }
 
   function bindReferrals(sidebar) {
@@ -310,6 +363,7 @@
       accountActionsHtml(options) + '</footer>';
     element.setAttribute('data-sdocs-sidebar-renderer', 'shared');
     bindReferrals(element);
+    bindLearn(element);
     if (options.active === 'settings') {
       var accountSettings = element.querySelector('a[href="/cloud/admin"]');
       if (accountSettings) {

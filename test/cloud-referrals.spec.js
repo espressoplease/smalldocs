@@ -115,8 +115,11 @@ for(const width of [1440,390]) for(const method of ['email','google']) {
       expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
       await page.screenshot({path:testInfo.outputPath('refer.png')});
       await page.getByRole('button',{name:'Learn',exact:true}).click();
-      await page.getByRole('link',{name:'Getting started',exact:true}).click();
-      await expect(page.getByRole('heading',{name:'Getting started with SmallDocs',level:1})).toBeVisible();
+      const beforeLearn = page.url();
+      await page.getByRole('button',{name:'Getting started',exact:true}).click();
+      await expect(page.locator('[data-learn-status]')).toContainText('prompt copied. Paste it into your agent');
+      expect(await page.evaluate(()=>navigator.clipboard.readText())).toContain('Make a getting-started document');
+      await expect(page).toHaveURL(beforeLearn);
       expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
     } finally { await guest.close(); }
   });
