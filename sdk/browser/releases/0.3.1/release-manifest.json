@@ -111,7 +111,7 @@
     },
     "vendor/reader-manifest.json": {
       "bytes": 11893,
-      "sha256": "f969161635489b9490d4e2f6fcdcf7698e270025a91d817ca10de97a28e53125"
+      "sha256": "c80ccf4c13db5ec8efc2f040373a4f802e5fb64861c96971310b54ac25f9bfaa"
     },
     "vendor/sdocs-app-runner.html": {
       "bytes": 256,
@@ -130,8 +130,8 @@
       "sha256": "d7828bd3060e583409b5a804f2a32bc8a462c546a75c454378b36e4df71e8dcc"
     },
     "vendor/sdocs-cells-focus.js": {
-      "bytes": 21640,
-      "sha256": "2840764b71e1cdb30b2e12fcc1b57e060043698d8195208b81b1b7b3f4b1c28d"
+      "bytes": 21691,
+      "sha256": "a1c54dd8ddfe46406bbae565a6872e658ddcedbf32c1f6d8d85ae30bcc3f2c95"
     },
     "vendor/sdocs-cells-formula.js": {
       "bytes": 40549,
@@ -142,8 +142,8 @@
       "sha256": "9aea5ae5f27b3109c5dfc16b9692e28d31087563cb4faed3949f82779299c66b"
     },
     "vendor/sdocs-cells-ui.js": {
-      "bytes": 65946,
-      "sha256": "6df09194b3ee3669aba773d732b91149a78ccb920ba957dbc8a92de1ad96f5eb"
+      "bytes": 66050,
+      "sha256": "5998ea2774fa819df927f9e0a99feab4629566c753ec1bf6609cee4ebbc8e2b5"
     },
     "vendor/sdocs-cells-xlsx.js": {
       "bytes": 30911,

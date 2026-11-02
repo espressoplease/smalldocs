@@ -257,7 +257,7 @@
     }
     function bindControls(wrapper, model, actions) {
       var button = document.createElement('button'); button.type = 'button';
-      button.className = 'sdoc-cells-copy-icon sdoc-cells-comment-add';
+      button.className = 'sdoc-cells-copy-icon sdoc-cells-comment-add sdoc-rich-comment-btn';
       button.setAttribute('aria-label', 'Comment on selected cells'); button.title = 'Comment on selected cells';
       button.innerHTML = ICON;
       function sync() {
@@ -274,7 +274,7 @@
       }
       button.addEventListener('click', click);
       wrapper.addEventListener('cells-selection', sync);
-      actions.insertBefore(button, actions.firstChild); sync();
+      actions.appendChild(button); sync();
       return function () { wrapper.removeEventListener('cells-selection', sync); button.remove(); };
     }
     function bindGrid(wrapper, model, inlineWrapper) {

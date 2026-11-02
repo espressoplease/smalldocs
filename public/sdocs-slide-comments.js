@@ -504,10 +504,10 @@ function buildLayer(ctx) {
 
   wrap.appendChild(layer);
 
-  // Whole-slide comment button (top-left, away from the present button).
+  // Keep the whole-slide action on the right, after the present action.
   var wsBtn = document.createElement('button');
   wsBtn.type = 'button';
-  wsBtn.className = 'sdoc-slide-comment-btn';
+  wsBtn.className = 'sdoc-slide-comment-btn sdoc-rich-comment-btn';
   wsBtn.innerHTML = COMMENT_ICON;
   wsBtn.title = 'Comment on the whole slide';
   wsBtn.setAttribute('aria-label', 'Comment on the whole slide');

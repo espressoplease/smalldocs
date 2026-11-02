@@ -63,6 +63,7 @@ function compose(diagram, node, container) {
 function addButton(diagram, container, toolbar) {
   var button = document.createElement('button'); button.type = 'button';
   button.className = toolbar ? 'sdoc-mermaid-focus-btn sdoc-diagram-add' : 'sdoc-mermaid-tool-btn sdoc-diagram-add';
+  button.classList.add('sdoc-rich-comment-btn');
   button.innerHTML = ICON; button.title = 'Comment on diagram'; button.setAttribute('aria-label', 'Comment on diagram');
   button.addEventListener('click', function (event) {
     event.stopPropagation();
@@ -138,7 +139,7 @@ function refreshFocus(all) {
   var diagram = found[0], enabled = document.body.classList.contains('comment-mode');
   focus.panel.replaceChildren(); focus.panel.hidden = !enabled;
   cleanNodes(focus.svg); focus.bar.querySelectorAll('.sdoc-diagram-add').forEach(function (el) { el.remove(); });
-  focus.bar.prepend(addButton(diagram, focus.panel, true));
+  (focus.bar.querySelector('.sdoc-mermaid-focus-actions') || focus.bar).appendChild(addButton(diagram, focus.panel, true));
   if (!enabled) return;
   bindNodes(diagram, focus.svg, focus.panel); paint(all, focus.panel, diagram, focus.svg);
 }

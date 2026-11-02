@@ -499,7 +499,7 @@
       allBtn.title = allLabel;
       allBtn.setAttribute('aria-label', allLabel);
       if (!rawBtn) return;
-      if (hasFormulas && !rawBtn.parentNode) box.insertBefore(rawBtn, xlsxBtn);
+      if (hasFormulas && !rawBtn.parentNode) box.insertBefore(rawBtn, xlsxBtn || box.querySelector('.sdoc-cells-comment-add'));
       else if (!hasFormulas && rawBtn.parentNode) rawBtn.parentNode.removeChild(rawBtn);
     }
     setHasFormulas(opts.hasFormulas != null ? opts.hasFormulas : !!opts.rawButton);
@@ -644,7 +644,7 @@
       }
       expandBtn.addEventListener('click', onExpandClick);
       addCleanup(function () { expandBtn.removeEventListener('click', onExpandClick); });
-      controls.box.appendChild(expandBtn);
+      controls.box.insertBefore(expandBtn, controls.box.querySelector('.sdoc-cells-comment-add'));
     }
 
     bar.appendChild(controls.box);

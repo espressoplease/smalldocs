@@ -81,11 +81,11 @@
   },
   "sdocs-cells-focus.js": {
     "source": "public/sdocs-cells-focus.js",
-    "sha256": "2840764b71e1cdb30b2e12fcc1b57e060043698d8195208b81b1b7b3f4b1c28d"
+    "sha256": "a1c54dd8ddfe46406bbae565a6872e658ddcedbf32c1f6d8d85ae30bcc3f2c95"
   },
   "sdocs-cells-ui.js": {
     "source": "public/sdocs-cells-ui.js",
-    "sha256": "6df09194b3ee3669aba773d732b91149a78ccb920ba957dbc8a92de1ad96f5eb"
+    "sha256": "5998ea2774fa819df927f9e0a99feab4629566c753ec1bf6609cee4ebbc8e2b5"
   },
   "sdocs-video.js": {
     "source": "public/sdocs-video.js",

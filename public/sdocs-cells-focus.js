@@ -350,7 +350,7 @@
       function syncFormulaActions() {
         hasFormulas = sheetHasFormulas();
         if (copyControls && copyControls.setHasFormulas) copyControls.setHasFormulas(hasFormulas);
-        if (hasFormulas && !fxBtn.parentNode) actions.appendChild(fxBtn);
+        if (hasFormulas && !fxBtn.parentNode) actions.insertBefore(fxBtn, actions.querySelector('.sdoc-cells-comment-add'));
         else if (!hasFormulas && fxBtn.parentNode) fxBtn.parentNode.removeChild(fxBtn);
         if (!hasFormulas && gridWrap._cellsShowFormulas) {
           gridWrap._cellsShowFormulas = false;

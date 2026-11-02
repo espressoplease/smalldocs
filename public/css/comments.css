@@ -970,3 +970,26 @@ body.comment-mode .sdoc-block-host::before {
 .sdoc-thread-composer { display: flex; gap: 4px; margin-top: 6px; }
 .sdoc-thread-composer textarea { min-width: 0; flex: 1; resize: vertical; }
 .sdoc-cc-card > .sdoc-thread-details { grid-column: 1 / -1; }
+
+/* One bordered action for feedback on sheets, diagrams and slides. */
+button.sdoc-rich-comment-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 26px;
+  box-sizing: border-box;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--md-copy-btn-border, rgba(0,0,0,0.12));
+  border-radius: 4px;
+  background: transparent;
+  color: var(--md-color, #1c1917);
+  opacity: 1;
+  cursor: pointer;
+  transition: background .12s, border-color .12s, opacity .15s;
+}
+button.sdoc-rich-comment-btn:hover { background: var(--md-copy-btn-hover, rgba(0,0,0,0.05)); }
+button.sdoc-rich-comment-btn:focus-visible { outline: 1px solid var(--accent, #3B82F6); outline-offset: 1px; }
+button.sdoc-rich-comment-btn:disabled { opacity: .4; cursor: default; }
+button.sdoc-rich-comment-btn svg { display: block; width: 14px; height: 14px; }
