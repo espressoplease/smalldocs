@@ -32,6 +32,12 @@ async function startFixture(options = {}) {
   const port = listener.address().port;
   await new Promise(resolve => listener.close(resolve));
   const origin = 'http://localhost:' + port;
+  const compilerSocket = path.join(dir,'compiler.sock');
+  const compilerThread=new (require('worker_threads').Worker)(path.join(__dirname,'publication-compiler-fixture.js'),{
+    workerData:{socketPath:compilerSocket,origin,real:options.compilePublications===true}
+  });
+  await new Promise((resolve,reject)=>{compilerThread.once('message',resolve);compilerThread.once('error',reject);});
+  const compiler={close:()=>new Promise(resolve=>{compilerThread.once('exit',resolve);compilerThread.postMessage('close');})};
   const child = spawn(process.execPath, ['server.js'], { cwd: path.join(__dirname, '..'), env: {
     ...process.env, CLOUD_SINGLE_PLAN_ENABLED: options.singlePlan ? '1' : '', NODE_ENV: 'test', HOST: '127.0.0.1', PORT: String(port), CLOUD_MODE: 'off', CLOUD_PUBLIC_MODE: 'enabled',
     CLOUD_AUTH_PUBLIC_ORIGIN: origin, CLOUD_AUTH_PEPPER: pepper, CLOUD_AUTH_DB: authPath, CLOUD_OAUTH_DB: authPath,
@@ -42,6 +48,7 @@ async function startFixture(options = {}) {
     STRIPE_SECRET_KEY: options.stripeApiBase ? 'sk_test_fixture' : '', STRIPE_SECRET_KEY_FILE: '', SDOCS_STRIPE_TEST_API_BASE: options.stripeApiBase || '', STRIPE_STANDARD_PRICE_ID: options.stripeApiBase ? 'price_standard' : '', STRIPE_WEBHOOK_SECRET: options.stripeApiBase ? 'whsec_fixture' : '', CLOUD_JOBS_DB: options.jobs ? path.join(dir, 'jobs.db') : '',
     CLOUD_JOB_POLL_MS: options.jobs ? '250' : '', CLOUD_KMS_KEY_ID: '', NOTIFY_SMTP_PASS: '',
     SDOCS_SKIP_KMS_PREFLIGHT: '1', SHORT_LINKS_DB: path.join(dir, 'links.db'),
+    SDOCS_PUBLICATION_COMPILER_SOCKET: compilerSocket,
     ...options.env,
   }, stdio: ['ignore', 'pipe', 'pipe'] });
   let startupErrors = '';
@@ -54,7 +61,7 @@ async function startFixture(options = {}) {
     });
   } catch (error) {
     if (child.exitCode == null && child.signalCode == null) await new Promise(resolve => { child.once('exit', resolve); child.kill('SIGTERM'); });
-    auth.close(); store.close(); billing.close(); fs.rmSync(dir, { recursive: true, force: true });
+    await compiler.close();auth.close(); store.close(); billing.close(); fs.rmSync(dir, { recursive: true, force: true });
     // A different parallel test can claim the ephemeral port between reservation and spawn.
     if (!options.port && startupErrors.includes('EADDRINUSE') && (options.portRetries || 0) < 2) {
       return startFixture({ ...options, portRetries: (options.portRetries || 0) + 1 });
@@ -72,6 +79,6 @@ async function startFixture(options = {}) {
   return { dir, origin, users, team, personal, otherTeam, auth, store, billing, api,
     async close() { if (closed) return; closed = true;
       if (child.exitCode == null && child.signalCode == null) await new Promise(resolve => { child.once('exit', resolve); child.kill('SIGTERM'); });
-      auth.close(); store.close(); billing.close(); fs.rmSync(dir, { recursive: true, force: true }); } };
+      await compiler.close();auth.close(); store.close(); billing.close(); fs.rmSync(dir, { recursive: true, force: true }); } };
 }
 module.exports = { startFixture };

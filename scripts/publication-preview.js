@@ -2,7 +2,7 @@
 const http=require('http');
 const {startFixture}=require('../test/cloud-onboarding-fixture');
 (async()=>{
- const f=await startFixture({singlePlan:true});
+ const f=await startFixture({singlePlan:true,compilePublications:true});
  await f.api('josh','/api/cloud/v1/onboarding/complete','POST',{});
  const spaces=await f.store.listWorkspaces(f.users.josh.id),space=spaces.find(w=>w.kind==='personal');
  const text='---\ntitle: A small clearing\ndescription: A place to gather a thought before sharing it.\ntags:\n  - writing\n  - notes\n---\n# A small clearing\n\nA place to gather a thought before sharing it.\n\n## What belongs here\n\nKeep a working draft in your library, then publish it when you are ready. The public page has its own link.\n\n| Stage | Who can read it |\n| --- | --- |\n| Cloud draft | People with access |\n| Private link | Anyone with the complete link |\n| Public page | Anyone, including search engines |\n\n## Make room for changes\n\nA good document can change its mind. Edit a sentence, then update the public page when you want readers to see the change.\n\nThe same public link continues to work.';

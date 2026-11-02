@@ -1,7 +1,7 @@
 [Unit]
 Description=SmallDocs staging server
-After=network-online.target
-Wants=network-online.target
+After=network-online.target smalldocs-staging-compiler.service
+Wants=network-online.target smalldocs-staging-compiler.service
 
 [Service]
 Type=simple
@@ -17,6 +17,7 @@ Environment=NOTIFY_SMTP_PASS_FILE=/run/credentials/smalldocs-staging.service/res
 Environment=STRIPE_SECRET_KEY_FILE=/run/credentials/smalldocs-staging.service/stripe-api-key
 Environment=STRIPE_WEBHOOK_SECRET_FILE=/run/credentials/smalldocs-staging.service/stripe-webhook-secret
 Environment=CLOUD_TEST_LOGIN_SECRET_FILE=/run/credentials/smalldocs-staging.service/cloud-test-login-secret
+Environment=SDOCS_PUBLICATION_COMPILER_SOCKET=/run/smalldocs-staging-compiler/worker.sock
 ExecStartPre=/usr/bin/test -r /opt/smalldocs/staging-current/server.js
 ExecStart=/usr/local/bin/node /opt/smalldocs/staging-current/server.js
 Restart=on-failure

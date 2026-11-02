@@ -1059,7 +1059,8 @@ function start() {
     new MutationObserver(function () { insertRow(); }).observe(card, { childList: true, subtree: true });
   }
   insertRow();
-  loadAccountData().catch(function () {});
+  var navigation=document.getElementById('_sd_sidebar');
+  if (!S.publicationSource || navigation && navigation.dataset.cloudAuthenticated === 'true') loadAccountData().catch(function () {});
   document.addEventListener('keydown', function (event) {
     if (event.key === 'Escape' && cloudState.panel) closeCloudPanel();
   });

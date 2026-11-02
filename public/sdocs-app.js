@@ -468,9 +468,9 @@ function render() {
   rememberRich(S.processCharts(S.renderedEl));
   if (S.processMath) rememberRich(S.processMath(S.renderedEl));
   if (S.processMermaid) rememberRich(S.processMermaid(S.renderedEl));
-  if (S.processVideo) S.processVideo(S.renderedEl);
-  if (window.SDocSlides) window.SDocSlides.processSlides(S.renderedEl);
-  if (htmlComponents) htmlComponents.process(S.renderedEl);
+  if (S.processVideo && !S.publicationCompile) S.processVideo(S.renderedEl);
+  if (window.SDocSlides) { window.SDocSlides.processSlides(S.renderedEl); rememberRich(window.SDocSlides.ready()); }
+  if (htmlComponents && !S.publicationCompile) htmlComponents.process(S.renderedEl);
   if (S.renderForms) S.renderForms(S.renderedEl);
   if (S.processCells) S.processCells(S.renderedEl);
   // Last: highlight the plain code blocks that no other processor claimed.
@@ -479,6 +479,7 @@ function render() {
   // comments once it settles so highlighted code keeps its anchors.
   if (S.processHighlight) {
     var hlPromise = S.processHighlight(S.renderedEl);
+    rememberRich(hlPromise);
     if (hlPromise && hlPromise.then) {
       hlPromise.then(function () {
         renderAnnotationSurfaces();
@@ -488,6 +489,7 @@ function render() {
   if (richReady.length) {
     Promise.allSettled(richReady).then(function () { renderAnnotationSurfaces(); });
   }
+  S.publicationRenderReady = Promise.allSettled(richReady);
   renderFileInfoCard();
   updateDocumentTitle();
   if (S.sidebarRefresh) S.sidebarRefresh();
@@ -720,7 +722,7 @@ function renderFileInfoCard() {
   if (hasDoc && !S._isDefaultState) {
     slots.push({ type: 'intro' });
     if (S.shortUrl) slots.push({ type: 'data', html: dataRowHtml('shortUrl', 'Private URL', S.shortUrl, false, true) });
-    var publication = S.publications && S.publications.current();
+    var publication = S.publicationSource && S.publicationSource.unchanged() ? {url:S.publicationSnapshot.url,active:true} : S.publications && S.publications.current();
     if (publication && publication.url && publication.active) {
       slots.push({ type: 'data', html: dataRowHtml('publicUrl', 'Public URL', publication.url, false, true) });
     }
@@ -1203,7 +1205,7 @@ function normalizedBasePath() {
   if (S.cloudDocument && S.cloudDocument.id) {
     return '/docs?cloud-document=' + encodeURIComponent(S.cloudDocument.id);
   }
-  if (p === '/new' || SHORT_LINK_PATH_RE.test(p)) return '/docs';
+  if (p === '/new' || SHORT_LINK_PATH_RE.test(p) || /^\/p\//.test(p)) return '/docs';
   return p;
 }
 
@@ -1224,6 +1226,14 @@ async function writeCurrentLocation(version) {
   var writePreserved = function (params) {
     for (var name in preserved) params.set(name, preserved[name]);
   };
+  if (S.publicationSource && S.publicationSource.unchanged() && /^\/p\//.test(location.pathname)) {
+    var publishedParams = new URLSearchParams();
+    if (S.currentMode !== 'read') publishedParams.set('mode',S.currentMode);
+    if (existing.has('sec')) publishedParams.set('sec',existing.get('sec'));
+    writePreserved(publishedParams);
+    history.replaceState(null,'',location.pathname + (publishedParams.toString() ? '#' + publishedParams : ''));
+    return;
+  }
   if (S._isDefaultState && S.currentMode === 'read') {
     if (version !== locationWriteVersion) return;
     if (Object.keys(preserved).length === 0) {
@@ -1331,6 +1341,7 @@ function syncAll(source) {
     // Now that this source's edit has been applied to the live document,
     // decide whether a loaded/minted short link still matches it.
     reconcileShortLink(source);
+    if (S.publicationSource) S.publicationSource.reconcile(source);
   } finally {
     S._syncing = false;
     if (S.publications && S.cloudDocument && !S._loadingDocument) renderFileInfoCard();
@@ -1522,6 +1533,7 @@ function syncFoldButton() {
   btn.setAttribute('data-tip', label);
 }
 S.syncFoldButton = syncFoldButton;
+S.setAllSectionsOpen = setAllSectionsOpen;
 document.getElementById('_sd_btn-style').addEventListener('click',  function() { toggleMode('style'); });
 document.getElementById('_sd_btn-write').addEventListener('click',  function() { toggleMode('write'); });
 document.getElementById('_sd_btn-raw').addEventListener('click',    function() { toggleMode('raw'); });
@@ -1682,7 +1694,8 @@ function wireDocumentSiteNavigation() {
     var returnTo = window.location.pathname + window.location.search + window.location.hash;
     try {
       window.sessionStorage.setItem(CLOUD_SIGN_IN_RETURN_KEY, returnTo);
-      window.location.href = '/cloud/sign-in?return=' + encodeURIComponent('/docs?sdocs_resume=1');
+      var resume = /^\/p\//.test(location.pathname) ? location.pathname + '?sdocs_resume=1' : '/docs?sdocs_resume=1';
+      window.location.href = '/cloud/sign-in?return=' + encodeURIComponent(resume);
     } catch (_) {
       window.location.href = '/cloud/sign-in?return=%2Fdocs';
     }
@@ -1734,7 +1747,7 @@ var _defaultMdPath = _defaultMetaEl && _defaultMetaEl.content;
 // Guard against the server-side template placeholder leaking through
 // (e.g. a stale service-worker cache serving an older index.html).
 if (!_defaultMdPath || _defaultMdPath.charAt(0) !== '/') _defaultMdPath = '/public/sdoc.md';
-var _defaultReady = new URLSearchParams(window.location.search).has('cloud-document')
+var _defaultReady = document.getElementById('sdocs-publication-data') || new URLSearchParams(window.location.search).has('cloud-document')
   ? Promise.resolve()
   : fetch(_defaultMdPath).then(function(r) { return r.text(); }).then(function(t) { DEFAULT_MD = t; });
 
@@ -1834,6 +1847,10 @@ S.updateThemeTabs(S.activeTheme);
 var _lastLoadedHash = null;
 
 async function loadFromHash() {
+  if (S.publicationSource && /^\/p\//.test(location.pathname)) {
+    if (S.publicationSource.rootLoaded()) S.publicationSource.viewState();
+    return;
+  }
   var hash = window.location.hash.slice(1);
   if (hash === _lastLoadedHash) return;
   _lastLoadedHash = hash;

@@ -282,7 +282,7 @@ if (cloudKeyProvider) {
 
 const cloudPublications = cloudStore ? new (require('./lib/cloud-publications').CloudPublications)({
   store: cloudStore, origin: CLOUD_AUTH_PUBLIC_ORIGIN,
-  renderPage: options => require('./lib/publication-render').renderPublicationPage(options),
+  renderPage: options => compilePublicPublication(options),
 }) : null;
 
 let cloudBilling = null;
@@ -763,7 +763,7 @@ function serveHtmlWithRewrite(res, filePath, subs, extraHeaders, statusCode = 20
     }
     if (subs) {
       for (const key of Object.keys(subs)) {
-        html = html.replace(new RegExp(escapeRegExp(key), 'g'), subs[key]);
+        html = html.replace(new RegExp(escapeRegExp(key), 'g'), () => subs[key]);
       }
     }
     html = rewriteAssets(html);
@@ -1168,6 +1168,31 @@ function documentCsp(nonce, frameAncestors) {
   return policy.join('; ');
 }
 
+function documentShellSubstitutions(req, nonce, defaultMdPath, compile = false) {
+  return {
+    '__APP_VERSION__': APP_VERSION, '__SDOCS_DEV__': DEV_MODE ? '1' : '0',
+    '__DEFAULT_MD_PATH__': defaultMdPath, '__CSP_NONCE__': nonce,
+    '__CLOUD_UI_STYLES__': CLOUD_DEPLOYMENT.publicEnabled && !compile
+      ? '<link rel="stylesheet" href="/public/css/cloud-prototype.css"><link rel="stylesheet" href="/public/css/cloud-ui-lab.css">' : '',
+    '__CLOUD_UI_SCRIPT__': CLOUD_DEPLOYMENT.publicEnabled && !compile
+      ? '<script src="/public/sdocs-cloud-account-selection.js"></script><script src="/public/sdocs-cloud-prototype.js"></script>' +
+        (CLOUD_UI_LAB_ENABLED ? '<script src="/public/sdocs-cloud-ui-lab.js"></script>' : '') : '',
+    '__EMBED_STYLES__':'', '__EMBED_SCRIPT__':'',
+    ...(compile ? {} : documentNavigation(req).substitutions)
+  };
+}
+
+let publicPublicationCompiler;
+function compilePublicPublication(snapshot) {
+  if (!process.env.SDOCS_PUBLICATION_COMPILER_SOCKET) throw Object.assign(new Error('Public page compiler is unavailable.'), {code:'temporary_service_failure'});
+  if (!publicPublicationCompiler) publicPublicationCompiler = require('./lib/publication-compiler').createCompilerClient({
+    socketPath:process.env.SDOCS_PUBLICATION_COMPILER_SOCKET,
+    shell: source => rewriteAssets(require('./lib/publication-shell').renderPublicationShell({source,compile:true,
+      substitutions:documentShellSubstitutions(null,crypto.randomBytes(16).toString('base64'),'/public/sdoc.md',true)}))
+  });
+  return publicPublicationCompiler.compile(snapshot);
+}
+
 function parseEmbedParentOrigin(value) {
   if (!value) return null;
   try {
@@ -1233,6 +1258,7 @@ function cloudApiError(res, error) {
     recent_auth_required: 401,
     token_reuse: 401,
     temporary_service_failure: 503,
+    publication_compile_failed: 503,
   };
   const body = { ok: false, error: code };
   if (code === 'personal_library_private') {
@@ -3485,13 +3511,14 @@ function servePublicPublication(req, res, slug) {
     res.end(req.method === 'HEAD' ? '' : 'This publication is unavailable.');
     return;
   }
-  const csp = ["default-src 'none'", "script-src 'self' https://cdn.jsdelivr.net",
-    "style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'", "font-src 'self' https://cdn.jsdelivr.net", "img-src 'self' https: data: blob:",
-    "connect-src 'none'", "frame-src 'self' https://www.youtube-nocookie.com", "object-src 'none'", "base-uri 'none'",
-    "form-action 'none'", "frame-ancestors 'none'"].join('; ');
+  const nonce = crypto.randomBytes(16).toString('base64');
+  const shell = require('./lib/publication-shell');
+  const body = shell.renderPublicationShell({source:shell.publicationSource(publication,CLOUD_AUTH_PUBLIC_ORIGIN),
+    rootHtml:shell.documentRoot(publication),renderedStyles:JSON.parse(publication.rendered_styles || '{}'),substitutions:documentShellSubstitutions(req,nonce,'/public/sdoc.md')});
   res.writeHead(200, { ...headers, 'Content-Type': 'text/html; charset=utf-8',
-    'Content-Security-Policy': csp, 'Referrer-Policy': 'strict-origin-when-cross-origin' });
-  res.end(req.method === 'HEAD' ? '' : rewriteAssets(publication.rendered_html));
+    'Content-Security-Policy': documentCsp(nonce), 'Vary':'Cookie',
+    'X-Frame-Options':'DENY', 'Referrer-Policy': 'strict-origin-when-cross-origin' });
+  res.end(req.method === 'HEAD' ? '' : rewriteAssets(body));
 }
 
 const server = http.createServer((req, res) => {
@@ -4735,23 +4762,7 @@ const server = http.createServer((req, res) => {
                   ? '/public/blogs/' + blogSlug + '.md'
                   : '/public/sdoc.md';
     const csp = documentCsp(nonce);
-    serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'index.html'), {
-      '__APP_VERSION__': APP_VERSION,
-      '__SDOCS_DEV__': DEV_MODE ? '1' : '0',
-      '__DEFAULT_MD_PATH__': defaultMdPath,
-      '__CSP_NONCE__': nonce,
-      '__CLOUD_UI_STYLES__': CLOUD_DEPLOYMENT.publicEnabled
-        ? '<link rel="stylesheet" href="/public/css/cloud-prototype.css">'
-          + '<link rel="stylesheet" href="/public/css/cloud-ui-lab.css">' : '',
-      '__CLOUD_UI_SCRIPT__': CLOUD_DEPLOYMENT.publicEnabled
-        ? '<script src="/public/sdocs-cloud-account-selection.js"></script>'
-          + '<script src="/public/sdocs-cloud-prototype.js"></script>'
-          + (CLOUD_UI_LAB_ENABLED
-            ? '<script src="/public/sdocs-cloud-ui-lab.js"></script>' : '') : '',
-      '__EMBED_STYLES__': '',
-      '__EMBED_SCRIPT__': '',
-      ...documentNav.substitutions,
-    }, {
+    serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'index.html'), documentShellSubstitutions(req,nonce,defaultMdPath), {
       'Cache-Control': documentNav.authenticated ? 'private, no-store' : 'no-cache',
       'Vary': 'Cookie',
       'Content-Security-Policy': csp,
@@ -4805,6 +4816,15 @@ async function startServer() {
   if (cloudStore) await cloudStore.encryptDocumentIdempotencyReceipts();
   server.listen(PORT, HOST, () => {
     console.log(`sdocs-dev running at http://${HOST}:${PORT}`);
+    if(cloudPublications && process.env.SDOCS_PUBLICATION_COMPILER_SOCKET) {
+      (async()=>{
+        for(const publication of cloudPublications.listPublic()) {
+          if(cloudPublications.getPublic(publication.slug).renderer_version===RUNNING_COMMIT) continue;
+          try { await cloudPublications.rebuildPublished(publication.slug); }
+          catch (_) { console.error('Public snapshot refresh deferred: publication_compile_failed'); }
+        }
+      })().catch(()=>console.error('Public snapshot refresh deferred: temporary_service_failure'));
+    }
   });
 }
 

@@ -4,7 +4,7 @@ test.use({serviceWorkers:'block'});
 let f,doc;
 const original='---\ntitle: A small clearing\ntags:\n  - writing\n---\n# A small clearing\n\nA place to gather a thought before sharing it.\n\n## What belongs here\n\nPrivate drafts can become public pages when they are ready.\n\n| Stage | Audience |\n| --- | --- |\n| Draft | Your library |\n| Published | Anyone |\n\n## Next steps\n\nKeep writing, then update the public page.';
 test.beforeEach(async()=>{
-  f=await startFixture({singlePlan:true});
+  f=await startFixture({singlePlan:true,compilePublications:true});
   const onboard=await f.api('josh','/api/cloud/v1/onboarding/complete','POST',{});
   const workspace=onboard.data.workspaces.find(w=>w.kind==='personal');
   const saved=await f.api('josh','/api/cloud/v1/account/documents','POST',{
@@ -178,7 +178,7 @@ for(const width of [1440,390]) test('anonymous public slides match the document 
     expect(Math.abs(actual.width-baseline.width)).toBeLessThanOrEqual(1);
     expect(actual.cards.length).toBe(baseline.cards.length);
     actual.cards.forEach((card,i)=>{expect(Math.abs(card.width-baseline.cards[i].width)).toBeLessThanOrEqual(1);expect(Math.abs(card.height-baseline.cards[i].height)).toBeLessThanOrEqual(1);expect(card.background).toBe(baseline.cards[i].background);});
-    expect(errors).toEqual([]);expect(requests.filter(url=>url.includes('/api/cloud/'))).toEqual([]);
+    expect(errors).toEqual([]);expect(requests.filter(url=>url.includes('/api/cloud/v1/documents/'))).toEqual([]);
     expect(await reader.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
     await reader.screenshot({path:testInfo.outputPath('public-slide-'+width+'.png')});
     await reader.locator('.sdoc-slide-present').click();
@@ -188,10 +188,9 @@ for(const width of [1440,390]) test('anonymous public slides match the document 
 });
 test('existing published snapshots gain rich rendering without reading a later private draft',async({browser})=>{
   const url=await publishedRich(slideMarkdown);
-  const row=f.store.db.prepare('SELECT rendered_html FROM cloud_publications WHERE document_id=?').get(doc.id);
-  const legacy=row.rendered_html.replace(/<script id="publication-source" type="application\/json">[\s\S]*?<\/script>/,'')
-    .replace(/(<article id="_sd_rendered"[^>]*>)/,'$1<h1>Untitled document</h1>');
-  f.store.db.prepare('UPDATE cloud_publications SET rendered_html=? WHERE document_id=?').run(legacy,doc.id);
+  const code=slideMarkdown.split('```slide\n')[1].split('```')[0].replace(/&/g,'&amp;').replace(/</g,'&lt;');
+  const legacy='<html><head><title>Untitled document | SmallDocs</title><style>html #_sd_rendered{--md-base-size:22px;--md-color:#123456}</style></head><body><article id="_sd_rendered"><h1>Untitled document</h1><div class="publication-meta">Old byline</div><pre><code class="language-slide">'+code+'</code></pre></article></body></html>';
+  f.store.db.prepare("UPDATE cloud_publications SET rendered_html=?,public_source=NULL,renderer_version='legacy',rendered_styles=NULL WHERE document_id=?").run(legacy,doc.id);
   await update('# New private draft\n\nThis has never been published.','unpublished-draft');
   const guest=await browser.newContext();
   try {
@@ -201,6 +200,8 @@ test('existing published snapshots gain rich rendering without reading a later p
     await expect(reader.locator('.sdoc-slide')).toContainText('Email encryption protects different parts of a message');
     await expect(reader.locator('body')).not.toContainText('This has never been published.');
     await expect(reader.getByRole('heading',{name:'Untitled document',exact:true})).toHaveCount(0);
+    expect(await reader.locator('#_sd_rendered').evaluate(el=>getComputedStyle(el).getPropertyValue('--md-base-size').trim())).toBe('22px');
+    expect(await reader.locator('#_sd_rendered').evaluate(el=>getComputedStyle(el).getPropertyValue('--md-color').trim())).toBe('#123456');
   } finally{await guest.close();}
 });
 test('anonymous rich pages render cells, math, charts and diagrams with inert raw HTML',async({browser})=>{
@@ -219,5 +220,57 @@ test('anonymous rich pages render cells, math, charts and diagrams with inert ra
     await expect(reader.locator('#_sd_rendered')).toHaveCSS('color','rgb(18, 52, 86)');
     expect(await reader.evaluate(()=>window.publicationAttack)).toBeUndefined();
     expect(errors).toEqual([]);
+  } finally{await guest.close();}
+});
+
+test('public copies retain the private-link app shell and actions, with readable initial HTML',async({page,browser})=>{
+  await open(page);
+  await page.getByRole('button',{name:'Create private link',exact:true}).click();
+  const privateUrl=await page.locator('[data-key="shortUrl"] .fic-value').innerText();
+  const publicUrl=await publish(page);
+  const guest=await browser.newContext({permissions:['clipboard-read','clipboard-write']});
+  try {
+    const reader=await guest.newPage();await reader.goto(privateUrl);
+    await expect(reader.locator('[role="toolbar"][aria-label="Document actions"]')).toBeVisible();
+    const controls=await reader.locator('[role="toolbar"][aria-label="Document actions"] button').evaluateAll(nodes=>nodes.map(node=>node.id));
+    await reader.goto(publicUrl);
+    await expect(reader.locator('html')).toHaveAttribute('data-publication-ready','true');
+    await expect(reader.locator('[data-sidebar-section="about"]')).toBeVisible();
+    await expect(reader.locator('a.sdocs-short-link-only',{hasText:'Install'})).toBeVisible();
+    expect(await reader.locator('[role="toolbar"][aria-label="Document actions"] button').evaluateAll(nodes=>nodes.map(node=>node.id))).toEqual(controls);
+    await reader.locator('#_sd_btn-copy-file').click();
+    expect(await reader.evaluate(()=>navigator.clipboard.readText())).toContain('A place to gather a thought');
+    await reader.locator('#_sd_btn-fold').click();
+    await reader.locator('#_sd_btn-theme').click();
+    await reader.waitForTimeout(500);
+    expect(new URL(reader.url()).pathname).toBe(new URL(publicUrl).pathname);
+    expect(new URL(reader.url()).hash).not.toContain('md=');
+    expect(await reader.evaluate(()=>SDocs.cloudDocument)).toBeFalsy();
+    await reader.evaluate(()=>{SDocs.currentBody+='\n\nLocal reader copy.';SDocs.syncAll('write');});
+    await expect.poll(()=>new URL(reader.url()).pathname).toBe('/docs');
+    expect(await (await reader.request.get(publicUrl)).text()).not.toContain('Local reader copy.');
+    expect(await (await reader.request.get(publicUrl)).text()).not.toContain(doc.id);
+  }finally{await guest.close();}
+  const noJs=await browser.newContext({javaScriptEnabled:false});
+  try{
+    const reader=await noJs.newPage();await reader.goto(publicUrl);
+    await expect(reader.getByRole('heading',{name:'Next steps',exact:true})).toBeVisible();
+    await expect(reader.getByRole('table')).toContainText('Published');
+  }finally{await noJs.close();}
+});
+
+test('sign-in returns to the published source with its document and mode intact',async({browser})=>{
+  const url=await publishedRich(original);
+  const guest=await browser.newContext();
+  try {
+    const reader=await guest.newPage();await reader.goto(url);
+    await expect(reader.locator('html')).toHaveAttribute('data-publication-ready','true');
+    await reader.evaluate(()=>sessionStorage.setItem('sdocs-cloud-sign-in-return-v1',location.pathname+'#mode=style'));
+    await reader.goto(url+'?sdocs_resume=1');
+    await expect(reader.locator('html')).toHaveAttribute('data-publication-ready','true');
+    expect(new URL(reader.url()).pathname).toBe(new URL(url).pathname);
+    expect(new URL(reader.url()).search).toBe('');
+    expect(await reader.evaluate(()=>SDocs.currentMode)).toBe('style');
+    expect(await reader.evaluate(()=>SDocs.currentBody)).toContain('A place to gather a thought');
   } finally{await guest.close();}
 });

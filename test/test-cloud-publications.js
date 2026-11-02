@@ -37,6 +37,36 @@ module.exports = function (h) {
     const localPublications = renderPage => new CloudPublications({ store: f.store, origin: f.origin,
       renderPage: renderPage || (options => '<h1>' + options.title + '</h1>') });
     try {
+      await testAsync('compiled publication cache retains only its published source and cannot resurrect a withdrawn page',async()=>{
+        let doc=await create();
+        const publication=(await publish(doc)).data.publication;
+        const slug=new URL(publication.url).pathname.slice(3);
+        doc=await save(doc,markdown+'\nA later private draft.\n');
+        let release,arrived;
+        const gate=new Promise(resolve=>{release=resolve;}),started=new Promise(resolve=>{arrived=resolve;});
+        const compiler=localPublications(async source=>{
+          assert.ok(source.markdown.includes('Public introduction'));
+          assert.ok(!source.markdown.includes('A later private draft.'));
+          arrived();await gate;
+          return {html:'<div id="_sd_rendered">Published text</div>',styles:{shape:'',math:false},rendererVersion:'new-renderer'};
+        });
+        const pending=compiler.rebuildPublished(slug);await started;
+        await f.api('bob',endpoint(doc),'DELETE',{});release();
+        assert.strictEqual(await pending,false);
+        assert.strictEqual(compiler.getPublic(slug).active,0);
+        assert.strictEqual(compiler.getPublic(slug).public_source,null);
+      });
+      await testAsync('failed compilation preserves the last public version and its source',async()=>{
+        let doc=await create();await publish(doc);
+        const before=f.store.db.prepare('SELECT * FROM cloud_publications WHERE document_id=?').get(doc.id);
+        doc=await save(doc,markdown+'\nNew draft pending publication.\n');
+        const compiler=localPublications(async()=>{throw Object.assign(new Error('Compiler unavailable'),{code:'publication_compile_failed'});});
+        await assert.rejects(compiler.publish({userId:f.users.bob.id,documentId:doc.id,expectedRevisionId:doc.current_revision_id,idempotencyKey:crypto.randomUUID()}),error=>error.code==='publication_compile_failed');
+        const after=compiler._row(doc.id);
+        assert.strictEqual(after.rendered_html,before.rendered_html);
+        assert.strictEqual(after.public_source,before.public_source);
+        assert.strictEqual(after.published_revision_id,before.published_revision_id);
+      });
       await testAsync('public snapshot excludes private metadata and portable review notes but keeps styling', async () => {
         const snapshot = publicSnapshot(markdown);
         assert.ok(snapshot.markdown.includes('#123456'));
@@ -71,11 +101,12 @@ module.exports = function (h) {
         assert.ok(response.text.includes(publication.url));
         assert.strictEqual(response.headers.get('cache-control'), 'no-store');
         assert.strictEqual(response.headers.get('x-robots-tag'), 'noindex, nofollow');
-        assert.ok(response.headers.get('content-security-policy').includes("connect-src 'none'"));
+        assert.ok(response.headers.get('content-security-policy').includes("connect-src 'self'"));
         for (const value of [privateText, 'private-tag-unique', 'source-unique', doc.id, doc.current_revision_id,
           f.users.bob.email, f.team.workspaceId, f.team.projectId]) assert.ok(!response.text.includes(value), value);
         const authenticated = await page(publication.url, { Cookie: f.users.bob.cookie });
-        assert.strictEqual(authenticated.text, response.text);
+        const sourceOf = html => JSON.parse(/<script id="sdocs-publication-data" type="application\/json">([\s\S]*?)<\/script>/.exec(html)[1]);
+        assert.deepStrictEqual(sourceOf(authenticated.text),sourceOf(response.text));
         const sitemap = await page(f.origin + '/publications-sitemap.xml');
         assert.ok(sitemap.text.includes(publication.url));
         assert.ok(!sitemap.text.includes(doc.id));
