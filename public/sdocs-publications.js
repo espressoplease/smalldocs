@@ -5,6 +5,8 @@
     loading: false, busy: false, error: '', signature: null, pending: null };
   var privateBusy = false, privateError = '';
   var panelSignature = null;
+  var keyIcon = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z"/><circle cx="16.5" cy="7.5" r=".5" fill="currentColor"/></svg>';
+  var globeIcon = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>';
 
   function escape(value) {
     return String(value || '').replace(/[&<>"']/g,function (c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; });
@@ -122,10 +124,13 @@
   function linkControls(label,url) {
     return '<label class="sdoc-share-label">'+label+'<span class="sdoc-share-url">'
       +'<input aria-label="'+label+'" readonly value="'+escape(url)+'">'
-      +'<button type="button" class="btn" data-share-copy="'+escape(url)+'" aria-label="Copy '+label.charAt(0).toLowerCase()+label.slice(1)+'">Copy</button></span></label>';
+      +'<button type="button" class="btn sdoc-share-copy" data-share-copy="'+escape(url)+'" aria-label="Copy '+label.charAt(0).toLowerCase()+label.slice(1)+'">'+(S.copyIcon || 'Copy')+'</button></span></label>';
   }
-  function button(label,attribute,disabled) {
-    return '<button type="button" class="btn" '+attribute+(disabled?' disabled':'')+'>'+label+'</button>';
+  function actionContent(label,icon,description) {
+    return icon+'<span class="export-option-text"><span class="export-option-title">'+label+'</span><span class="export-option-desc">'+description+'</span></span>';
+  }
+  function button(label,attribute,disabled,icon,description) {
+    return '<button type="button" class="'+(icon?'export-option sdoc-share-action':'btn')+'" aria-label="'+label+'" '+attribute+(disabled?' disabled':'')+'>'+(icon?actionContent(label,icon,description):label)+'</button>';
   }
   async function createPrivate() {
     if (privateBusy) return;
@@ -139,22 +144,25 @@
   function panelHtml() {
     var publication=sharedPublication(), active=publication&&publication.active;
     var html='<section class="panel-section sdoc-share-section"><h2>Private link</h2>'
-      +'<p>Share a fixed, encrypted copy. Anyone with the complete link can read it. Later edits do not change that copy.</p>'
+      +'<p>Anyone with the complete link can read this copy, without signing in. They can also pass the link on.</p>'
+      +'<p>Your browser encrypts this copy before uploading it. The decryption key is included after <code>#k=</code> in the URL. The reader&#39;s browser uses it to open the copy; the key is not sent to our server.</p>'
+      +'<p>This link opens a fixed copy. Later edits do not change it; create a new link to share a newer version.</p>'
       +help('Learn about private links','short-links')
       +(S.shortUrl?linkControls('Private URL',S.shortUrl):'')
-      +button(privateBusy?'Creating private link...':S.shortUrl?'Create new private link':'Create private link','data-share-private',privateBusy)
+      +button(privateBusy?'Creating private link...':S.shortUrl?'Create new private link':'Create private link','data-share-private',privateBusy,keyIcon,'An encrypted copy for people with the link')
       +(privateError?'<p class="sdoc-share-status sdoc-share-error" role="status">'+escape(privateError)+'</p>':'')+'</section>';
     html+='<section class="panel-section sdoc-share-section"><h2>Public page</h2>'
-      +'<p>Publish a page anyone can read. It can appear in search results. Edits reach the public page only when you publish them. Updates keep the same URL.</p>'
+      +'<p>Publish a public copy of this document on the web. Anyone can open it, and search engines may crawl it and show it in search results.</p>'
+      +'<p>Edits are not published automatically. Choose <strong>Update public page</strong> to publish your latest version at the same URL.</p>'
       +help('Learn about public pages','public-pages');
     if(active){
       html+=linkControls('Public URL',publication.url)
         +'<p class="sdoc-share-status" role="status">'+(publicationStatus()==='outdated'?'Your latest edits are not published.':publicationStatus()==='current'?'Your public page is up to date.':publicationStatus()==='published'?'This is the published copy.':'Checking publishing details...')+'</p>'
         +(publication.updated_at_ms||publication.published_at_ms?'<p>Last published '+escape(new Date(publication.updated_at_ms||publication.published_at_ms).toLocaleString())+'.</p>':'')
-        +'<a href="'+escape(publication.url)+'" target="_blank" rel="noopener">Open public page</a>';
+        +'<a'+(S.cloudDocument?'':' class="export-option sdoc-share-action"')+' aria-label="Open public page" href="'+escape(publication.url)+'" target="_blank" rel="noopener">'+(S.cloudDocument?'Open public page':actionContent('Open public page',globeIcon,'Read the published version'))+'</a>';
     }
     if(S.cloudDocument){
-      html+=button(state.busy&&!state.removing?'Publishing...':state.error&&!state.publication?'Retry publishing details':!active?'Publish publicly':dirty()?'Update public page':'Public page up to date','data-share-publish',state.loading||state.busy||(!state.canPublish&&!state.error)||(active&&!dirty()));
+      html+=button(state.busy&&!state.removing?'Publishing...':state.error&&!state.publication?'Retry publishing details':!active?'Publish publicly':dirty()?'Update public page':'Public page up to date','data-share-publish',state.loading||state.busy||(!state.canPublish&&!state.error)||(active&&!dirty()),globeIcon,active?(dirty()?'Publish your latest saved version at the same URL':'Your published page matches this version'):'A web page anyone can read and search engines may find');
       if(!state.canPublish&&!state.loading)html+='<p>Only the document creator with active Cloud access can publish or update this page.</p>';
       if(active&&publication.can_manage){
         html+=button(state.removing?'Unpublishing...':'Unpublish','data-publication-unpublish',state.busy)
@@ -174,7 +182,7 @@
     var withdraw=body.querySelector('[data-publication-unpublish]');if(withdraw)withdraw.addEventListener('click',unpublish);
     body.querySelectorAll('input[readonly]').forEach(function(input){input.addEventListener('click',function(){this.select();});});
     body.querySelectorAll('[data-share-copy]').forEach(function(copy){copy.addEventListener('click',async function(){
-      try{await navigator.clipboard.writeText(copy.dataset.shareCopy);copy.textContent='Copied';notify('Link copied.');}
+      try{await S.copyWithIconFeedback(copy.dataset.shareCopy,copy);notify('Link copied.');}
       catch(_){notify('The link could not be copied. Select and copy it from the field.');}
     });});
   }

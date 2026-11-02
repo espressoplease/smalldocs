@@ -55,8 +55,21 @@ body.share-mode #_sd_right > .panel-section { display: none; }
   overflow-wrap: anywhere;
 }
 .sdoc-share-section > a { color: var(--accent-text); }
+.export-option.sdoc-share-action {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-input);
+  color: var(--text);
+  text-decoration: none;
+}
+.export-option.sdoc-share-action:hover:not(:disabled) { background: var(--bg-hover); }
+.export-option.sdoc-share-action:active:not(:disabled) { background: var(--bg-active); }
+.export-option.sdoc-share-action:disabled { cursor: default; }
+.export-option.sdoc-share-action > svg { color: inherit; }
+.sdoc-share-section code { font-family: var(--font-mono); font-size: inherit; }
 .sdoc-share-label { display: flex; flex-direction: column; gap: 6px; }
 .sdoc-share-url { display: flex; align-items: stretch; gap: 6px; }
+.sdoc-share-copy { flex: 0 0 36px; justify-content: center; padding: 8px; }
 .sdoc-share-url input {
   width: 0;
   min-width: 0;

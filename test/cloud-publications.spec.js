@@ -41,10 +41,16 @@ for(const width of [1440,390]) test('Share panel provides both link types and a 
   await page.getByRole('button',{name:'Create private link',exact:true}).click();
   const privateRow=page.getByRole('textbox',{name:'Private URL',exact:true});await expect(privateRow).toBeVisible();
   const privateUrl=await privateRow.inputValue();expect(privateUrl).toContain('#k=');
-  await page.getByRole('button',{name:'Copy private URL',exact:true}).click();expect(await page.evaluate(()=>navigator.clipboard.readText())).toBe(privateUrl);
+  const privateCopy=page.getByRole('button',{name:'Copy private URL',exact:true});
+  await expect(privateCopy.locator('svg rect')).toHaveCount(1);
+  await privateCopy.click();expect(await page.evaluate(()=>navigator.clipboard.readText())).toBe(privateUrl);
+  await expect(privateCopy.locator('svg polyline')).toHaveAttribute('points','20 6 9 17 4 12');
+  await expect(privateCopy.locator('svg rect')).toHaveCount(1);
   await expect(page.locator('#_sd_btn-share')).not.toHaveClass(/has-unseen/);
   const publicUrl=await publish(page);expect(publicUrl).toContain('/p/a-small-clearing-');
-  await page.getByRole('button',{name:'Copy public URL',exact:true}).click();expect(await page.evaluate(()=>navigator.clipboard.readText())).toBe(publicUrl);
+  const publicCopy=page.getByRole('button',{name:'Copy public URL',exact:true});
+  await publicCopy.click();expect(await page.evaluate(()=>navigator.clipboard.readText())).toBe(publicUrl);
+  await expect(publicCopy.locator('svg polyline')).toHaveAttribute('points','20 6 9 17 4 12');
   await expect(page.locator('#_sd_btn-share')).toHaveAttribute('data-publication-status','current');
   await expect(page.locator('#_sd_btn-share .info-dot')).toHaveCSS('background-color','rgb(22, 163, 74)');
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);

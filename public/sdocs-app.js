@@ -821,10 +821,13 @@ function flashCopyIcon(btn) {
 // Swap the button's <svg> to a check, restore after COPY_FEEDBACK_MS.
 // Works for both icon-only and icon+label buttons.
 function copyWithIconFeedback(text, btn) {
-  navigator.clipboard.writeText(text).then(function() {
+  return navigator.clipboard.writeText(text).then(function() {
     flashCopyIcon(btn);
   });
 }
+
+S.copyIcon = COPY_SVG;
+S.copyWithIconFeedback = copyWithIconFeedback;
 
 document.addEventListener('DOMContentLoaded', function() {
   var copyFile = document.getElementById('_sd_btn-copy-file');
