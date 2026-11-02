@@ -96,10 +96,11 @@
       rowClass: options.rowClass, label: 'Security', icon: icons.shield,
       content: '<div class="sdocs-sidebar-preview" data-security-panel>' +
         '<p class="sdocs-sidebar-explainer"><strong>Encrypted storage.</strong> Cloud document content, titles, filenames and tags are encrypted with AES-256-GCM before they are stored in the database.</p>' +
-        '<p class="sdocs-sidebar-explainer"><strong>Protected keys.</strong> Document encryption keys are protected by AWS Key Management Service (KMS).</p>' +
+        '<p class="sdocs-sidebar-explainer"><strong>Protected keys.</strong> Each library\'s document keys are stored in encrypted form.</p>' +
         '<p class="sdocs-sidebar-explainer"><strong>When you use a document.</strong> SmallDocs manages the keys and decrypts authorised content on its servers to open, search and edit it.</p>' +
+        '<p class="sdocs-sidebar-explainer"><strong>Server access.</strong> The application runs under a dedicated system account with restricted access to server files. Administrative access uses SSH keys.</p>' +
         '<p class="sdocs-sidebar-explainer"><strong>Backups.</strong> Backups are encrypted and use separate access credentials.</p>' +
-        '<a class="sdocs-sidebar-library-row sdocs-sidebar-library-open" href="/privacy" target="_blank" rel="noopener"><span>Cloud storage details</span>' + icons.external + '</a></div>' });
+        '<a class="sdocs-sidebar-library-row sdocs-sidebar-library-open" href="/privacy#sec=security" target="_blank" rel="noopener"><span>Cloud storage details</span>' + icons.external + '</a></div>' });
   }
 
   function bindReferrals(sidebar) {

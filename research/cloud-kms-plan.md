@@ -177,7 +177,18 @@ Cached keys may allow a recently accessed project to continue briefly during a K
 
 ## Rotation and deletion
 
-Enable automatic rotation on each AWS-managed symmetric KMS key. AWS retains the older key material behind the same key ARN, so existing ciphertext remains decryptable without an application rewrap.
+Enable automatic rotation on each customer-managed symmetric KMS key. AWS retains the older key material behind the same key ARN, so existing ciphertext remains decryptable without an application rewrap.
+
+On 3 November 2026, annual automatic rotation was enabled and verified for both
+production document and backup keys with the user's explicit approval. The
+application's IAM identity remains limited to Encrypt and Decrypt on its document
+key with the production SmallDocs encryption context.
+
+Version-aware project-key rotation, an operator backup verifier and a cold-cache
+KMS recovery drill are implemented separately. See
+[Cloud key rotation and recovery](../maintainers/cloud-key-rotation-and-recovery.md)
+for the transaction, maintenance-window requirement, rollback compatibility and
+the recovery procedure.
 
 [AWS automatic key rotation](https://docs.aws.amazon.com/kms/latest/developerguide/rotating-keys-enable.html)
 

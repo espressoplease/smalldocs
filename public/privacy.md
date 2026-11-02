@@ -102,9 +102,35 @@ A reorganisation, sale, administration, or transfer of the service may involve p
 
 ## Security
 
-Cloud database values and backups are encrypted at rest. Document encryption keys are protected by AWS KMS and are not stored in plaintext beside document data. Connections use TLS. Production workload, backup, and provider credentials have separate permissions. Connected machines can be viewed and revoked.
+Cloud document content and protected metadata are encrypted before database storage. Backups are also encrypted. On the production service, document encryption keys are protected by AWS KMS and are not stored in plaintext beside document data. Connections use TLS. Production workload, backup, and provider credentials have separate permissions. Connected machines can be viewed and revoked.
 
-Encryption at rest protects a copied database or backup from being useful on its own. It does not protect against a compromise of the running application, its KMS permissions, an authorised user session, or a sufficiently privileged operator.
+### How document keys are protected
+
+Each project within a library has a separate, randomly generated AES-256 key. That key encrypts document content and protected metadata using AES-256-GCM. On the production service, AWS KMS encrypts the project key before it is stored in the database. This arrangement is called envelope encryption.
+
+Encrypted content is bound to its environment, library, project, document, revision and purpose. The KMS-wrapped project key is bound to its environment, project, purpose and key version. Changing these identifiers causes authentication to fail.
+
+SmallDocs checks document permissions before returning content. Library members do not receive the project key. The application can decrypt authorised content in server memory.
+
+### Production server access
+
+The application runs under a dedicated system account with restricted filesystem access. Its service is configured to prevent new processes from gaining additional privileges. A firewall limits incoming connections. Server administration uses SSH keys; password and direct root SSH logins are disabled. Automatic operating system security updates are enabled.
+
+Application credentials can use the document KMS key for encryption and decryption. Key administration and backup access use separate credentials.
+
+### Recovering encrypted documents
+
+Restoring a Cloud backup requires the encrypted database, its wrapped project keys, the matching application configuration and permission to use the referenced KMS keys. A database integrity check alone does not establish that documents can be decrypted. Recovery checks also need to open current and historical revisions.
+
+The production document and backup KMS keys are configured for automatic annual rotation. AWS preserves access to older encrypted keys. Replacing a project key also requires re-encrypting the data it protects. Keys needed by retained backups must remain available until those backups expire.
+
+### Design references
+
+The key-protection design uses [envelope encryption](https://docs.aws.amazon.com/kms/latest/developerguide/kms-cryptography.html), [authenticated encryption context](https://docs.aws.amazon.com/kms/latest/developerguide/encrypt_context.html) and [least-privilege KMS permissions](https://docs.aws.amazon.com/kms/latest/developerguide/least-privilege.html), as described in AWS guidance. AWS also explains [how KMS key rotation preserves access to older ciphertext](https://docs.aws.amazon.com/kms/latest/developerguide/rotate-keys.html).
+
+### What encryption at rest protects
+
+A copied database or backup does not by itself provide the keys needed to read encrypted document content. Encryption at rest does not protect against a compromise of the running application, its KMS permissions, an authorised user session, or a sufficiently privileged operator.
 
 The source code and a per-deploy file manifest are public. Verification steps are at [smalldocs.org/trust](/trust).
 
