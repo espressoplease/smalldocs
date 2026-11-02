@@ -69,6 +69,14 @@ The checks below authorize no production deployment or npm publication.
   succeeded. The later sidebar change passed 12 headless browser checks and a
   production-mode service-worker refresh check.
 
+## Homepage preparation
+
+- [ ] Joshua: record a new homepage video for the Cloud-first experience.
+- [ ] Update and test the homepage video player with the new recording. Check
+  playback, expansion/fullscreen and returning to the page on desktop and mobile.
+  Consider a video preview using the current production [/home](https://smalldocs.org/home)
+  experience as a reference.
+
 ## Launch actions still pending
 
 1. Obtain release approval. Current production remains on e5c705b24e8537dd5b2041fc3eb11801928af375.
