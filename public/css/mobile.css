@@ -19,7 +19,7 @@
   }
   #_sd_main { flex-direction: column; overflow: visible; }
   #_sd_left { overflow: visible; }
-  #_sd_content-area { overflow: visible; }
+  #_sd_content-area { overflow: visible; --sdocs-content-top-space: 20px; --sdocs-tools-top-space: 12px; }
   html { scroll-padding-top: calc(44px + var(--sdocs-document-tools-height, 0px) + 24px); }
   #_sd_document-tools { top: 42px; }
 
@@ -155,7 +155,7 @@
     -webkit-backdrop-filter: none;
     overflow: hidden;
   }
-  #_sd_left-toolbar { padding: 12px 20px 0; }
+  #_sd_left-toolbar { padding: var(--sdocs-tools-top-space, 12px) 20px 0; }
   .sdocs-mobile-brand-wrap { flex: 1; min-width: 0; }
   .sdocs-mobile-toolbar-scroll {
     min-width: 0;
@@ -218,7 +218,7 @@
   #_sd_sdocs-file-info {
     max-width: 100%;
     margin: 0;
-    padding: 20px 20px 0;
+    padding: var(--sdocs-content-top-space, 20px) 20px 0;
   }
 
   /* ── Status bar: hidden on mobile ── */

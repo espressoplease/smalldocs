@@ -341,6 +341,9 @@ html.sdocs-short-link-visit #_sd_sidebar .doc-site-action.sdocs-short-link-only 
   margin-bottom: -10px;
   background: var(--sdocs-document-bg, #fff);
 }
+html[data-sdocs-publication] #_sd_sdocs-file-info[hidden] + #_sd_document-tools {
+  margin-top: calc(var(--sdocs-content-top-space) - var(--sdocs-tools-top-space));
+}
 html[data-theme="dark"] #_sd_document-tools {
   background: var(--sdocs-document-bg, #2c2a26);
 }
@@ -354,7 +357,7 @@ html[data-theme="dark"] #_sd_document-tools {
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  padding: 16px 48px 0;
+  padding: var(--sdocs-tools-top-space, 16px) 48px 0;
   background: transparent;
   flex-shrink: 0;
   white-space: nowrap;
@@ -581,6 +584,8 @@ html[data-theme="dark"] #_sd_document-tools {
 }
 
 #_sd_content-area {
+  --sdocs-content-top-space: 74px;
+  --sdocs-tools-top-space: 16px;
   flex: 1;
   overflow: auto;
   position: relative;
