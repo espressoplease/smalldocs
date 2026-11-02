@@ -17,13 +17,14 @@ async function open(page,width=1440){
   await page.context().addCookies([{name:'sdocs_cloud',value:f.users.josh.sessionToken,url:f.origin}]);
   await page.context().grantPermissions(['clipboard-read','clipboard-write']);
   await page.goto(f.origin+'/docs?cloud-document='+doc.id);
+  await page.getByRole('button',{name:'Share document',exact:true}).click();
   await expect(page.getByRole('button',{name:'Publish publicly',exact:true})).toBeEnabled();
 }
 async function publish(page){
   await page.getByRole('button',{name:'Publish publicly',exact:true}).click();
-  const row=page.locator('[data-key="publicUrl"]');await expect(row).toBeVisible();
+  const row=page.getByRole('textbox',{name:'Public URL',exact:true});await expect(row).toBeVisible();
   await expect(page.getByRole('button',{name:'Public page up to date'})).toBeDisabled();
-  return row.locator('.fic-value').innerText();
+  return row.inputValue();
 }
 async function update(markdown,key='edit-document'){
   const head=(await f.api('josh','/api/cloud/v1/documents/'+doc.id+'/head')).data.document.current_revision_id;
@@ -31,24 +32,21 @@ async function update(markdown,key='edit-document'){
     markdown,filename:'a-small-clearing.md',expected_head_revision_id:head,idempotency_key:key});
   expect(saved.status).toBe(201);return saved.data.document;
 }
-for(const width of [1440,390]) test('Share reveals private and public URL rows with aligned copy icons at '+width,async({page,browser},testInfo)=>{
+for(const width of [1440,390]) test('Share panel provides both link types and a public status dot at '+width,async({page,browser},testInfo)=>{
   await open(page,width);
-  await expect(page.locator('[data-key="shortUrl"],[data-key="publicUrl"]')).toHaveCount(0);
-  await expect(page.locator('.fic-row-share .fic-label')).toHaveText('Share');
-  await expect(page.getByRole('link',{name:'Learn about private links'})).toHaveAttribute('href','/docs#sec=short-links');
-  await expect(page.getByRole('link',{name:'Learn about public pages'})).toHaveAttribute('href','/docs#sec=public-pages');
+  await expect(page.locator('.fic-row-share,[data-key="shortUrl"],[data-key="publicUrl"]')).toHaveCount(0);
+  expect(await page.locator('#_sd_btn-copy-file').evaluate(el=>el.nextElementSibling.id)).toBe('_sd_btn-share');
+  await expect(page.getByRole('link',{name:'Learn about private links',exact:true})).toHaveAttribute('href','/docs#sec=short-links');
+  await expect(page.getByRole('link',{name:'Learn about public pages',exact:true})).toHaveAttribute('href','/docs#sec=public-pages');
   await page.getByRole('button',{name:'Create private link',exact:true}).click();
-  const privateRow=page.locator('[data-key="shortUrl"]');await expect(privateRow).toBeVisible();
-  await expect(privateRow.locator('.fic-label')).toHaveText('Private URL');
-  const privateUrl=await privateRow.locator('.fic-value').innerText();expect(privateUrl).toContain('#k=');
-  await privateRow.locator('.fic-copy').click();expect(await page.evaluate(()=>navigator.clipboard.readText())).toBe(privateUrl);
+  const privateRow=page.getByRole('textbox',{name:'Private URL',exact:true});await expect(privateRow).toBeVisible();
+  const privateUrl=await privateRow.inputValue();expect(privateUrl).toContain('#k=');
+  await page.getByRole('button',{name:'Copy private URL',exact:true}).click();expect(await page.evaluate(()=>navigator.clipboard.readText())).toBe(privateUrl);
+  await expect(page.locator('#_sd_btn-share')).not.toHaveClass(/has-unseen/);
   const publicUrl=await publish(page);expect(publicUrl).toContain('/p/a-small-clearing-');
-  const publicRow=page.locator('[data-key="publicUrl"]');
-  await publicRow.locator('.fic-copy').click();expect(await page.evaluate(()=>navigator.clipboard.readText())).toBe(publicUrl);
-  await page.locator('#_sd_sdocs-file-info').evaluate(el=>Promise.all(el.getAnimations({subtree:true}).map(animation=>animation.finished)));
-  await expect(publicRow.locator('.fic-copy svg rect')).toBeVisible();
-  const a=await privateRow.locator('.fic-copy').boundingBox(),b=await publicRow.locator('.fic-copy').boundingBox();
-  expect(Math.abs(a.x+a.width-b.x-b.width)).toBeLessThanOrEqual(1);
+  await page.getByRole('button',{name:'Copy public URL',exact:true}).click();expect(await page.evaluate(()=>navigator.clipboard.readText())).toBe(publicUrl);
+  await expect(page.locator('#_sd_btn-share')).toHaveAttribute('data-publication-status','current');
+  await expect(page.locator('#_sd_btn-share .info-dot')).toHaveCSS('background-color','rgb(22, 163, 74)');
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   const guest=await browser.newContext({javaScriptEnabled:false});
   try {
@@ -64,12 +62,14 @@ test('Cloud edits update the action while the published page and URL stay unchan
   await update(original.replace('Keep writing','Keep exploring'));
   await page.evaluate(()=>SDocs.checkCloudNow());
   await expect(page.getByRole('button',{name:'Update public page',exact:true})).toBeEnabled();
+  await expect(page.locator('#_sd_btn-share')).toHaveAttribute('data-publication-status','outdated');
+  await expect(page.locator('#_sd_btn-share .info-dot')).toHaveCSS('background-color','rgb(245, 158, 11)');
   expect(await (await request.get(url)).text()).toContain('Keep writing');
   await page.getByRole('button',{name:'Update public page',exact:true}).click();
   await expect(page.getByRole('button',{name:'Public page up to date'})).toBeDisabled();
-  await expect(page.locator('[data-key="publicUrl"] .fic-value')).toHaveText(url);
+  await expect(page.getByRole('textbox',{name:'Public URL',exact:true})).toHaveValue(url);
   expect(await (await request.get(url)).text()).toContain('Keep exploring');
-  await page.reload();await expect(page.locator('[data-key="publicUrl"] .fic-value')).toHaveText(url);
+  await page.reload();await page.getByRole('button',{name:'Share document',exact:true}).click();await expect(page.getByRole('textbox',{name:'Public URL',exact:true})).toHaveValue(url);
   await expect(page.getByRole('button',{name:'Public page up to date'})).toBeDisabled();
 });
 test('private comment changes and a viewer theme do not require updating the public page',async({page})=>{
@@ -85,12 +85,9 @@ test('private comment changes and a viewer theme do not require updating the pub
 });
 test('Unpublish removes the URL row and public body, republishing reuses the same URL',async({page,request})=>{
   await open(page);const url=await publish(page);
-  await page.getByRole('button',{name:'Manage public page'}).click();
-  await expect(page.locator('[data-cloud-panel-title]')).toHaveText('Public page');
   await page.getByRole('button',{name:'Unpublish',exact:true}).click();
-  await expect(page.locator('[data-key="publicUrl"]')).toHaveCount(0);
+  await expect(page.getByRole('textbox',{name:'Public URL',exact:true})).toHaveCount(0);
   const gone=await request.get(url);expect([404,410]).toContain(gone.status());expect(await gone.text()).not.toContain('A place to gather');
-  await page.getByRole('button',{name:'Close Cloud panel'}).click();
   await expect(page.getByRole('button',{name:'Publish publicly',exact:true})).toBeEnabled();
   expect(await publish(page)).toBe(url);
 });
@@ -101,9 +98,9 @@ test('a lost publication response reports uncertainty and recovers the published
     else await route.continue();
   });
   await page.getByRole('button',{name:'Publish publicly',exact:true}).click();
-  await expect(page.locator('.fic-shorten-error')).toContainText('Publishing could not be confirmed');
+  await expect(page.locator('.sdoc-share-error')).toContainText('Publishing could not be confirmed');
   await page.getByRole('button',{name:'Retry publishing details'}).click();
-  await expect(page.locator('[data-key="publicUrl"]')).toBeVisible();
+  await expect(page.getByRole('textbox',{name:'Public URL',exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:'Public page up to date'})).toBeDisabled();
 });
 test('a blocked Cloud save cannot publish the older saved version',async({page,request})=>{
@@ -115,7 +112,7 @@ test('a blocked Cloud save cannot publish the older saved version',async({page,r
     SDocs.saveCloudNow=async()=>null;
   });
   await page.getByRole('button',{name:'Update public page',exact:true}).click();
-  await expect(page.locator('.fic-shorten-error')).toContainText('Save your latest edits to Cloud');
+  await expect(page.locator('.sdoc-share-error')).toContainText('Save your latest edits to Cloud');
   expect(posts).toBe(0);expect(await (await request.get(url)).text()).not.toContain('An unsaved addition');
 });
 
@@ -137,8 +134,8 @@ test('a delayed private-link upload does not advertise an old copy as the change
   await page.getByRole('button',{name:'Create private link',exact:true}).click();await arrival;
   await page.evaluate(()=>{SDocs.currentBody+='\n\nA later sentence.';SDocs.renderFileInfoCard();});
   release();
-  await expect(page.getByRole('button',{name:'Create new private link',exact:true})).toBeEnabled();
-  await expect(page.locator('[data-key="shortUrl"]')).toHaveCount(0);
+  await expect(page.getByRole('button',{name:'Create private link',exact:true})).toBeEnabled();
+  await expect(page.getByRole('textbox',{name:'Private URL',exact:true})).toHaveCount(0);
 });
 
 const fs=require('fs'),path=require('path');
@@ -226,13 +223,13 @@ test('anonymous rich pages render cells, math, charts and diagrams with inert ra
 test('public copies retain the private-link app shell and actions, with readable initial HTML',async({page,browser})=>{
   await open(page);
   await page.getByRole('button',{name:'Create private link',exact:true}).click();
-  const privateUrl=await page.locator('[data-key="shortUrl"] .fic-value').innerText();
+  const privateUrl=await page.getByRole('textbox',{name:'Private URL',exact:true}).inputValue();
   const publicUrl=await publish(page);
   const guest=await browser.newContext({permissions:['clipboard-read','clipboard-write']});
   try {
     const reader=await guest.newPage();await reader.goto(privateUrl);
     await expect(reader.locator('[role="toolbar"][aria-label="Document actions"]')).toBeVisible();
-    await expect(reader.locator('#_sd_sdocs-file-info')).toBeVisible();
+    await expect(reader.locator('.fic-row-share')).toHaveCount(0);
     const controls=await reader.locator('[role="toolbar"][aria-label="Document actions"] button').evaluateAll(nodes=>nodes.map(node=>node.id));
     await reader.goto(publicUrl);
     await expect(reader.locator('html')).toHaveAttribute('data-publication-ready','true');
@@ -277,4 +274,38 @@ test('sign-in returns to the published source with its document and mode intact'
     expect(await reader.evaluate(()=>SDocs.currentMode)).toBe('style');
     expect(await reader.evaluate(()=>SDocs.currentBody)).toContain('A place to gather a thought');
   } finally{await guest.close();}
+});
+
+test('a public reader can copy its published URL without claiming the private source is current',async({browser})=>{
+  const url=await publishedRich(original);
+  await update(original+'\nAn unpublished change.','new-private-copy');
+  const guest=await browser.newContext({permissions:['clipboard-read','clipboard-write']});
+  try{
+    const page=await guest.newPage();await page.goto(url);
+    await page.getByRole('button',{name:'Share document',exact:true}).click();
+    await expect(page.getByRole('textbox',{name:'Public URL',exact:true})).toHaveValue(url);
+    await expect(page.getByText('This is the published copy.',{exact:true})).toBeVisible();
+    await expect(page.getByRole('button',{name:'Publish publicly',exact:true})).toHaveCount(0);
+    await expect(page.getByRole('button',{name:'Unpublish',exact:true})).toHaveCount(0);
+    await page.getByRole('button',{name:'Copy public URL',exact:true}).click();
+    expect(await page.evaluate(()=>navigator.clipboard.readText())).toBe(url);
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#_sd_share-panel')).toBeHidden();
+    expect(new URL(page.url()).pathname).toBe(new URL(url).pathname);
+  }finally{await guest.close();}
+});
+
+test('a library member can share a private copy but cannot publish another person\'s document',async({page})=>{
+  await f.api('bob','/api/cloud/v1/onboarding/complete','POST',{});
+  await f.api('member','/api/cloud/v1/onboarding/complete','POST',{});
+  const created=await f.api('bob','/api/cloud/v1/account/documents','POST',{
+    account_id:f.team.workspaceId,filename:'team-note.md',markdown:'# Team note\n\nA shared working note.',idempotency_key:'team-note'});
+  expect(created.status).toBe(201);
+  f.store.setDocumentPermission({userId:f.users.bob.id,documentId:created.data.document.id,mode:'everyone'});
+  await page.context().addCookies([{name:'sdocs_cloud',value:f.users.member.sessionToken,url:f.origin}]);
+  await page.goto(f.origin+'/docs?cloud-document='+created.data.document.id);
+  await page.getByRole('button',{name:'Share document',exact:true}).click();
+  await expect(page.getByRole('button',{name:'Publish publicly',exact:true})).toBeDisabled();
+  await expect(page.getByRole('button',{name:'Unpublish',exact:true})).toHaveCount(0);
+  await expect(page.getByRole('button',{name:'Create private link',exact:true})).toBeEnabled();
 });

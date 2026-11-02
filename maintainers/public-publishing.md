@@ -4,13 +4,13 @@
 
 ## File info
 
-The Share row stays visible. Create private link adds a Private URL row. Publish publicly adds a Public URL row. Both use the existing file-info copy control on the right. On narrow screens, Share actions wrap within their row.
+Sharing is available through the Share icon immediately after Copy in the document toolbar. It opens the existing right panel, using the formatting panel's desktop width and mobile bottom sheet. Private links and public pages have separate explanations, actions and copyable URL fields. The file-info table contains document metadata only.
 
 The public action becomes Update public page when the current public body, title, description or styles differ. Updates keep the same URL. Private comments, tags, paths and reader theme changes do not require publishing. Publication state comes from the server and survives a reload. Existing encrypted links remain independent fixed copies.
 
 Browser and CLI private copies omit front-matter library tags before encryption. Source Cloud documents and local files retain their tags. Older encrypted copies also omit tags in the shared reader; their stored ciphertext is unchanged.
 
-Manage public page opens the existing right-hand Cloud panel. It shows the full URL, publication time and Unpublish. Creators can withdraw or inspect their publication after free or paid access ends. A subscription is required only for creating or updating the public copy, subject to the existing trial and grace policy.
+The Share panel shows the full public URL, publication time and Unpublish. The toolbar reuses the comment notification dot: green means the public copy is current, orange means content has changed. Private links have no dot. Unknown or failed status checks do not show a green dot. Creators can withdraw or inspect their publication after free or paid access ends. A subscription is required only for creating or updating the public copy, subject to the existing trial and grace policy.
 
 ## Data and permission boundary
 

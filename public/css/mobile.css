@@ -41,7 +41,7 @@
     touch-action: none;
     transition-delay: 0s;
   }
-  body.sdocs-reader-shell:is(.style-mode, .export-mode, .info-mode)::after {
+  body.sdocs-reader-shell:is(.style-mode, .share-mode, .export-mode, .info-mode)::after {
     opacity: 1;
     visibility: visible;
     pointer-events: auto;
@@ -242,7 +242,7 @@
     overflow: hidden;
   }
   /* Style mode: open the complete bottom sheet immediately. */
-  body.style-mode #_sd_right {
+  body:is(.style-mode, .share-mode) #_sd_right {
     display: flex;
     max-height: 70vh;
     opacity: 1;
@@ -252,7 +252,7 @@
   }
 
   /* ── Hide "Save as default styles" on mobile ── */
-  #_sd_right .panel-section:last-child { display: none; }
+  #_sd_right > .panel-section:last-child { display: none; }
 
   /* ── Export panel: bottom sheet overlay ── */
   #_sd_export-panel {

@@ -3,8 +3,8 @@
   var S = window.SDocs = window.SDocs || {};
   var state = { id: null, revision: null, publication: null, canPublish: false,
     loading: false, busy: false, error: '', signature: null, pending: null };
-  var privateBusy = false, privateCreated = false, privateError = '';
-  var moreIcon = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h.01M12 12h.01M19 12h.01"/></svg>';
+  var privateBusy = false, privateError = '';
+  var panelSignature = null;
 
   function escape(value) {
     return String(value || '').replace(/[&<>"']/g,function (c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; });
@@ -25,8 +25,7 @@
     return JSON.stringify(ordered([parsed.body,meta.title || '',meta.description || '',styles]));
   }
   function redraw() {
-    if (S.renderFileInfoCard) S.renderFileInfoCard();
-    if (S.refreshPublicationPanel) S.refreshPublicationPanel();
+    update();
   }
   async function request(method, body) {
     var response = await fetch('/api/cloud/v1/documents/' + encodeURIComponent(state.id) + '/publication',{
@@ -98,83 +97,108 @@
   }
   async function unpublish() {
     if (state.busy || !state.publication || !state.publication.can_manage) return;
-    var owner = state; state.busy = true; state.error = ''; redraw();
+    var owner = state; state.busy = true; state.removing = true; state.error = ''; redraw();
     try {
       var data = await request('DELETE',{});
       if (state !== owner) return;
       apply(data); state.pending = null; notify('Public page unpublished.');
     } catch (_) { if (state === owner) state.error = 'The public page could not be unpublished. Try again.'; }
-    finally { if (state === owner) {state.busy = false;redraw();} }
+    finally { if (state === owner) {state.busy = false;state.removing = false;redraw();} }
   }
-  function action(label, handler, className) {
-    var button = document.createElement('button'); button.type = 'button';
-    button.className = className || 'fic-shorten-button'; button.textContent = label;
-    button.addEventListener('click',handler); return button;
+  function viewingPublic() { return S.publicationSource && S.publicationSource.isViewing(); }
+  function sharedPublication() {
+    return viewingPublic() ? {active:true,url:S.publicationSnapshot.url,is_current:true} : state.publication;
+  }
+  function publicationStatus() {
+    var publication=sharedPublication();
+    if (!publication || !publication.active) return '';
+    if (viewingPublic()) return 'published';
+    if (dirty()) return 'outdated';
+    return state.error || state.loading || state.busy ? 'checking' : 'current';
   }
   function help(text, section) {
-    var link = document.createElement('a'); link.className = 'fic-short-intro-learn'; link.textContent = 'learn more';
-    link.href = '/docs#sec=' + section; link.target = '_blank'; link.rel = 'noopener';
-    link.setAttribute('aria-label',text); return link;
+    return '<a href="/docs#sec='+section+'" target="_blank" rel="noopener">'+text+'</a>';
   }
-  function renderActions(row) {
-    observe();
-    row.classList.add('fic-row-share');
-    row.innerHTML = '<span class="fic-label">Share</span><div class="fic-share-actions"></div>';
-    var actions = row.querySelector('.fic-share-actions');
-    var privateGroup = document.createElement('span'); privateGroup.className = 'fic-share-option';
-    var privateButton = action(privateBusy ? 'Creating private link...' : S.shortUrl || privateCreated ? 'Create new private link' : 'Create private link',async function () {
-      if (privateBusy) return;
-      var owner = state;
-      privateBusy = true; privateError = ''; redraw();
-      try {
-        await S.generateShortLink();
-        if (state === owner) {
-          privateCreated = true;
-          notify(S.shortUrl ? 'Private link created.' : 'The document changed while creating the link. Create a new link for the latest version.');
-        }
-      }
-      catch (_) { if (state === owner) privateError = 'The private link could not be created. Try again.'; }
-      finally { privateBusy = false; redraw(); }
-    });
-    privateButton.disabled = privateBusy;
-    privateButton.title = 'Generate a short link for this document';
-    privateGroup.append(privateButton,help('Learn about private links','short-links')); actions.appendChild(privateGroup);
-    if (S.cloudDocument) {
-      var publicGroup = document.createElement('span'); publicGroup.className = 'fic-share-option';
-      var active = state.publication && state.publication.active;
-      var publicButton = action(state.busy ? 'Publishing...' : state.error && !state.publication ? 'Retry publishing details'
-        : !active ? 'Publish publicly' : dirty() ? 'Update public page' : 'Public page up to date',function () {
-          if (state.error && !state.publication) { state.revision = null; refresh(); }
-          else publish();
-        });
-      publicButton.disabled = state.loading || state.busy || (!state.canPublish && !state.error) || (active && !dirty());
-      if (!state.canPublish && !state.loading) publicButton.title = 'Publishing requires the document creator and active Cloud access.';
-      publicGroup.append(publicButton,help('Learn about public pages','public-pages')); actions.appendChild(publicGroup);
-      if (state.publication && state.publication.can_manage) {
-        var more = action('',function () { if (S.openPublicationPanel) S.openPublicationPanel(); },'fic-copy fic-publication-more');
-        more.innerHTML = moreIcon; more.title = 'Manage public page';more.setAttribute('aria-label','Manage public page');
-        row.appendChild(more);
-      }
-    }
-    var message = privateError || state.error;
-    if (message) { var error = document.createElement('span'); error.className = 'fic-shorten-error';error.setAttribute('role','status');error.textContent = message;actions.appendChild(error); }
+  function linkControls(label,url) {
+    return '<label class="sdoc-share-label">'+label+'<span class="sdoc-share-url">'
+      +'<input aria-label="'+label+'" readonly value="'+escape(url)+'">'
+      +'<button type="button" class="btn" data-share-copy="'+escape(url)+'" aria-label="Copy '+label.charAt(0).toLowerCase()+label.slice(1)+'">Copy</button></span></label>';
+  }
+  function button(label,attribute,disabled) {
+    return '<button type="button" class="btn" '+attribute+(disabled?' disabled':'')+'>'+label+'</button>';
+  }
+  async function createPrivate() {
+    if (privateBusy) return;
+    privateBusy=true;privateError='';redraw();
+    try {
+      await S.generateShortLink();
+      notify(S.shortUrl ? 'Private link created.' : 'The document changed while creating the link. Create a new link for the latest version.');
+    } catch (_) {privateError='The private link could not be created. Try again.';}
+    finally {privateBusy=false;redraw();}
   }
   function panelHtml() {
-    var publication = state.publication;
-    if (!publication || !publication.active) return '<p class="sdoc-cloud-lab-help">This document has no public page.</p>';
-    return '<p class="sdoc-cloud-lab-help">Anyone can read this page. It can appear in search results.</p>' +
-      '<label class="sdoc-cloud-lab-help">Public URL<input class="fic-publication-url" aria-label="Public URL" readonly value="'+escape(publication.url)+'"></label>' +
-      '<p class="sdoc-cloud-lab-help">'+(dirty() ? 'Your latest edits are not published.' : 'Your public page is up to date.')+'</p>' +
-      '<p class="sdoc-cloud-lab-help">Last published '+escape(new Date(publication.updated_at_ms || publication.published_at_ms).toLocaleString())+'.</p>' +
-      '<p class="sdoc-cloud-lab-help"><a href="'+escape(publication.url)+'" target="_blank" rel="noopener">Open public page</a></p>' +
-      '<div class="sdoc-cloud-lab-presets"><button type="button" data-publication-unpublish'+(state.busy?' disabled':'')+'>Unpublish</button></div>' +
-      '<p class="sdoc-cloud-lab-help">Unpublishing removes the page from SmallDocs. Search engines and readers may retain copies.</p>' +
-      (state.error ? '<p class="sdoc-cloud-lab-status" role="status">'+escape(state.error)+'</p>' : '');
+    var publication=sharedPublication(), active=publication&&publication.active;
+    var html='<section class="panel-section sdoc-share-section"><h2>Private link</h2>'
+      +'<p>Share a fixed, encrypted copy. Anyone with the complete link can read it. Later edits do not change that copy.</p>'
+      +help('Learn about private links','short-links')
+      +(S.shortUrl?linkControls('Private URL',S.shortUrl):'')
+      +button(privateBusy?'Creating private link...':S.shortUrl?'Create new private link':'Create private link','data-share-private',privateBusy)
+      +(privateError?'<p class="sdoc-share-status sdoc-share-error" role="status">'+escape(privateError)+'</p>':'')+'</section>';
+    html+='<section class="panel-section sdoc-share-section"><h2>Public page</h2>'
+      +'<p>Publish a page anyone can read. It can appear in search results. Edits reach the public page only when you publish them. Updates keep the same URL.</p>'
+      +help('Learn about public pages','public-pages');
+    if(active){
+      html+=linkControls('Public URL',publication.url)
+        +'<p class="sdoc-share-status" role="status">'+(publicationStatus()==='outdated'?'Your latest edits are not published.':publicationStatus()==='current'?'Your public page is up to date.':publicationStatus()==='published'?'This is the published copy.':'Checking publishing details...')+'</p>'
+        +(publication.updated_at_ms||publication.published_at_ms?'<p>Last published '+escape(new Date(publication.updated_at_ms||publication.published_at_ms).toLocaleString())+'.</p>':'')
+        +'<a href="'+escape(publication.url)+'" target="_blank" rel="noopener">Open public page</a>';
+    }
+    if(S.cloudDocument){
+      html+=button(state.busy&&!state.removing?'Publishing...':state.error&&!state.publication?'Retry publishing details':!active?'Publish publicly':dirty()?'Update public page':'Public page up to date','data-share-publish',state.loading||state.busy||(!state.canPublish&&!state.error)||(active&&!dirty()));
+      if(!state.canPublish&&!state.loading)html+='<p>Only the document creator with active Cloud access can publish or update this page.</p>';
+      if(active&&publication.can_manage){
+        html+=button(state.removing?'Unpublishing...':'Unpublish','data-publication-unpublish',state.busy)
+          +'<p>Unpublishing removes the page from SmallDocs. Search engines and readers may retain copies.</p>';
+      }
+      if(state.error)html+='<p class="sdoc-share-status sdoc-share-error" role="status">'+escape(state.error)+'</p>';
+    }else if(!viewingPublic()){
+      html+='<p>Save this document to Cloud to publish a public page.</p>';
+    }
+    return html+'</section>';
   }
   function wirePanel(body) {
-    var button = body.querySelector('[data-publication-unpublish]'); if (button) button.addEventListener('click',unpublish);
-    var input = body.querySelector('.fic-publication-url'); if (input) input.addEventListener('click',function () {this.select();});
+    var privateButton=body.querySelector('[data-share-private]');if(privateButton)privateButton.addEventListener('click',createPrivate);
+    var publicButton=body.querySelector('[data-share-publish]');if(publicButton)publicButton.addEventListener('click',function(){
+      if(state.error&&!state.publication){state.revision=null;refresh();}else publish();
+    });
+    var withdraw=body.querySelector('[data-publication-unpublish]');if(withdraw)withdraw.addEventListener('click',unpublish);
+    body.querySelectorAll('input[readonly]').forEach(function(input){input.addEventListener('click',function(){this.select();});});
+    body.querySelectorAll('[data-share-copy]').forEach(function(copy){copy.addEventListener('click',async function(){
+      try{await navigator.clipboard.writeText(copy.dataset.shareCopy);copy.textContent='Copied';notify('Link copied.');}
+      catch(_){notify('The link could not be copied. Select and copy it from the field.');}
+    });});
   }
-  S.publications = {current:current,renderActions:renderActions,panelHtml:panelHtml,wirePanel:wirePanel,refresh:refresh};
-  window.addEventListener('focus',function () { if (state.id) refresh(); });
+  function update() {
+    observe();
+    var share=document.getElementById('_sd_btn-share');if(!share)return;
+    var status=publicationStatus();
+    share.dataset.publicationStatus=status;
+    share.classList.toggle('has-unseen',status==='current'||status==='published'||status==='outdated');
+    share.style.setProperty('--btn-dot-color',status==='outdated'?'#f59e0b':'#16a34a');
+    share.setAttribute('aria-description',status==='published'?'Published public page':status==='current'?'Public page up to date':status==='outdated'?'Public page needs updating':status==='checking'?'Checking public page status':'Sharing options');
+    share.dataset.tip=status==='published'?'Share: published public page':status==='current'?'Share: public page up to date':status==='outdated'?'Share: public page needs updating':'Share';
+    share.disabled=!S.currentBody||S._isDefaultState;
+    var body=document.getElementById('_sd_share-panel');
+    if(body&&S.currentMode==='share'){
+      var html=panelHtml();
+      if(html!==panelSignature){panelSignature=html;body.innerHTML=html;wirePanel(body);}
+    }
+  }
+  function open() {if(S.setMode)S.setMode(S.currentMode==='share'?'read':'share');}
+  var shareButton=document.getElementById('_sd_btn-share');if(shareButton)shareButton.addEventListener('click',open);
+  document.addEventListener('keydown',function(event){if(event.key==='Escape'&&S.currentMode==='share'){S.setMode('read');shareButton.focus();}});
+  S.publications={current:current,update:update,open:open,refresh:refresh,
+    // A cached pre-update app may briefly call the old file-info entry point.
+    renderActions:function(row){row.hidden=true;}};
+  window.addEventListener('focus',function(){if(state.id)refresh();});
 })();

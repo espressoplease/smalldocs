@@ -44,7 +44,7 @@ async function openFreshShortLink(page) {
   return link;
 }
 
-test('a loaded short link populates shortUrl / shortLinkId and the card row', async ({ page }) => {
+test('a loaded short link populates shortUrl / shortLinkId and the sharing panel', async ({ page }) => {
   const link = await openFreshShortLink(page);
 
   // A new short link mints a long (22-char) id.
@@ -56,7 +56,8 @@ test('a loaded short link populates shortUrl / shortLinkId and the card row', as
   }));
   expect(state.shortUrl).toBeTruthy();
   expect(state.shortLinkId).toBe(link.id);
-  expect(await page.locator('.fic-row-short').count()).toBeGreaterThan(0);
+  await page.getByRole('button',{name:'Share document',exact:true}).click();
+  await expect(page.getByRole('textbox',{name:'Private URL',exact:true})).toHaveValue(state.shortUrl);
 });
 
 const taggedCopy = '---\ntitle: Shared field notes\ndescription: Notes for review\ntags:\n  - private-project\n  - internal-topic\n---\n# Shared field notes\n\nKeep the literal #private-project phrase in the body.';
@@ -168,7 +169,7 @@ test('expand all clicked while a short link is loading is applied after render',
   await expect(foldButton).toHaveAttribute('aria-label', 'Expand all');
 });
 
-test('editing a loaded short link clears the stale short URL from the card', async ({ page }) => {
+test('editing a loaded short link clears the stale private URL', async ({ page }) => {
   await openFreshShortLink(page);
 
   // Edit through the raw textarea, the same path a real edit takes:
@@ -186,7 +187,8 @@ test('editing a loaded short link clears the stale short URL from the card', asy
   }));
   expect(state.shortUrl).toBeNull();
   expect(state.shortLinkId).toBeNull();
-  expect(await page.locator('.fic-row-short').count()).toBe(0);
+  await page.getByRole('button',{name:'Share document',exact:true}).click();
+  await expect(page.getByRole('textbox',{name:'Private URL',exact:true})).toHaveCount(0);
 });
 
 test('adding a comment through the real composer clears the short link', async ({ page }) => {
@@ -212,12 +214,12 @@ test('adding a comment through the real composer clears the short link', async (
     shortUrl: window.SDocs.shortUrl,
     shortLinkId: window.SDocs.shortLinkId,
     snapshot: window.SDocs.shortLinkSnapshot,
-    rows: document.querySelectorAll('.fic-row-short').length,
   }));
   expect(state.shortUrl).toBeNull();
   expect(state.shortLinkId).toBeNull();
   expect(state.snapshot).toBeNull();
-  expect(state.rows).toBe(0);
+  await page.getByRole('button',{name:'Share document',exact:true}).click();
+  await expect(page.getByRole('textbox',{name:'Private URL',exact:true})).toHaveCount(0);
 });
 
 test('a sync that does not change the document keeps the short link', async ({ page }) => {
@@ -237,11 +239,11 @@ test('a sync that does not change the document keeps the short link', async ({ p
   const state = await page.evaluate(() => ({
     shortUrl: window.SDocs.shortUrl,
     shortLinkId: window.SDocs.shortLinkId,
-    rows: document.querySelectorAll('.fic-row-short').length,
   }));
   expect(state.shortUrl).toBeTruthy();
   expect(state.shortLinkId).toBeTruthy();
-  expect(state.rows).toBeGreaterThan(0);
+  await page.getByRole('button',{name:'Share document',exact:true}).click();
+  await expect(page.getByRole('textbox',{name:'Private URL',exact:true})).toHaveValue(state.shortUrl);
 });
 
 test('toggling theme keeps the short link - it is a viewer preference', async ({ page }) => {
@@ -258,5 +260,6 @@ test('toggling theme keeps the short link - it is a viewer preference', async ({
   }));
   expect(state.shortUrl).toBeTruthy();
   expect(state.shortLinkId).toBeTruthy();
-  expect(await page.locator('.fic-row-short').count()).toBeGreaterThan(0);
+  await page.getByRole('button',{name:'Share document',exact:true}).click();
+  await expect(page.getByRole('textbox',{name:'Private URL',exact:true})).toHaveValue(state.shortUrl);
 });

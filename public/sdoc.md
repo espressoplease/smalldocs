@@ -143,7 +143,7 @@ The mitigation that does not exist: there is no cheap way for the bridge to know
 
 ### Short links
 
-Choose **Create private link** in the Share row to share a fixed copy. Its Private URL appears below with a copy icon on the right. Anyone with the complete link can open it. Later edits do not change that copy; create a new link to share a newer version.
+Open **Share document** beside the Copy icon, then choose **Create private link**. Copy the Private URL from the sharing panel. Anyone with the complete link can open it. Later edits do not change that copy; create a new link to share a newer version.
 
 Private copies omit library tags. The original document keeps its tags in your library.
 
@@ -231,11 +231,11 @@ Snapshot short links are opt-in. URL-only `#md=...` documents remain available, 
 
 ### Public pages
 
-Choose **Publish publicly** in a Cloud document's Share row to publish a page anyone can read. Its Public URL appears below with a copy icon on the right. The public page can appear in search results. Only the document creator can publish it.
+Open **Share document** beside the Copy icon, then choose **Publish publicly**. Copy the Public URL from the sharing panel. The public page can appear in search results. Only the document creator can publish it.
 
 Each Cloud document has one public URL. Edits stay in Cloud until you choose **Update public page**. Updating keeps the same URL. The published copy includes the document text, public title and description, styling, and the publisher's display name. Private comments, tags, file paths and revision history are excluded.
 
-Open **Manage public page** beside the Share actions to view the page, check its last publication time or unpublish it. Unpublishing removes the page from SmallDocs. Search engines and readers may retain copies. Deleting the source document also unpublishes its page; restoring the source does not automatically republish it.
+The sharing panel shows the public page's last publication time and an **Unpublish** button. A green dot on Share means the page is up to date. An orange dot means your latest edits have not been published. Unpublishing removes the page from SmallDocs. Search engines and readers may retain copies. Deleting the source document also unpublishes its page; restoring the source does not automatically republish it.
 
 An agent can check publication with `sdoc cloud publication DOCUMENT_ID --json`, publish or update the saved Cloud version with `sdoc cloud publish DOCUMENT_ID --json`, and remove it with `sdoc cloud unpublish DOCUMENT_ID --json`. Saving a document to Cloud does not publish it. Private encrypted links remain independent fixed copies.
 

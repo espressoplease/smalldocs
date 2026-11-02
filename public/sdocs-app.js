@@ -48,7 +48,6 @@ var proseReaderControls = window.SDocProseReader && window.SDocProseReader.creat
 
 // ── SVG icons ──────────────────────────────────
 
-var LINK_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>';
 var COPY_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
 var WRAP_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M3 12h15a3 3 0 1 1 0 6h-4"/><path d="m16 16-2 2 2 2"/><path d="M3 18h7"/></svg>';
 var CHECK_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
@@ -546,36 +545,6 @@ async function generateShortLink() {
   return result;
 }
 
-async function runShortenFlow(btn, errEl) {
-  btn.disabled = true;
-  btn.classList.add('fic-shorten-loading');
-  var originalLabel = btn.textContent;
-  btn.textContent = 'Shortening…';
-  if (errEl) errEl.hidden = true;
-  try {
-    await generateShortLink();
-    renderFileInfoCard();
-    // Fade in the new short URL row.
-    var newRow = document.querySelector('.fic-row-short');
-    if (newRow) {
-      newRow.classList.add('fic-row-short-enter');
-      requestAnimationFrame(function() {
-        requestAnimationFrame(function() { newRow.classList.remove('fic-row-short-enter'); });
-      });
-    }
-    return true;
-  } catch (err) {
-    btn.disabled = false;
-    btn.classList.remove('fic-shorten-loading');
-    btn.textContent = originalLabel;
-    if (errEl) {
-      errEl.textContent = shortenErrorMessage(err && err.message);
-      errEl.hidden = false;
-    }
-    return false;
-  }
-}
-
 function bridgeStateLabel(state) {
   switch (state) {
     case 'connecting':   return 'Connecting to local file...';
@@ -659,6 +628,7 @@ function dataRowHtml(key, label, value, isLocal, isShort, extraHtml) {
 }
 
 function renderFileInfoCard() {
+  if (S.publications) S.publications.update();
   var card = document.getElementById('_sd_sdocs-file-info');
   if (!card) return;
   if (S.publicationSource && S.publicationSource.isViewing()) {
@@ -669,7 +639,6 @@ function renderFileInfoCard() {
   var meta = S.currentMeta || {};
   var local = S.fileInfoPaths();
   var rowsEl = card.querySelector('.fic-rows');
-  var previousLinks = Array.from(rowsEl.querySelectorAll('.fic-row-short[data-key]')).map(function (row) {return row.dataset.key;});
 
   // The "Edits" row only renders when a bridge session is *or has been*
   // active. Opening a short URL or a regular shared URL has no bridge, and
@@ -696,9 +665,7 @@ function renderFileInfoCard() {
   var note = card.querySelector('.fic-privacy-note');
   if (note) note.hidden = !hasLocalRow;
 
-  // Build the row slots in display order. The short-URL slot always sits
-  // right after Filename, so the row doesn't jump around as the user moves
-  // between the intro / shorten / shortened states.
+  // Build document metadata rows in display order.
   var slots = [];
   if ((meta.file || bridgeFile) && !(local.creatorOnly && (local.path || local.fullPath))) {
     // When the bridge is live and the Edits row isn't showing (read /
@@ -709,28 +676,6 @@ function renderFileInfoCard() {
       ? BRIDGE_LIVE_CHIP_HTML
       : '';
     slots.push({ type: 'data', html: dataRowHtml('file', 'Filename', meta.file || bridgeFile, false, false, liveChip) });
-  }
-
-  // Blog pages already live at a stable, shareable URL, so surface that as the
-  // Short URL instead of the encrypt-and-upload Generate flow (which the
-  // default-state guard below suppresses for these pages anyway). The link
-  // points at the canonical production URL so it's shareable from anywhere.
-  var blogMatch = /^\/blogs\/[A-Za-z0-9_-]+$/.test(location.pathname || '');
-  if (blogMatch) {
-    slots.push({ type: 'data', html: dataRowHtml('shortUrl', 'Share URL', 'https://smalldocs.org' + location.pathname, false, true) });
-  }
-
-  // Don't offer a short URL for the built-in default document (bare / or
-  // /legal landing pages). Shortening marketing copy isn't useful and
-  // clutters the info card. The flag flips false as soon as the user drops
-  // a file, opens a shared link, or edits anything.
-  if (hasDoc && !S._isDefaultState) {
-    slots.push({ type: 'intro' });
-    if (S.shortUrl) slots.push({ type: 'data', html: dataRowHtml('shortUrl', 'Private URL', S.shortUrl, false, true) });
-    var publication = S.publications && S.publications.current();
-    if (publication && publication.url && publication.active) {
-      slots.push({ type: 'data', html: dataRowHtml('publicUrl', 'Public URL', publication.url, false, true) });
-    }
   }
 
   var pathPrivacy = local.creatorOnly ? 'creator' : true;
@@ -836,33 +781,6 @@ function renderFileInfoCard() {
         + addCtl;
       if (slot.canEdit) attachTagRowHandlers(tagRow, slot.filePath, slot.tags);
       rowsEl.appendChild(tagRow);
-    } else if (slot.type === 'intro') {
-      var introRow = document.createElement('div');
-      introRow.className = 'fic-row fic-row-short-intro';
-      if (S.publications) {
-        S.publications.renderActions(introRow);
-        rowsEl.appendChild(introRow);
-        return;
-      }
-      introRow.innerHTML = ''
-        + '<span class="fic-label">Share URL</span>'
-        + '<button class="fic-shorten-button" title="Generate a short link for this document">Generate</button>'
-        + '<span class="fic-short-intro-text">'
-        +   'Share a copy of this document by link '
-        +   '(<a class="fic-short-intro-learn" href="' + SHORT_LINKS_LEARN_URL + '" target="_blank" rel="noopener">learn more</a>)'
-        + '</span>'
-        + '<span class="fic-shorten-error" hidden></span>'
-        + '<button class="fic-copy fic-generate-icon" title="Generate a short link">' + LINK_SVG + '</button>';
-      rowsEl.appendChild(introRow);
-      var genBtn = introRow.querySelector('.fic-shorten-button');
-      var genIcon = introRow.querySelector('.fic-generate-icon');
-      var genErr = introRow.querySelector('.fic-shorten-error');
-      function triggerGenerate(e) {
-        e.stopPropagation();
-        runShortenFlow(genBtn, genErr);
-      }
-      genBtn.addEventListener('click', triggerGenerate);
-      genIcon.addEventListener('click', triggerGenerate);
     }
   });
 
@@ -877,17 +795,6 @@ function renderFileInfoCard() {
       copyWithIconFeedback(val, btn);
     });
   });
-  if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    rowsEl.querySelectorAll('.fic-row-short[data-key]').forEach(function (row) {
-      if (previousLinks.indexOf(row.dataset.key) !== -1 || !row.animate) return;
-      var style = getComputedStyle(row);
-      row.animate([
-        {height:'0px',opacity:0,paddingTop:'0px',paddingBottom:'0px',borderTopWidth:'0px',borderTopColor:'transparent',overflow:'hidden'},
-        {height:row.getBoundingClientRect().height+'px',opacity:1,paddingTop:style.paddingTop,paddingBottom:style.paddingBottom,
-          borderTopWidth:style.borderTopWidth,borderTopColor:style.borderTopColor,overflow:'hidden'}
-      ],{duration:300,easing:'cubic-bezier(.4,0,.2,1)'});
-    });
-  }
 
   // Wire any [data-tip] elements in this freshly re-rendered card (the live
   // chip, primarily) into the shared toolbar-tooltip styling.
@@ -1426,9 +1333,10 @@ function setMode(mode, skipHash) {
   S.renderedEl.style.display = (mode === 'raw' || mode === 'write') ? 'none' : '';
   S.rawEl.style.display      = mode === 'raw' ? 'block' : 'none';
 
-  ['read', 'style', 'write', 'raw', 'export', 'info', 'comment'].forEach(function (buttonMode) {
+  ['read', 'style', 'share', 'write', 'raw', 'export', 'info', 'comment'].forEach(function (buttonMode) {
     var button = document.getElementById('_sd_btn-' + buttonMode);
     var selected = mode === buttonMode;
+    if (!button) return;
     button.classList.toggle('active', selected);
     button.setAttribute('aria-pressed', selected ? 'true' : 'false');
   });
@@ -1442,6 +1350,17 @@ function setMode(mode, skipHash) {
   }
 
   document.body.classList.toggle('style-mode',   mode === 'style');
+  document.body.classList.toggle('share-mode', mode === 'share');
+  var sharing = mode === 'share';
+  if (sharing && S.closeCloudPanel) S.closeCloudPanel();
+  var sharePanel = document.getElementById('_sd_share-panel');
+  if (sharePanel) sharePanel.hidden = !sharing;
+  var panelTitle = document.querySelector('#_sd_right-header .sdocs-sheet-title');
+  if (panelTitle) panelTitle.textContent = sharing ? 'Share document' : 'Format document';
+  document.getElementById('_sd_right-close').setAttribute('aria-label', sharing ? 'Close sharing panel' : 'Close formatting panel');
+  var shareButton = document.getElementById('_sd_btn-share');
+  if (shareButton) shareButton.setAttribute('aria-expanded', String(sharing));
+  if (S.publications) S.publications.update();
   document.body.classList.toggle('read-mode',    mode === 'read');
   document.body.classList.toggle('write-mode',   mode === 'write');
   document.body.classList.toggle('raw-mode',     mode === 'raw');
@@ -1650,7 +1569,6 @@ document.getElementById('_sd_btn-new').addEventListener('click', function() {
   window.addEventListener('scroll', hide, { passive: true });
   window.addEventListener('resize', hide);
 })();
-
 
 ['_sd_right-close', '_sd_export-panel-close', '_sd_info-panel-close'].forEach(function(id) {
   document.getElementById(id).addEventListener('click', function() {
@@ -1965,7 +1883,7 @@ async function loadFromHash() {
     }
   }
 
-  if (modeParam && ['read', 'style', 'write', 'raw', 'export', 'info', 'comment'].includes(modeParam)) {
+  if (modeParam && ['read', 'style', 'share', 'write', 'raw', 'export', 'info', 'comment'].includes(modeParam)) {
     setMode(modeParam, true);
   } else {
     setMode('read', true);
@@ -2049,7 +1967,7 @@ async function initShortLink(id) {
     // real edit, updateHash runs again and normalizes the URL to / + #md=.
     clearTimeout(S._hashTimer);
     var modeParam = params.get('mode');
-    if (modeParam && ['read', 'style', 'write', 'raw', 'export', 'info', 'comment'].indexOf(modeParam) >= 0) {
+    if (modeParam && ['read', 'style', 'share', 'write', 'raw', 'export', 'info', 'comment'].indexOf(modeParam) >= 0) {
       setMode(modeParam, true);
     } else {
       setMode('read', true);

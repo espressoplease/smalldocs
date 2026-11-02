@@ -780,17 +780,13 @@ function libraryPanelHtml() {
 function renderCloudPanel() {
   var panel = ensureCloudPanel();
   panel.dataset.cloudPanel = cloudState.panel;
-  panel.querySelector('[data-cloud-panel-title]').textContent = cloudState.panel === 'publication' ? 'Public page' : cloudState.panel === 'library' ? 'Library' : cloudState.panel === 'tags' ? 'Tags' : 'Access';
+  panel.querySelector('[data-cloud-panel-title]').textContent = cloudState.panel === 'library' ? 'Library' : cloudState.panel === 'tags' ? 'Tags' : 'Access';
   var body = panel.querySelector('.sdoc-cloud-lab-panel-body');
-  body.innerHTML = (cloudState.panel === 'publication' && S.publications ? S.publications.panelHtml() : cloudState.panel === 'library' ? libraryPanelHtml() : cloudState.panel === 'tags' ? tagsPanelHtml() : accessPanelHtml())
+  body.innerHTML = (cloudState.panel === 'library' ? libraryPanelHtml() : cloudState.panel === 'tags' ? tagsPanelHtml() : accessPanelHtml())
     + (cloudState.status ? '<p class="sdoc-cloud-lab-status" aria-live="polite">'
       + escapeHtml(cloudState.status) + '</p>' : '');
   wireCloudPanel(body);
-  if (cloudState.panel === 'publication' && S.publications) S.publications.wirePanel(body);
 }
-
-S.openPublicationPanel = function () { openCloudPanel('publication'); };
-S.refreshPublicationPanel = function () { if (cloudState.panel === 'publication') renderCloudPanel(); };
 
 function wireCloudPanel(body) {
   body.querySelectorAll('[data-library-choice]').forEach(function (button) {
@@ -919,7 +915,8 @@ async function saveTags(tags) {
 }
 
 function openCloudPanel(kind) {
-  cloudState.panel = kind === 'publication' ? 'publication' : kind === 'library' ? 'library' : kind === 'tags' ? 'tags' : 'access';
+  if (S.currentMode === 'share') S.setMode('read');
+  cloudState.panel = kind === 'library' ? 'library' : kind === 'tags' ? 'tags' : 'access';
   if (kind === 'library') {
     selectedLibrary = S.cloudDocument && S.cloudDocument.workspace_id; librarySettings = null;
     jsonRequest('/api/cloud/v1/library-settings').then(function (data) { librarySettings = data; if (cloudState.panel === 'library') renderCloudPanel(); })
@@ -934,6 +931,7 @@ function closeCloudPanel() {
   cloudState.panel = null;
   document.body.classList.remove('cloud-lab-mode', 'mobile-cloud-lab-open');
 }
+S.closeCloudPanel = closeCloudPanel;
 
 function ensureDialog() {
   var existing = document.querySelector('.sdoc-cloud-proto-backdrop');
