@@ -37,7 +37,7 @@ test('creator paths survive a fresh browser load without duplicate filename or l
   expect(await page.evaluate(() => window.SDocs.currentMeta)).not.toHaveProperty('source_file');
   expect(await page.evaluate(() => window.SDocs.currentMarkdown?.() || window.SDocs.currentBody)).not.toContain(doc.source.absolute_path);
   await page.reload();
-  await page.getByRole('button', { name: 'Document metadata', exact: true }).click();
+  await expect(metadata).toBeVisible();
   await expect(metadata.locator('[data-metadata="fullPath"] button')).toHaveText(doc.source.absolute_path);
   const fresh = await browser.newContext({ serviceWorkers: 'block' });
   try {

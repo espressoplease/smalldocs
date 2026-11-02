@@ -78,6 +78,14 @@ Changing the edit payload starts a new operation.
 
 For a full replacement or a local working copy, continue to use cloud pull,
 edit the local file, and cloud push. Run cloud push --help for that workflow.
+
+
+Receipts include comment_follow_up: open_count, resolved_count, up to 20
+open_comment_ids and ids_truncated. These describe feedback in this revision,
+not whether an edit satisfied it. Verify the change, then normally delete its
+addressed thread with cloud comments DOCUMENT_ID --id ID --delete --json.
+Resolve with --note instead when discussion should be retained. Leave unclear
+feedback open. Dry-run previews do not justify closing feedback.
 `;
 
 function error(code, message, data) {

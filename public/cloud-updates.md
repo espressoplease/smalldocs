@@ -86,6 +86,8 @@ If another writer has saved since the preview, the operation returns `revision_c
 
 ## Read and respond to reviewer feedback
 
+Edit and push receipts include `comment_follow_up`: open and resolved counts, up to 20 open comment IDs, and `ids_truncated`. This describes feedback in that revision. It does not establish that a request was addressed. Preview counts describe proposed content; save and verify it before closing feedback.
+
 Read comments and short source excerpts directly from Cloud:
 
 ```sh
@@ -102,20 +104,24 @@ The default response contains up to 25 open comments. Each has an ID, original n
 
 `--author` matches an exact display name (case-insensitive), a stored user ID, or `me`. `--all` follows every remaining page, and `--pages N` fetches up to N pages. `complete` reports whether the continuation was exhausted. `filtered_count` describes the matching feedback at that revision; document-wide counts remain separate.
 
-Read the relevant section, edit its content and verify the saved revision. Then reply or resolve the feedback you addressed:
-
-```sh
-sdoc cloud comments DOCUMENT_ID --id c7 --reply 'Updated the production limit.' --json
-sdoc cloud comments DOCUMENT_ID --id c7 --resolve --note 'Corrected and checked.' --json
-sdoc cloud comments DOCUMENT_ID --id c7 --reopen --json
-```
-
-These actions keep the original note and discussion. `--note` adds a reply with the resolution. Content edits and comment actions save separately. The browser loads both through its existing revision checks. Earlier revisions remain available for 90 days, and the current revision is always retained.
-
-To remove feedback that is no longer needed, including a comment you have addressed:
+Read the relevant section, edit its content and verify the saved revision. Normally delete the addressed thread to keep the document clean. Resolve with a note instead when the discussion should be retained:
 
 ```sh
 sdoc cloud comments DOCUMENT_ID --id c7 --delete --json
+```
+
+Or retain the discussion:
+
+```sh
+sdoc cloud comments DOCUMENT_ID --id c7 --resolve --note 'Corrected and checked.' --json
+```
+
+A reply alone leaves feedback open. Resolution keeps the original note and discussion, including its card in comment mode. `--note` adds a reply with the resolution. Content edits and comment actions save separately. The browser loads both through its existing revision checks. Earlier revisions remain available for 90 days, and the current revision is always retained. Finish with `sdoc cloud comments DOCUMENT_ID --status open --all --context none --json` and check `complete`. Leave unclear or unplaced feedback open.
+
+To reopen a retained, resolved discussion:
+
+```sh
+sdoc cloud comments DOCUMENT_ID --id c7 --reopen --json
 ```
 
 Delete removes the comment and all its replies from the current document. The document text and other comments stay unchanged. Resolve keeps the discussion in the current document. Deleted feedback remains in earlier revisions under the same 90-day retention policy. The deletion receipt identifies `comment_id` and returns `comment: null`; read the saved revision's feedback to verify it is absent. `--dry-run` previews deletion without saving it.

@@ -24,6 +24,10 @@ async function inspect(root, ids) {
     const originalNotes = result.oracle.comments;
     const preserved = originalNotes.every(original => {
       const current = note(original.id);
+      if (original.id === 'c1' && !untouched && !current.id) {
+        return result.commands.some(command => command.args[1] === 'comments' &&
+          command.args.includes('--delete') && command.args.includes('c1') && command.result && command.result.ok);
+      }
       const expectedResolved = original.id === 'c1' && !untouched ? true : Boolean(comments.canonical(original).resolved);
       return current.id === original.id && current.text === original.text && current.author === original.author && Boolean(current.resolved) === expectedResolved;
     });
@@ -31,8 +35,10 @@ async function inspect(root, ids) {
       exact_untouched_document: untouched ? result.current.markdown === result.oracle.initial_markdown : null,
       decoys_unchanged: result.decoys_unchanged, comment_count: state.comments.length,
       c1_quote: note('c1').quote, c1_resolved: Boolean(note('c1').resolved),
+      addressed_thread_closed: untouched ? null : !note('c1').id || Boolean(note('c1').resolved),
+      addressed_thread_deleted: !untouched && !note('c1').id,
       c4_open: !note('c4').resolved, c4_replies: threads.replies(note('c4').replies).length,
-      source_anchor: comments.project(result.current, 'http://fixture.invalid', { comments: [note('c1')], context: 'none' }).comments[0].anchor.match_status,
+      source_anchor: note('c1').id ? comments.project(result.current, 'http://fixture.invalid', { comments: [note('c1')], context: 'none' }).comments[0].anchor.match_status : null,
       injected: result.injected, revisions: result.revisions.length,
       commands: result.commands.length,
       full_reads: result.commands.filter(command => command.args[1] === 'read' && !command.args.some(arg => ['--section', '--lines', '--outline'].includes(arg))).length,

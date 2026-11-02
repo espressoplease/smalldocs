@@ -435,7 +435,9 @@ var htmlComponents = window.SDocHtmlComponents && window.SDocHtmlComponents.crea
 
 // ── Render (orchestrator) ──────────────────────────────────
 
+var renderVersion = 0;
 function render() {
+  var thisRender = ++renderVersion;
   S.destroyCharts();
   // Before stomping innerHTML, remember which collapsible sections the
   // user had expanded so we can re-open them after rebuild. Keyed by the
@@ -481,12 +483,14 @@ function render() {
     rememberRich(hlPromise);
     if (hlPromise && hlPromise.then) {
       hlPromise.then(function () {
-        renderAnnotationSurfaces();
+        if (thisRender === renderVersion) renderAnnotationSurfaces();
       });
     }
   }
   if (richReady.length) {
-    Promise.allSettled(richReady).then(function () { renderAnnotationSurfaces(); });
+    Promise.allSettled(richReady).then(function () {
+      if (thisRender === renderVersion) renderAnnotationSurfaces();
+    });
   }
   S.publicationRenderReady = Promise.allSettled(richReady);
   renderFileInfoCard();
@@ -1349,7 +1353,12 @@ function setMode(mode, skipHash) {
     else contentArea.scrollTop += shift;
   }
 
-  if (!skipHash) updateHash();
+  if (!skipHash && S.cloudDocument) {
+    // Persist deliberate Cloud mode changes before an immediate reload, while
+    // keeping document/style updates debounced during a render.
+    clearTimeout(S._hashTimer);
+    writeCurrentLocation(++locationWriteVersion);
+  } else if (!skipHash) updateHash();
 }
 
 document.getElementById('_sd_btn-theme').addEventListener('click', function() { S.toggleTheme(); });

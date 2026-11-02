@@ -160,8 +160,8 @@ test.describe('anchor resolution', () => {
     await setBody(page, 'Run `npm i -g sdocs-dev` to install.\n');
     await saveInline(page, 'Run npm i', { prefix: '', suffix: ' -g' });
     const anchorText = await page.evaluate(() => {
-      var a = document.querySelector('span.sdoc-anchor[data-c="c1"]');
-      return a && a.textContent;
+      return Array.from(document.querySelectorAll('span.sdoc-anchor[data-c="c1"]'))
+        .map(a => a.textContent).join('');
     });
     expect(anchorText).toBe('Run npm i');
   });
@@ -464,7 +464,7 @@ test.describe('selection guard', () => {
       var anchor = document.querySelector('span.sdoc-anchor[data-c="c1"]');
       return {
         found: !!anchor,
-        text: anchor && anchor.textContent,
+        text: Array.from(document.querySelectorAll('span.sdoc-anchor[data-c="c1"]')).map(a => a.textContent).join(''),
         insidePre: !!(anchor && anchor.closest('pre')),
       };
     });
@@ -1229,7 +1229,9 @@ test.describe('edge-case content', () => {
       return !!(c && c.classList.contains('hljs'));
     }, null, { timeout: 10000 });
     // The highlight remains on code; the card stays below the pre.
-    await expect(page.locator('#_sd_rendered pre span.sdoc-anchor[data-c="c1"]')).toHaveCount(1);
+    await expect(page.locator('#_sd_rendered pre span.sdoc-anchor[data-c="c1"]').first()).toBeVisible();
+    expect(await page.locator('#_sd_rendered pre span.sdoc-anchor[data-c="c1"]').allTextContents()).not.toHaveLength(0);
+    expect((await page.locator('#_sd_rendered pre span.sdoc-anchor[data-c="c1"]').allTextContents()).join('')).toBe('const x = 42;');
     await expect(page.locator('#_sd_rendered .sdoc-card[data-c="c1"]')).toHaveCount(1);
     // and the card's text was not absorbed into the highlighted code
     const cardBody = await page.locator('.sdoc-card[data-c="c1"]').innerText();

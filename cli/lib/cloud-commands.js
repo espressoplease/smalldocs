@@ -1369,6 +1369,7 @@ async function push(opts, client) {
     merge_classification: document.merge_classification || 'clean',
     combined: Boolean(document.combined),
     comment_id_remaps: document.comment_id_remaps || [],
+    comment_follow_up: document.comment_follow_up,
     local_updated_from_cloud: localUpdated,
     binding_changed_during_upload: bindingChanged,
     local_changed_after_upload: localChanged }, 'Pushed revision ' + document.revision_number
@@ -1437,7 +1438,8 @@ async function autoSyncOpen(opts, dependencies) {
     revisionId: tagged && tagged.current_revision_id || result.revision_id, created: !binding,
     librarySelection: result.library_selection || { source: 'binding', library_id: result.workspace_id || null },
     tags: tagged && tagged.tags || result.tags || [],
-    localChangedAfterUpload: Boolean(result.local_changed_after_upload) };
+    localChangedAfterUpload: Boolean(result.local_changed_after_upload),
+    commentFollowUp: result.comment_follow_up };
 }
 
 async function openCloudDocument(opts, dependencies) {
@@ -1461,6 +1463,7 @@ async function openCloudDocument(opts, dependencies) {
       document_id: saved.documentId, revision_id: saved.revisionId,
       url: canonicalUrl, created: saved.created, tags: saved.tags,
       library_selection: saved.librarySelection,
+      comment_follow_up: saved.commentFollowUp,
       local_changed_after_upload: saved.localChangedAfterUpload,
     }, canonicalUrl + (saved.localChangedAfterUpload
       ? '\nThe local file changed during upload. Run sdoc again to save the latest changes.' : ''));

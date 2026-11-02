@@ -48,13 +48,20 @@ EDIT THE DOCUMENT, RESPOND, AND RESOLVE
   sdoc cloud comments DOCUMENT_ID --id c7 --reattach --quote '45 minutes' --section Production --json
   sdoc cloud comments DOCUMENT_ID --id c7 --resolve --base-revision REVISION_ID --dry-run --json
 
-Use scoped reads and cloud edit to change document content. Reply adds a message
+Use scoped reads and cloud edit to change document content. Verify the saved
+passage, then normally --delete its addressed thread to keep the document clean.
+Use --resolve --note when the discussion should be retained. A reply alone leaves
+feedback open. Finish with --status open --all --context none to check remaining
+questions. Leave unclear feedback open; an edit or lost anchor does not prove it
+was addressed. A preview is not a saved change.
+
+Reply adds a message
 to the existing comment. Resolve marks it addressed; --note adds a reply in the
 same save. Reopen makes it open again. These actions preserve the original note.
 Delete removes the selected comment and all its replies from the current
 document. The document text and other comments stay unchanged. Use it to remove
 feedback that is no longer needed, including feedback you have addressed.
-Resolve keeps the thread in the current document. Earlier revisions retain
+Resolve keeps the thread and its card visible in comment mode. Earlier revisions retain
 deleted feedback under the document's 90-day retention policy.
 Choose one action per command. Replies and notes must contain text. For a value
 beginning with --, use --reply=TEXT, --note=TEXT or --text=TEXT.

@@ -235,6 +235,7 @@ async function loadAccountData(accountId) {
 }
 
 async function loadCloudDocument(id) {
+  var requestedMode = new URLSearchParams(location.hash.slice(1)).get('mode');
   if (S.setDocumentLoadState) S.setDocumentLoadState('loading');
   try {
     var data = await jsonRequest('/api/cloud/v1/documents/' + encodeURIComponent(id));
@@ -253,7 +254,7 @@ async function loadCloudDocument(id) {
     cloudRecoveryMarkdown = null;
     cloudSaveBlocked = false;
     if (S.refreshCommentIdentity) S.refreshCommentIdentity();
-    if (S.setMode) S.setMode('read', true);
+    if (S.setMode) S.setMode(['read', 'comment', 'style', 'share', 'metadata', 'write', 'raw', 'export', 'info'].indexOf(requestedMode) >= 0 ? requestedMode : 'read', true);
     if (data.document.workspace_id) loadAccountData(data.document.workspace_id).catch(function () {});
     if (S.setDocumentLoadState) S.setDocumentLoadState('ready');
   } catch (error) {

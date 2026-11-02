@@ -67,6 +67,19 @@ function updateThread(meta, id, operation) {
   if (!found) fail('comment_unavailable', 'This comment is unavailable.');
   return Object.assign({}, meta || {}, { comments: comments });
 }
+function feedbackSummary(comments, options) {
+  var open = [], resolved = 0;
+  (Array.isArray(comments) ? comments : []).forEach(function (comment) {
+    if (!comment || typeof comment.id !== 'string') return;
+    if (comment.resolved === true || comment.resolved === 'true') resolved++;
+    else open.push(comment.id);
+  });
+  var value = { open_count: open.length, resolved_count: resolved,
+    open_comment_ids: open.slice(0, 20), ids_truncated: open.length > 20 };
+  if (open.length && options && options.preview) value.next_step = 'Preview only. Save and verify the intended change before closing addressed comments.';
+  else if (open.length) value.next_step = 'Verify the saved change, then delete addressed comments. Resolve instead when the discussion should be retained. Leave unclear feedback open.';
+  return value;
+}
 function equal(left, right) { return JSON.stringify(left) === JSON.stringify(right); }
 function mergeReplies(base, current, proposed) {
   var out = [], byId = new Map();
@@ -109,5 +122,6 @@ exports.replies = replies;
 exports.normalizeThreadFields = normalizeThreadFields;
 exports.mutateComment = mutateComment;
 exports.updateThread = updateThread;
+exports.feedbackSummary = feedbackSummary;
 exports.mergeComment = mergeComment;
 })(typeof module !== 'undefined' && module.exports ? module.exports : (window.SDocsCommentData = {}));

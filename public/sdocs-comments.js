@@ -165,6 +165,7 @@ function normalizeComment(c) {
   // Anchor fields
   if (out.kind === 'inline') {
     out.quote = typeof c.quote === 'string' ? c.quote : '';
+    if (c.quote_offset_basis === 'normalized') out.quote_offset_basis = 'normalized';
     if (typeof c.prefix === 'string' && c.prefix) out.prefix = c.prefix;
     if (typeof c.suffix === 'string' && c.suffix) out.suffix = c.suffix;
     var offset = toIndex(c.quote_offset);

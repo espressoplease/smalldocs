@@ -370,8 +370,10 @@ CLOUD FEEDBACK
 
   For an existing Cloud document, use cloud comments to read structured
   feedback with replies, status, anchor diagnostics, short source excerpts
-  and Cloud links. Use cloud edit to change the document, then reply to
-  addressed feedback. Resolve keeps the discussion in the document;
+  and Cloud links. Use cloud edit to change the document and verify the
+  saved passage. Normally delete its addressed thread to keep the document
+  clean, or resolve with a note when retaining the discussion is useful.
+  A reply alone leaves feedback open. Check --status open --all at the end. Resolve keeps the discussion in the document;
   delete removes the thread and its replies. Earlier revisions follow
   the document's 90-day retention policy. The following formats support
   local authoring, imports and portable exports.
@@ -579,6 +581,9 @@ AUTHORING TIPS FOR AGENTS
         of the block's plain text).
       - For inline comments, ensure the comment is uniquely resolvable:
         either pick a long unique quote, or populate prefix/suffix.
+  - After verifying an addressed change, remove its comment to keep the
+    document clean, or resolve it when the discussion should be retained.
+    Leave unclear feedback open. A reply alone does not close a thread.
   - To mark a comment addressed without losing audit trail, set
     \`resolved: true\` (YAML) or add \`[resolved]\` after the author
     name in the footnote definition.

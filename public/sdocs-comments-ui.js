@@ -434,9 +434,42 @@ function findAnchorRanges(container, prefix, quote, suffix) {
     var start = idx + (prefix || '').length;
     var range = rangeFromCharOffsets(container, start, start + quote.length);
     if (range) ranges.push(range);
-    from = idx + Math.max(1, needle.length);
+    // Two distinct matches establish ambiguity. Include overlapping contexts
+    // without constructing a DOM Range for every occurrence in a long list.
+    if (ranges.length === 2) break;
+    from = idx + 1;
+  }
+  if (!ranges.length) {
+    var normalized = text.replace(/\s+/g, ' ').trim();
+    var normalizedNeedle = needle.replace(/\s+/g, ' ').trim();
+    var before = (prefix || '').replace(/\s+/g, ' ').trimStart();
+    var quoteStart = before.length - (/ $/.test(before) && /^\s/.test(quote) ? 1 : 0);
+    var quoteEnd = ((prefix || '') + quote).replace(/\s+/g, ' ').trimStart().length;
+    from = 0;
+    while (normalizedNeedle && (idx = normalized.indexOf(normalizedNeedle, from)) >= 0) {
+      var mapped = rangeFromNormalizedOffsets(container, text, idx + quoteStart, idx + Math.min(quoteEnd, normalizedNeedle.length));
+      if (mapped) ranges.push(mapped);
+      if (ranges.length === 2) break;
+      from = idx + 1;
+    }
   }
   return ranges;
+}
+
+// Server source projections collapse structural whitespace. Translate those
+// positions back to the browser's text stream without changing the document.
+function rangeFromNormalizedOffsets(container, text, start, end) {
+  var raw = 0, at = 0, first = null, last = null;
+  while (raw < text.length && /\s/.test(text[raw])) raw++;
+  while (raw <= text.length) {
+    if (at === start) first = raw;
+    if (at === end) { last = raw; break; }
+    if (raw === text.length) break;
+    if (/\s/.test(text[raw])) while (raw < text.length && /\s/.test(text[raw])) raw++;
+    else raw++;
+    at++;
+  }
+  return first !== null && last !== null ? rangeFromCharOffsets(container, first, last) : null;
 }
 
 // "Anchor leaves" = elements where a quote lives entirely within the
@@ -474,7 +507,14 @@ function resolveAnchor(c, root) {
   if (c.anchor_status === 'orphaned' || c.anchor_status === 'ambiguous') return { range: null, status: c.anchor_status };
   if (sourceUnchanged(c) && typeof c.quote_offset === 'number') {
     var original = findBlockById(c.block, root, null);
-    if (original && cleanAnchorText(original).slice(c.quote_offset, c.quote_offset + c.quote.length) === c.quote) {
+    if (original && c.quote_offset_basis === 'normalized') {
+      var originalText = cleanAnchorText(original), normalizedText = originalText.replace(/\s+/g, ' ').trim();
+      var normalizedQuote = c.quote.replace(/\s+/g, ' ').trim();
+      if (normalizedText.slice(c.quote_offset, c.quote_offset + normalizedQuote.length) === normalizedQuote) {
+        return { range: rangeFromNormalizedOffsets(original, originalText, c.quote_offset, c.quote_offset + normalizedQuote.length), tier: 1, status: 'attached' };
+      }
+    }
+    if (original && c.quote_offset_basis !== 'normalized' && cleanAnchorText(original).slice(c.quote_offset, c.quote_offset + c.quote.length) === c.quote) {
       return { range: rangeFromCharOffsets(original, c.quote_offset, c.quote_offset + c.quote.length), tier: 1, status: 'attached' };
     }
   }
@@ -485,18 +525,17 @@ function resolveAnchor(c, root) {
     if (hint) {
       var r = findAnchorRange(hint, c.prefix, c.quote, c.suffix);
       if (r) return { range: r, tier: 1, status: 'attached' };
-      // Block was a container (ul/table); drop to its leaves.
-      var hintLeaves = listAnchorLeaves(hint);
-      for (var k = 0; k < hintLeaves.length; k++) {
-        var rh = findAnchorRange(hintLeaves[k], c.prefix, c.quote, c.suffix);
-        if (rh) return { range: rh, tier: 1, status: 'attached' };
-      }
+      // A container may contain several identical matches. Never select the
+      // first individually unique leaf after the complete block was ambiguous.
     }
   }
   var leaves = listAnchorLeaves(root);
   // Tier 2
   var exact = [];
   for (var i = 0; i < leaves.length; i++) exact = exact.concat(findAnchorRanges(leaves[i], c.prefix, c.quote, c.suffix));
+  // List context can include sibling items. Search the same complete text
+  // stream used by captureContext after a list fingerprint changes.
+  exact = exact.concat(findAnchorRanges(root, c.prefix, c.quote, c.suffix));
   exact = uniqueAnchorRanges(exact);
   if (exact.length === 1) return { range: exact[0], tier: 2, status: 'attached' };
   if (exact.length > 1) return { range: null, status: 'ambiguous' };
@@ -538,20 +577,38 @@ function formatRelativeTime(iso) {
 // ── Anchor span ─────────────────────────────────────────────────────────
 
 function wrapRange(range, id, color) {
-  var span = document.createElement('span');
-  span.className = 'sdoc-anchor';
-  span.setAttribute('data-c', id);
-  if (color) span.style.setProperty('--sdoc-anchor-color', color);
-  try {
-    range.surroundContents(span);
-  } catch (_) {
-    try {
-      var frag = range.extractContents();
-      span.appendChild(frag);
-      range.insertNode(span);
-    } catch (__) { return null; }
+  function mark() {
+    var span = document.createElement('span');
+    span.className = 'sdoc-anchor';
+    if (id) span.setAttribute('data-c', id);
+    if (color) span.style.setProperty('--sdoc-anchor-color', color);
+    return span;
   }
-  return span;
+  // A whole inline range can share a single highlight. Never extract a
+  // partially selected ancestor: Range.extractContents clones li/p/pre and
+  // changes numbering, paragraph boundaries and code structure.
+  var structural = 'p, li, ul, ol, pre, blockquote, table, thead, tbody, tfoot, tr, td, th, div, h1, h2, h3, h4, h5, h6, .sdoc-card, button, .pre-tools';
+  if (!range.cloneContents().querySelector(structural)) {
+    var single = mark();
+    try { range.surroundContents(single); return [single]; } catch (_) {}
+  }
+  var container = range.commonAncestorContainer;
+  var walker = anchorTextWalker(container), slices = [], node;
+  while ((node = walker.nextNode())) {
+    if (!range.intersectsNode(node) || node.parentElement.matches('ul, ol, table, thead, tbody, tfoot, tr')) continue;
+    var start = node === range.startContainer ? range.startOffset : 0;
+    var end = node === range.endContainer ? range.endOffset : node.nodeValue.length;
+    if (end > start) slices.push({ node: node, start: start, end: end });
+  }
+  var spans = [];
+  // Capture first, then split from the end so offsets remain stable.
+  for (var i = slices.length - 1; i >= 0; i--) {
+    var slice = slices[i], part = document.createRange(), span = mark();
+    part.setStart(slice.node, slice.start); part.setEnd(slice.node, slice.end);
+    part.surroundContents(span);
+    spans.unshift(span);
+  }
+  return spans;
 }
 
 // ── Cards ───────────────────────────────────────────────────────────────
@@ -883,7 +940,8 @@ function renderComment(c) {
   if (c.kind === 'inline') {
     var resolved = resolveAnchor(c, S.renderedEl);
     if (resolved && resolved.range) {
-      var span = wrapRange(resolved.range, c.id, c.color);
+      var spans = wrapRange(resolved.range, c.id, c.color);
+      var span = spans[spans.length - 1];
       if (span) {
         var pill = makeCardElement(c, { shape: span.closest('pre') ? 'sidecar' : 'pill', mode: 'view' });
         var at = inlineCardInsertPoint(span);
@@ -1002,7 +1060,8 @@ function renderCodeComments() {
         orphaned: true, anchorStatus: (lineTarget && lineTarget.status) || target.status }));
       continue;
     }
-    var span = wrapRange(range, c.id, c.color);
+    var spans = wrapRange(range, c.id, c.color);
+    var span = spans[spans.length - 1];
     if (!span) continue;
     var pill = makeCardElement(c, { shape: 'sidecar', mode: 'view', readonly: true });
     var at = inlineCardInsertPoint(span);
@@ -1099,6 +1158,27 @@ function injectElementButtons() {
            !(host.nextSibling.nodeType === 1 &&
              (host.nextSibling.tagName === 'UL' || host.nextSibling.tagName === 'OL'))) {
       host.appendChild(host.nextSibling);
+    }
+    // A loose item may resume its own paragraphs or code after a nested list.
+    // Reuse a host for every such run, leaving list containers in place so
+    // structural element paths and browser counters retain their meaning.
+    var sibling = host.nextSibling;
+    while (sibling) {
+      if (sibling.nodeType === 1 && (sibling.tagName === 'UL' || sibling.tagName === 'OL')) {
+        sibling = sibling.nextSibling;
+      } else {
+        var run = [];
+        while (sibling && !(sibling.nodeType === 1 && (sibling.tagName === 'UL' || sibling.tagName === 'OL'))) {
+          run.push(sibling);
+          sibling = sibling.nextSibling;
+        }
+        if (run.some(function (node) { return node.nodeType === 1 || node.textContent.trim(); })) {
+          var continuation = document.createElement('div');
+          continuation.className = 'sdoc-element-host';
+          item.insertBefore(continuation, run[0]);
+          run.forEach(function (node) { continuation.appendChild(node); });
+        }
+      }
     }
     item.classList.add('sdoc-element-commentable');
     host.appendChild(makeElementBtn(item));
@@ -1283,15 +1363,17 @@ function handleSelectionChange() {
   // overlap. Desktop keeps the original above-right placement.
   var isMobile = window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
   if (isMobile) {
-    pop.style.top  = (rect.bottom + 8) + 'px';
+    var top = rect.bottom + 8;
   } else {
-    pop.style.top  = (rect.top - 42) + 'px';
+    top = rect.top - 42;
   }
-  pop.style.left = (rect.right - 15) + 'px';
+  pop.style.top = Math.max(8, Math.min(top, window.innerHeight - pop.offsetHeight - 8)) + 'px';
+  pop.style.left = Math.max(8, Math.min(rect.right - 15, window.innerWidth - pop.offsetWidth - 8)) + 'px';
 }
 
 function nearestSelectionScope(node) {
   var el = node.nodeType === 1 ? node : node.parentNode;
+  if (el && el.closest('.sdoc-card, button, .pre-tools')) return null;
   while (el && el !== S.renderedEl && el !== document.body) {
     if (el.matches && el.matches('li, td, th')) return el;
     if (el.matches && el.matches(TOP_BLOCK_SEL)) return el;
@@ -1377,7 +1459,8 @@ function insertElementCard(element, card, scope) {
     element.appendChild(card);
     return;
   }
-  var host = element.querySelector(':scope > .sdoc-element-host');
+  var hosts = element.querySelectorAll(':scope > .sdoc-element-host');
+  var host = hosts[hosts.length - 1];
   if (host) {
     host.appendChild(card);
     return;
@@ -1583,38 +1666,30 @@ function captureContext(range, block) {
 function openSelectionComposerFromSelection(range) {
   hideComposer();
   var prefs = readPrefs();
-  var quote = range.toString();
+  var quote = cleanAnchorText(range.cloneContents());
   if (!quote) return;
   var block = containingTopBlock(range.startContainer, S.renderedEl);
   if (!block) return;
   var ctx = captureContext(range, block);
   var blockId = computeBlockId(block, S.renderedEl);
 
-  var pendingSpan = document.createElement('span');
-  pendingSpan.className = 'sdoc-anchor';
-  pendingSpan.style.setProperty('--sdoc-anchor-color', prefs.color);
-  try {
-    range.surroundContents(pendingSpan);
-  } catch (_) {
-    try {
-      var frag = range.extractContents();
-      pendingSpan.appendChild(frag);
-      range.insertNode(pendingSpan);
-    } catch (__) { pendingSpan = null; }
-  }
+  var pendingSpans = wrapRange(range, null, prefs.color);
+  var pendingSpan = pendingSpans[pendingSpans.length - 1];
   function clearPending() {
-    if (pendingSpan && pendingSpan.parentNode) {
-      var parent = pendingSpan.parentNode;
-      while (pendingSpan.firstChild) parent.insertBefore(pendingSpan.firstChild, pendingSpan);
-      parent.removeChild(pendingSpan);
+    pendingSpans.forEach(function (span) {
+      if (!span.parentNode) return;
+      var parent = span.parentNode;
+      while (span.firstChild) parent.insertBefore(span.firstChild, span);
+      parent.removeChild(span);
       parent.normalize();
-    }
+    });
+    pendingSpans = [];
     pendingSpan = null;
   }
 
   var draft = { color: prefs.color, author: prefs.author };
   var composer = makeCardElement(draft, {
-    shape: block.tagName === 'PRE' ? 'sidecar' : 'pill',
+    shape: pendingSpan && pendingSpan.closest('pre') ? 'sidecar' : 'pill',
     mode: 'compose',
     onSave: function (text) {
       hideComposer();
@@ -2225,6 +2300,9 @@ function render() {
   // still connected, and stripping it would discard text while the user types.
   if ((composerEl && composerEl.isConnected) ||
       S.renderedEl.querySelector('.sdoc-card-edit')) return;
+  var selection = window.getSelection();
+  if (selection && !selection.isCollapsed && selection.rangeCount &&
+      S.renderedEl.contains(selection.getRangeAt(0).commonAncestorContainer)) return;
   strip();
   // Inject hosts BEFORE rendering comments so block-level renders can
   // attach the sidecar inside the host (and apply .sdoc-host-commented).

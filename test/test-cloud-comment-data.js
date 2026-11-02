@@ -7,6 +7,19 @@ module.exports = function (h) {
   const { test, assert } = h;
   const note = { id: 'c1', kind: 'inline', quote: 'target', text: 'Check it.', author: 'Ana', at: '2026-10-01T00:00:00Z' };
   const actor = { display_name: 'Ben', user_id: 'ben' };
+  test('feedback reminders count statuses, bound IDs and distinguish previews without changing comments', () => {
+    const comments = Array.from({ length: 24 }, (_, i) => ({ id: 'c' + (i + 1), text: 'Feedback' }));
+    comments.push({ id: 'c25', resolved: true }, { id: 'c26', resolved: 'true' });
+    const before = JSON.stringify(comments), summary = data.feedbackSummary(comments);
+    assert.strictEqual(summary.open_count, 24);
+    assert.strictEqual(summary.resolved_count, 2);
+    assert.strictEqual(summary.open_comment_ids.length, 20);
+    assert.strictEqual(summary.ids_truncated, true);
+    assert.ok(summary.next_step.includes('Verify the saved change'));
+    assert.ok(data.feedbackSummary(comments, { preview: true }).next_step.startsWith('Preview only.'));
+    assert.strictEqual(JSON.stringify(comments), before);
+    assert.deepStrictEqual(data.feedbackSummary([]), { open_count: 0, resolved_count: 0, open_comment_ids: [], ids_truncated: false });
+  });
   test('thread mutations preserve the original note and round trip nested replies through the YAML subset', () => {
     const reply = data.mutateComment(note, { action: 'reply', text: 'Reply\nwith a second line.', actor, reply_id: 'rp_1', at: '2026-10-02T00:00:00Z' });
     assert.strictEqual(reply.text, note.text);

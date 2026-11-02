@@ -20,6 +20,36 @@ module.exports = function (h) {
         base_revision_id: doc.current_revision_id, edits, idempotency_key: crypto.randomUUID(), ...extra });
     const replacement = { old_text: 'Retry window: 10 minutes.', new_text: 'Retry window: 25 minutes.', section: 'Production' };
     try {
+      await testAsync('edit feedback receipts preserve comments until explicit verified cleanup and retain deleted history', async () => {
+        const notes = [{ id: 'c1', kind: 'inline', quote: '10 minutes', block: 'p:0', text: 'Increase the production limit.' },
+          { id: 'c2', kind: 'inline', quote: 'missing', text: 'An unresolved question.' },
+          { id: 'c3', kind: 'inline', quote: 'Owner', resolved: true, text: 'Previously checked.' }];
+        const source = require('../cli/shared/sdocs-yaml').serializeFrontMatter({ title: 'Service guide', comments: notes }) + '\n' + require('../cli/shared/sdocs-yaml').parseFrontMatter(initial).body;
+        const doc = await create(source);
+        const preview = await edit(doc, [replacement], {}, 'bob', true);
+        assert.strictEqual(preview.status, 200, JSON.stringify(preview.data));
+        assert.strictEqual(preview.data.document.comment_follow_up.open_count, 2);
+        assert.ok(preview.data.document.comment_follow_up.next_step.startsWith('Preview only.'));
+        assert.strictEqual((await open(doc.id)).data.document.current_revision_id, doc.current_revision_id);
+        const saved = await edit(doc, [replacement]);
+        assert.strictEqual(saved.status, 201, JSON.stringify(saved.data));
+        assert.deepStrictEqual(saved.data.document.comment_follow_up.open_comment_ids, ['c1', 'c2']);
+        assert.strictEqual(saved.data.document.comment_follow_up.resolved_count, 1);
+        const read = await f.api('bob', '/api/cloud/v1/documents/' + doc.id + '/comments');
+        assert.strictEqual(read.data.counts.open, 2);
+        const addressed = read.data.comments.find(c => c.id === 'c1');
+        const removed = await f.api('bob', '/api/cloud/v1/documents/' + doc.id + '/comments/actions', 'POST', {
+          action: 'delete', comment_id: 'c1', base_revision_id: saved.data.document.revision_id,
+          expected_comment_sha256: addressed.sha256, idempotency_key: crypto.randomUUID(),
+        });
+        assert.strictEqual(removed.status, 201, JSON.stringify(removed.data));
+        const remaining = await f.api('bob', '/api/cloud/v1/documents/' + doc.id + '/comments');
+        assert.deepStrictEqual(remaining.data.comments.map(c => c.id), ['c2']);
+        assert.strictEqual(remaining.data.counts.resolved, 1);
+        assert.ok((await open(doc.id)).data.document.markdown.includes('Retry window: 25 minutes.'));
+        const old = await f.api('bob', '/api/cloud/v1/documents/' + doc.id + '/revisions/' + saved.data.document.revision_id);
+        assert.ok(old.data.document.markdown.includes('Increase the production limit.'));
+      });
       await testAsync('partial Cloud reads return selected text, heading outline and full revision hash', async () => {
         const doc = await create();
         const part = await f.api('bob', '/api/cloud/v1/documents/' + doc.id + '/content?section=Production');
