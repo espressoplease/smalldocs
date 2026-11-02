@@ -661,6 +661,11 @@ function dataRowHtml(key, label, value, isLocal, isShort, extraHtml) {
 function renderFileInfoCard() {
   var card = document.getElementById('_sd_sdocs-file-info');
   if (!card) return;
+  if (S.publicationSource && S.publicationSource.isViewing()) {
+    card.hidden = true;
+    card.querySelector('.fic-rows').replaceChildren();
+    return;
+  }
   var meta = S.currentMeta || {};
   var local = S.fileInfoPaths();
   var rowsEl = card.querySelector('.fic-rows');
@@ -722,7 +727,7 @@ function renderFileInfoCard() {
   if (hasDoc && !S._isDefaultState) {
     slots.push({ type: 'intro' });
     if (S.shortUrl) slots.push({ type: 'data', html: dataRowHtml('shortUrl', 'Private URL', S.shortUrl, false, true) });
-    var publication = S.publicationSource && S.publicationSource.unchanged() ? {url:S.publicationSnapshot.url,active:true} : S.publications && S.publications.current();
+    var publication = S.publications && S.publications.current();
     if (publication && publication.url && publication.active) {
       slots.push({ type: 'data', html: dataRowHtml('publicUrl', 'Public URL', publication.url, false, true) });
     }

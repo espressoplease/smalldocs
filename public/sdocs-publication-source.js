@@ -74,6 +74,7 @@
   }
   S.publicationSource={
     snapshot:snapshot,
+    isViewing:function(){return snapshot.compile===true||/^\/p\//.test(location.pathname);},
     unchanged:function(){return !S.cloudDocument&&baseline!==null&&baseline===S.serializeCurrentDocument();},
     reconcile:function(source){if(source==='theme'){baseline=S.serializeCurrentDocument();S.renderFileInfoCard();}},
     viewState:viewState,

@@ -232,9 +232,12 @@ test('public copies retain the private-link app shell and actions, with readable
   try {
     const reader=await guest.newPage();await reader.goto(privateUrl);
     await expect(reader.locator('[role="toolbar"][aria-label="Document actions"]')).toBeVisible();
+    await expect(reader.locator('#_sd_sdocs-file-info')).toBeVisible();
     const controls=await reader.locator('[role="toolbar"][aria-label="Document actions"] button').evaluateAll(nodes=>nodes.map(node=>node.id));
     await reader.goto(publicUrl);
     await expect(reader.locator('html')).toHaveAttribute('data-publication-ready','true');
+    await expect(reader.locator('#_sd_sdocs-file-info')).toBeHidden();
+    await expect(reader.locator('.fic-row-cloud,[data-key="publicUrl"]')).toHaveCount(0);
     await expect(reader.locator('[data-sidebar-section="about"]')).toBeVisible();
     await expect(reader.locator('a.sdocs-short-link-only',{hasText:'Install'})).toBeVisible();
     expect(await reader.locator('[role="toolbar"][aria-label="Document actions"] button').evaluateAll(nodes=>nodes.map(node=>node.id))).toEqual(controls);
@@ -245,6 +248,7 @@ test('public copies retain the private-link app shell and actions, with readable
     await reader.waitForTimeout(500);
     expect(new URL(reader.url()).pathname).toBe(new URL(publicUrl).pathname);
     expect(new URL(reader.url()).hash).not.toContain('md=');
+    await expect(reader.locator('#_sd_sdocs-file-info')).toBeHidden();
     expect(await reader.evaluate(()=>SDocs.cloudDocument)).toBeFalsy();
     await reader.evaluate(()=>{SDocs.currentBody+='\n\nLocal reader copy.';SDocs.syncAll('write');});
     await expect.poll(()=>new URL(reader.url()).pathname).toBe('/docs');

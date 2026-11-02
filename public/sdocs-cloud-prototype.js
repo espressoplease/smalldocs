@@ -411,6 +411,7 @@ function cloudRow() {
 }
 
 function insertRow() {
+  if (S.publicationSource && S.publicationSource.isViewing()) return;
   var card = document.getElementById('_sd_sdocs-file-info');
   var rows = card && card.querySelector('.fic-rows');
   if (!card || !rows || rows.querySelector('.fic-row-cloud')) return;
