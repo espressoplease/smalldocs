@@ -10,7 +10,7 @@ const HELP = `Account management
   sdoc cloud publish DOCUMENT_ID --json
   sdoc cloud unpublish DOCUMENT_ID --json
   sdoc cloud subscribe [--no-open] --json
-  sdoc cloud settings [install|libraries|people|billing|machines|preferences] [--account UUID] [--no-open] --json
+  sdoc cloud settings [account|install|libraries|people|billing|machines|preferences] [--account UUID] [--no-open] --json
   sdoc cloud invite EMAIL [--role member|admin] [--account UUID] --json
   sdoc cloud invitations [--account UUID] --json
   sdoc cloud revoke-invite INVITATION_ID [--account UUID] --json
@@ -24,7 +24,8 @@ Afterwards, trial_payment_required blocks Cloud content until payment is confirm
 Use the returned subscribe_url for the human to complete Stripe Checkout.
 The command opens a subscription page; it does not charge the user.
 Settings billing opens invoice, payment-method and cancellation management.
-Billing, preferences and connected machines belong to your account. Libraries,
+Settings account opens sign-in methods and browser logout. Preferences controls
+library navigation. Billing, preferences and connected machines belong to your account. Libraries,
 people and overview open library management; --account selects that library.
 Install can use --account to select where the first documents are saved.
 Browser sign-in is independent of CLI authorization. Never collect card details.
@@ -96,7 +97,7 @@ async function run(opts, client, helpers) {
     return emit(opts, 'cloud.referrals', data);
   }
   if (action === 'subscribe' || action === 'settings') {
-    const panels = ['install', 'libraries', 'people', 'billing', 'machines', 'preferences', 'overview'];
+    const panels = ['account', 'install', 'libraries', 'people', 'billing', 'machines', 'preferences', 'overview'];
     const panel = opts.extra || 'install';
     if (action === 'settings' && !panels.includes(panel)) invalid('Choose settings panel: ' + panels.join(', '));
     const params = new URLSearchParams();

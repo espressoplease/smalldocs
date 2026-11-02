@@ -117,9 +117,9 @@ test('a third-party Google address needs its delivered mailbox code before any a
   expect((await post(page, '/api/cloud/auth/link', {})).status()).toBe(401);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
-test('Preferences explicitly connects a different Google email without a second library or trial', async ({ page, context }) => {
+test('Account settings explicitly connect a different Google email without a second library or trial', async ({ page, context }) => {
   await context.addCookies([{ name: 'sdocs_cloud', value: f.users.returning.sessionToken, url: f.origin }]);
-  await page.goto(f.origin + '/cloud/admin?panel=preferences');
+  await page.goto(f.origin + '/cloud/admin?panel=account');
   await expect(page.locator('#sign-in-methods')).toContainText(f.users.returning.email);
   const previousLibraries = await libraries(page);
   const subscription = f.billing.getSubscription(f.personal.workspaceId);
@@ -129,7 +129,7 @@ test('Preferences explicitly connects a different Google email without a second 
   await expect(page.locator('#link-account')).toContainText(f.users.returning.email);
   expect((await f.api('outsider', '/api/cloud/auth/link')).status).toBe(401);
   await page.getByRole('button', { name: 'Connect Google', exact: true }).click();
-  await expect(page).toHaveURL(f.origin + '/cloud/admin?panel=preferences');
+  await expect(page).toHaveURL(f.origin + '/cloud/admin?panel=account');
   expect((await me(page)).id).toBe(f.users.returning.id);
   expect((await libraries(page)).map(w => w.id)).toEqual(previousLibraries.map(w => w.id));
   expect(f.billing.getSubscription(f.personal.workspaceId)).toEqual(subscription);
@@ -139,16 +139,16 @@ test('Preferences explicitly connects a different Google email without a second 
   await expect(page).toHaveURL(f.origin + '/library?scope=cloud');
   expect((await me(page)).id).toBe(f.users.returning.id);
 });
-test('adding a verified email in Preferences makes it a login for the existing account', async ({ page, context }) => {
+test('adding a verified email in Account settings makes it a login for the existing account', async ({ page, context }) => {
   await context.addCookies([{ name: 'sdocs_cloud', value: f.users.returning.sessionToken, url: f.origin }]);
-  await page.goto(f.origin + '/cloud/admin?panel=preferences');
+  await page.goto(f.origin + '/cloud/admin?panel=account');
   await page.getByRole('link', { name: 'Add an email address', exact: true }).click();
   const before = mail.messages.length;
   await page.getByLabel('Email address', { exact: true }).fill('another-mailbox@company.test');
   await page.getByRole('button', { name: 'Email me a code' }).click();
   await page.getByLabel('Six-digit code').fill(await deliveredCode(before));
   await page.getByRole('button', { name: 'Add email address', exact: true }).click();
-  await expect(page).toHaveURL(f.origin + '/cloud/admin?panel=preferences');
+  await expect(page).toHaveURL(f.origin + '/cloud/admin?panel=account');
   await expect(page.locator('#sign-in-methods')).toContainText('another-mailbox@company.test');
   await page.goto('about:blank');
     await context.clearCookies();

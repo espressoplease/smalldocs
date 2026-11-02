@@ -153,6 +153,7 @@ module.exports = function (h) {
         const summary = cli(['cloud','billing']); assert.strictEqual(summary.code, 0);
         assert.strictEqual(summary.data.phase, 'payment_required');
         for (const [args, suffix] of [[['cloud','subscribe','--no-open'],'/cloud/subscribe'],
+          [['cloud','settings','account','--no-open'],'/cloud/admin?panel=account'],
           [['cloud','settings','people','--account',library,'--no-open'],'/library/settings?panel=people&workspace=' + library],
           [['cloud','settings','preferences','--no-open'],'/cloud/admin?panel=preferences']]) {
           const result = cli(args); assert.strictEqual(result.code, 0, JSON.stringify(result.data));

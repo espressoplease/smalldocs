@@ -819,8 +819,8 @@
 
   function requestedPanel() {
     var name = new URLSearchParams(location.search).get('panel');
-    var allowed = settingsScope === 'library' ? ['people', 'overview', 'libraries'] : ['billing', 'preferences', 'machines', 'install'];
-    return allowed.includes(name) ? name : settingsScope === 'library' ? 'overview' : 'billing';
+    var allowed = settingsScope === 'library' ? ['people', 'overview', 'libraries'] : ['account', 'billing', 'preferences', 'machines', 'install'];
+    return allowed.includes(name) && byId('panel-' + name) ? name : settingsScope === 'library' ? 'overview' : 'billing';
   }
 
   function renderAccountBilling(data) {

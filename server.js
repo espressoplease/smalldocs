@@ -3194,7 +3194,7 @@ function beginCloudOAuth(req, res, url, provider) {
       try {
         cloudIdentityLinking.createContext({ token: new URL(started.authorizationUrl).searchParams.get('state'),
           sessionToken: cloudLinkTokens(req).session,
-          returnTo: '/cloud/admin?panel=preferences' });
+          returnTo: '/cloud/admin?panel=account' });
       } catch (_) {
         res.writeHead(303, { Location: '/cloud/sign-in?return=' + encodeURIComponent(url.pathname + url.search), 'Cache-Control': 'no-store' });
         res.end(); return;

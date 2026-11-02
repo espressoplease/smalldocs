@@ -37,7 +37,7 @@
     try {
       if (needsEmail && !challenge) { await sendCode(); return; }
       var result = await request(addEmail ? '/api/cloud/auth/email/verify' : '/api/cloud/auth/link', {
-        challenge_id: challenge, code: byId('link-code').value, return_to: '/cloud/admin?panel=preferences',
+        challenge_id: challenge, code: byId('link-code').value, return_to: '/cloud/admin?panel=account',
       });
       location.assign(result.return_to);
     } catch (failure) {
