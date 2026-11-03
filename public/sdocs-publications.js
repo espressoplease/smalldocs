@@ -155,7 +155,10 @@
       +(S.shortUrl?linkControls('Private URL',S.shortUrl):'')
       +(privateError?'<p class="sdoc-share-status sdoc-share-error" role="status">'+escape(privateError)+'</p>':'')
       +'<p>Anyone with the complete link can read this copy, without signing in. They can also pass the link on.</p>'
-      +'<p>Your browser encrypts this copy before uploading it. The decryption key is included after <code>#k=</code> in the URL. The reader&#39;s browser uses it to open the copy; the key is not sent to our server.</p>'
+      +'<p>Your browser encrypts this copy before uploading it. A private link has two parts:</p>'
+      +'<p><code>https://smalldocs.org/s/copy-id<wbr>#k=decryption-key</code></p>'
+      +'<p><strong>Copy ID:</strong> points to the encrypted copy stored on our server.</p>'
+      +'<p><strong>URL fragment:</strong> the part after <code>#</code>, including the decryption key. Browsers do not send this part to the server. The reader&#39;s browser uses the key to decrypt the copy.</p>'
       +'<p>This link opens a fixed copy. Later edits do not change it; create a new link to share a newer version.</p>'
       +help('Learn about private links','short-links');
     var publicHtml='';

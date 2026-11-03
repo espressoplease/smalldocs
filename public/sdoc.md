@@ -155,13 +155,13 @@ Creating a private link produces a URL of the form:
   https://smalldocs.org/s/{short id}#k={encryption key}
                       └────┬───┘   └───────┬──────┘
                            │               │
-                      sent to           never leaves
-                       server           your browser
+                      sent to           kept in
+                       server           the link
 ```
 
 The `{short id}` is what allows the server to find the relevant encrypted copy of the document. The `{encryption key}` is what's required to turn the encrypted copy back into readable text.
 
-The `{encryption key}` lives in the URL's **hash fragment** (everything after the `#`) and, as the [Privacy](#privacy) section explains, browsers never send hash fragments to a server the request is being made to. So even though the URL is shareable, **the encryption key only ever exists in the URL itself**, on the screens and clipboards of whoever holds the link. Our server only ever sees the `{short id}` part.
+The `#` starts the **URL fragment**. Browsers leave this fragment out when requesting the document from the server. Our server uses `{short id}` to return the encrypted copy; the reader's browser uses `{encryption key}` from the link to decrypt it locally.
 
 The rest of this section walks through exactly what the server receives and what it doesn't.
 
