@@ -68,6 +68,7 @@ for(const width of [1440,390]) test('sharing choices expand without acting and p
 });
 for(const width of [1440,390]) test('Share panel provides both link types and a public status dot at '+width,async({page,browser},testInfo)=>{
   await open(page,width);
+  await expect(page.locator('#_sd_btn-share')).toHaveAttribute('data-tip','Share outside of your cloud');
   await expect(page.locator('.fic-row-share,[data-key="shortUrl"],[data-key="publicUrl"]')).toHaveCount(0);
   expect(await page.locator('#_sd_btn-copy-file').evaluate(el=>el.nextElementSibling.id)).toBe('_sd_btn-share');
   await expect(page.getByRole('link',{name:'Learn about private links',exact:true})).toHaveAttribute('href','/docs#sec=short-links');
@@ -86,6 +87,7 @@ for(const width of [1440,390]) test('Share panel provides both link types and a 
   await publicCopy.click();expect(await page.evaluate(()=>navigator.clipboard.readText())).toBe(publicUrl);
   await expect(publicCopy.locator('svg polyline')).toHaveAttribute('points','20 6 9 17 4 12');
   await expect(page.locator('#_sd_btn-share')).toHaveAttribute('data-publication-status','current');
+  await expect(page.locator('#_sd_btn-share')).toHaveAttribute('data-tip','Already shared: public page up to date');
   await expect(page.locator('#_sd_btn-share .info-dot')).toHaveCSS('background-color','rgb(22, 163, 74)');
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   const guest=await browser.newContext({javaScriptEnabled:false});
@@ -103,6 +105,7 @@ test('Cloud edits update the action while the published page and URL stay unchan
   await page.evaluate(()=>SDocs.checkCloudNow());
   await expect(page.getByRole('button',{name:'Update public page',exact:true})).toBeEnabled();
   await expect(page.locator('#_sd_btn-share')).toHaveAttribute('data-publication-status','outdated');
+  await expect(page.locator('#_sd_btn-share')).toHaveAttribute('data-tip','Already shared: public page needs updating');
   await expect(page.locator('#_sd_btn-share .info-dot')).toHaveCSS('background-color','rgb(245, 158, 11)');
   expect(await (await request.get(url)).text()).toContain('Keep writing');
   await page.getByRole('button',{name:'Update public page',exact:true}).click();

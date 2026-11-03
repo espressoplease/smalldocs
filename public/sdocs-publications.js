@@ -211,8 +211,9 @@
     share.dataset.publicationStatus=status;
     share.classList.toggle('has-unseen',status==='current'||status==='published'||status==='outdated');
     share.style.setProperty('--btn-dot-color',status==='outdated'?'#f59e0b':'#16a34a');
-    share.setAttribute('aria-description',status==='published'?'Published public page':status==='current'?'Public page up to date':status==='outdated'?'Public page needs updating':status==='checking'?'Checking public page status':'Sharing options');
-    share.dataset.tip=status==='published'?'Share: published public page':status==='current'?'Share: public page up to date':status==='outdated'?'Share: public page needs updating':'Share';
+    var description=status==='published'?'Already shared: public page':status==='current'?'Already shared: public page up to date':status==='outdated'?'Already shared: public page needs updating':status==='checking'?'Checking public page status':'Share outside of your cloud';
+    share.setAttribute('aria-description',description);
+    share.dataset.tip=description;
     share.disabled=!S.currentBody||S._isDefaultState;
     var body=document.getElementById('_sd_share-panel');
     if(body&&S.currentMode==='share'){
