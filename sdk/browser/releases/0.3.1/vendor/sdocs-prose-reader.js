@@ -25,7 +25,7 @@
   function tableCellCopyText(cell) {
     if (!cell) return '';
     var clone = cell.cloneNode(true);
-    clone.querySelectorAll('.table-copy-btn, .sdoc-card, .sdoc-table-add')
+    clone.querySelectorAll('.table-copy-btn, .sdoc-card, .sdoc-table-target-control')
       .forEach(function (element) { element.remove(); });
     return (clone.textContent || '').replace(/\s+/g, ' ').trim();
   }
@@ -374,7 +374,7 @@
         var height = Math.max(1, Math.ceil(rect.height));
         var clone = table.cloneNode(true);
         inlineTableImageStyles(table, clone);
-        clone.querySelectorAll('.table-copy-btn, .sdoc-card, .sdoc-table-add')
+        clone.querySelectorAll('.table-copy-btn, .sdoc-card, .sdoc-table-target-control')
           .forEach(function (element) { element.remove(); });
         clone.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
         clone.style.setProperty('margin', '0');
@@ -452,6 +452,36 @@
       return button;
     }
 
+    function tablePartButton(scope, table, row, cell) {
+      var button = doc.createElement('button'); button.type = 'button';
+      button.className = 'sdoc-table-target-control sdoc-table-control-' + scope + ' table-part-copy-btn table-copy-' + scope + '-btn';
+      var label = 'Copy ' + scope;
+      button.title = label; button.setAttribute('aria-label', label); setHTML(button, COPY_SVG);
+      function targets() {
+        if (scope === 'row') return Array.prototype.slice.call(row.cells);
+        if (scope === 'column') return Array.prototype.map.call(table.rows, function (item) { return item.cells[cell.cellIndex]; }).filter(Boolean);
+        return [cell];
+      }
+      function preview() { targets().forEach(function (cell) { cell.classList.add('sdoc-table-copy-preview'); }); }
+      function clear() {
+        if (!button.matches(':hover, :focus')) targets().forEach(function (cell) { cell.classList.remove('sdoc-table-copy-preview'); });
+      }
+      button.addEventListener('pointerenter', preview); button.addEventListener('focus', preview);
+      button.addEventListener('pointerleave', clear); button.addEventListener('blur', clear);
+      button.addEventListener('click', function (event) {
+        event.preventDefault(); event.stopPropagation();
+        var text = targets().map(tableCellCopyText).join(scope === 'row' ? '\t' : '\n');
+        copyText(text, button, '').then(function (ok) {
+          if (ok || !active(button)) return;
+          var clipboard = options.clipboard || (win.navigator && win.navigator.clipboard);
+          button.title = clipboard && clipboard.writeText ? 'Copy failed. Try again.' : 'Not supported';
+          flashTableLabel(table.parentElement.querySelector('.md-table-toolbar'), button.title);
+          schedule(function () { if (active(button)) button.title = label; });
+        });
+      });
+      return button;
+    }
+
     function attachTables(container) {
       container.querySelectorAll('table').forEach(function (table) {
         var parent = table.parentNode;
@@ -461,11 +491,22 @@
         parent.insertBefore(wrapper, table);
         wrapper.appendChild(table);
         if (!controls('copy') || !table.rows.length) return;
+        wrapper.classList.add('sdoc-table-copyable'); table.classList.add('sdoc-table-copy-targets');
         var toolbar = doc.createElement('div');
         toolbar.className = 'md-table-toolbar';
+        var status = doc.createElement('span'); status.className = 'table-copy-label table-part-copy-status';
+        status.setAttribute('role', 'status'); toolbar.appendChild(status);
         toolbar.appendChild(tableButton(table, 'csv'));
         toolbar.appendChild(tableButton(table, 'png'));
         wrapper.insertBefore(toolbar, table);
+        Array.prototype.forEach.call(table.rows, function (row, index) {
+          if (!index) row.classList.add('sdoc-table-copy-header');
+          Array.prototype.forEach.call(row.cells, function (cell, column) {
+            cell.appendChild(tablePartButton('cell', table, row, cell));
+            if (!column) cell.appendChild(tablePartButton('row', table, row, cell));
+            if (!index) cell.appendChild(tablePartButton('column', table, row, cell));
+          });
+        });
       });
     }
 

@@ -132,6 +132,49 @@ module.exports = function (h) {
     const text = '```mermaid\n' + dsl + '\n```\n\n```mermaid\n' + dsl + '\n```\n';
     assert.strictEqual(context.project(text, [note])[0].anchor.match_status, 'ambiguous');
   });
+  test('sequence participants keep identity through aliases and message source context is precise', () => {
+    const lib = require('../public/sdocs-diagram-comments');
+    const source = 'sequenceDiagram\n actor A as Requester\n participant B as Owner\n A->>B: Submit request\n B-->>A: Confirm\n';
+    const targets = lib.sequenceTargets(source);
+    assert.deepStrictEqual(targets.filter(target => target.type === 'participant').map(target => target.text), ['Requester', 'Owner']);
+    const message = targets.find(target => target.type === 'message');
+    const body = '```mermaid\n' + source + '```\n';
+    const meta = C.addDiagramComment({}, { block: 'diagram:0', diagram_source: source, node_id: message.id, node_text: message.text }, { text: 'Add the reference.' }).meta;
+    const before = persist(meta, body), updated = reanchor(before, before.replace('\n A->>B: Submit request', '\n A->>B: Submit request number'));
+    const saved = C.normalizeComment(comments.snapshot(updated).comments[0]);
+    assert.strictEqual(saved.anchor_status, undefined);
+    assert.strictEqual(saved.node_text, 'Submit request number');
+    assert.ok(saved.node_id.includes('Submit request number'));
+    const projected = context.project(updated, [saved], { context: 'snippet' })[0];
+    assert.strictEqual(projected.anchor.match_status, 'exact');
+    const location = context.sourceLocations(updated, [saved])[0].node_range;
+    assert.strictEqual(updated.slice(location.start, location.end), ' A->>B: Submit request number');
+    const portable = C.parseFootnotes(C.serializeFootnotes({ comments: [saved] }, body));
+    assert.strictEqual(portable.comments[0].node_id, saved.node_id);
+  });
+  test('sequence message feedback follows insertions and never transfers to a deleted message', () => {
+    const lib = require('../public/sdocs-diagram-comments');
+    const source = 'sequenceDiagram\n A->>B: Submit\n B-->>A: Confirm\n';
+    const target = lib.sequenceTargets(source).find(target => target.text === 'Confirm');
+    const meta = C.addDiagramComment({}, { block: 'diagram:0', diagram_source: source, node_id: target.id }, { text: 'Check this reply.' }).meta;
+    const before = persist(meta, '```mermaid\n' + source + '```\n');
+    const inserted = reanchor(before, before.replace('\n A->>B: Submit', '\n A->>B: New message\n A->>B: Submit'));
+    const saved = comments.snapshot(inserted).comments[0];
+    assert.strictEqual(saved.anchor_status, undefined);
+    assert.strictEqual(context.project(inserted, [saved])[0].anchor.match_status, 'exact');
+    const deleted = reanchor(before, before.replace('\n B-->>A: Confirm\n', '\n'));
+    assert.strictEqual(comments.snapshot(deleted).comments[0].anchor_status, 'orphaned');
+  });
+  test('duplicate sequence messages have separate initial targets and ambiguous changed-source fallback', () => {
+    const lib = require('../public/sdocs-diagram-comments');
+    const source = 'sequenceDiagram\n A->>B: Review\n A->>B: Review\n';
+    const messages = lib.sequenceTargets(source).filter(target => target.type === 'message');
+    assert.notStrictEqual(messages[0].id, messages[1].id);
+    const note = { diagram_source: source, node_id: messages[1].id };
+    assert.strictEqual(lib.resolveTarget(note, [{ source, index: 0, nodes: messages }]).status, 'attached');
+    const changed = source.replace(' A->>B: Review', ' A->>B: New message\n A->>B: Review');
+    assert.strictEqual(lib.resolveTarget(note, [{ source: changed, index: 0, nodes: lib.sequenceTargets(changed) }]).status, 'ambiguous');
+  });
   test('out-of-range rich anchors stay unplaced without inventing source context', () => {
     const note = C.addCellsComment({}, { ...anchor, range: { ...anchor.range, end_row: 999999999 } }, { text: 'Review.' }).meta.comments[0];
     const projected = context.project(body, [note])[0];

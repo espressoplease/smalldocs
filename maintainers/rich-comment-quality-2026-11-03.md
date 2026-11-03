@@ -5,7 +5,7 @@
 Continue the comment structure work with slides, Mermaid diagrams, Markdown tables and computed cells. Use the existing comment store, cards, thread actions, author preferences, Cloud permissions and revision history. New targets must not insert cards into a slide, SVG drawing, table cell or spreadsheet grid.
 
 - Slides: click an element, extend selection with Shift, or comment on the whole slide. Retain selection drafts when extending a group and while navigating presentation slides.
-- Diagrams: click a flowchart node, or use the whole-diagram comment button. Other Mermaid types support whole-diagram comments. Both are available inline and fullscreen. Fullscreen reading has a comment action.
+- Diagrams: click a flowchart node, a sequence participant or a sequence message, or use the whole-diagram comment button. Other Mermaid types support whole-diagram comments. Targets are available inline and fullscreen. Fullscreen reading has a comment action.
 - Sheets: select source cells, then use Comment beside the existing copy control. Support single cells, ranges and discontiguous source rows selected in a sorted view. Place cards below the grid without widening it. Fullscreen reading can start feedback directly.
 - Tables: retain the established table, row, column and cell controls. Use exact row/header evidence, full-row snapshots for repeated first-column names, and an unchanged-table fingerprint for identical rows.
 
@@ -15,7 +15,27 @@ All threads remain in `currentMeta.comments`, travel in styled Markdown and port
 
 `kind: cells` stores the sheet name, original source snapshot, a zero-based source range, explicit selected source row indices, header hints and raw selected values. Formula text remains raw in its context. Browser sorting changes display order, not the target. Scratch edits do not change the saved context.
 
-`kind: diagram` stores the original Mermaid source and an optional logical flowchart node ID. SVG-generated IDs are not stored as identity. Whole-diagram feedback works without a node ID.
+`kind: diagram` stores the original Mermaid source and an optional logical target ID. Flowcharts use their source node ID. Sequence participants use their source participant ID, so aliases can change. Sequence messages retain the sender, arrow, recipient, source text and duplicate occurrence. SVG-generated IDs are not stored as identity. Whole-diagram feedback works without a node ID.
+
+Cloud source projection uses the same sequence target parser as the browser.
+Saved edits map an individual message's source range and refresh its identity
+after a correction or insertion. Repeated messages have separate initial
+targets; changed-source fallback leaves uncertain duplicate matches unplaced.
+Top and bottom participant boxes refer to the same thread target.
+
+## Reading table data
+
+Read mode exposes hover and keyboard copy controls in the same positions and
+dimensions as table comment controls. Cell copy returns displayed text. Row
+copy returns tab-separated displayed values, suitable for spreadsheet paste.
+Column copy includes the header, followed by newline-separated displayed values.
+Whole-table CSV and PNG copy remain available. Copies exclude controls and
+comment cards and do not change Markdown or metadata.
+
+Shared target-control CSS supplies the comment and copy button shapes. Read
+controls are hidden in document comment mode, while embedded SDK readers keep
+their own read controls. Copy success uses the existing tick feedback. Clipboard
+failure or missing support produces a visible status in the table toolbar.
 
 `kind: slide` retains the existing schema. A shared pure resolver now locates the same slide and shapes for browser rendering and backend context. Source shape identity takes precedence over generated labels such as "1st arrow". Copies report the resolved current position.
 
@@ -54,7 +74,7 @@ The service-worker upgrade check uses an old committed shell followed by the cur
 ## Limits
 
 - Sheet notes remain in SmallDocs. Excel downloads retain values and formulas but do not export native Excel notes or threads.
-- Diagram node targeting covers rendered flowchart nodes with logical IDs. Other Mermaid types use whole-diagram notes.
+- Diagram targeting covers flowchart nodes and sequence participants/messages. Other Mermaid types use whole-diagram notes.
 - Unsupported legacy/template slide geometry can remain explicitly unverified in backend context.
 - Arbitrary rewrites can destroy target identity. Keep feedback visibly unplaced rather than attach it to a plausible substitute.
 - Bulk cleanup and a leaner general receipt mode were suggested by the trial agents. Existing selected-thread commands were sufficient for both tasks.
@@ -63,6 +83,10 @@ The retained example is [Delivery plan and budget](https://cloud-staging.smalldo
 
 ## Local release gate
 
+- Sequence and table-copy follow-up: 2,285 Node tests, 32 focused browser tests,
+  23 Cloud/comment/Mermaid-copy regressions and 3 earlier-SDK prose checks passed.
+  The focused run includes current-SDK table copy while its host is in comment
+  mode. The old-shell service-worker upgrade can use the new cell copy control.
 - 328 combined Node checks plus 28 slide-model checks passed.
 - 192-test browser regression run passed. Final rich-element/list gate passed all 54 cases, and the final slide/diagram gate passed all 38 cases.
 - 117 existing spreadsheet/workbook cases and the SDK host-isolation smoke passed.

@@ -1205,7 +1205,7 @@ function injectElementButtons() {
 function tableAddButton(scope, target) {
   var btn = document.createElement('button');
   btn.type = 'button';
-  btn.className = 'sdoc-table-add sdoc-table-' + scope + '-add';
+  btn.className = 'sdoc-table-target-control sdoc-table-control-' + scope + ' sdoc-table-add sdoc-table-' + scope + '-add';
   var labels = {
     table: 'Add comment on this table',
     row: 'Add comment on this row',

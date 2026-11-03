@@ -10,6 +10,14 @@
   stroke: var(--sdoc-anchor-color, #ffbb00) !important;
   stroke-width: 3px !important;
 }
+.sdoc-diagram-message-hit { fill: transparent; stroke: transparent; stroke-width: 2px; rx: 4px; }
+.sdoc-diagram-message:is(:hover, :focus, .sdoc-diagram-node-commented) > .sdoc-diagram-message-hit {
+  stroke: var(--sdoc-anchor-color, #ffbb00) !important;
+  stroke-width: 2px !important;
+}
+.sdoc-diagram-node-commentable:is(:hover, :focus, .sdoc-diagram-node-commented) > :is(circle, line, path) {
+  stroke: var(--sdoc-anchor-color, #ffbb00) !important;
+}
 .sdoc-diagram-focus-comments {
   max-height: 34vh; overflow: auto; padding: 0 16px;
   background: var(--sdoc-focus-bg); border-top: 1px solid var(--border);

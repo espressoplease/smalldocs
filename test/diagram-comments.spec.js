@@ -102,3 +102,47 @@ test('identical diagrams still open fullscreen and retain their own feedback', a
   await expect(page.locator('.sdoc-mermaid').nth(1).locator('xpath=following-sibling::*[1]')).toContainText('Second flow.');
   expect(errors).toEqual([]);
 });
+
+test('sequence participants and messages are targets beside a flowchart, with portable agent context', async ({ page }) => {
+  const sequence = 'sequenceDiagram\n participant Requester\n participant Owner\n Requester->>Owner: Submit request\n Owner-->>Requester: Confirm the delivery date\n';
+  const body = '# Delivery sequence\n\n' + fence(dsl) + '\n' + fence(sequence);
+  await load(page, body);
+  const diagram = page.locator('.sdoc-mermaid').nth(1);
+  await diagram.getByRole('button', { name: 'Comment on Owner', exact: true }).first().click();
+  await save(page, 'Name the delivery owner.');
+  await expect(diagram.locator('.sdoc-diagram-node-commented')).toHaveCount(2);
+  await page.locator('.sdoc-mermaid').nth(1).getByRole('button', { name: 'Comment on Submit request', exact: true }).click();
+  await save(page, 'Include a request number.');
+  const saved = await page.evaluate(() => ({ markdown: SDocYaml.serializeFrontMatter(SDocs.currentMeta) + '\n' + SDocs.currentBody,
+    comments: SDocs.currentMeta.comments, body: SDocs.currentBody }));
+  expect(saved.body).toBe(body);
+  expect(saved.comments[0].node_id).toBe('sequence:participant:Owner');
+  expect(saved.comments[1].node_id).toMatch(/^sequence:message:/);
+  const projected = require('../lib/cloud-comment-context').project(saved.markdown, saved.comments, { context: 'snippet' });
+  expect(projected.map(note => note.anchor.match_status)).toEqual(['exact', 'exact']);
+  expect(projected[1].context.markdown).toContain('Requester->>Owner: Submit request');
+  await expect(page.locator('.sdoc-diagram-card').last()).toContainText('Message: Submit request');
+  await page.evaluate(() => { SDocs.currentBody = 'Intro added.\n\n' + SDocs.currentBody.replace('participant Owner', 'participant Owner as Delivery owner'); SDocs.render(); });
+  await expect(page.locator('.sdoc-card-orphaned')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Comment on Delivery owner', exact: true })).toHaveCount(2);
+});
+
+test('sequence actors and repeated messages remain separate, with fullscreen keyboard feedback', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const source = 'sequenceDiagram\n actor A as Requester\n participant B as Owner\n A->>B: Review\n A->>B: Review\n';
+  await load(page, '# Sequence\n\n' + fence(source));
+  await page.getByRole('button', { name: 'Open diagram in fullscreen' }).click();
+  const modal = page.locator('.sdoc-mermaid-focus');
+  await modal.getByRole('button', { name: 'Comment on Requester', exact: true }).first().focus();
+  await page.keyboard.press('Enter'); await save(page, 'Check this participant.', modal);
+  await modal.getByRole('button', { name: 'Comment on Review', exact: true }).nth(1).click();
+  await save(page, 'The second review.', modal);
+  const note = await page.evaluate(() => SDocs.currentMeta.comments.at(-1));
+  expect(JSON.parse(note.node_id.slice('sequence:message:'.length)).at(-1)).toBe(1);
+  await expect(modal.locator('.sdoc-diagram-message.sdoc-diagram-node-commented')).toHaveCount(1);
+  const cards = await modal.locator('.sdoc-diagram-focus-comments').boundingBox();
+  expect(cards.x).toBeGreaterThanOrEqual(0); expect(cards.x + cards.width).toBeLessThanOrEqual(391);
+  await modal.getByRole('button', { name: 'Close', exact: true }).click();
+  await page.evaluate(() => { SDocs.currentBody = SDocs.currentBody.replace(' A->>B: Review', ' A->>B: A new message\n A->>B: Review'); SDocs.render(); });
+  await expect(page.locator('.sdoc-card-orphaned')).toContainText('The second review.');
+});

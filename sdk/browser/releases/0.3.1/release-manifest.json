@@ -111,7 +111,7 @@
     },
     "vendor/reader-manifest.json": {
       "bytes": 11893,
-      "sha256": "c80ccf4c13db5ec8efc2f040373a4f802e5fb64861c96971310b54ac25f9bfaa"
+      "sha256": "798d492f57fb9d8749edd738fb6ecd9768f5568880b4001e8366736c2c5b1964"
     },
     "vendor/sdocs-app-runner.html": {
       "bytes": 256,
@@ -278,12 +278,12 @@
       "sha256": "7e809006e775286feb261e867bcb3ec7674c80e08eb511a20ce69d7932e83fcc"
     },
     "vendor/sdocs-prose-reader.css": {
-      "bytes": 13872,
-      "sha256": "d910ed01fe3a3bc4a7546c5e282715edabb253d2b38902defdfbfebee41776a7"
+      "bytes": 17149,
+      "sha256": "da7dda1baae6d67e94761dc8b0641f2818be5a42a69d8aed2950995f50ef376b"
     },
     "vendor/sdocs-prose-reader.js": {
-      "bytes": 22343,
-      "sha256": "42dce17263a009335f4e83e9ffe97e28e81dd4bb07ca9f4df3a4a3a894d066ed"
+      "bytes": 25024,
+      "sha256": "96e0d57f370c575ffb4298418073dde4b4775072c0f0f4fe27d116e7a7b9005d"
     },
     "vendor/sdocs-shape-render.js": {
       "bytes": 105767,

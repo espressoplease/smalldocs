@@ -162,3 +162,65 @@ test('table copy controls yield to table comment controls in comment mode', asyn
   await expect(page.locator('.md-table-toolbar')).toHaveCSS('height', '0px');
   await expect(page.locator('.sdoc-table-table-add')).toHaveCount(1);
 });
+
+test('hover and keyboard copy a cell, row or column without changing source or including controls', async ({ page }) => {
+  await loadTable(page);
+  const cell = page.locator('tbody tr').first().locator('td').nth(1);
+  await expect(cell.getByRole('button', { name: 'Copy cell', exact: true })).toHaveCSS('opacity', '0');
+  await cell.hover();
+  const copyCell = cell.getByRole('button', { name: 'Copy cell', exact: true });
+  await copyCell.click();
+  await expect.poll(() => copiedText(page)).toBe('Hello, world');
+  await expect(copyCell.locator('polyline')).toHaveCount(1);
+  const row = page.locator('tbody tr').first();
+  await row.hover();
+  const copyRow = row.getByRole('button', { name: 'Copy row', exact: true });
+  await copyRow.hover();
+  await expect(row.locator('.sdoc-table-copy-preview')).toHaveCount(2);
+  await copyRow.click();
+  await expect.poll(() => copiedText(page)).toBe('Ada\tHello, world');
+  const copyColumn = page.locator('thead th').last().getByRole('button', { name: 'Copy column', exact: true });
+  await copyColumn.focus();
+  await page.keyboard.press('Enter');
+  await expect.poll(() => copiedText(page)).toBe('Notes\nHello, world\nSaid "yes"');
+  expect(await page.evaluate(() => SDocs.currentBody)).toBe(TABLE);
+  for (let i = 0; i < 2; i++) {
+    await page.evaluate(() => SDocs.setMode('comment'));
+    await expect(page.locator('.table-part-copy-btn').first()).toHaveCSS('visibility', 'hidden');
+    await page.evaluate(() => SDocs.setMode('read'));
+    await expect(page.locator('.table-part-copy-btn')).toHaveCount(11);
+  }
+  await page.locator('.table-copy-csv-btn').click();
+  await expect.poll(() => copiedText(page)).toBe('Name,Notes\nAda,"Hello, world"\nGrace,"Said ""yes"""');
+});
+
+test('formatted values, empty cells and horizontally scrolled table parts copy on mobile', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await loadTable(page);
+  const markdown = '| **Service** | Region | Long ownership label | Notes |\n|---|---|---|---|\n| [API](https://example.org) | Europe | Platform | Check `input` and \\| values |\n| Worker | America | Operations | |\n';
+  await page.evaluate(body => { SDocs.loadText(body); SDocs.setAllSectionsOpen(true); }, markdown);
+  await page.locator('.md-table-scroll').evaluate(el => { el.scrollLeft = el.scrollWidth; });
+  const cell = page.locator('tbody tr').first().locator('td').last();
+  await cell.hover(); await cell.getByRole('button', { name: 'Copy cell', exact: true }).click();
+  await expect.poll(() => copiedText(page)).toBe('Check input and | values');
+  const empty = page.locator('tbody tr').last().locator('td').last();
+  await empty.hover(); await empty.getByRole('button', { name: 'Copy cell', exact: true }).click();
+  await expect.poll(() => copiedText(page)).toBe('');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  expect(await page.evaluate(() => SDocs.currentBody)).toBe(markdown);
+});
+
+test('failed part copies report failure without a success tick or source mutation', async ({ page }) => {
+  await loadTable(page);
+  await page.evaluate(() => { navigator.clipboard.writeText = () => Promise.reject(new Error('Denied')); });
+  const cell = page.locator('tbody td').first(); await cell.hover();
+  const copy = cell.locator('.table-copy-cell-btn');
+  await copy.click();
+  await expect(copy).toHaveAttribute('title', 'Copy failed. Try again.');
+  await expect(page.getByRole('status').filter({ hasText: 'Copy failed. Try again.' })).toBeVisible();
+  await expect(copy.locator('polyline')).toHaveCount(0);
+  await page.evaluate(() => Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true }));
+  await copy.click();
+  await expect(page.getByRole('status').filter({ hasText: 'Not supported' })).toBeVisible();
+  expect(await page.evaluate(() => SDocs.currentBody)).toBe(TABLE);
+});
