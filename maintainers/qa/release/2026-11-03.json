@@ -1,0 +1,153 @@
+{
+  "date": "2026-11-03",
+  "production_unchanged": true,
+  "production_release": "e5c705b24e8537dd5b2041fc3eb11801928af375",
+  "candidate_core_release": "dd59d185de380986fa1d9e55179ca401ec0cdb5b",
+  "backup": {
+    "source": "S3 daily/2026/11/03",
+    "sha256": "563e0f4e64c0b9d36cf7d69e7290a6fe4a5abe0bebf3c4b2ffbf0654772ad1a3",
+    "local_and_offsite_identical": true
+  },
+  "migration": {
+    "source": "coordinated production backup",
+    "server_started": false,
+    "payment_or_email_requests": false,
+    "archive_databases_verified": 11,
+    "permission_pairs_checked": 940,
+    "permissions_preserved": true,
+    "encrypted_data": {
+      "ok": true,
+      "integrity": "passed",
+      "workspaces": 2,
+      "projects": 2,
+      "revisions": 298,
+      "source_files": 0,
+      "receipts": 0,
+      "search_values": 0
+    },
+    "subscription_conflicts": 0,
+    "billing_accounts_resolved": 1,
+    "records": {
+      "cloud_auth_users": 5,
+      "cloud_auth_identities": 5,
+      "cloud_auth_sessions": 6,
+      "cloud_workspaces": 2,
+      "cloud_workspace_memberships": 2,
+      "cloud_projects": 2,
+      "cloud_documents": 188,
+      "cloud_document_revisions": 298,
+      "cloud_billing_subscriptions": 2
+    },
+    "existing_records_preserved": true,
+    "document_digest_preserved": true,
+    "trial_deadlines_preserved": true,
+    "previous_reader_after_migration": true,
+    "backup_restore_previous_reader": true,
+    "ok": true
+  },
+  "stripe": {
+    "run": "3c993973e375",
+    "livemode": false,
+    "application_credential": true,
+    "cases": [
+      {
+        "seats": 10,
+        "credits": 1,
+        "currency": "usd",
+        "expected": 4500,
+        "actual": 4500,
+        "status": "paid"
+      },
+      {
+        "seats": 5,
+        "credits": 5,
+        "currency": "usd",
+        "expected": 0,
+        "actual": 0,
+        "status": "paid"
+      },
+      {
+        "seats": 1,
+        "credits": 1,
+        "currency": "gbp",
+        "expected": 0,
+        "actual": 0,
+        "status": "paid"
+      },
+      {
+        "case": "draft renewal update",
+        "seats": 10,
+        "credits": 1,
+        "expected": 4500,
+        "actual": 4500,
+        "status": "draft"
+      }
+    ],
+    "cleanup": [
+      "subscription cancelled",
+      "subscription cancelled",
+      "subscription cancelled",
+      "subscription cancelled",
+      "customer deleted",
+      "customer deleted",
+      "customer deleted",
+      "customer deleted",
+      "coupon deleted",
+      "coupon deleted",
+      "coupon deleted",
+      "coupon deleted",
+      "coupon deleted",
+      "coupon deleted",
+      "price archived",
+      "product archived"
+    ],
+    "application": {
+      "isolated_databases": true,
+      "application_credential": true,
+      "verified_signup_attribution": true,
+      "agent_connection": true,
+      "tagged_save_activation": true,
+      "checkout_discount": true,
+      "checkout_retry_reuses_session": true,
+      "signed_expiry_webhook": true,
+      "duplicate_webhook": true,
+      "unused_credit_released": true,
+      "expired_checkout_replaced": true,
+      "actual_customer_charges": false
+    }
+  },
+  "cli": {
+    "ok": true,
+    "version": "1.20.0",
+    "package": "/tmp/sdocs-release-artifacts/sdocs-dev-1.20.0.tgz",
+    "bytes": 275889,
+    "files": 57,
+    "integrity": "sha512-Yr2Wx+b4tXs+IbyV5GXPOqZSTqdlKAjSd4Yc4PK6wtXq7SgfOTc8JHjKZf+xQBMwPlN+sBIRuBWGiW9ME7MyPA==",
+    "zeroDependencies": true,
+    "productionOrigin": true,
+    "freshCloudSkill": true,
+    "tags": true,
+    "editHelp": true,
+    "commentHelp": true,
+    "accountSettings": true
+  },
+  "node_tests": {
+    "passed": 2282,
+    "failed": 0
+  },
+  "browser_tests": {
+    "passed": 64,
+    "failed": 0
+  },
+  "deployment": {
+    "production_worker_prepared": true,
+    "systemd_verify": true,
+    "promotion_and_rollback_fixture_checks": 3
+  },
+  "remaining": [
+    "Secretive SSH approval to retrieve the original server receipt, remove the temporary snapshot, and update staging",
+    "npm authentication and authorized package publication",
+    "Production release approval and live billing configuration",
+    "Post-cutover smoke test on the production origin"
+  ]
+}

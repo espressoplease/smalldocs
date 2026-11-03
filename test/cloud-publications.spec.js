@@ -112,7 +112,10 @@ test('Cloud edits update the action while the published page and URL stay unchan
   await expect(page.getByRole('button',{name:'Public page up to date'})).toBeDisabled();
   await expect(page.getByRole('textbox',{name:'Public URL',exact:true})).toHaveValue(url);
   expect(await (await request.get(url)).text()).toContain('Keep exploring');
-  await page.reload();await page.getByRole('button',{name:'Share document',exact:true}).click();await expandShare(page,'Public page');await expect(page.getByRole('textbox',{name:'Public URL',exact:true})).toHaveValue(url);
+  await page.reload();
+  const share=page.getByRole('button',{name:'Share document',exact:true});await expect(share).toBeVisible();
+  if(await share.getAttribute('aria-pressed')!=='true')await share.click();
+  await expandShare(page,'Public page');await expect(page.getByRole('textbox',{name:'Public URL',exact:true})).toHaveValue(url);
   await expect(page.getByRole('button',{name:'Public page up to date'})).toBeDisabled();
 });
 test('private comment changes and a viewer theme do not require updating the public page',async({page})=>{

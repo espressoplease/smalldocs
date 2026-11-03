@@ -8,6 +8,11 @@ test.beforeEach(async ({ context }) => {
   await context.addCookies([{ name: 'sdocs_cloud', value: f.users.josh.sessionToken, url: f.origin }]);
 });
 test.afterEach(async () => { if (f) await f.close(); });
+async function openTeamPeople(page) {
+  const created = await f.api('josh', '/api/cloud/v1/workspaces', 'POST', { name: 'Engineering' });
+  expect(created.status).toBe(201);
+  await page.goto(f.origin + '/library/settings?panel=people&workspace=' + created.data.workspace.workspaceId);
+}
 test('expired checkout confirmation offers sign-in and returns to the subscription page', async ({ page }) => {
   f.auth.db.prepare('UPDATE cloud_auth_sessions SET created_at_ms=? WHERE user_id=?').run(Date.now() - 31 * 60000, f.users.josh.id);
   await page.goto(f.origin + '/cloud/subscribe');
@@ -36,7 +41,7 @@ test('delayed payment polls status only, then offers manual recovery without ano
   expect(posts).toBe(0);
 });
 test('an invitation without email delivery shows the shareable link and does not claim it was sent', async ({ page }) => {
-  await page.goto(f.origin + '/cloud/admin?panel=people&workspace_id=' + library);
+  await openTeamPeople(page);
   await page.locator('#invite-open').click();
   await page.locator('#invite-email').fill('new-person@joes.com');
   await page.locator('#invite-form button[type=submit]').click();
@@ -46,14 +51,14 @@ test('an invitation without email delivery shows the shareable link and does not
 });
 test('settings reauthentication preserves the invitation draft', async ({ page }) => {
   f.auth.db.prepare('UPDATE cloud_auth_sessions SET created_at_ms=? WHERE user_id=?').run(Date.now() - 31 * 60000, f.users.josh.id);
-  await page.goto(f.origin + '/cloud/admin?panel=people&workspace_id=' + library);
+  await openTeamPeople(page);
   await page.locator('#invite-open').click();
   await page.locator('#invite-email').fill('draft@joes.com');
   await page.locator('#invite-form button[type=submit]').click();
   await expect(page.locator('#page-error a')).toHaveText('Sign in');
   await expect(page.locator('#page-error a')).toHaveAttribute('target', '_blank');
   await expect(page.locator('#invite-email')).toHaveValue('draft@joes.com');
-  expect(new URL(page.url()).pathname).toBe('/cloud/admin');
+  expect(new URL(page.url()).pathname).toBe('/library/settings');
 });
 test('linked work emails are selectable and cannot be replaced by an unverified address', async ({ page, context }) => {
   f.auth._insertIdentity(f.users.gmail.id, { provider: 'email', subject: 'alex@joes.com', verifiedEmail: 'alex@joes.com' }, Date.now());

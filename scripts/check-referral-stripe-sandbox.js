@@ -18,9 +18,12 @@ function call(method,path,values={},idempotency) {
   if(result.error) throw new Error(result.error.message);
   return result;
 }
-const client=createStripeClient({secretKey:'unused-cli-transport',transport:async request=>({status:200,
+const applicationKeyFile=process.env.SDOCS_STRIPE_APPLICATION_KEY_FILE;
+const applicationKey=applicationKeyFile?require('fs').readFileSync(applicationKeyFile,'utf8').trim():null;
+if(applicationKey)assert.ok(/^(sk|rk)_test_/.test(applicationKey),'Use a sandbox application credential');
+const client=applicationKey?createStripeClient({secretKey:applicationKey}):createStripeClient({secretKey:'unused-cli-transport',transport:async request=>({status:200,
   body:JSON.stringify(call(request.method,new URL(request.url).pathname+new URL(request.url).search,new URLSearchParams(request.body||''),request.headers['Idempotency-Key']))})});
-const receipt={run,livemode:null,cases:[],cleanup:[]};
+const receipt={run,livemode:null,application_credential:!!applicationKey,cases:[],cleanup:[]};
 async function coupon(seats) {
   const couponId='sdocs_sandbox_'+run+'_'+coupons.length;
   const object=await client.createReferralCoupon({couponId,amount:seats*500,currency:'usd',currencyOptions:{gbp:{amount_off:seats*400},eur:{amount_off:seats*500}},
@@ -35,7 +38,7 @@ function customer() {
 (async()=>{
  try {
   const balance=call('GET','/v1/balance');assert.strictEqual(balance.livemode,false);receipt.livemode=false;
-  product=call('POST','/v1/products',{name:'SmallDocs referral verification','metadata[referral_check]':run});
+  product=call('POST','/v1/products',{name:'SmallDocs referral verification',tax_code:'txcd_10103000','metadata[referral_check]':run});
   assert.strictEqual(product.livemode,false);
   price=call('POST','/v1/prices',{product:product.id,unit_amount:'500',currency:'usd','recurring[interval]':'month',
     'currency_options[gbp][unit_amount]':'400','currency_options[eur][unit_amount]':'500'});
@@ -61,6 +64,7 @@ function customer() {
   const updated=await client.retrieveInvoice({invoiceId:draft.id});assert.strictEqual(updated.amount_due,4500);
   assert.ok(updated.discounts.some(d=>couponId(d)===discount.id));
   receipt.cases.push({case:'draft renewal update',seats:10,credits:1,expected:4500,actual:updated.amount_due,status:updated.status});
+  if(applicationKeyFile)await require('./check-referral-application')({applicationKeyFile,price,client,coupons,receipt});
  } finally {
   for(const object of subscriptions) try{call('DELETE','/v1/subscriptions/'+object);receipt.cleanup.push('subscription cancelled');}catch(e){receipt.cleanup.push('subscription cleanup failed: '+e.message);}
   for(const object of customers) try{call('DELETE','/v1/customers/'+object);receipt.cleanup.push('customer deleted');}catch(e){receipt.cleanup.push('customer cleanup failed: '+e.message);}

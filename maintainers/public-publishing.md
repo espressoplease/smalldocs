@@ -36,7 +36,7 @@ The application calls a Unix-socket worker using SDOCS_PUBLICATION_COMPILER_SOCK
 
 ops/install-publication-browser.sh installs the pinned browser independently of the application release. On Ubuntu, its executable-specific AppArmor profile permits the user namespaces needed by Chromium's sandbox. The staging deployment installs ops/systemd/smalldocs-staging-compiler.service, waits for its socket, then restarts the application. The main application's existing sandbox remains unchanged. Publishing requires the worker; viewing and unpublishing existing copies remain available if the worker is unavailable.
 
-Before production rollout, provision an equivalent production-specific worker user, socket, service and browser. Do not point production at the staging worker. The production deployment script and production service are unchanged by this staging implementation.
+The production deployment preparation now includes its own compiler user, socket, service and browser wiring in ops/deploy-production.sh and ops/systemd/smalldocs-compiler.service. Production and staging workers stay separate. The units have been validated and failed-deployment rollback has been rehearsed in an isolated fixture. Production has not been deployed. See [the release checklist](production-release-checklist.md).
 
 ## API and CLI
 
