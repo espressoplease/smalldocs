@@ -68,18 +68,16 @@ test('open mode: external change pushes through and the file-info row shows the 
     await page.goto(bridgeUrl(bridge));
     await page.waitForFunction(() => window.SDocs && window.SDocs.bridge && window.SDocs.bridge._helloed === true);
 
-    // The Edits row only renders in editing modes — in read mode it stays
-    // hidden so the card isn't cluttered for someone just reading. The
-    // filename row instead gets a small "local sync" chip so the reader
-    // knows the file is connected.
+    // Reading keeps local connection details in Metadata. Editing still
+    // shows connection warnings next to the document.
     await expect(page.locator('.fic-row-bridge')).toHaveCount(0);
-    await expect(page.locator('.fic-row[data-key="file"] .fic-live-chip')).toContainText('local sync');
+    await page.getByRole('button', { name: 'Document metadata', exact: true }).click();
+    await expect(page.locator('.sdoc-metadata-sync')).toContainText('Connected to the file on your machine.');
 
     await page.evaluate(() => window.SDocs.setMode('write'));
     await expect(page.locator('.fic-row-bridge .fic-bridge-icon svg')).toBeVisible();
     await expect(page.locator('.fic-row-bridge .fic-local-tag')).toContainText('Local only');
-    // Chip steps aside while the Edits row is doing the talking.
-    await expect(page.locator('.fic-row[data-key="file"] .fic-live-chip')).toHaveCount(0);
+    await expect(page.locator('#_sd_metadata-panel')).toBeHidden();
 
     await expect.poll(
       () => page.evaluate(() => window.SDocs.currentBody),

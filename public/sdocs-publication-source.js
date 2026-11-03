@@ -50,7 +50,7 @@
   }
   function viewState() {
     var params=new URLSearchParams(location.hash.slice(1));
-    var mode=params.get('mode');S.setMode(['read','style','share','write','raw','export','info','comment'].indexOf(mode)>=0?mode:'read',true);
+    var mode=params.get('mode');S.setMode(['read','style','share','metadata','write','raw','export','info','comment'].indexOf(mode)>=0?mode:'read',true);
     var section=params.get('sec');
     if(section){var target=document.getElementById(section);if(target){if(S.openSectionAncestors)S.openSectionAncestors(target);target.scrollIntoView({block:'start'});}}
   }

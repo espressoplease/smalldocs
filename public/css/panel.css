@@ -14,7 +14,7 @@
   transition: width .32s cubic-bezier(.4,0,.2,1),
               opacity .25s ease;
 }
-body:is(.style-mode, .share-mode) #_sd_right {
+body:is(.style-mode, .share-mode, .metadata-mode) #_sd_right {
   width: var(--ui-panel-width);
   opacity: 1;
   overflow-y: auto;
@@ -38,8 +38,8 @@ body:is(.style-mode, .share-mode) #_sd_right {
   flex-shrink: 0;
 }
 .sdocs-sheet-close { display: none; }
-body.share-mode #_sd_right > .panel-section { display: none; }
-#_sd_share-panel[hidden] { display: none; }
+body:is(.share-mode, .metadata-mode) #_sd_right > .panel-section { display: none; }
+#_sd_share-panel[hidden], #_sd_metadata-panel[hidden] { display: none; }
 .export-option.sdoc-share-toggle {
   border-bottom-color: transparent;
   font-weight: 400;
@@ -103,7 +103,7 @@ body.share-mode #_sd_right > .panel-section { display: none; }
   font: inherit;
 }
 .sdoc-share-status { color: var(--text); }
-body.share-mode #_sd_right-close {
+body:is(.share-mode, .metadata-mode) #_sd_right-close {
   display: grid;
   place-items: center;
   width: 30px;
@@ -115,7 +115,32 @@ body.share-mode #_sd_right-close {
   color: var(--text);
   cursor: pointer;
 }
-body.share-mode #_sd_right-close:hover { background: var(--bg-hover); }
+body:is(.share-mode, .metadata-mode) #_sd_right-close:hover { background: var(--bg-hover); }
+
+.sdoc-metadata-field { padding: 16px 12px; }
+.sdoc-metadata-label { margin: 0 0 8px; font-size: 12px; font-weight: 600; color: var(--text-2); }
+.btn.sdoc-metadata-value {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-input);
+  color: var(--text);
+  text-align: left;
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: normal;
+}
+.btn.sdoc-metadata-value:hover { background: var(--bg-hover); }
+.sdoc-metadata-value > span { flex: 1; min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; }
+.sdoc-metadata-value > svg { flex: 0 0 14px; margin-top: 3px; }
+.sdoc-metadata-status { display: block; font-size: 11.5px; color: var(--text-2); }
+.sdoc-metadata-status:not(:empty) { margin-top: 6px; }
+.sdoc-metadata-note { margin: 0; padding: 16px 12px; font-size: 11.5px; line-height: 1.5; color: var(--text-2); }
 
 /* ── Theme tabs ── */
 #_sd_theme-tabs {

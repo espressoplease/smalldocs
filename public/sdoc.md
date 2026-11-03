@@ -574,17 +574,13 @@ To opt out, visit [smalldocs.org/analytics](https://smalldocs.org/analytics). Su
 
 Because the URL includes your full document and dynamically updates via JavaScript, every change you make is instantly preserved in the URL. This works when you're offline.
 
-### File info card
+### Document metadata
 
-Cloud-first saves preserve the source file's absolute path and any supplied relative path as encrypted metadata. Only the document's creator sees these rows in the file info panel, including in a fresh browser tab. Shared readers do not receive the paths. They identify the source file, rather than a live connection to it.
+Open **Metadata** in the document toolbar to read and copy the document title and file paths. The title comes from the first H1, or the saved title when there is no H1. Paths wrap so you can read them in full. A file name appears when no path is available.
 
-For URL-only documents, the info card can carry three fields:
+Cloud-first saves preserve the source file's absolute path and any supplied relative path as encrypted metadata. Only the document's creator receives these paths, including in a fresh browser tab. Shared readers do not receive them. A path identifies the source file; it does not create a live connection to it.
 
-- **file** — the filename. Lives in the YAML front matter and travels in the share URL.
-- **path** — the relative path from the directory you ran `sdoc` in. *Local only.*
-- **fullPath** — the absolute path on your machine. *Local only.*
-
-The two "local" fields are passed to the browser via a separate URL parameter (`&local=...`) that JavaScript reads into memory on load and immediately strips from the address bar using `history.replaceState`. So by the time you could copy the URL, the local data is no longer in it. `sdoc share <file>` never generates that parameter to begin with — so links produced by `share` are inherently path-free. If a recipient opens your shared URL, only `file` is visible.
+For URL-only documents, `file` is the file name in YAML front matter and travels with the document. Local `path` and `fullPath` values arrive in a separate `local` URL fragment parameter. The browser reads this parameter and removes it from the address bar. Shared copies exclude these local paths.
 
 ## Linking Cloud documents in chat
 

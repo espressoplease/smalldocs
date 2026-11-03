@@ -257,6 +257,7 @@
       return document.body.classList.contains('sdocs-mobile-nav-open') ||
         document.body.classList.contains('style-mode') ||
         document.body.classList.contains('share-mode') ||
+        document.body.classList.contains('metadata-mode') ||
         document.body.classList.contains('export-mode') ||
         document.body.classList.contains('info-mode');
     },

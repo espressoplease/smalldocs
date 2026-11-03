@@ -6,7 +6,7 @@ Staging release: `26d66acc02d34ac1ffcefad499ac0f59841076c1`.
 
 - New CLI Cloud documents preserve the canonical absolute working-file path and the relative argument when one was supplied.
 - Browser Add to Cloud preserves paths already supplied by the local CLI.
-- The prose file-info card and whole-file code view use the existing copyable path rows, labelled Only you. They omit the redundant filename when paths are available.
+- The prose reader shows the title and copyable, wrapping paths in the Metadata side panel, opened from the document toolbar. The whole-file code view retains its copyable path rows. Both omit the redundant filename when paths are available.
 - These paths identify a source file. They do not enable a live bridge or prove the file still exists, especially on another computer.
 - Paths belong to the document creator. Other members, library owners and admins receive no `source_file` field and cannot update it.
 - Existing paths survive collaborator revisions and library moves. Moves reencrypt them with the destination project key.

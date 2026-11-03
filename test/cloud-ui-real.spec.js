@@ -343,7 +343,7 @@ test('Add to Cloud asks before uploading when several accounts have no saved cho
   await page.locator('.sdoc-cloud-lab-add-link').click();
 
   await expect(page.getByRole('heading', { name: 'Choose an account' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Josh Summers' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Personal', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'SmallDocs' })).toBeVisible();
   expect(calls.some(call => call.path === '/api/cloud/v1/account/documents')).toBe(false);
 

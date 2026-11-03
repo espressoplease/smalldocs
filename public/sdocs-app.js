@@ -569,29 +569,6 @@ function bridgeShouldRender(currentMode) {
   return currentMode === 'write' || currentMode === 'raw' || currentMode === 'comment';
 }
 
-// "Actively connected" = the bridge is currently mirroring this document to
-// disk. We don't include 'connecting' (still establishing) or the lost /
-// submitted states. Used to gate the small "live" chip next to the filename.
-function bridgeIsLive(status) {
-  return status === 'connected' || status === 'saving' || status === 'saved';
-}
-
-// Compact pill rendered next to the filename in non-editing modes. The
-// screen-share glyph + the words "local sync" tells the reader this file
-// is paired with disk, without nagging them when it isn't.
-var BRIDGE_LIVE_CHIP_HTML = ''
-  + '<span class="fic-live-chip" data-tip="Connected to the file on your machine. Edits flow both ways.">'
-  +   '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"'
-  +     ' stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
-  +     '<path d="M13 3H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-3"/>'
-  +     '<path d="M8 21h8"/>'
-  +     '<path d="M12 17v4"/>'
-  +     '<path d="m17 8 5-5"/>'
-  +     '<path d="M17 3h5v5"/>'
-  +   '</svg>'
-  +   '<span>local sync</span>'
-  + '</span>';
-
 // Lucide icons (https://lucide.dev). Inlined so the bundle stays free of
 // icon-library deps. Stroke is currentColor — colour comes from CSS.
 var BRIDGE_SCREEN_SHARE_SVG = ''
@@ -614,21 +591,9 @@ var BRIDGE_SCREEN_SHARE_OFF_SVG = ''
   +   '<path d="m17 3 5 5"/>'
   + '</svg>';
 
-function dataRowHtml(key, label, value, isLocal, isShort, extraHtml) {
-  var pill = isLocal && isLocal !== 'creator'
-    ? '<span class="fic-local-tag" title="Only visible on this device, not included in shared sdocs">Local only</span>' : '';
-  var cls = 'fic-row' + (isShort ? ' fic-row-short' : '');
-  return '<div class="' + cls + '" data-key="' + key + '">'
-    + '<span class="fic-label">' + label + '</span>'
-    + '<span class="fic-value">' + escapeHtml(value) + '</span>'
-    + (extraHtml || '')
-    + pill
-    + '<button class="fic-copy" title="Copy ' + label.toLowerCase() + '">' + COPY_SVG + '</button>'
-    + '</div>';
-}
-
 function renderFileInfoCard() {
   if (S.publications) S.publications.update();
+  if (S.metadata) S.metadata.update();
   var card = document.getElementById('_sd_sdocs-file-info');
   if (!card) return;
   if (S.publicationSource && S.publicationSource.isViewing()) {
@@ -646,13 +611,12 @@ function renderFileInfoCard() {
   // around in the "Connection lost" state so the user knows their typing
   // isn't reaching disk any more.
   var bridge = S.bridge || null;
-  var bridgeFile = bridge && bridge.cfg && bridge.cfg.file ? bridge.cfg.file : null;
 
   var hasDoc = !!(meta.file || S.currentBody || (S.currentMeta && Object.keys(S.currentMeta).length));
   // Edits is a local-only row, but it only renders in editing modes — so
   // only count it toward the privacy-note flag when it'll actually appear.
   var bridgeRowWillRender = !!bridge && bridgeShouldRender(S.currentMode);
-  var hasLocalRow = !!(!local.creatorOnly && (local.path || local.fullPath) || bridgeRowWillRender);
+  var hasLocalRow = bridgeRowWillRender;
 
   if (!hasDoc && !meta.file && !hasLocalRow && !bridge) {
     card.hidden = true;
@@ -665,22 +629,8 @@ function renderFileInfoCard() {
   var note = card.querySelector('.fic-privacy-note');
   if (note) note.hidden = !hasLocalRow;
 
-  // Build document metadata rows in display order.
+  // Metadata lives in the toolbar panel. Keep local-session actions here.
   var slots = [];
-  if ((meta.file || bridgeFile) && !(local.creatorOnly && (local.path || local.fullPath))) {
-    // When the bridge is live and the Edits row isn't showing (read /
-    // style / export / info), drop a small "live" chip next to the
-    // filename so the reader still knows the file is connected. We never
-    // surface a *negative* hint here — disconnect doesn't add a chip.
-    var liveChip = (bridge && bridgeIsLive(bridge.status) && !bridgeShouldRender(S.currentMode))
-      ? BRIDGE_LIVE_CHIP_HTML
-      : '';
-    slots.push({ type: 'data', html: dataRowHtml('file', 'Filename', meta.file || bridgeFile, false, false, liveChip) });
-  }
-
-  var pathPrivacy = local.creatorOnly ? 'creator' : true;
-  if (local.path && local.path !== local.fullPath) slots.push({ type: 'data', html: dataRowHtml('path', 'Rel. Path', local.path, pathPrivacy, false) });
-  if (local.fullPath) slots.push({ type: 'data', html: dataRowHtml('fullPath', 'Abs. Path', local.fullPath, pathPrivacy, false) });
 
   // Tags row: YAML front-matter tags only. Editing is gated to "the
   // Bridge is connected and can save" - the Bridge is the single write
@@ -722,14 +672,11 @@ function renderFileInfoCard() {
     slots.push({ type: 'bridge', state: bridge.status || 'connecting', label: bridge.statusLabel || bridgeStateLabel(bridge.status) });
   }
 
-  // Render in order. Data rows go in as HTML; action rows are DOM nodes so we
-  // can attach handlers to specific elements.
+  // Keep local-session actions and tags in their existing document position.
   rowsEl.innerHTML = '';
   rowsEl.hidden = slots.length === 0;
   slots.forEach(function(slot) {
-    if (slot.type === 'data') {
-      rowsEl.insertAdjacentHTML('beforeend', slot.html);
-    } else if (slot.type === 'bridge') {
+    if (slot.type === 'bridge') {
       // Edits row: mirrors the data-row layout (label · value · pill · RHS
       // icon slot) so it aligns with the copy buttons above. The icon
       // swaps to screen-share-off and turns dark red when the bridge has
@@ -783,22 +730,6 @@ function renderFileInfoCard() {
       rowsEl.appendChild(tagRow);
     }
   });
-
-  // Click-to-copy for plain data rows only. Walk up to the containing button
-  // so clicks on the <svg> or <path> inside a .fic-copy still register.
-  rowsEl.querySelectorAll('.fic-row[data-key]').forEach(function(row) {
-    row.addEventListener('click', function(e) {
-      var btnEl = e.target.closest('button');
-      if (btnEl && !btnEl.classList.contains('fic-copy')) return;
-      var val = row.querySelector('.fic-value').textContent;
-      var btn = row.querySelector('.fic-copy');
-      copyWithIconFeedback(val, btn);
-    });
-  });
-
-  // Wire any [data-tip] elements in this freshly re-rendered card (the live
-  // chip, primarily) into the shared toolbar-tooltip styling.
-  if (typeof S.attachTooltips === 'function') S.attachTooltips(rowsEl);
 }
 
 function escapeHtml(s) {
@@ -1336,7 +1267,7 @@ function setMode(mode, skipHash) {
   S.renderedEl.style.display = (mode === 'raw' || mode === 'write') ? 'none' : '';
   S.rawEl.style.display      = mode === 'raw' ? 'block' : 'none';
 
-  ['read', 'style', 'share', 'write', 'raw', 'export', 'info', 'comment'].forEach(function (buttonMode) {
+  ['read', 'style', 'share', 'metadata', 'write', 'raw', 'export', 'info', 'comment'].forEach(function (buttonMode) {
     var button = document.getElementById('_sd_btn-' + buttonMode);
     var selected = mode === buttonMode;
     if (!button) return;
@@ -1354,15 +1285,22 @@ function setMode(mode, skipHash) {
 
   document.body.classList.toggle('style-mode',   mode === 'style');
   document.body.classList.toggle('share-mode', mode === 'share');
+  document.body.classList.toggle('metadata-mode', mode === 'metadata');
   var sharing = mode === 'share';
-  if (sharing && S.closeCloudPanel) S.closeCloudPanel();
+  var metadata = mode === 'metadata';
+  if ((sharing || metadata) && S.closeCloudPanel) S.closeCloudPanel();
   var sharePanel = document.getElementById('_sd_share-panel');
   if (sharePanel) sharePanel.hidden = !sharing;
+  var metadataPanel = document.getElementById('_sd_metadata-panel');
+  if (metadataPanel) metadataPanel.hidden = !metadata;
   var panelTitle = document.querySelector('#_sd_right-header .sdocs-sheet-title');
-  if (panelTitle) panelTitle.textContent = sharing ? 'Share document' : 'Format document';
-  document.getElementById('_sd_right-close').setAttribute('aria-label', sharing ? 'Close sharing panel' : 'Close formatting panel');
+  if (panelTitle) panelTitle.textContent = sharing ? 'Share document' : metadata ? 'Document metadata' : 'Format document';
+  document.getElementById('_sd_right-close').setAttribute('aria-label', sharing ? 'Close sharing panel' : metadata ? 'Close metadata panel' : 'Close formatting panel');
   var shareButton = document.getElementById('_sd_btn-share');
   if (shareButton) shareButton.setAttribute('aria-expanded', String(sharing));
+  var metadataButton = document.getElementById('_sd_btn-metadata');
+  if (metadataButton) metadataButton.setAttribute('aria-expanded', String(metadata));
+  if (S.metadata) S.metadata.update();
   if (S.publications) S.publications.update();
   document.body.classList.toggle('read-mode',    mode === 'read');
   document.body.classList.toggle('write-mode',   mode === 'write');
@@ -1886,7 +1824,7 @@ async function loadFromHash() {
     }
   }
 
-  if (modeParam && ['read', 'style', 'share', 'write', 'raw', 'export', 'info', 'comment'].includes(modeParam)) {
+  if (modeParam && ['read', 'style', 'share', 'metadata', 'write', 'raw', 'export', 'info', 'comment'].includes(modeParam)) {
     setMode(modeParam, true);
   } else {
     setMode('read', true);
@@ -1970,7 +1908,7 @@ async function initShortLink(id) {
     // real edit, updateHash runs again and normalizes the URL to / + #md=.
     clearTimeout(S._hashTimer);
     var modeParam = params.get('mode');
-    if (modeParam && ['read', 'style', 'share', 'write', 'raw', 'export', 'info', 'comment'].indexOf(modeParam) >= 0) {
+    if (modeParam && ['read', 'style', 'share', 'metadata', 'write', 'raw', 'export', 'info', 'comment'].indexOf(modeParam) >= 0) {
       setMode(modeParam, true);
     } else {
       setMode('read', true);

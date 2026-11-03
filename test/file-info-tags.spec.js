@@ -91,9 +91,9 @@ test('file info: local file with no tags and no Bridge hides the tags row entire
   fs.writeFileSync(realFile, '# just a heading\n\nno front matter here.');
   const md = fs.readFileSync(realFile, 'utf-8');
   await page.goto(buildHashUrl(md, { fullPath: realFile }));
-  // The file-info card renders (path row), but with nothing to show or do the
-  // tags row stays hidden rather than nagging the user to start a bridge.
-  await page.waitForSelector('.fic-row');
+  // Paths live in Metadata. No tag controls appear without a live bridge.
+  await page.getByRole('button', { name: 'Document metadata', exact: true }).click();
+  await expect(page.locator('[data-metadata="fullPath"]')).toContainText(realFile);
   await expect(page.locator('.fic-row-tags')).toHaveCount(0);
 });
 
