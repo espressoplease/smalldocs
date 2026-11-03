@@ -156,6 +156,11 @@ function newCommentUid() {
   return threads && threads.newId ? threads.newId('cm') : undefined;
 }
 
+function structured(value) {
+  if (typeof value === 'string') { try { return JSON.parse(value); } catch (_) { return null; } }
+  return value;
+}
+
 function normalizeComment(c) {
   if (!c || !isValidId(c.id)) return null;
   var out = {
@@ -188,11 +193,42 @@ function normalizeComment(c) {
     if ((scope === 'row' || scope === 'cell') && row == null) return null;
     if ((scope === 'column' || scope === 'cell') && column == null) return null;
     out.table_scope = scope;
+    if (typeof c.table_signature === 'string') out.table_signature = c.table_signature;
     if (row != null) out.table_row = row;
     if (column != null) out.table_column = column;
     if (c.row_text) out.row_text = c.row_text;
+    var rowCells = structured(c.row_cells);
+    if (Array.isArray(rowCells)) out.row_cells = rowCells.map(String);
     if (c.column_text) out.column_text = c.column_text;
     if (c.cell_text) out.cell_text = c.cell_text;
+  }
+  if (out.kind === 'cells') {
+    if (!/^cells:\d+$/.test(c.block || '')) return null;
+    var range = structured(c.range);
+    if (!range || typeof range !== 'object') return null;
+    out.range = {};
+    var keys = ['start_row', 'start_col', 'end_row', 'end_col'];
+    for (var k = 0; k < keys.length; k++) {
+      var value = toIndex(range[keys[k]]);
+      if (value == null) return null;
+      out.range[keys[k]] = value;
+    }
+    if (out.range.end_row < out.range.start_row || out.range.end_col < out.range.start_col) return null;
+    ['sheet_name', 'sheet_source'].forEach(function (key) {
+      if (typeof c[key] === 'string') out[key] = c[key];
+    });
+    ['cells_rows', 'row_texts', 'column_texts', 'cell_values'].forEach(function (key) {
+      var values = structured(c[key]);
+      if (Array.isArray(values)) out[key] = values;
+    });
+    if (out.cells_rows && (!out.cells_rows.length || out.cells_rows.some(function (row) { return toIndex(row) == null; }))) return null;
+  }
+  if (out.kind === 'diagram') {
+    if (!/^diagram:\d+$/.test(c.block || '') || typeof c.diagram_source !== 'string') return null;
+    out.diagram_source = c.diagram_source;
+    ['node_id', 'node_text'].forEach(function (key) {
+      if (typeof c[key] === 'string' && c[key]) out[key] = c[key];
+    });
   }
   if (out.kind === 'slide') {
     // A slide comment without a resolvable slide index is meaningless;
@@ -336,9 +372,11 @@ function addTableComment(meta, anchor, noteMeta) {
     block: anchor.block,
     block_text: anchor.block_text || '',
     table_scope: anchor.table_scope,
+    table_signature: anchor.table_signature,
     table_row: anchor.table_row,
     table_column: anchor.table_column,
     row_text: anchor.row_text || '',
+    row_cells: anchor.row_cells,
     column_text: anchor.column_text || '',
     cell_text: anchor.cell_text || '',
     document_hash: anchor.document_hash,
@@ -376,6 +414,18 @@ function addSlideComment(meta, anchor, noteMeta) {
     at: (noteMeta || {}).at,
     text: (noteMeta || {}).text,
   });
+  var list = getComments(meta);
+  list.push(c);
+  return { meta: setComments(meta, list), id: id };
+}
+
+// Rich targets use the same thread store and lifecycle as prose comments.
+function addRichComment(kind, meta, anchor, noteMeta) {
+  var id = nextId(meta);
+  var c = normalizeComment(Object.assign({}, anchor, noteMeta || {}, {
+    id: id, uid: newCommentUid(), kind: kind,
+  }));
+  if (!c) throw new Error('A valid ' + kind + ' comment target is required');
   var list = getComments(meta);
   list.push(c);
   return { meta: setComments(meta, list), id: id };
@@ -560,6 +610,16 @@ function serializeFootnotes(meta, body) {
         tableTag += ', cell "' + sanitizeText(c.cell_text) + '"';
       }
       label += ' (table ' + tableTag + ')';
+    }
+    if (c.kind === 'cells' && c.range) {
+      var col = function (n) { var v = ''; do { v = String.fromCharCode(65 + n % 26) + v; n = Math.floor(n / 26) - 1; } while (n >= 0); return v; };
+      var cellTag = (c.sheet_name || c.block) + '!' + col(c.range.start_col) + (c.range.start_row + 1)
+        + ':' + col(c.range.end_col) + (c.range.end_row + 1);
+      if (c.cells_rows && c.cells_rows.length) cellTag += ', source rows ' + c.cells_rows.map(function (row) { return row + 1; }).join(', ');
+      label += ' (sheet ' + sanitizeText(cellTag) + ')';
+    }
+    if (c.kind === 'diagram') {
+      label += ' (diagram ' + sanitizeText(c.block) + (c.node_id ? ', node ' + sanitizeText(c.node_id) : '') + ')';
     }
     if (c.kind === 'slide') {
       // Slides don't anchor into body text (their source is the fenced DSL,
@@ -893,6 +953,8 @@ exports.addBlockComment     = addBlockComment;
 exports.addElementComment   = addElementComment;
 exports.addTableComment     = addTableComment;
 exports.addSlideComment     = addSlideComment;
+exports.addCellsComment     = function (meta, anchor, noteMeta) { return addRichComment('cells', meta, anchor, noteMeta); };
+exports.addDiagramComment   = function (meta, anchor, noteMeta) { return addRichComment('diagram', meta, anchor, noteMeta); };
 exports.removeComment       = removeComment;
 exports.updateComment       = updateComment;
 exports.serializeFootnotes  = serializeFootnotes;

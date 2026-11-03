@@ -211,7 +211,7 @@
 }
 @media (max-width: 720px) {
   .sdoc-present-comment-panel { width: 100%; top: auto; height: 48%; border-left: none; border-top: 1px solid #2a2724; }
-  .sdoc-present.sdoc-present-commenting .sdoc-present-stage-wrap { padding-right: 16px; padding-bottom: 50%; }
+  .sdoc-present.sdoc-present-commenting .sdoc-present-stage-wrap { padding-right: 16px; padding-bottom: calc(48vh + 16px); }
 }
 
 /* The present comment toggle in the topbar reuses .sdoc-present-btn; the

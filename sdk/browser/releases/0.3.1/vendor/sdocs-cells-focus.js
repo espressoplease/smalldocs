@@ -320,6 +320,7 @@
       state.activeWrap = gridWrap;
       state.activeIndex = index;
       fileSpan.textContent = m.source || '';
+      if (typeof options.onGridMounted === 'function') options.onGridMounted(gridWrap, m, entry.wrapper);
 
       // Copy controls and the =fx formula-view toggle are rebuilt for this
       // sheet and then kept in sync as fullscreen edits add or remove formulas.
@@ -475,6 +476,12 @@
       syncEmbedFocus: function () { if (S.syncEmbedFocus) S.syncEmbedFocus(); },
       onEdited: function (model, wrapper) {
         if (S.onCellsEdited) S.onCellsEdited(model, wrapper);
+      },
+      onGridMounted: function (wrapper, model, inlineWrapper) {
+        if (S.cellsComments) {
+          S.cellsComments.bindGrid(wrapper, model, inlineWrapper);
+          S.cellsComments.render();
+        }
       },
       loadFeature: function (name) { return S.loadCellsFeature(name); },
       onError: function (error) {

@@ -560,6 +560,7 @@
       document.body.appendChild(modal);
       document.body.classList.add('sdoc-mermaid-focus-open');
     }
+    if (!mountSurface && S.diagramComments) S.diagramComments.attachFocus(sourceWrapper, modal, svgWrap, topbar, close);
     document[ACTIVE_FOCUS] = api;
     if (S.syncEmbedFocus) S.syncEmbedFocus();
 
@@ -611,6 +612,7 @@
     if (resizeHandler) window.removeEventListener('resize', resizeHandler);
     keyHandler = null;
     resizeHandler = null;
+    if (!mountSurface && S.diagramComments) S.diagramComments.detachFocus();
     if (!fromLease) modal.remove();
     modal = null; stageEl = null; svgWrap = null; topbarEl = null;
     activeSourceWrapper = null;

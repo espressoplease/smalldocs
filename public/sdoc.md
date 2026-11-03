@@ -542,6 +542,11 @@ Each comment carries an author name and a colour, both set in the comment toolba
 
 To round-trip, click the **copy with comments** button next to any heading (or the one in the comment toolbar to grab the whole document). It copies the section's markdown along with each comment as plain text, ready to paste into the agent's terminal. Comments live in the YAML front matter under a `comments:` key, so they travel with the document through `sdoc share` and survive a styled `.md` export.
 
+### Comments on slides, diagrams and sheets
+
+Comment on slide elements, flowchart nodes, tables, or selected sheet cells. Your agent reads their structured targets with `sdoc cloud comments DOCUMENT_ID --json`, checks the saved source and updates the document. Sheet notes refer to saved cells even after sorting or scratch edits. After verifying a correction, the agent can delete addressed feedback or resolve it to retain the discussion. Sheet comments remain in SmallDocs and are not exported as native Excel notes.
+
+
 ### Interactive forms (agents asking the user)
 
 The other direction: an agent wants the user to answer something *structured*. Instead of asking in chat and parsing free text, the agent writes a fenced ` ```form ` block into a markdown file and runs `sdoc feedback file.md`. The browser renders real form controls — radio buttons, checkboxes, dropdowns, text fields, textareas, numbers, dates — with pre-filled defaults the user can edit.

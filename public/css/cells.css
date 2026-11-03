@@ -74,6 +74,17 @@
   gap: 6px;
 }
 
+/* Comments sit below the scroller so cards never resize spreadsheet cells. */
+.sdoc-cells-comment-add[hidden] { display: none; }
+.sdoc-cells-comment-list { width: 0; min-width: 100%; max-width: 100%; padding: 0 8px; background: var(--md-bg, #fff); }
+.sdoc-cells-comment-list:empty { display: none; }
+.sdoc-cells-comment-list .sdoc-cells-comment-card { display: block; margin: 8px 0; max-width: 100%; }
+.sdoc-cells-comment-list .sdoc-card-input { max-width: 100%; }
+.sdoc-cells-focus .sdoc-cells-comment-list { flex: 0 1 auto; overflow: auto; max-height: 35vh; }
+.sdoc-cells-cell.sdoc-cells-commented {
+  background: color-mix(in srgb, var(--sdoc-cell-comment-color, #ffbb00) 18%, var(--md-bg, #fff));
+}
+
 /* ── Edited pill ────────────────────────────────────────
  * Appears in the top bar after a fullscreen edit. The document never changes;
  * this marks that the grid is showing your edits, and clicking it flips

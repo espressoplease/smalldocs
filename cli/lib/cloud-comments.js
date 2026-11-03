@@ -37,6 +37,22 @@ Markdown, section and line numbers when available. anchor.match_status and
 anchor.source_status describe what was located; an ambiguous, lost or unverified
 anchor needs inspection. A display name alone does not verify authorship.
 
+RICH DOCUMENT FEEDBACK
+
+Slide comments identify the slide and its elements. Diagram comments identify
+an entire diagram or a flowchart node. Table comments identify a table, row,
+column or cell. Sheet comments identify the saved sheet and zero-based source
+cell coordinates in anchor.range and anchor.cells_rows. Sorted selections may
+contain disjoint source rows. Scratch edits in the browser do not change saved
+sheet values. Use the source snippet and scoped reads to inspect the saved data.
+
+Large anchor snapshots stay in the document but are omitted from JSON receipts.
+anchor.omitted_fields and snapshot_sha256 identify them. A snippet may be
+truncated; use cloud read --section or --lines for more source. All comment
+kinds support the same reply, resolve, reopen and delete commands. --add and
+--reattach currently select visible prose quotes; they do not create or repair
+visual cell, slide or diagram targets.
+
 EDIT THE DOCUMENT, RESPOND, AND RESOLVE
 
   sdoc cloud read DOCUMENT_ID --section Production --json

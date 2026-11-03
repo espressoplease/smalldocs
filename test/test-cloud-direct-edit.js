@@ -33,6 +33,10 @@ module.exports = function (h) {
         assert.strictEqual((await open(doc.id)).data.document.current_revision_id, doc.current_revision_id);
         const saved = await edit(doc, [replacement]);
         assert.strictEqual(saved.status, 201, JSON.stringify(saved.data));
+        assert.strictEqual(saved.data.document.diff_basis, 'body');
+        assert.ok(JSON.stringify(saved.data.document.diff).includes('25 minutes'));
+        assert.ok(!JSON.stringify(saved.data.document.diff).includes('document_hash'));
+        assert.strictEqual(saved.data.document.front_matter_changed, true);
         assert.deepStrictEqual(saved.data.document.comment_follow_up.open_comment_ids, ['c1', 'c2']);
         assert.strictEqual(saved.data.document.comment_follow_up.resolved_count, 1);
         const read = await f.api('bob', '/api/cloud/v1/documents/' + doc.id + '/comments');

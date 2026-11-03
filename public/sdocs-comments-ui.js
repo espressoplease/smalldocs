@@ -52,6 +52,8 @@ function writePrefs(p) {
 
 function strip() {
   if (!S.renderedEl) return;
+  if (S.cellsComments) S.cellsComments.clear();
+  if (S.diagramComments) S.diagramComments.clear();
   // Unwrap highlight spans
   S.renderedEl.querySelectorAll('span.sdoc-anchor').forEach(function (span) {
     var parent = span.parentNode;
@@ -129,7 +131,7 @@ function listTopBlocks(root) {
   var blocks = [];
   var byType = {};
   root.querySelectorAll(TOP_BLOCK_SEL).forEach(function (block) {
-    if (block.closest('.sdoc-card')) return;
+    if (block.closest('.sdoc-card, .sdoc-slide, .sdoc-cells, .sdoc-mermaid')) return;
     var ancestor = block.parentElement;
     while (ancestor && ancestor !== root) {
       if (ancestor.matches && ancestor.matches(TOP_BLOCK_SEL)) return;
@@ -309,9 +311,9 @@ function tableRowText(row) {
 
 function tableRowMatches(row, hint) {
   if (!row || !hint) return false;
-  if (tableRowText(row).indexOf(hint) === 0) return true;
+  if (tableRowText(row) === hint) return true;
   return Array.prototype.some.call(row.children, function (cell) {
-    return cleanTableText(cell).indexOf(hint) === 0;
+    return cleanTableText(cell) === hint;
   });
 }
 
@@ -320,6 +322,9 @@ function findTableRow(c, table) {
   var exact = rows[c.table_row] || null;
   if (c.row_text) {
     var matches = rows.filter(function (row) { return tableRowMatches(row, c.row_text); });
+    if (matches.length > 1 && c.row_cells) matches = matches.filter(function (row) {
+      return JSON.stringify(Array.prototype.map.call(row.children, cleanTableText)) === JSON.stringify(c.row_cells);
+    });
     return matches.length === 1 ? matches[0] : null;
   }
   return c.row_text ? null : exact;
@@ -329,7 +334,7 @@ function findTableColumn(c, table) {
   var headers = tableHeaders(table);
   var exact = headers[c.table_column] || null;
   if (c.column_text) {
-    var matches = headers.filter(function (header) { return cleanTableText(header).indexOf(c.column_text) === 0; });
+    var matches = headers.filter(function (header) { return cleanTableText(header) === c.column_text; });
     return matches.length === 1 ? matches[0] : null;
   }
   return c.column_text ? null : exact;
@@ -355,9 +360,19 @@ function findTableTargetInBlock(c, table) {
   return target;
 }
 
+function tableSignature(table) {
+  return SDC.documentFingerprint(JSON.stringify([tableHeaders(table).map(cleanTableText)].concat(
+    tableBodyRows(table).map(function (row) { return Array.prototype.map.call(row.children, cleanTableText); }))));
+}
+
 function findTableTarget(c, root) {
   if (!c || c.kind !== 'table' || !c.block) return null;
   if (sourceUnchanged(c)) return findTableTargetInBlock(Object.assign({}, c, { row_text: '', column_text: '' }), findBlockById(c.block, root, null));
+  if (c.table_signature) {
+    var sameTables = (listTopBlocks(root).byType.table || []).filter(function (table) { return tableSignature(table) === c.table_signature; });
+    if (sameTables.length === 1) return findTableTargetInBlock(Object.assign({}, c, { row_text: '', column_text: '' }), sameTables[0]);
+    if (sameTables.length > 1) return null;
+  }
   var hinted = findBlockById(c.block, root, c.block_text);
   var target = hinted && c.block_text ? findTableTargetInBlock(c, hinted) : null;
   if (target) return target;
@@ -842,15 +857,17 @@ function replaceWithEdit(viewCard, c, shape) {
   var editCard = makeCardElement(c, {
     shape: shape,
     mode: 'edit',
-    targetLabel: tableTargetLabel(c),
+    targetLabel: viewCard.querySelector('.sdoc-table-target-label')?.textContent || tableTargetLabel(c),
     onSave: function (text) {
       if (text === (c.text || '')) { revert(); return; }
       S.currentMeta = SDC.updateComment(S.currentMeta || {}, c.id, { text: text });
+      editCard.remove();
       if (S.syncAll) S.syncAll('comment');
     },
     onCancel: revert,
   });
   function revert() {
+    editCard.remove();
     if (S.syncAll) S.syncAll('comment');
   }
   if (viewCard.parentNode) viewCard.parentNode.replaceChild(editCard, viewCard);
@@ -1110,7 +1127,7 @@ function makeGutterBtn(targetBlock) {
 
 function injectGutterButtons() {
   S.renderedEl.querySelectorAll(TOP_BLOCK_SEL).forEach(function (block) {
-    if (block.closest('.sdoc-card')) return;
+    if (block.closest('.sdoc-card, .sdoc-slide, .sdoc-cells, .sdoc-mermaid')) return;
     // Lists use per-item controls. A second control for the whole list makes
     // the target ambiguous and adds a choice that comment mode does not need.
     if (block.tagName === 'UL' || block.tagName === 'OL' || block.tagName === 'TABLE') return;
@@ -1148,7 +1165,7 @@ function makeElementBtn(targetElement) {
 
 function injectElementButtons() {
   S.renderedEl.querySelectorAll('ul li, ol li').forEach(function (item) {
-    if (item.closest('.sdoc-card') || item.querySelector(':scope > .sdoc-element-host')) return;
+    if (item.closest('.sdoc-card, .sdoc-slide, .sdoc-cells, .sdoc-mermaid') || item.querySelector(':scope > .sdoc-element-host')) return;
     var host = document.createElement('div');
     host.className = 'sdoc-element-host';
     item.insertBefore(host, item.firstChild);
@@ -1260,7 +1277,7 @@ function setTableTargetPreview(target, owner) {
 
 function injectTableButtons() {
   S.renderedEl.querySelectorAll('table').forEach(function (table) {
-    if (table.closest('.sdoc-card') || table.closest('.sdoc-table-host')) return;
+    if (table.closest('.sdoc-card, .sdoc-slide, .sdoc-cells, .sdoc-mermaid') || table.closest('.sdoc-table-host')) return;
     var scroll = table.parentElement && table.parentElement.classList.contains('md-table-scroll')
       ? table.parentElement : table;
     var host = document.createElement('div');
@@ -1373,7 +1390,7 @@ function handleSelectionChange() {
 
 function nearestSelectionScope(node) {
   var el = node.nodeType === 1 ? node : node.parentNode;
-  if (el && el.closest('.sdoc-card, button, .pre-tools')) return null;
+  if (el && el.closest('.sdoc-card, button, .pre-tools, .sdoc-slide, .sdoc-cells, .sdoc-mermaid')) return null;
   while (el && el !== S.renderedEl && el !== document.body) {
     if (el.matches && el.matches('li, td, th')) return el;
     if (el.matches && el.matches(TOP_BLOCK_SEL)) return el;
@@ -1525,18 +1542,20 @@ function tableAnchorFromTarget(target) {
     block: computeBlockId(table, S.renderedEl),
     block_text: cleanTableText(table).slice(0, 60),
     table_scope: target.scope,
+    table_signature: tableSignature(table),
     document_hash: SDC.documentFingerprint(S.currentBody),
   };
   if (!anchor.block) return null;
   if (target.scope === 'row' || target.scope === 'cell') {
     anchor.table_row = rows.indexOf(target.row);
     if (anchor.table_row < 0) return null;
-    anchor.row_text = cleanTableText(target.row.children[0]).slice(0, 60);
+    anchor.row_text = cleanTableText(target.row.children[0]);
+    anchor.row_cells = Array.prototype.map.call(target.row.children, cleanTableText);
   }
   if (target.scope === 'column' || target.scope === 'cell') {
     anchor.table_column = headers.indexOf(target.column);
     if (anchor.table_column < 0) return null;
-    anchor.column_text = cleanTableText(target.column).slice(0, 60);
+    anchor.column_text = cleanTableText(target.column);
   }
   if (target.scope === 'cell') {
     anchor.cell_text = cleanTableText(target.cell).slice(0, 60);
@@ -1807,6 +1826,7 @@ function navigateRelative(delta) {
 
 function focusComment(id) {
   focusedId = id;
+  if (S.cellsComments) S.cellsComments.reveal(id);
   var card = S.renderedEl.querySelector('.sdoc-card[data-c="' + id + '"]');
   if (!card) { paintToolbar(); return; }
 
@@ -2051,12 +2071,18 @@ function extractSectionSource(headingEl) {
       var tTarget = findTableTarget(c, S.renderedEl);
       return tTarget && inBlocks(tTarget.table);
     }
+    if (c.kind === 'cells' || c.kind === 'diagram') {
+      var richCard = S.renderedEl.querySelector('.sdoc-card[data-c="' + c.id + '"]');
+      return slideElInSection(richCard, headingEl, level);
+    }
     if (c.kind === 'slide' && typeof c.slide === 'number') {
       // A slide note is in-section when its rendered .sdoc-slide sits inside
       // the heading's section. .sdoc-slide isn't a TOP_BLOCK_SEL block, so it
       // never lands in blocksInSection - test containment directly.
+      var slideTarget = S.slideComments && S.slideComments.resolveTarget(c);
+      var slideIndex = slideTarget ? slideTarget.index : c.slide;
       var slideEl = S.renderedEl && S.renderedEl.querySelector(
-        '.sdoc-slide[data-slide-index="' + c.slide + '"]');
+        '.sdoc-slide[data-slide-index="' + slideIndex + '"]');
       return slideElInSection(slideEl, headingEl, level);
     }
     return false;
@@ -2299,6 +2325,8 @@ function render() {
   // Keep an active composer in place during that repaint; its target DOM is
   // still connected, and stripping it would discard text while the user types.
   if ((composerEl && composerEl.isConnected) ||
+      (S.cellsComments && S.cellsComments.hasDraft()) ||
+      (S.diagramComments && S.diagramComments.hasDraft()) ||
       S.renderedEl.querySelector('.sdoc-card-edit')) return;
   var selection = window.getSelection();
   if (selection && !selection.isCollapsed && selection.rangeCount &&
@@ -2317,7 +2345,7 @@ function render() {
   // Slide-anchored comments don't live in body text - sdocs-slide-comments.js
   // owns their rendering (hit-layer overlays + cards on the slide). Keep them
   // out of the text path so they aren't mistaken for orphaned block comments.
-  var textComments = comments.filter(function (c) { return c.kind !== 'slide'; });
+  var textComments = comments.filter(function (c) { return c.kind !== 'slide' && c.kind !== 'cells' && c.kind !== 'diagram'; });
   textComments.forEach(function (c) { renderComment(c); });
   renderCodeComments();
   paintDescendantCommentHints(textComments);
@@ -2327,6 +2355,8 @@ function render() {
   // still gets the "with comments" companion - a slide note is just another
   // trigger for the existing per-section copy button.
   if (S.slideComments) S.slideComments.render();
+  if (S.cellsComments) S.cellsComments.render();
+  if (S.diagramComments) S.diagramComments.render();
   paintToolbar();
   paintHeadingCopyWithComments(SDC.getComments(S.currentMeta));
   if (SDC.isValidId(focusedId)) {
@@ -2407,7 +2437,7 @@ function refreshCommentIdentity() {
 S.refreshCommentIdentity = refreshCommentIdentity;
 
 function hasDraft() {
-  return Boolean(document.querySelector('textarea.sdoc-card-input, textarea.sdoc-cc-input'));
+  return Boolean(document.querySelector('.sdoc-card-edit .sdoc-card-input, textarea.sdoc-cc-input'));
 }
 
 var requestedCommentFocused = false;
@@ -2470,6 +2500,7 @@ S.commentsUi = {
   hasDraft: hasDraft,
   navigate: navigateRelative,
   focusComment: focusComment,
+  makeCardElement: makeCardElement,
   readPrefs: readPrefs,
   writePrefs: writePrefs,
   // Exposed so sdocs-slide-comments.js can reuse the exact same whole-doc /

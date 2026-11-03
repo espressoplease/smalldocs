@@ -285,6 +285,29 @@ module.exports = function (h) {
         assert.strictEqual(replayedEdit.current_revision_id, edited.current_revision_id);
         assert.strictEqual((await open(doc)).data.document.current_revision_id, before);
       });
+      await testAsync('rich sheet feedback remains private until granted, and disappears immediately on revocation', async () => {
+        const C = require('../public/sdocs-comments');
+        const source = 'Item,Amount\nPrivate budget canary,100';
+        const meta = C.addCellsComment({}, { block: 'cells:0', sheet_name: 'Sheet1', sheet_source: source,
+          range: { start_row: 1, end_row: 1, start_col: 1, end_col: 1 }, cells_rows: [1],
+          row_texts: ['["Private budget canary","100"]'], column_texts: ['Amount'], cell_values: [['100']] },
+        { author: 'Ana', text: 'Check private allocation.' }).meta;
+        const doc = await create(yaml.serializeFrontMatter(meta) + '\n```cells\n' + source + '\n```\n');
+        for (const actor of ['member', 'outsider']) {
+          const denied = await list(doc, '', actor);
+          assert.strictEqual(denied.status, 404);
+          assert.ok(!JSON.stringify(denied.data).includes('Private budget canary'));
+        }
+        f.store.setDocumentPermission({ userId: f.users.bob.id, documentId: doc.id, mode: 'custom', memberUserIds: [f.users.member.id] });
+        const allowed = await list(doc, '', 'member');
+        assert.strictEqual(allowed.status, 200, JSON.stringify(allowed.data));
+        assert.strictEqual(allowed.data.comments[0].anchor.kind, 'cells');
+        assert.ok(allowed.data.comments[0].context.markdown.includes('Private budget canary'));
+        assert.ok(allowed.data.comments[0].anchor.omitted_fields.includes('sheet_source'));
+        f.store.setDocumentPermission({ userId: f.users.bob.id, documentId: doc.id, mode: 'custom', memberUserIds: [] });
+        assert.strictEqual((await list(doc, '', 'member')).status, 404);
+        assert.strictEqual((await action(doc, { action: 'delete', comment_id: 'c1' }, {}, 'member')).status, 404);
+      });
       await testAsync('private or other-company feedback stays unavailable including pagination and diagnostics', async () => {
         const doc = await create();
         const page = await list(doc, '?status=all&limit=1');

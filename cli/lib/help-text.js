@@ -336,6 +336,12 @@ COMMENTS
   \`cloud read\` and \`cloud edit\` to address it, then reply, resolve or
   delete the selected thread. Run \`sdoc cloud comments --help\` for options.
 
+  Slides, diagram nodes, tables and sheet selections carry structured
+  targets. Sheet coordinates refer to saved source cells, including after
+  sorting. Large anchor snapshots are omitted from Cloud responses; use
+  the bounded source snippet and scoped reads. Cleanup commands apply to
+  every comment kind.
+
   For a local file:
     1. an agent generates a draft .md file
     2. a human reads it via \`sdoc <file> --comment\`, leaves comments

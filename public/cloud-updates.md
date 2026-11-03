@@ -186,3 +186,15 @@ A restore creates a new revision. Every revision is kept for 90 days, and the cu
 Current document permissions apply to history, comparisons, previews and updates. A revision ID does not bypass access checks. If access is revoked during an operation, the request fails. Keep local work and report the failure; changing permissions is a separate user action.
 
 A pull refuses to replace a file or binding that changed while downloading. Push preserves edits made to the working file during upload. Retries of the same pending save or restore use an idempotency key, so a lost response does not create a duplicate revision.
+
+## Feedback on slides, diagrams, tables and sheets
+
+In comment mode, click a slide element, select several with Shift, or comment on the whole slide. On a flowchart, click a node, or use the comment button for the whole diagram. Other Mermaid diagrams support whole-diagram notes. Diagram feedback is also available in fullscreen.
+
+Select one cell or a range in a sheet, then choose Comment beside the copy control. The note sits below the grid. Its address refers to the saved sheet, even when rows are sorted or the fullscreen scratch copy has different values. Notes travel with the document, rather than the downloaded Excel file. Comments are not exported as native Excel notes.
+
+Read all of these with `sdoc cloud comments DOCUMENT_ID --json`. The response identifies the target and includes a bounded Markdown snippet. Large source snapshots remain stored in the document but are omitted from responses, with their hashes in `anchor.snapshot_sha256` and field names in `anchor.omitted_fields`. Use a scoped read when a snippet is truncated. Edit the saved source, verify it, then delete addressed feedback or resolve it when retaining the discussion is useful. These actions use the same commands for every target type.
+
+Lost or ambiguous targets remain visible for inspection. CLI quote-based add and reattach currently select prose passages. They do not reconstruct visual sheet, slide or diagram targets.
+
+Targeted edit receipts use `diff_basis: body` so refreshed comment anchors do not hide the requested content change. Line numbers in those hunks refer to the body after front matter. `front_matter_changed` reports changes to that front matter. Use `cloud diff` for the complete difference between revisions.

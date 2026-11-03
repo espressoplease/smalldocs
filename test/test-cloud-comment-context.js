@@ -148,7 +148,7 @@ module.exports = function (h) {
     assert.ok(result.context.markdown.includes('**Child** target'));
   });
 
-  test('slide source follows moved slides but visual shape indices are never claimed as verified', () => {
+  test('unsupported legacy slide DSL follows source without claiming visual shape verification', () => {
     const source = 'text "Revenue" at 10 10';
     const markdown = '# Deck\n\n```slide\ntext "New" at 10 10\n```\n\n```slide\n' + source + '\n```\n';
     const whole = read(markdown, { kind: 'slide', slide: 0, slide_source: source });
@@ -157,6 +157,45 @@ module.exports = function (h) {
     const shape = read(markdown, { kind: 'slide', slide: 0, shape: 2, slide_source: source, slide_text: 'Revenue' });
     assert.strictEqual(shape.anchor.match_status, 'unverified');
     assert.strictEqual(shape.anchor.source_status, 'slide_source_only');
+  });
+
+  test('slide source and geometry locate duplicate-label shapes after slide insertion', () => {
+    const source = 'grid 100 56.25\nr 5 5 90 10 | Roadmap\nr 5 20 40 20 | Review\nr 55 20 40 20 | Review';
+    const markdown = '~~~slide\ngrid 100 56.25\nr 5 5 90 10 | New\n~~~\n\n~~~slide\n' + source + '\n~~~\n';
+    const result = read(markdown, { kind: 'slide', slide: 0, shape: 2, slide_source: source,
+      slide_text: 'Review', shape_texts: ['Review'] });
+    assert.strictEqual(result.anchor.match_status, 'relocated');
+    assert.strictEqual(result.anchor.source_status, 'matched');
+    assert.ok(result.context.markdown.includes('Roadmap'));
+    assert.ok(!result.context.markdown.includes('| New'));
+  });
+
+  test('slide element identity survives added boxes and ordinal arrow label changes', () => {
+    const source = 'grid 100 56.25\nr 5 5 90 10 | Process\na 10 25 70 25\na 10 40 70 40';
+    const markdown = '~~~slide\n' + source.replace('a 10 25', 'a 10 18 70 18\na 10 25') + '\n~~~';
+    const result = read(markdown, { kind: 'slide', slide: 0, shape: 1, slide_source: source,
+      slide_text: '1st arrow', shape_texts: ['1st arrow'] });
+    assert.strictEqual(result.anchor.match_status, 'relocated');
+    assert.strictEqual(result.anchor.source_status, 'matched');
+    assert.ok(result.context.markdown.includes('a 10 25 70 25'));
+  });
+
+  test('duplicate slides stay ambiguous unless the complete document fingerprint still matches', () => {
+    const source = 'grid 100 56.25\nr 5 5 90 10 | Same';
+    const markdown = '~~~slide\n' + source + '\n~~~\n\n~~~slide\n' + source + '\n~~~';
+    const comment = { kind: 'slide', slide: 1, shape: 0, slide_source: source, slide_text: 'Same' };
+    assert.strictEqual(read(markdown, comment).anchor.match_status, 'ambiguous');
+    const hash = require('../public/sdocs-comments').documentFingerprint(markdown);
+    assert.strictEqual(read(markdown, { ...comment, document_hash: hash }).anchor.match_status, 'exact');
+  });
+
+  test('removed decorative slide elements stay lost instead of following generated ordinal labels', () => {
+    const source = 'grid 100 56.25\na 10 25 70 25';
+    const markdown = '~~~slide\ngrid 100 56.25\na 10 40 70 40\n~~~';
+    const result = read(markdown, { kind: 'slide', slide: 0, shape: 0, slide_source: source,
+      slide_text: '1st arrow', shape_texts: ['1st arrow'] });
+    assert.strictEqual(result.anchor.match_status, 'lost');
+    assert.strictEqual(result.context, null);
   });
 
   test('unknown visual anchors retain hints without fabricated source locations', () => {

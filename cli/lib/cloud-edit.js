@@ -86,6 +86,9 @@ not whether an edit satisfied it. Verify the change, then normally delete its
 addressed thread with cloud comments DOCUMENT_ID --id ID --delete --json.
 Resolve with --note instead when discussion should be retained. Leave unclear
 feedback open. Dry-run previews do not justify closing feedback.
+Diffs with diff_basis: body describe Markdown after front matter.
+front_matter_changed reports metadata changes, including refreshed comment
+anchors. Use cloud diff for the complete revision difference.
 `;
 
 function error(code, message, data) {

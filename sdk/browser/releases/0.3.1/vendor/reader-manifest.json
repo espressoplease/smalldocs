@@ -81,11 +81,11 @@
   },
   "sdocs-cells-focus.js": {
     "source": "public/sdocs-cells-focus.js",
-    "sha256": "44b010342b9c8ea487e3b498a26d9317b00dcd2d5e1c937e342358a4b2d54f4d"
+    "sha256": "2840764b71e1cdb30b2e12fcc1b57e060043698d8195208b81b1b7b3f4b1c28d"
   },
   "sdocs-cells-ui.js": {
     "source": "public/sdocs-cells-ui.js",
-    "sha256": "88f5ffaca728705b545dd5cbec28871310807120692a90023170225f1d25b159"
+    "sha256": "6df09194b3ee3669aba773d732b91149a78ccb920ba957dbc8a92de1ad96f5eb"
   },
   "sdocs-video.js": {
     "source": "public/sdocs-video.js",
@@ -117,7 +117,7 @@
   },
   "sdocs-mermaid-focus.js": {
     "source": "public/sdocs-mermaid-focus.js",
-    "sha256": "f24fa6d083151311744f8d510f4e920930a4b1de83acc623cc6be5abcdf96d22"
+    "sha256": "6c6b3ef85f6f4bcd7d67473caa8d60e550467c8eabb2996945ca2e8dc95c6736"
   },
   "sdocs-mermaid-reader.css": {
     "source": "public/css/mermaid-reader.css",
@@ -141,8 +141,8 @@
   },
   "sdocs-cells.css": {
     "source": "public/css/cells.css",
-    "sha256": "ee880ca9463210996300985ff75ff280c8aad1294c7056521c7d2e29ee4ba951",
-    "sourceSha256": "c2461c449b22e8557f2bd09cd9578b047e52dd21daa316d4a06fcfcb0676391a",
+    "sha256": "4518a4668f4383e3e97d43250c1b3e74fce0856058964552a907409985323322",
+    "sourceSha256": "d6c9dec101cd282aae9389189698ee3f3fed2b30194f6acd1902c1e7d307514f",
     "transform": "sdk-scoped-css"
   },
   "fonts/inter-400.woff2": {
