@@ -100,7 +100,7 @@
         '<p class="sdocs-sidebar-explainer"><strong>When you use a document.</strong> SmallDocs manages the keys and decrypts authorised content on its servers to open, search and edit it.</p>' +
         '<p class="sdocs-sidebar-explainer"><strong>Server access.</strong> The application runs under a dedicated system account with restricted access to server files. Administrative access uses SSH keys.</p>' +
         '<p class="sdocs-sidebar-explainer"><strong>Backups.</strong> Backups are encrypted and use separate access credentials.</p>' +
-        '<a class="sdocs-sidebar-library-row sdocs-sidebar-library-open" href="/privacy#security" target="_blank" rel="noopener"><span>Cloud storage details</span>' + icons.external + '</a></div>' });
+        '<a class="sdocs-sidebar-library-row sdocs-sidebar-library-open" href="/privacy" target="_blank" rel="noopener"><span>Cloud storage details</span>' + icons.external + '</a></div>' });
   }
 
   function bindReferrals(sidebar) {

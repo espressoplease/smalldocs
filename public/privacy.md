@@ -5,7 +5,7 @@ description: What SmallDocs receives, why it is processed, where it is stored, a
 
 # Privacy Notice
 
-**Last updated: 2 November 2026**
+**Last updated: 3 November 2026**
 
 This notice explains how **Odd Solutions Ltd**, company number 16186575, handles personal data when it operates SmallDocs. Odd Solutions Ltd is the controller for account, service, support, security, and billing records. For document content uploaded by a Team customer, the customer may be the controller and Odd Solutions Ltd may act as its processor.
 
