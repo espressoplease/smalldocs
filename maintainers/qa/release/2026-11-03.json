@@ -145,7 +145,6 @@
   },
   "remaining": [
     "Production application release approval, billing environment activation and final production-origin smoke tests",
-    "Confirm the existing live Managed Payments arrangement for launch",
     "npm authentication and authorized package publication"
   ],
   "production_application_unchanged": true,
