@@ -597,6 +597,19 @@
   }
 
   function wireEvents() {
+    var logoutForm = byId('logout-form');
+    if (logoutForm) logoutForm.addEventListener('submit', async function (event) {
+      event.preventDefault();
+      clearError();
+      setFormBusy(logoutForm, true);
+      try {
+        await request('/api/cloud/auth/logout', { method: 'POST' });
+        location.replace('/cloud/sign-in');
+      } catch (error) {
+        setFormBusy(logoutForm, false);
+        showError(error);
+      }
+    });
     Array.from(document.querySelectorAll('.nav[data-panel]')).forEach(function (button) {
       button.addEventListener('click', function () { activatePanel(button.dataset.panel); });
     });
