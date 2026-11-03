@@ -9,7 +9,7 @@
     shield: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-8 9-4.5-1.5-8-4-8-9V5l8-3 8 3z"/><path d="m9 12 2 2 4-4"/></svg>',
     github: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3v12"/><path d="M18 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M15 6a9 9 0 0 0-9 9"/><path d="M18 15v6"/><path d="M21 18h-6"/></svg>',
     settings: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.09a2 2 0 0 1-1-1.74v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>',
-    external: '<svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-7"/><path d="m9 15 12-12"/><path d="M15 3h6v6"/></svg>',
+    external: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-7"/><path d="m9 15 12-12"/><path d="M15 3h6v6"/></svg>',
     chevron: '<svg class="sdocs-sidebar-row-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>'
   };
   icons.refer = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M5 12v8h14v-8M12 8v12"/><path d="M12 8H7.5A2.5 2.5 0 1 1 10 5.5L12 8Zm0 0h4.5A2.5 2.5 0 1 0 14 5.5L12 8Z"/></svg>';
@@ -92,7 +92,14 @@
         learnTopics.map(function (topic) {
           return '<button class="sdocs-sidebar-library-row" type="button" data-learn-topic="' + topic.id + '" title="Copy prompt for ' + topic.label + '"><span>' + topic.label + '</span>' +
             '<svg class="sdocs-sidebar-copy-icon" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">' + learnCopyPaths + '</svg></button>';
-        }).join('') + '</div>' });
+        }).join('') + '</div>' }) + sectionHtml({ id: 'security', idPrefix: prefix,
+      rowClass: options.rowClass, label: 'Security', icon: icons.shield,
+      content: '<div class="sdocs-sidebar-preview" data-security-panel>' +
+        '<p class="sdocs-sidebar-explainer"><strong>Encrypted storage.</strong> Cloud document content, titles, filenames and tags are encrypted with AES-256-GCM before they are stored in the database.</p>' +
+        '<p class="sdocs-sidebar-explainer"><strong>Protected keys.</strong> Document encryption keys are protected by AWS Key Management Service (KMS).</p>' +
+        '<p class="sdocs-sidebar-explainer"><strong>When you use a document.</strong> SmallDocs manages the keys and decrypts authorised content on its servers to open, search and edit it.</p>' +
+        '<p class="sdocs-sidebar-explainer"><strong>Backups.</strong> Backups are encrypted and use separate access credentials.</p>' +
+        '<a class="sdocs-sidebar-library-row sdocs-sidebar-library-open" href="/privacy" target="_blank" rel="noopener"><span>Cloud storage details</span>' + icons.external + '</a></div>' });
   }
 
   function bindReferrals(sidebar) {
