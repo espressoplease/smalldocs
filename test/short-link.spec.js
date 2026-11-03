@@ -57,6 +57,7 @@ test('a loaded short link populates shortUrl / shortLinkId and the sharing panel
   expect(state.shortUrl).toBeTruthy();
   expect(state.shortLinkId).toBe(link.id);
   await page.getByRole('button',{name:'Share document',exact:true}).click();
+  await page.getByRole('button',{name:'Private link',exact:true}).click();
   await expect(page.getByRole('textbox',{name:'Private URL',exact:true})).toHaveValue(state.shortUrl);
 });
 
@@ -188,6 +189,7 @@ test('editing a loaded short link clears the stale private URL', async ({ page }
   expect(state.shortUrl).toBeNull();
   expect(state.shortLinkId).toBeNull();
   await page.getByRole('button',{name:'Share document',exact:true}).click();
+  await page.getByRole('button',{name:'Private link',exact:true}).click();
   await expect(page.getByRole('textbox',{name:'Private URL',exact:true})).toHaveCount(0);
 });
 
@@ -219,6 +221,7 @@ test('adding a comment through the real composer clears the short link', async (
   expect(state.shortLinkId).toBeNull();
   expect(state.snapshot).toBeNull();
   await page.getByRole('button',{name:'Share document',exact:true}).click();
+  await page.getByRole('button',{name:'Private link',exact:true}).click();
   await expect(page.getByRole('textbox',{name:'Private URL',exact:true})).toHaveCount(0);
 });
 
@@ -243,6 +246,7 @@ test('a sync that does not change the document keeps the short link', async ({ p
   expect(state.shortUrl).toBeTruthy();
   expect(state.shortLinkId).toBeTruthy();
   await page.getByRole('button',{name:'Share document',exact:true}).click();
+  await page.getByRole('button',{name:'Private link',exact:true}).click();
   await expect(page.getByRole('textbox',{name:'Private URL',exact:true})).toHaveValue(state.shortUrl);
 });
 
@@ -261,5 +265,6 @@ test('toggling theme keeps the short link - it is a viewer preference', async ({
   expect(state.shortUrl).toBeTruthy();
   expect(state.shortLinkId).toBeTruthy();
   await page.getByRole('button',{name:'Share document',exact:true}).click();
+  await page.getByRole('button',{name:'Private link',exact:true}).click();
   await expect(page.getByRole('textbox',{name:'Private URL',exact:true})).toHaveValue(state.shortUrl);
 });

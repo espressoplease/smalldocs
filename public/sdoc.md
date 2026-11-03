@@ -143,7 +143,7 @@ The mitigation that does not exist: there is no cheap way for the bridge to know
 
 ### Short links
 
-Open **Share document** beside the Copy icon, then choose **Create private link**. Copy the Private URL from the sharing panel. Anyone with the complete link can open it. Later edits do not change that copy; create a new link to share a newer version.
+Open **Share document** beside the Copy icon, expand **Private link**, then choose **Create private link**. Copy the Private URL from the sharing panel. Anyone with the complete link can open it. Later edits do not change that copy; create a new link to share a newer version.
 
 Private copies omit library tags. The original document keeps its tags in your library.
 
@@ -231,7 +231,7 @@ Snapshot short links are opt-in. URL-only `#md=...` documents remain available, 
 
 ### Public pages
 
-Open **Share document** beside the Copy icon, then choose **Publish publicly**. Copy the Public URL from the sharing panel. The public page can appear in search results. Only the document creator can publish it.
+Open **Share document** beside the Copy icon, expand **Public page**, then choose **Publish publicly**. Copy the Public URL from the sharing panel. The public page can appear in search results. Only the document creator can publish it.
 
 Each Cloud document has one public URL. Edits stay in Cloud until you choose **Update public page**. Updating keeps the same URL. The published copy includes the document text, public title and description, styling, and the publisher's display name. Private comments, tags, file paths and revision history are excluded.
 

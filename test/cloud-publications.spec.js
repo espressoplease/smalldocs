@@ -12,13 +12,20 @@ test.beforeEach(async()=>{
   expect(saved.status).toBe(201);doc=saved.data.document;
 });
 test.afterEach(async()=>{await f.close();});
-async function open(page,width=1440){
+async function open(page,width=1440,expand=true){
   await page.setViewportSize({width,height:1000});
   await page.context().addCookies([{name:'sdocs_cloud',value:f.users.josh.sessionToken,url:f.origin}]);
   await page.context().grantPermissions(['clipboard-read','clipboard-write']);
   await page.goto(f.origin+'/docs?cloud-document='+doc.id);
   await page.getByRole('button',{name:'Share document',exact:true}).click();
-  await expect(page.getByRole('button',{name:'Publish publicly',exact:true})).toBeEnabled();
+  if(expand){
+    await expandShare(page,'Private link');await expandShare(page,'Public page');
+    await expect(page.getByRole('button',{name:'Publish publicly',exact:true})).toBeEnabled();
+  }
+}
+async function expandShare(page,label){
+  const toggle=page.getByRole('button',{name:label,exact:true});
+  if(await toggle.getAttribute('aria-expanded')!=='true')await toggle.click();
 }
 async function publish(page){
   await page.getByRole('button',{name:'Publish publicly',exact:true}).click();
@@ -32,6 +39,33 @@ async function update(markdown,key='edit-document'){
     markdown,filename:'a-small-clearing.md',expected_head_revision_id:head,idempotency_key:key});
   expect(saved.status).toBe(201);return saved.data.document;
 }
+for(const width of [1440,390]) test('sharing choices expand without acting and place their action first at '+width,async({page})=>{
+  await open(page,width,false);
+  const privateToggle=page.getByRole('button',{name:'Private link',exact:true});
+  const publicToggle=page.getByRole('button',{name:'Public page',exact:true});
+  await expect(privateToggle).toHaveAttribute('aria-expanded','false');
+  await expect(publicToggle).toHaveAttribute('aria-expanded','false');
+  await expect(page.getByRole('button',{name:'Create private link',exact:true})).toHaveCount(0);
+  let writes=0;
+  page.on('request',request=>{if(request.method()==='POST'&&(/\/api\/short$|\/publication$/.test(new URL(request.url()).pathname)))writes++;});
+  await privateToggle.focus();await page.keyboard.press('Enter');
+  await expect(privateToggle).toHaveAttribute('aria-expanded','true');
+  expect(await page.locator('#_sd_share-private .sdoc-share-section').evaluate(el=>el.firstElementChild.matches('[data-share-private]'))).toBe(true);
+  await publicToggle.click();
+  await expect(publicToggle).toHaveAttribute('aria-expanded','true');
+  expect(await page.locator('#_sd_share-public .sdoc-share-section').evaluate(el=>el.firstElementChild.matches('[data-share-publish]'))).toBe(true);
+  await page.evaluate(()=>SDocs.publications.refresh());
+  await expect(privateToggle).toHaveAttribute('aria-expanded','true');
+  await expect(publicToggle).toHaveAttribute('aria-expanded','true');
+  await privateToggle.focus();await page.keyboard.press('Space');
+  await expect(privateToggle).toHaveAttribute('aria-expanded','false');
+  await expect(privateToggle).toBeFocused();
+  await expect(page.locator('#_sd_share-private')).toHaveAttribute('inert','');
+  await expect(page.getByRole('button',{name:'Create private link',exact:true})).toHaveCount(0);
+  await expect(page.getByRole('button',{name:'Publish publicly',exact:true})).toBeEnabled();
+  expect(writes).toBe(0);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+});
 for(const width of [1440,390]) test('Share panel provides both link types and a public status dot at '+width,async({page,browser},testInfo)=>{
   await open(page,width);
   await expect(page.locator('.fic-row-share,[data-key="shortUrl"],[data-key="publicUrl"]')).toHaveCount(0);
@@ -75,7 +109,7 @@ test('Cloud edits update the action while the published page and URL stay unchan
   await expect(page.getByRole('button',{name:'Public page up to date'})).toBeDisabled();
   await expect(page.getByRole('textbox',{name:'Public URL',exact:true})).toHaveValue(url);
   expect(await (await request.get(url)).text()).toContain('Keep exploring');
-  await page.reload();await page.getByRole('button',{name:'Share document',exact:true}).click();await expect(page.getByRole('textbox',{name:'Public URL',exact:true})).toHaveValue(url);
+  await page.reload();await page.getByRole('button',{name:'Share document',exact:true}).click();await expandShare(page,'Public page');await expect(page.getByRole('textbox',{name:'Public URL',exact:true})).toHaveValue(url);
   await expect(page.getByRole('button',{name:'Public page up to date'})).toBeDisabled();
 });
 test('private comment changes and a viewer theme do not require updating the public page',async({page})=>{
@@ -289,6 +323,7 @@ test('a public reader can copy its published URL without claiming the private so
   try{
     const page=await guest.newPage();await page.goto(url);
     await page.getByRole('button',{name:'Share document',exact:true}).click();
+    await expandShare(page,'Public page');
     await expect(page.getByRole('textbox',{name:'Public URL',exact:true})).toHaveValue(url);
     await expect(page.getByText('This is the published copy.',{exact:true})).toBeVisible();
     await expect(page.getByRole('button',{name:'Publish publicly',exact:true})).toHaveCount(0);
@@ -311,6 +346,7 @@ test('a library member can share a private copy but cannot publish another perso
   await page.context().addCookies([{name:'sdocs_cloud',value:f.users.member.sessionToken,url:f.origin}]);
   await page.goto(f.origin+'/docs?cloud-document='+created.data.document.id);
   await page.getByRole('button',{name:'Share document',exact:true}).click();
+  await expandShare(page,'Private link');await expandShare(page,'Public page');
   await expect(page.getByRole('button',{name:'Publish publicly',exact:true})).toBeDisabled();
   await expect(page.getByRole('button',{name:'Unpublish',exact:true})).toHaveCount(0);
   await expect(page.getByRole('button',{name:'Create private link',exact:true})).toBeEnabled();

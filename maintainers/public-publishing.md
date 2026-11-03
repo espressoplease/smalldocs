@@ -4,7 +4,7 @@
 
 ## File info
 
-Sharing is available through the Share icon immediately after Copy in the document toolbar. It opens the existing right panel, using the formatting panel's desktop width and mobile bottom sheet. Private links and public pages have separate explanations, actions and copyable URL fields. The file-info table contains document metadata only.
+Sharing is available through the Share icon immediately after Copy in the document toolbar. It opens the existing right panel, using the formatting panel's desktop width and mobile bottom sheet. Private link and Public page are independent expandable rows with the export panel's icon styling. Both start collapsed. Each expansion puts its primary action first, followed by URL controls and the explanation. Expansion state survives asynchronous status updates. The file-info table contains document metadata only.
 
 The public action becomes Update public page when the current public body, title, description or styles differ. Updates keep the same URL. Private comments, tags, paths and reader theme changes do not require publishing. Publication state comes from the server and survives a reload. Existing encrypted links remain independent fixed copies.
 
