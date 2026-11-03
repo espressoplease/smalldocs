@@ -1,0 +1,135 @@
+{
+  "date": "2026-11-03T17:34:13.032Z",
+  "account": "acct_1U4P740bIITqEUvt",
+  "livemode": true,
+  "product": {
+    "id": "prod_VYtNvG0I1bCWMs",
+    "name": "SmallDocs",
+    "tax_code": "txcd_10103000"
+  },
+  "price": {
+    "id": "price_1UXlb30bIITqEUvtb3MW00ii",
+    "lookup_key": "cloud_standard_monthly",
+    "currency": "gbp",
+    "unit_amount": 400,
+    "tax_behavior": "inclusive",
+    "currency_options": {
+      "eur": {
+        "custom_unit_amount": null,
+        "tax_behavior": "inclusive",
+        "unit_amount": 500,
+        "unit_amount_decimal": "500"
+      },
+      "gbp": {
+        "custom_unit_amount": null,
+        "tax_behavior": "inclusive",
+        "unit_amount": 400,
+        "unit_amount_decimal": "400"
+      },
+      "usd": {
+        "custom_unit_amount": null,
+        "tax_behavior": "exclusive",
+        "unit_amount": 500,
+        "unit_amount_decimal": "500"
+      }
+    },
+    "recurring": {
+      "interval": "month",
+      "interval_count": 1,
+      "meter": null,
+      "trial_period_days": null,
+      "usage_type": "licensed"
+    }
+  },
+  "webhook": {
+    "id": "we_1U4PUM0bIITqEUvtTG4XR8MB",
+    "url": "https://smalldocs.org/api/cloud/billing/stripe/webhook",
+    "enabled_events": [
+      "customer.subscription.created",
+      "customer.subscription.updated",
+      "customer.subscription.deleted",
+      "invoice.created",
+      "invoice.paid",
+      "invoice.voided",
+      "invoice.deleted",
+      "checkout.session.expired"
+    ],
+    "api_version": "2026-07-29.dahlia",
+    "previous_events": [
+      "customer.subscription.created",
+      "customer.subscription.updated",
+      "customer.subscription.deleted"
+    ],
+    "signing_secret_replaced": false
+  },
+  "portal": {
+    "id": "bpc_1U4PP10bIITqEUvtoDU30cA8",
+    "cancellation": "at_period_end",
+    "payment_method_update": true,
+    "invoice_history": true
+  },
+  "production_app_deployed": false,
+  "production_env_changed": false,
+  "customer_charges": false,
+  "application_probe": {
+    "livemode": true,
+    "actual_customer_charges": false,
+    "cleanup": [
+      {
+        "item": "draft invoice",
+        "deleted": true
+      },
+      {
+        "item": "fixture customer",
+        "deleted": true
+      },
+      {
+        "item": "unused coupon",
+        "deleted": true
+      }
+    ],
+    "price_read": true,
+    "coupon_write": true,
+    "checkout": {
+      "created": true,
+      "status": "open",
+      "currency": "gbp",
+      "managed_payments": {
+        "enabled": true
+      },
+      "automatic_tax": true,
+      "customer_created": false,
+      "expired": true
+    },
+    "invoice_read_write": true
+  },
+  "application_credential_scopes_verified_by_actual_requests": [
+    "prices:read",
+    "coupons:write",
+    "invoices:write",
+    "checkout_sessions:write"
+  ],
+  "launch_configuration": {
+    "CLOUD_SINGLE_PLAN_ENABLED": "1",
+    "STRIPE_STANDARD_PRICE_ID": "price_1UXlb30bIITqEUvtb3MW00ii",
+    "applied": false
+  },
+  "recent_webhook_delivery": [
+    {
+      "type": "invoice.deleted",
+      "pending_webhooks": 0
+    },
+    {
+      "type": "invoice.created",
+      "pending_webhooks": 0
+    },
+    {
+      "type": "checkout.session.expired",
+      "pending_webhooks": 0
+    },
+    {
+      "type": "checkout.session.expired",
+      "pending_webhooks": 0
+    }
+  ]
+}

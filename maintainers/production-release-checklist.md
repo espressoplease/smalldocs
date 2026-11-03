@@ -2,6 +2,7 @@
 
 Checked 3 November 2026. Evidence: [release receipt](qa/release/2026-11-03.json).
 Production application code, environment and service configuration remain unchanged.
+Live Stripe catalogue and webhook preparation was authorized and completed separately.
 The checks below authorize no production deployment or npm publication.
 
 ## Completed
@@ -44,24 +45,44 @@ The checks below authorize no production deployment or npm publication.
   Systemd validation passed on the VM. Sandbox deployment tests cover promoting
   an existing staged release, compiler startup failure and application health
   failure. Failed promotions restore the previous release and unit files.
+- Prepared the live SmallDocs standard monthly price: GBP 4 and EUR 5 inclusive
+  of tax, USD 5 exclusive. The live product uses tax_code=txcd_10103000.
+  Product: prod_VYtNvG0I1bCWMs. Price: price_1UXlb30bIITqEUvtb3MW00ii.
+  The existing Personal and Team catalogue entries remain available until cutover.
+- Extended the existing live webhook with invoice.created, invoice.paid,
+  invoice.voided, invoice.deleted and checkout.session.expired. Preserved the
+  subscription events, signing secret and API version. The currently deployed
+  application acknowledges the added events without applying referral changes.
+- Verified the actual restricted live application key can read the price,
+  create multi-currency referral coupons, create and expire Checkout, and
+  read and update draft invoices. Deleted the empty draft invoice, fixture
+  customer and unused coupons. No Checkout payment or invoice finalization
+  occurred. Portal cancellation, payment-method changes and invoice history
+  remain enabled. Evidence: [live Stripe receipt](qa/release/2026-11-03-live-stripe.json).
+- Confirmed live Checkout already inherits managed_payments.enabled=true.
+  Preserved that account setting. With Managed Payments, Stripe is the merchant
+  of record and handles indirect tax compliance, disputes and payment support.
+  Confirm this existing commercial arrangement before launch; it was not enabled
+  by this preparation. [Stripe Managed Payments](https://docs.stripe.com/payments/managed-payments).
+- Removed the temporary production-data rehearsal directory after retrieving
+  its original verification receipt. Staging deployment of the checklist work
+  succeeded. The later sidebar change passed 12 headless browser checks and a
+  production-mode service-worker refresh check.
 
 ## Launch actions still pending
 
 1. Obtain release approval. Current production remains on e5c705b24e8537dd5b2041fc3eb11801928af375.
-2. Prepare the live SmallDocs monthly per-person product and price, matching the
-   staged GBP 4, USD 5 and EUR 5 amounts and their tax behaviour. Confirm the
-   intended live Stripe Payments or Managed Payments setup. The sandbox's
-   product has tax_code=txcd_10103000; a fixture without a tax code was rejected
-   because Managed Payments is enabled by default in that sandbox. This was
-   corrected in the fixture without changing the application's payment model.
-3. Set CLOUD_SINGLE_PLAN_ENABLED=1 and STRIPE_STANDARD_PRICE_ID for production.
+2. Confirm the existing live Managed Payments arrangement is intended for launch.
+   Both live and sandbox Checkout currently inherit it. Product eligibility and
+   merchant-of-record responsibilities differ from standard Stripe Payments.
+   No change to that arrangement is included in this release preparation.
+3. At the approved cutover, set CLOUD_SINGLE_PLAN_ENABLED=1 and
+   STRIPE_STANDARD_PRICE_ID=price_1UXlb30bIITqEUvtb3MW00ii for production.
    Preserve auth, cursor and idempotency secrets, database paths and KMS context.
-   Verify the live app credential has the same required billing permissions as
-   the tested restricted staging key. Administrative CLI access is not proof
-   of the application's credential permissions.
-4. Extend the live webhook's selected events to match the staged list above.
-   Preserve its existing signing secret and subscription events. Confirm portal
-   cancellation and payment-method management remain enabled.
+   The live application key's required billing operations have been verified.
+   Repeat that check if its credential or permissions change before launch.
+4. Recheck live webhook delivery after cutover. The required event selection is
+   already installed; preserve the signing secret and working portal configuration.
 5. Deploy the approved server release with ops/deploy-production.sh. This now
    provisions the production compiler, reuses an already-built immutable staged
    release and rolls back an unsuccessful application or compiler start.

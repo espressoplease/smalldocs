@@ -84,7 +84,7 @@
         '<ul class="sdocs-referral-list" aria-label="People you referred"></ul>' +
         '<button class="sdocs-sidebar-cta" type="button" data-referral-more hidden>Show more</button></div></div></div>' +
         '<p class="sdocs-sidebar-explainer" data-referral-status role="status">Loading your referral link...</p></div>' }) : '';
-    return refer + sectionHtml({ id: 'learn', idPrefix: prefix, rowClass: options.rowClass,
+    return sectionHtml({ id: 'learn', idPrefix: prefix, rowClass: options.rowClass,
       label: 'Learn', icon: icons.learn,
       content: '<div class="sdocs-sidebar-preview" data-learn-panel>' +
         '<p class="sdocs-sidebar-explainer" data-learn-status role="status" aria-atomic="true" id="' + prefix + '_learn_status">Choose a feature to copy its prompt. Paste it into your agent for an explanation and a demo.</p>' +
@@ -98,9 +98,9 @@
         '<p class="sdocs-sidebar-explainer"><strong>Encrypted storage.</strong> Cloud document content, titles, filenames and tags are encrypted with AES-256-GCM before they are stored in the database.</p>' +
         '<p class="sdocs-sidebar-explainer"><strong>Protected keys.</strong> Each library\'s document keys are stored in encrypted form.</p>' +
         '<p class="sdocs-sidebar-explainer"><strong>When you use a document.</strong> SmallDocs manages the keys and decrypts authorised content on its servers to open, search and edit it.</p>' +
-        '<p class="sdocs-sidebar-explainer"><strong>Server access.</strong> The application runs under a dedicated system account with restricted access to server files. Administrative access uses SSH keys.</p>' +
+        '<p class="sdocs-sidebar-explainer"><strong>Server access.</strong> The application runs under a dedicated system account with restricted access to server files. Administrative access uses hardware-backed SSH keys that require approval on the administrator\'s device.</p>' +
         '<p class="sdocs-sidebar-explainer"><strong>Backups.</strong> Backups are encrypted and use separate access credentials.</p>' +
-        '<a class="sdocs-sidebar-library-row sdocs-sidebar-library-open" href="/privacy" target="_blank" rel="noopener"><span>Cloud storage details</span>' + icons.external + '</a></div>' });
+        '<a class="sdocs-sidebar-library-row sdocs-sidebar-library-open" href="/privacy" target="_blank" rel="noopener"><span>Cloud storage details</span>' + icons.external + '</a></div>' }) + refer;
   }
 
   function bindReferrals(sidebar) {

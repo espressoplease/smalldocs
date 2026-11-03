@@ -114,7 +114,7 @@ SmallDocs checks document permissions before returning content. Library members 
 
 ### Production server access
 
-The application runs under a dedicated system account with restricted filesystem access. Its service is configured to prevent new processes from gaining additional privileges. A firewall limits incoming connections. Server administration uses SSH keys; password and direct root SSH logins are disabled. Automatic operating system security updates are enabled.
+The application runs under a dedicated system account with restricted filesystem access. Its service is configured to prevent new processes from gaining additional privileges. A firewall limits incoming connections. Server administration uses hardware-backed SSH keys that require approval on the administrator's device. Password and direct root SSH logins are disabled. Automatic operating system security updates are enabled.
 
 Application credentials can use the document KMS key for encryption and decryption. Key administration and backup access use separate credentials.
 

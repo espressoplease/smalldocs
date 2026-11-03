@@ -1,6 +1,5 @@
 {
   "date": "2026-11-03",
-  "production_unchanged": true,
   "production_release": "e5c705b24e8537dd5b2041fc3eb11801928af375",
   "candidate_core_release": "dd59d185de380986fa1d9e55179ca401ec0cdb5b",
   "backup": {
@@ -145,9 +144,19 @@
     "promotion_and_rollback_fixture_checks": 3
   },
   "remaining": [
-    "Secretive SSH approval to retrieve the original server receipt, remove the temporary snapshot, and update staging",
-    "npm authentication and authorized package publication",
-    "Production release approval and live billing configuration",
-    "Post-cutover smoke test on the production origin"
-  ]
+    "Production application release approval, billing environment activation and final production-origin smoke tests",
+    "Confirm the existing live Managed Payments arrangement for launch",
+    "npm authentication and authorized package publication"
+  ],
+  "production_application_unchanged": true,
+  "live_stripe_prepared": "2026-11-03-live-stripe.json",
+  "snapshot_cleanup_complete": true,
+  "sidebar_followup": {
+    "browser_tests": {
+      "passed": 12,
+      "failed": 0
+    },
+    "service_worker_refresh": true,
+    "copy_review": true
+  }
 }

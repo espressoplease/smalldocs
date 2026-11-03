@@ -104,6 +104,8 @@ for(const width of [1440,390]) for(const method of ['email','google']) {
       expect((await stripe.webhook(f.origin,'invoice.paid',invoice)).status).toBe(200);
       expect((await stripe.webhook(f.origin,'invoice.paid',invoice)).status).toBe(200);
       await page.reload();await openMenu(page,width);
+      expect(await page.locator('[data-sidebar-section]').evaluateAll(sections =>
+        sections.map(section => section.dataset.sidebarSection))).toEqual(['learn', 'security', 'refer']);
       await page.getByRole('button',{name:/^Refer(?:\s|$)/}).click();
       await expect(page.locator('[data-referral-balance]')).toHaveText('3 person-months available.');
       await page.getByRole('button',{name:/^Referrals(?:\s|$)/}).click();
