@@ -38,7 +38,7 @@ async function startFixture(options = {}) {
   });
   await new Promise((resolve,reject)=>{compilerThread.once('message',resolve);compilerThread.once('error',reject);});
   const compiler={close:()=>new Promise(resolve=>{compilerThread.once('exit',resolve);compilerThread.postMessage('close');})};
-  const child = spawn(process.execPath, ['server.js'], { cwd: path.join(__dirname, '..'), env: {
+  const serverOptions = { cwd: options.sourceRoot || path.join(__dirname, '..'), env: {
     ...process.env, CLOUD_SINGLE_PLAN_ENABLED: options.singlePlan ? '1' : '', NODE_ENV: 'test', HOST: '127.0.0.1', PORT: String(port), CLOUD_MODE: 'off', CLOUD_PUBLIC_MODE: 'enabled',
     CLOUD_AUTH_PUBLIC_ORIGIN: origin, CLOUD_AUTH_PEPPER: pepper, CLOUD_AUTH_DB: authPath, CLOUD_OAUTH_DB: authPath,
     CLOUD_DB: storePath, CLOUD_MASTER_KEY: masterKey, CLOUD_BILLING_DB: billingPath,
@@ -50,15 +50,20 @@ async function startFixture(options = {}) {
     SDOCS_SKIP_KMS_PREFLIGHT: '1', SHORT_LINKS_DB: path.join(dir, 'links.db'),
     SDOCS_PUBLICATION_COMPILER_SOCKET: compilerSocket,
     ...options.env,
-  }, stdio: ['ignore', 'pipe', 'pipe'] });
+  }, stdio: ['ignore', 'pipe', 'pipe'] };
+  let child;
   let startupErrors = '';
-  try {
+  async function startServer() {
+    startupErrors = ''; child = spawn(process.execPath, ['server.js'], serverOptions);
     await new Promise((resolve, reject) => {
       const timer = setTimeout(() => reject(new Error('Onboarding test server did not start')), 10000);
       child.stdout.on('data', value => { if (String(value).includes('running at')) { clearTimeout(timer); resolve(); } });
       child.once('exit', () => { clearTimeout(timer); reject(new Error('Onboarding test server exited during startup: ' + startupErrors)); });
       child.stderr.on('data', value => { startupErrors += value; if (options.logErrors) process.stderr.write(value); });
     });
+  }
+  try {
+    await startServer();
   } catch (error) {
     if (child.exitCode == null && child.signalCode == null) await new Promise(resolve => { child.once('exit', resolve); child.kill('SIGTERM'); });
     await compiler.close();auth.close(); store.close(); billing.close(); fs.rmSync(dir, { recursive: true, force: true });
@@ -76,7 +81,11 @@ async function startFixture(options = {}) {
     return { status: response.status, data, headers: response.headers };
   }
   let closed = false;
-  return { dir, origin, users, team, personal, otherTeam, auth, store, billing, api,
+  return { dir, origin, users, team, personal, otherTeam, auth, store, billing, api, get serverPid() { return child.pid; },
+    async restart(sourceRoot) {
+      if (child.exitCode == null && child.signalCode == null) await new Promise(resolve => { child.once('exit', resolve); child.kill('SIGTERM'); });
+      serverOptions.cwd = sourceRoot; await startServer();
+    },
     async close() { if (closed) return; closed = true;
       if (child.exitCode == null && child.signalCode == null) await new Promise(resolve => { child.once('exit', resolve); child.kill('SIGTERM'); });
       await compiler.close();auth.close(); store.close(); billing.close(); fs.rmSync(dir, { recursive: true, force: true }); } };

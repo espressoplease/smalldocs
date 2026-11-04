@@ -490,8 +490,12 @@ HISTORY AND RECOVERY
 
 History --diffs adds a before/after diff for each retained change, alongside
 its revision, author IDs and timestamp. A pruned parent is marked unavailable.
-Every save retains a revision. All revisions are kept for 90 days, and the
+Changed saves retain a revision. All revisions are kept for 90 days, and the
 current revision is always kept. Revisions older than 90 days may be deleted.
+
+The browser's Document history panel becomes available after an Agent / CLI
+update and groups consecutive browser saves from one editing session. The CLI
+lists each retained revision. Display grouping does not remove saved revisions.
 
 Restore creates a new revision containing the entire older document. For a
 single-field repair, read the older revision, edit that field in a pull of the

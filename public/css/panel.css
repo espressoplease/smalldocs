@@ -14,7 +14,7 @@
   transition: width .32s cubic-bezier(.4,0,.2,1),
               opacity .25s ease;
 }
-body:is(.style-mode, .share-mode, .metadata-mode) #_sd_right {
+body:is(.style-mode, .share-mode, .metadata-mode, .history-mode) #_sd_right {
   width: var(--ui-panel-width);
   opacity: 1;
   overflow-y: auto;
@@ -38,8 +38,20 @@ body:is(.style-mode, .share-mode, .metadata-mode) #_sd_right {
   flex-shrink: 0;
 }
 .sdocs-sheet-close { display: none; }
-body:is(.share-mode, .metadata-mode) #_sd_right > .panel-section { display: none; }
-#_sd_share-panel[hidden], #_sd_metadata-panel[hidden] { display: none; }
+body:is(.share-mode, .metadata-mode, .history-mode) #_sd_right > .panel-section { display: none; }
+#_sd_share-panel[hidden], #_sd_history-panel[hidden], #_sd_metadata-panel[hidden] { display: none; }
+
+.sdoc-history-message { margin: 0; padding: 14px 12px; color: var(--text-2); font-size: 12px; line-height: 1.5; }
+.sdoc-history-entry { border-bottom: 1px solid var(--border-subtle); }
+.sdoc-history-title, .sdoc-history-meta { display: block; }
+.sdoc-history-title { font-size: 13px; }
+.sdoc-history-meta { margin-top: 4px; font-size: 11.5px; color: var(--text-2); }
+.sdoc-history-comparison { min-width: 0; }
+.sdoc-history-diff { font: 11px/1.5 ui-monospace, monospace; }
+.sdoc-history-diff-line { padding: 3px 12px; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--text); }
+.sdoc-history-diff-line.added { background: color-mix(in srgb, #159447 14%, transparent); }
+.sdoc-history-diff-line.removed { background: color-mix(in srgb, #df4545 14%, transparent); }
+.sdoc-history-diff-line.heading { padding-top: 10px; font-weight: 600; color: var(--text-2); }
 .export-option.sdoc-share-toggle {
   border-bottom-color: transparent;
   font-weight: 400;
@@ -103,7 +115,7 @@ body:is(.share-mode, .metadata-mode) #_sd_right > .panel-section { display: none
   font: inherit;
 }
 .sdoc-share-status { color: var(--text); }
-body:is(.share-mode, .metadata-mode) #_sd_right-close {
+body:is(.share-mode, .metadata-mode, .history-mode) #_sd_right-close {
   display: grid;
   place-items: center;
   width: 30px;
@@ -115,7 +127,7 @@ body:is(.share-mode, .metadata-mode) #_sd_right-close {
   color: var(--text);
   cursor: pointer;
 }
-body:is(.share-mode, .metadata-mode) #_sd_right-close:hover { background: var(--bg-hover); }
+body:is(.share-mode, .metadata-mode, .history-mode) #_sd_right-close:hover { background: var(--bg-hover); }
 
 .sdoc-metadata-field { padding: 16px 12px; }
 .sdoc-metadata-label { margin: 0 0 8px; font-size: 12px; font-weight: 600; color: var(--text-2); }
@@ -532,3 +544,5 @@ body.export-mode #_sd_export-panel {
   margin-right: 6px;
   color: var(--text-2);
 }
+
+#_sd_history-panel [hidden] { display: none; }

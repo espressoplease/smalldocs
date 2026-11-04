@@ -29,6 +29,7 @@ var cloudTargetRevisionId = null;
 var cloudTargetMarkdown = null;
 var cloudRecoveryMarkdown = null;
 var cloudPollTimer = null;
+var cloudPendingEditSession = null;
 
 function escapeHtml(value) {
   return String(value).replace(/[&<>"']/g, function (character) {
@@ -105,12 +106,14 @@ async function saveCloudRevision() {
     : observedMarkdown;
   if (observedMarkdown === cloudLastSavedMarkdown) return S.cloudDocument;
   var documentId = S.cloudDocument.id;
+  var editSessionId = cloudPendingEditSession;
   var targetRevisionId = cloudTargetRevisionId || S.cloudDocument.current_revision_id;
   setCloudSaveStatus('Saving to Cloud...');
   cloudSavePromise = jsonRequest('/api/cloud/v1/documents/' + encodeURIComponent(documentId)
     + '/revisions', { method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ markdown: markdown, filename: currentFilename(),
         target_revision_id: targetRevisionId, target_markdown: cloudTargetMarkdown,
+        edit_session_id: editSessionId,
         idempotency_key: crypto.randomUUID() }) })
     .then(function (data) {
       if (!S.cloudDocument || S.cloudDocument.id !== documentId) return null;
@@ -119,6 +122,7 @@ async function saveCloudRevision() {
       var savedMarkdown = typeof data.document.markdown === 'string'
         ? data.document.markdown : markdown;
       S.cloudDocument = Object.assign({}, S.cloudDocument, data.document);
+      if (S.cloudHistory) S.cloudHistory.observe(S.cloudDocument);
       if (current === observedMarkdown && !(S.richWrite && S.richWrite.hasActiveField() && savedMarkdown !== current)) {
         applyCloudMarkdown(savedMarkdown, data.document.filename || currentFilename());
         cloudLastSavedMarkdown = currentMarkdown();
@@ -167,6 +171,8 @@ async function saveCloudRevision() {
 }
 
 function queueCloudSave(source) {
+  if (source === 'write') cloudPendingEditSession = S.cloudHistory ? S.cloudHistory.editSessionId() : null;
+  else if (source !== 'remote') cloudPendingEditSession = null;
   if (!S.cloudDocument || S._loadingDocument || cloudSaveBlocked) return;
   if (cloudSaveTimer) clearTimeout(cloudSaveTimer);
   cloudSaveTimer = setTimeout(function () {
@@ -269,10 +275,11 @@ async function loadCloudDocument(id) {
     cloudTargetMarkdown = cloudLastSavedMarkdown;
     cloudRecoveryMarkdown = null;
     cloudSaveBlocked = false;
+    cloudPendingEditSession = null;
     cloudDraftMergeBase = null;
     cloudDeferredRichUpdate = null;
     if (S.refreshCommentIdentity) S.refreshCommentIdentity();
-    if (S.setMode) S.setMode(['read', 'comment', 'style', 'share', 'metadata', 'write', 'raw', 'export', 'info'].indexOf(requestedMode) >= 0 ? requestedMode : 'read', true);
+    if (S.setMode) S.setMode(['read', 'comment', 'style', 'share', 'metadata', 'history', 'write', 'raw', 'export', 'info'].indexOf(requestedMode) >= 0 ? requestedMode : 'read', true);
     insertRow();
     if (data.document.workspace_id) loadAccountData(data.document.workspace_id).catch(function () {});
     if (S.setDocumentLoadState) S.setDocumentLoadState('ready');
@@ -316,6 +323,7 @@ async function checkCloudDocument() {
     var headData = await jsonRequest('/api/cloud/v1/documents/' + encodeURIComponent(documentId)
       + '/head?known_revision_id=' + encodeURIComponent(S.cloudDocument.current_revision_id));
     if (!S.cloudDocument || S.cloudDocument.id !== documentId) return null;
+    if (S.cloudHistory) S.cloudHistory.observe(headData.document);
     if (headData.document.current_revision_id === S.cloudDocument.current_revision_id && (!headData.document.workspace_id || headData.document.workspace_id === S.cloudDocument.workspace_id)) {
       return headData.document;
     }
@@ -333,6 +341,7 @@ async function checkCloudDocument() {
     if (S.hasPendingWriteChanges && S.hasPendingWriteChanges()) { S.flushWriteChanges(); return null; }
     if (currentMarkdown() !== cloudLastSavedMarkdown) { queueCloudSave('remote'); return null; }
     S.cloudDocument = Object.assign({}, S.cloudDocument, data.document);
+    if (S.cloudHistory) S.cloudHistory.observe(S.cloudDocument);
     cloudState.permission = data.permission || cloudState.permission;
     applyCloudMarkdown(data.document.markdown, data.document.filename);
     cloudLastSavedMarkdown = currentMarkdown();
@@ -457,6 +466,7 @@ function insertRow() {
 }
 
 function refreshRow() {
+  if (S.cloudHistory) S.cloudHistory.observe(S.cloudDocument);
   var row = document.querySelector('.fic-row-cloud');
   if (row) row.remove();
   insertRow();
@@ -574,6 +584,7 @@ async function beginAdd(event, accountId) {
     cloudTargetMarkdown = cloudLastSavedMarkdown;
     cloudRecoveryMarkdown = null;
     cloudSaveBlocked = false;
+    cloudPendingEditSession = null;
     cloudDraftMergeBase = null;
     cloudDeferredRichUpdate = null;
     if (S.refreshCommentIdentity) S.refreshCommentIdentity();
@@ -658,6 +669,7 @@ async function removeCloudDocument(event) {
     cloudTargetMarkdown = null;
     cloudRecoveryMarkdown = null;
     cloudSaveBlocked = false;
+    cloudPendingEditSession = null;
     cloudDraftMergeBase = null;
     cloudDeferredRichUpdate = null;
     cloudState.permission = null;
@@ -934,6 +946,7 @@ async function saveTags(tags) {
     if (!S.cloudDocument || S.cloudDocument.id !== documentId) return;
     if (S.hasPendingWriteChanges && S.hasPendingWriteChanges()) S.flushWriteChanges();
     S.cloudDocument = Object.assign({}, S.cloudDocument, data.document);
+    if (S.cloudHistory) S.cloudHistory.observe(S.cloudDocument);
     var savedMarkdown = typeof data.document.markdown === 'string'
       ? data.document.markdown : null;
     if (currentMarkdown() === markdownBeforeTags && savedMarkdown) {
@@ -962,7 +975,7 @@ async function saveTags(tags) {
 }
 
 function openCloudPanel(kind) {
-  if (S.currentMode === 'share' || S.currentMode === 'metadata') S.setMode('read');
+  if (S.currentMode === 'share' || S.currentMode === 'metadata' || S.currentMode === 'history') S.setMode('read');
   cloudState.panel = kind === 'library' ? 'library' : kind === 'tags' ? 'tags' : 'access';
   if (kind === 'library') {
     selectedLibrary = S.cloudDocument && S.cloudDocument.workspace_id; librarySettings = null;

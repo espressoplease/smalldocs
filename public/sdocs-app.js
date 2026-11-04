@@ -596,6 +596,7 @@ var BRIDGE_SCREEN_SHARE_OFF_SVG = ''
   + '</svg>';
 
 function renderFileInfoCard() {
+  if (S.cloudHistory) S.cloudHistory.observe(S.cloudDocument);
   if (S.publications) S.publications.update();
   if (S.metadata) S.metadata.update();
   var card = document.getElementById('_sd_sdocs-file-info');
@@ -1261,10 +1262,12 @@ function captureReadingPosition() {
 }
 
 function setMode(mode, skipHash) {
+  if (mode === 'history' && (!S.cloudDocument || !S.cloudHistory)) mode = 'read';
   var prev = S.currentMode;
   var readingPosition = ((prev === 'read' && mode === 'comment') || (prev === 'comment' && mode === 'read'))
     ? captureReadingPosition() : null;
   S.currentMode = mode;
+  if (S.cloudHistory) S.cloudHistory.modeChanged(prev, mode);
 
   // Exit write mode — extract markdown back
   if (prev === 'write' && mode !== 'write') {
@@ -1274,7 +1277,7 @@ function setMode(mode, skipHash) {
   S.renderedEl.style.display = (mode === 'raw' || mode === 'write') ? 'none' : '';
   S.rawEl.style.display      = mode === 'raw' ? 'block' : 'none';
 
-  ['read', 'style', 'share', 'metadata', 'write', 'raw', 'export', 'info', 'comment'].forEach(function (buttonMode) {
+  ['read', 'style', 'share', 'metadata', 'history', 'write', 'raw', 'export', 'info', 'comment'].forEach(function (buttonMode) {
     var button = document.getElementById('_sd_btn-' + buttonMode);
     var selected = mode === buttonMode;
     if (!button) return;
@@ -1295,14 +1298,20 @@ function setMode(mode, skipHash) {
   document.body.classList.toggle('metadata-mode', mode === 'metadata');
   var sharing = mode === 'share';
   var metadata = mode === 'metadata';
-  if ((sharing || metadata) && S.closeCloudPanel) S.closeCloudPanel();
+  var historyMode = mode === 'history';
+  document.body.classList.toggle('history-mode', historyMode);
+  if ((sharing || metadata || historyMode) && S.closeCloudPanel) S.closeCloudPanel();
   var sharePanel = document.getElementById('_sd_share-panel');
   if (sharePanel) sharePanel.hidden = !sharing;
   var metadataPanel = document.getElementById('_sd_metadata-panel');
   if (metadataPanel) metadataPanel.hidden = !metadata;
+  var historyPanel = document.getElementById('_sd_history-panel');
+  if (historyPanel) historyPanel.hidden = !historyMode;
+  var historyButton = document.getElementById('_sd_btn-history');
+  if (historyButton) historyButton.setAttribute('aria-expanded', String(historyMode));
   var panelTitle = document.querySelector('#_sd_right-header .sdocs-sheet-title');
-  if (panelTitle) panelTitle.textContent = sharing ? 'Share document' : metadata ? 'Document metadata' : 'Format document';
-  document.getElementById('_sd_right-close').setAttribute('aria-label', sharing ? 'Close sharing panel' : metadata ? 'Close metadata panel' : 'Close formatting panel');
+  if (panelTitle) panelTitle.textContent = sharing ? 'Share document' : metadata ? 'Document metadata' : historyMode ? 'Document history' : 'Format document';
+  document.getElementById('_sd_right-close').setAttribute('aria-label', sharing ? 'Close sharing panel' : metadata ? 'Close metadata panel' : historyMode ? 'Close history panel' : 'Close formatting panel');
   var shareButton = document.getElementById('_sd_btn-share');
   if (shareButton) shareButton.setAttribute('aria-expanded', String(sharing));
   var metadataButton = document.getElementById('_sd_btn-metadata');
@@ -1749,7 +1758,7 @@ async function loadFromHash() {
     }
   }
 
-  if (modeParam && ['read', 'style', 'share', 'metadata', 'write', 'raw', 'export', 'info', 'comment'].includes(modeParam)) {
+  if (modeParam && ['read', 'style', 'share', 'metadata', 'history', 'write', 'raw', 'export', 'info', 'comment'].includes(modeParam)) {
     setMode(modeParam, true);
   } else {
     setMode('read', true);
@@ -1833,7 +1842,7 @@ async function initShortLink(id) {
     // real edit, updateHash runs again and normalizes the URL to / + #md=.
     clearTimeout(S._hashTimer);
     var modeParam = params.get('mode');
-    if (modeParam && ['read', 'style', 'share', 'metadata', 'write', 'raw', 'export', 'info', 'comment'].indexOf(modeParam) >= 0) {
+    if (modeParam && ['read', 'style', 'share', 'metadata', 'history', 'write', 'raw', 'export', 'info', 'comment'].indexOf(modeParam) >= 0) {
       setMode(modeParam, true);
     } else {
       setMode('read', true);

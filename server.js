@@ -1175,7 +1175,7 @@ function documentShellSubstitutions(req, nonce, defaultMdPath, compile = false) 
     '__CLOUD_UI_STYLES__': CLOUD_DEPLOYMENT.publicEnabled && !compile
       ? '<link rel="stylesheet" href="/public/css/cloud-prototype.css"><link rel="stylesheet" href="/public/css/cloud-ui-lab.css">' : '',
     '__CLOUD_UI_SCRIPT__': CLOUD_DEPLOYMENT.publicEnabled && !compile
-      ? '<script src="/public/sdocs-cloud-account-selection.js"></script><script src="/public/sdocs-text-diff.js"></script><script src="/public/sdocs-merge.js"></script><script src="/public/sdocs-cloud-prototype.js"></script>' +
+      ? '<script src="/public/sdocs-cloud-account-selection.js"></script><script src="/public/sdocs-text-diff.js"></script><script src="/public/sdocs-merge.js"></script><script src="/public/sdocs-cloud-prototype.js"></script><script src="/public/sdocs-history.js"></script>' +
         (CLOUD_UI_LAB_ENABLED ? '<script src="/public/sdocs-cloud-ui-lab.js"></script>' : '') : '',
     '__EMBED_STYLES__':'', '__EMBED_SCRIPT__':'',
     ...(compile ? {} : documentNavigation(req).substitutions)
@@ -2952,6 +2952,29 @@ async function handleCloudApi(req, res, url) {
       sendJson(res, 200, { ok: true, document });
       return;
     }
+    const historyMatch = pathname.match(/^\/api\/cloud\/v1\/documents\/([^/]+)\/history$/);
+    if (historyMatch && req.method === 'GET') {
+      const documentId = historyMatch[1];
+      const context = cloudStore.getDocumentContext({ userId: user.id, documentId });
+      requireCloudEntitlement(user.id, context.workspaceId, 'read');
+      const scope = JSON.stringify({ endpoint: 'document-history', user_id: user.id, document_id: documentId });
+      const after = url.searchParams.get('cursor') ? cloudCursor.decode(url.searchParams.get('cursor'), scope) : null;
+      const page = cloudStore.listDocumentHistory({ userId: user.id, documentId,
+        limit: url.searchParams.get('limit'), after });
+      const names = new Map();
+      for (const entry of page.entries) {
+        if (!names.has(entry.actor_user_id)) {
+          const actor = cloudAuth.getUser(entry.actor_user_id);
+          names.set(entry.actor_user_id, actor ? [actor.firstName, actor.lastName].filter(Boolean).join(' ') : '');
+        }
+        entry.actor_name = names.get(entry.actor_user_id) || 'Library member';
+        entry.is_you = entry.actor_user_id === user.id;
+      }
+      sendJson(res, 200, { ok: true, entries: page.entries,
+        activity: cloudStore.getDocumentActivity({ userId: user.id, documentId }),
+        next_cursor: page.nextPosition ? cloudCursor.encode(scope, page.nextPosition) : null });
+      return;
+    }
     const revisionsMatch = pathname.match(/^\/api\/cloud\/v1\/documents\/([^/]+)\/revisions$/);
     if (revisionsMatch && req.method === 'GET') {
       const context = cloudStore.getDocumentContext({ userId: user.id, documentId: revisionsMatch[1],
@@ -2988,6 +3011,7 @@ async function handleCloudApi(req, res, url) {
       const saveInput = {
         userId: user.id, documentId: revisionsMatch[1],
         markdown: body.markdown, filename: body.filename,
+        editSessionId: body.edit_session_id,
         idempotencyKey: body.idempotency_key, credentialId,
       };
       let document;
@@ -3018,6 +3042,7 @@ async function handleCloudApi(req, res, url) {
       }
       if (cloudReferrals) cloudReferrals.recordActivity(user.id);
       scheduleRevisionPrune(document, entitlements);
+      document.activity = cloudStore.getDocumentActivity({ userId: user.id, documentId: revisionsMatch[1] });
       sendJson(res, 201, { ok: true, document });
       return;
     }

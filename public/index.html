@@ -258,6 +258,10 @@ __EMBED_STYLES__
         <button class="btn" id="_sd_btn-metadata" type="button" data-tip="Metadata: file paths &amp; document title" aria-label="Document metadata" aria-controls="_sd_right" aria-expanded="false">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
         </button>
+        <button class="btn sdoc-history-button" id="_sd_btn-history" type="button" data-tip="Document history" aria-label="Document history" aria-controls="_sd_right" aria-expanded="false" hidden>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>
+          <span class="sdoc-history-notice" role="status" aria-live="polite"></span>
+        </button>
         <button class="btn" id="_sd_btn-overflow" type="button" data-tip="More options" aria-label="More options" aria-expanded="false">
           <svg class="icon-menu" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg>
           <svg class="icon-x" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -381,6 +385,7 @@ __EMBED_STYLES__
 
     <div id="_sd_share-panel" role="region" aria-label="Sharing options" hidden></div>
     <div id="_sd_metadata-panel" role="region" aria-label="Document metadata" hidden></div>
+    <div id="_sd_history-panel" role="region" aria-label="Document history" hidden></div>
 
     <!-- GENERAL -->
     <div class="panel-section">

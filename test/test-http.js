@@ -2218,7 +2218,11 @@ module.exports = function(harness) {
         current_revision_id: mergedDocument.current_revision_id,
         revision_number: mergedDocument.revision_number,
         updated_at: mergedDocument.updated_at,
+        activity: mergedDocument.activity,
       });
+      assert.strictEqual(mergedDocument.activity.latest.revision_id, mergedDocument.current_revision_id);
+      assert.strictEqual(mergedDocument.activity.latest.kind, 'browser');
+      assert.strictEqual(mergedDocument.activity.has_agent_edits, false);
 
       const tagged = await patch(BASE + '/api/cloud/v1/documents/' + targetDocument.id + '/tags', {
         target_revision_id: targetRevisionId,
