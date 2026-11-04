@@ -55,8 +55,18 @@
 html[data-theme="dark"] .library-theme-toggle [data-theme-moon] { display: none; }
 html[data-theme="dark"] .library-theme-toggle [data-theme-sun] { display: block; }
 .library-theme-toggle:focus-visible { outline: 2px solid var(--accent, var(--blue)); outline-offset: 2px; }
-body:is([data-sdocs-site-page="library"], [data-settings-scope="library"]) .cloud-library-actions .workspace-button { border-radius: 999px; }
-body:is([data-sdocs-site-page="library"], [data-settings-scope="library"]) .cloud-library-actions .library-theme-toggle { border-radius: 50%; }
+body:is([data-sdocs-site-page="library"], [data-settings-scope="library"]) .cloud-library-actions .workspace-button {
+  height: var(--sdocs-sidebar-row-height, 36px);
+  gap: 10px;
+  padding: 0 9px;
+  border-radius: 999px;
+}
+body:is([data-sdocs-site-page="library"], [data-settings-scope="library"]) #workspace-button > svg {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+}
+body:is([data-sdocs-site-page="library"], [data-settings-scope="library"]) .cloud-library-actions .library-theme-toggle { padding: 0; border-radius: 50%; }
 @media (min-width: 769px) {
   /* Use the document's top framing beside the sidebar's Library row. */
   body[data-sdocs-site-page="library"] > .container,
