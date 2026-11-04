@@ -14,6 +14,8 @@
   };
   icons.refer = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M5 12v8h14v-8M12 8v12"/><path d="M12 8H7.5A2.5 2.5 0 1 1 10 5.5L12 8Zm0 0h4.5A2.5 2.5 0 1 0 14 5.5L12 8Z"/></svg>';
   icons.learn = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3Z"/></svg>';
+  icons.githubLogo = '<svg viewBox="0 0 24 24" aria-hidden="true"><path transform="translate(0 1)" d="M9 19c-4.3 1.3-4.3-2.2-6-2.7m12 5v-3.9a3.4 3.4 0 0 0-.9-2.7c3-.3 6.2-1.5 6.2-6.8A5.3 5.3 0 0 0 19 4.2a4.9 4.9 0 0 0-.1-3.7s-1.1-.4-3.7 1.4a12.9 12.9 0 0 0-6.8 0C5.8.1 4.7.5 4.7.5a4.9 4.9 0 0 0-.1 3.7A5.3 5.3 0 0 0 3.2 8c0 5.3 3.2 6.5 6.2 6.8a3.4 3.4 0 0 0-.9 2.7v3.9"/></svg>';
+  icons.x = '<svg class="sdocs-sidebar-brand-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.64 7.584H.474l8.6-9.835L0 1.154h7.594l5.243 6.932ZM17.61 20.644h2.039L6.486 3.24H4.298Z"/></svg>';
   var learnCopyPaths = '<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>';
   var learnTopics = [
     { id: 'start', label: 'Getting started', prompt: 'Give me a short tour of SmallDocs. Explain how asking for a document, SmallDoc or sdoc creates a Cloud document. Make a getting-started document and show me how to open it, find it in Library and use its tags.' },
@@ -344,6 +346,84 @@
       ' class="sdocs-sidebar-brand" href="/" title="SmallDocs homepage">' + text + '</a>';
   }
 
+  var tooltipsBound = false;
+  function attachTooltips() {
+    if (typeof document === 'undefined' || tooltipsBound) return;
+    tooltipsBound = true;
+    var tip = null, current = null, pending = null, timer = null;
+    var hoverMedia = window.matchMedia('(hover: hover) and (pointer: fine)');
+    function describe(target, add) {
+      var ids = (target.getAttribute('aria-describedby') || '').split(/\s+/).filter(function (id) { return id && id !== '_sd_tooltip'; });
+      if (add) ids.push('_sd_tooltip');
+      if (ids.length) target.setAttribute('aria-describedby', ids.join(' '));
+      else target.removeAttribute('aria-describedby');
+    }
+    function hide() {
+      if (timer) { window.clearTimeout(timer); timer = null; }
+      if (current) describe(current, false);
+      current = null; pending = null;
+      if (tip) { tip.classList.remove('show'); tip.setAttribute('aria-hidden', 'true'); }
+    }
+    function position(target) {
+      var r = target.getBoundingClientRect(), box = tip.getBoundingClientRect();
+      var pad = 6, gap = 8, top = r.bottom + gap;
+      var placement = 'bottom';
+      if (top + box.height > window.innerHeight - pad) {
+        top = r.top - gap - box.height;
+        placement = 'top';
+      }
+      var left = Math.max(pad, Math.min(r.left + r.width / 2 - box.width / 2, window.innerWidth - pad - box.width));
+      tip.dataset.placement = placement;
+      tip.style.left = left + 'px';
+      tip.style.top = Math.max(pad, top) + 'px';
+      tip.style.setProperty('--sdoc-tooltip-arrow-left', Math.max(10, Math.min(box.width - 10, r.left + r.width / 2 - left)) + 'px');
+    }
+    function show(target) {
+      if (!target.isConnected || !target.dataset.tip || target.closest('[inert]')) return;
+      tip = tip || document.getElementById('_sd_tooltip');
+      if (!tip) {
+        tip = document.createElement('div'); tip.id = '_sd_tooltip'; tip.className = 'sdoc-tooltip';
+        tip.setAttribute('role', 'tooltip'); document.body.appendChild(tip);
+      }
+      current = target;
+      tip.textContent = target.dataset.tip;
+      tip.setAttribute('aria-hidden', 'false');
+      describe(target, true);
+      position(target);
+      window.requestAnimationFrame(function () {
+        if (current !== target) return;
+        if (!target.isConnected) { hide(); return; }
+        position(target); tip.classList.add('show');
+      });
+    }
+    function queue(target) {
+      if (target === current || target === pending) return;
+      hide(); pending = target;
+      timer = window.setTimeout(function () { timer = null; pending = null; show(target); }, 300);
+    }
+    function targetFor(event) { return event.target.closest && event.target.closest('[data-tip]'); }
+    document.addEventListener('pointerover', function (event) {
+      if (event.pointerType !== 'mouse' || !hoverMedia.matches) return;
+      var target = targetFor(event);
+      if (target) queue(target);
+    });
+    document.addEventListener('pointerout', function (event) {
+      var target = current || pending;
+      if (target && target.contains(event.target) && (!event.relatedTarget || !target.contains(event.relatedTarget))) hide();
+    });
+    document.addEventListener('focusin', function (event) {
+      var target = targetFor(event);
+      if (target && target.matches(':focus-visible')) queue(target);
+    });
+    document.addEventListener('focusout', function (event) {
+      if ((current || pending) === targetFor(event)) hide();
+    });
+    document.addEventListener('click', hide, true);
+    document.addEventListener('keydown', function (event) { if (event.key === 'Escape') hide(); });
+    window.addEventListener('scroll', hide, { passive: true, capture: true });
+    window.addEventListener('resize', hide);
+  }
+
   function accountActionsHtml(options) {
     options = options || {};
     var label = options.authenticated ? 'Account settings' : 'Sign in';
@@ -351,12 +431,14 @@
       : '/cloud/sign-in?return=' + encodeURIComponent(options.returnTo || '/docs');
     return '<div class="sdocs-sidebar-account-actions">' +
       '<a class="sdocs-sidebar-icon-shortcut sdocs-sidebar-settings-shortcut" href="' + href +
-      '" aria-label="' + label + '" title="' + label + '"' +
+      '" aria-label="' + label + '" data-tip="' + label + '"' +
       (options.authenticated ? '' : ' data-sdocs-sign-in-return') + '>' +
       (options.authenticated ? icons.settings : icons.signIn) + '</a>' +
-      '<button class="sdocs-sidebar-icon-shortcut btn-with-dot" id="_sd_btn-info" type="button" aria-label="What\'s new" title="What\'s new" aria-controls="_sd_info-panel" aria-pressed="false">' +
+      '<button class="sdocs-sidebar-icon-shortcut btn-with-dot" id="_sd_btn-info" type="button" aria-label="What\'s new" data-tip="What\'s new" aria-controls="_sd_info-panel" aria-pressed="false">' +
       '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>' +
-      '<span class="info-dot" aria-hidden="true"></span></button></div>';
+      '<span class="info-dot" aria-hidden="true"></span></button>' +
+      '<a class="sdocs-sidebar-icon-shortcut" href="https://x.com/smalldocs_org" target="_blank" rel="noopener noreferrer" aria-label="SmallDocs on X" data-tip="SmallDocs on X">' + icons.x + '</a>' +
+      '<a class="sdocs-sidebar-icon-shortcut" href="https://github.com/espressoplease/smalldocs" target="_blank" rel="noopener noreferrer" aria-label="SmallDocs on GitHub" data-tip="SmallDocs on GitHub">' + icons.githubLogo + '</a></div>';
   }
 
   function renderShell(element, options) {
@@ -597,6 +679,7 @@
   exports.bindSubscriptionUi = bindSubscriptionUi;
   exports.brandHtml = brandHtml;
   exports.accountActionsHtml = accountActionsHtml;
+  exports.attachTooltips = attachTooltips;
   exports.renderShell = renderShell;
   exports.setExpanded = setExpanded;
   exports.bindExpandableSections = bindExpandableSections;
@@ -607,6 +690,7 @@
   ? module.exports : (window.SDocsSidebarShared = {}));
 
 if (typeof document !== 'undefined') {
+  window.SDocsSidebarShared.attachTooltips();
   window.SDocsSidebarShared.hydrate(document);
   if (document.readyState !== 'complete') document.addEventListener('DOMContentLoaded', window.SDocsSidebarShared.bindSubscriptionUi, { once: true });
   else window.SDocsSidebarShared.bindSubscriptionUi();
