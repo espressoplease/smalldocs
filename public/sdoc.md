@@ -67,6 +67,8 @@ Run `sdoc cloud referrals --json` for your referral link, progress and rewards. 
 
 The Cloud skill treats tagging as part of every new document. Agents reuse relevant vocabulary from the destination library, choose tags that describe the document's subject, project, or purpose, and check the saved tags before returning its Cloud link. For example, `sdoc api-design.md --cloud --json +payments +idempotency +api-design` saves a tagged document without changing the local file's tags. Run `sdoc cloud tag --help` for the tagging reference.
 
+When updating an existing Cloud document, include `--reason "Why this change is needed"`. The encrypted history records the person whose credentials saved the update, its time and explanation. Readers can open a saved version as a private new document, or view its text changes.
+
 Read Cloud feedback with `sdoc cloud comments DOCUMENT_ID --json`. For small changes, use scoped reads and `sdoc cloud edit`; full-file pull/edit/push remains available. After verifying an edit, agents normally delete its addressed comment to keep the document clean, or resolve it when the discussion should be retained. A reply alone leaves feedback open. Agents can also reopen, add and reattach comments. Resolve keeps the discussion in the document, while delete removes its thread and replies. Earlier revisions follow the 90-day retention policy. See the [Cloud editing and feedback guide](/cloud-updates), `sdoc cloud edit --help` and `sdoc cloud comments --help` for examples and recovery.
 
 `npx skills@latest` currently requires Node 22.20 or newer. `sdoc setup` remains the built-in fallback and also removes the always-on SmallDocs block written by older CLI releases:

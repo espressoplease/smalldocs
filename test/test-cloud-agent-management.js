@@ -19,7 +19,7 @@ module.exports = function (h) {
     }
     function cli(args, key = 'josh') {
       fs.writeFileSync(path.join(prefix, 'cloud', 'credentials.json'), JSON.stringify({ [f.origin]: credentials[key] }));
-      const result = spawnSync(process.execPath, [path.join(__dirname, '../cli/bin/sdocs-dev.js'), ...args, '--json'], {
+      const result = spawnSync(process.execPath, [path.join(__dirname, '../cli/bin/sdocs-dev.js'), ...args, '--reason', 'Apply the requested document update', '--json'], {
         encoding: 'utf8', cwd: home, timeout: 15000, env: { ...process.env, HOME: home, SDOCS_HOME: prefix,
           SDOCS_CLOUD_FILE_CREDENTIALS: '1', SDOCS_CLOUD_URL: f.origin, SDOCS_URL: f.origin,
           NO_UPDATE_NOTIFIER: '1', SDOCS_NO_SETUP: '1', SDOCS_NO_REFRESH: '1', CI: '1' } });

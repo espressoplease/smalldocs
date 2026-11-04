@@ -56,6 +56,7 @@ USAGE
   sdoc file.md --cloud --json +topic +project
                                   Save a tagged Cloud document and return its URL
   sdoc cloud create file.md        Add a document to Cloud
+  sdoc cloud edit --help           Edit with a required --reason in document history
   sdoc cloud --help                Full Cloud command reference
   SDOCS_LIBRARY="Engineering" sdoc file.md --cloud --json +project
                                   Save a new document to a named library

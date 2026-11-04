@@ -7,7 +7,9 @@ module.exports = function (h) {
   const io = require('../cli/lib/io');
   const bindings = require('../cli/lib/cloud-bindings');
   const editTools = require('../cli/lib/cloud-edit');
-  const { CloudClient, CloudCommandError, runCloudCommand, CLOUD_EDIT_HELP, CLOUD_READ_HELP } = require('../cli/lib/cloud-commands');
+  const { CloudClient, CloudCommandError, runCloudCommand: rawRunCloudCommand, CLOUD_EDIT_HELP, CLOUD_READ_HELP } = require('../cli/lib/cloud-commands');
+
+  const runCloudCommand = (opts, dependencies) => rawRunCloudCommand({ reasonText: 'Apply the requested document update', ...opts, ...(opts.reasonText == null ? { reasonText: 'Apply the requested document update' } : {}) }, dependencies);
 
   test('Cloud edit parser preserves literal text and empty replacement values', () => {
     const opts = io.parseArgs(['cloud', 'edit', 'doc', '--old', '+tag\n10:30', '--new', '',
@@ -380,7 +382,7 @@ module.exports = function (h) {
         function cli(args, actor = 'bob') {
           fs.writeFileSync(path.join(cliState, 'cloud', 'credentials.json'), JSON.stringify({ [f.origin]: actualCredentials[actor] }));
           const child = spawnSync(process.execPath, [path.join(__dirname, '../cli/bin/sdocs-dev.js'),
-            'cloud', ...args, '--json'], { encoding: 'utf8', cwd: dir, timeout: 15000,
+            'cloud', ...args, '--reason', 'Apply the requested document update', '--json'], { encoding: 'utf8', cwd: dir, timeout: 15000,
             env: { ...process.env, SDOCS_HOME: cliState, SDOCS_CLOUD_FILE_CREDENTIALS: '1',
               SDOCS_CLOUD_URL: f.origin, SDOCS_URL: f.origin, NO_UPDATE_NOTIFIER: '1',
               SDOCS_NO_SETUP: '1', SDOCS_NO_REFRESH: '1', CI: '1' } });

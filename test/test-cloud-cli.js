@@ -7,8 +7,12 @@ module.exports = function(harness) {
   const io = require('../cli/lib/io');
   const credentials = require('../cli/lib/cloud-credentials');
   const bindings = require('../cli/lib/cloud-bindings');
-  const { CloudClient, runCloudCommand, autoSyncOpen, openCloudDocument, filterTags, skillInstallCommand, CLOUD_HELP, CLOUD_TAG_HELP, CLOUD_CREATE_HELP, CLOUD_SEARCH_HELP, searchRequest } =
+  const { CloudClient, runCloudCommand: rawRunCloudCommand, autoSyncOpen: rawAutoSyncOpen, openCloudDocument: rawOpenCloudDocument, filterTags, skillInstallCommand, CLOUD_HELP, CLOUD_TAG_HELP, CLOUD_CREATE_HELP, CLOUD_SEARCH_HELP, searchRequest } =
     require('../cli/lib/cloud-commands');
+
+  const autoSyncOpen = (opts, dependencies) => rawAutoSyncOpen({ ...opts, reasonText: 'Apply the requested document update' }, dependencies);
+  const openCloudDocument = (opts, dependencies) => rawOpenCloudDocument({ ...opts, reasonText: 'Apply the requested document update' }, dependencies);
+  const runCloudCommand = (opts, dependencies) => rawRunCloudCommand({ reasonText: 'Apply the requested document update', ...opts, ...(opts.reasonText == null ? { reasonText: 'Apply the requested document update' } : {}) }, dependencies);
 
   test('setup parser captures Cloud-first edition and preferred account', () => {
     const parsed = io.parseArgs(['setup', '--cloud', '--account', 'acct-1', '--yes']);
@@ -77,7 +81,8 @@ module.exports = function(harness) {
     assert.ok(CLOUD_SEARCH_HELP.includes('next_cursor'));
     assert.ok(CLOUD_HELP.includes('matches[]'));
     assert.ok(CLOUD_HELP.includes('--no-bind'));
-    assert.ok(CLOUD_HELP.includes('sdoc cloud push ./plan.md --json'));
+    assert.ok(CLOUD_HELP.includes('sdoc cloud push ./plan.md'));
+      assert.ok(CLOUD_HELP.includes('--reason'));
   });
 
   test('Cloud search preserves positional terms and reports unknown or incomplete options', () => {

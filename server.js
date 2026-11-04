@@ -1211,6 +1211,7 @@ function cloudApiError(res, error) {
     : error && error.code ? error.code : 'temporary_service_failure';
   const statuses = {
     invalid_request: 400,
+    edit_reason_required: 400,
     edit_no_match: 409,
     edit_ambiguous: 409,
     section_not_found: 409,
@@ -1261,6 +1262,7 @@ function cloudApiError(res, error) {
     publication_compile_failed: 503,
   };
   const body = { ok: false, error: code };
+  if (code === 'edit_reason_required') body.message = error.message;
   if (code === 'personal_library_private') {
     body.message = 'Personal libraries are private. Create a team library to invite people.';
     body.settings_url = CLOUD_AUTH_PUBLIC_ORIGIN + '/library/settings?panel=libraries';
@@ -2104,7 +2106,7 @@ async function handleCloudApi(req, res, url) {
       });
       const document = await cloudStore.createDocument({
         userId: user.id, projectId: selected.defaultProject.id, filename: body.filename, sourceFile: body.source_file,
-        markdown: body.markdown, idempotencyKey: body.idempotency_key, credentialId,
+        markdown: body.markdown, idempotencyKey: body.idempotency_key, credentialId, editReason: body.edit_reason,
         beforeCommit: () => requireCloudEntitlement(user.id, selected.workspace.id, 'store_revision', {
           fileBytes: cloudMarkdownBytes(body.markdown),
         }),
@@ -2511,7 +2513,7 @@ async function handleCloudApi(req, res, url) {
       });
       const document = await cloudStore.createDocument({
         userId: user.id, projectId: body.project_id, filename: body.filename, sourceFile: body.source_file,
-        markdown: body.markdown, idempotencyKey: body.idempotency_key, credentialId,
+        markdown: body.markdown, idempotencyKey: body.idempotency_key, credentialId, editReason: body.edit_reason,
         beforeCommit: () => requireCloudEntitlement(user.id, project.workspaceId, 'store_revision', {
           fileBytes: cloudMarkdownBytes(body.markdown),
         }),
@@ -2713,7 +2715,7 @@ async function handleCloudApi(req, res, url) {
         targetMarkdown: body.target_markdown,
         filename: body.filename,
         maxMarkdownBytes: CLOUD_DOCUMENT_MAX_BYTES,
-        idempotencyKey: body.idempotency_key, credentialId,
+        idempotencyKey: body.idempotency_key, credentialId, editReason: body.edit_reason,
         beforeCommit: (detail) => requireCloudEntitlement(
           user.id, context.workspaceId, 'store_revision', detail && {
             fileBytes: detail.markdownBytes,
@@ -2795,7 +2797,7 @@ async function handleCloudApi(req, res, url) {
         operation: { action: body.action, comment_id: body.comment_id, expected_comment_sha256: body.expected_comment_sha256,
           text: body.text, anchor: body.anchor },
         actor: { user_id: user.id, display_name: [profile.first_name, profile.last_name].filter(Boolean).join(' ') || profile.email || 'user' },
-        idempotencyKey: body.idempotency_key, credentialId, maxMarkdownBytes: CLOUD_DOCUMENT_MAX_BYTES,
+        idempotencyKey: body.idempotency_key, credentialId, editReason: body.edit_reason, maxMarkdownBytes: CLOUD_DOCUMENT_MAX_BYTES,
         beforeCommit: detail => requireCloudEntitlement(user.id, context.workspaceId, 'store_revision', { fileBytes: detail.markdownBytes }),
       });
       if (!commentActionMatch[2]) scheduleRevisionPrune(document, entitlements);
@@ -2806,7 +2808,7 @@ async function handleCloudApi(req, res, url) {
         document: projected.document, comment: projected.comments[0] || null,
         action: document.action, comment_id: document.comment_id, base_revision_id: document.base_revision_id,
         merged_from_revision_id: document.merged_from_revision_id,
-        revision_created: document.revision_created, preview: document.preview,
+        revision_created: document.revision_created, preview: document.preview, edit_reason: document.edit_reason || null,
         would_change: document.would_change, imported_footnote_comments: document.imported_footnote_comments,
         ...(document.preview ? { proposed_sha256: document.content_sha256 } : { saved_sha256: document.content_sha256 }) });
       return;
@@ -2828,7 +2830,7 @@ async function handleCloudApi(req, res, url) {
         selector.outline = true;
       }
       const selected = require('./cli/shared/sdocs-text-edit').select(document.markdown, selector);
-      const { markdown, ...metadata } = document;
+      const { markdown, edit_reason, ...metadata } = document;
       sendJson(res, 200, { ok: true,
         permission: cloudStore.getDocumentPermission({ userId: user.id, documentId: document.id }),
         document: { ...metadata,
@@ -2858,7 +2860,7 @@ async function handleCloudApi(req, res, url) {
         editRequest: body.edits != null ? { edits: body.edits } : { patch: body.patch },
         expectedCurrentRevisionId: body.expected_current_revision_id,
         rejectConflicts: body.reject_conflicts,
-        idempotencyKey: body.idempotency_key, credentialId,
+        idempotencyKey: body.idempotency_key, credentialId, editReason: body.edit_reason,
         maxMarkdownBytes: CLOUD_DOCUMENT_MAX_BYTES,
         beforeCommit: (detail) => requireCloudEntitlement(user.id, context.workspaceId,
           'store_revision', { fileBytes: detail.markdownBytes }),
@@ -2961,6 +2963,7 @@ async function handleCloudApi(req, res, url) {
       const after = url.searchParams.get('cursor') ? cloudCursor.decode(url.searchParams.get('cursor'), scope) : null;
       const page = cloudStore.listDocumentHistory({ userId: user.id, documentId,
         limit: url.searchParams.get('limit'), after });
+      page.entries = await cloudStore.withRevisionReasons({ userId: user.id, documentId }, page.entries);
       const names = new Map();
       for (const entry of page.entries) {
         if (!names.has(entry.actor_user_id)) {
@@ -2988,6 +2991,7 @@ async function handleCloudApi(req, res, url) {
         : null;
       const page = cloudStore.listRevisionsPage({ userId: user.id,
         documentId: revisionsMatch[1], limit, after });
+      page.revisions = await cloudStore.withRevisionReasons({ userId: user.id, documentId: revisionsMatch[1], includeDeleted: true }, page.revisions);
       sendJson(res, 200, { ok: true, revisions: page.revisions,
         next_cursor: page.nextPosition ? cloudCursor.encode(cursorScope, page.nextPosition) : null });
       return;
@@ -3012,7 +3016,7 @@ async function handleCloudApi(req, res, url) {
         userId: user.id, documentId: revisionsMatch[1],
         markdown: body.markdown, filename: body.filename,
         editSessionId: body.edit_session_id,
-        idempotencyKey: body.idempotency_key, credentialId,
+        idempotencyKey: body.idempotency_key, credentialId, editReason: body.edit_reason,
       };
       let document;
       if (hasTarget) {
@@ -3058,6 +3062,22 @@ async function handleCloudApi(req, res, url) {
         userId: user.id, documentId: document.id, includeDeleted: true }) });
       return;
     }
+    const copyMatch = pathname.match(/^\/api\/cloud\/v1\/documents\/([^/]+)\/revisions\/([^/]+)\/copy$/);
+    if (copyMatch && req.method === 'POST') {
+      const body = await cloudAuthHttp.readJson(req);
+      const context = cloudStore.getDocumentContext({ userId: user.id, documentId: copyMatch[1] });
+      requireCloudEntitlement(user.id, context.workspaceId, 'read');
+      const entitlements = requireCloudEntitlement(user.id, context.workspaceId, 'store_revision');
+      const document = await cloudStore.copyRevision({ userId: user.id, documentId: copyMatch[1],
+        revisionId: copyMatch[2], idempotencyKey: body.idempotency_key, credentialId,
+        editReason: body.edit_reason,
+        beforeCommit: detail => requireCloudEntitlement(user.id, context.workspaceId, 'store_revision', { fileBytes: detail.markdownBytes }) });
+      scheduleRevisionPrune(document, entitlements);
+      const url = new URL('/docs', CLOUD_AUTH_PUBLIC_ORIGIN); url.searchParams.set('cloud-document', document.id);
+      sendJson(res, 201, { ok: true, document: { ...document, url: url.href },
+        permission: cloudStore.getDocumentPermission({ userId: user.id, documentId: document.id }) });
+      return;
+    }
     const restoreMatch = pathname.match(/^\/api\/cloud\/v1\/documents\/([^/]+)\/revisions\/([^/]+)\/restore$/);
     if (restoreMatch && req.method === 'POST') {
       const body = await cloudAuthHttp.readJson(req);
@@ -3067,7 +3087,7 @@ async function handleCloudApi(req, res, url) {
       const document = await cloudStore.restoreRevision({
         userId: user.id, documentId: restoreMatch[1], revisionId: restoreMatch[2],
         expectedHeadRevisionId: body.expected_head_revision_id,
-        idempotencyKey: body.idempotency_key, credentialId,
+        idempotencyKey: body.idempotency_key, credentialId, editReason: body.edit_reason,
         beforeCommit: () => requireCloudEntitlement(
           user.id, context.workspaceId, 'store_revision'),
       });

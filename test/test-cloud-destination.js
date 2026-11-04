@@ -124,7 +124,7 @@ module.exports = function (h) {
       access_token_expires_at: new Date(c.accessExpiresAtMs).toISOString(), refresh_token: c.refreshToken,
     } }));
     function cli(args, opts = {}) {
-      const result = spawnSync(process.execPath, [path.join(__dirname, '../cli/bin/sdocs-dev.js'), ...args, '--json'], {
+      const result = spawnSync(process.execPath, [path.join(__dirname, '../cli/bin/sdocs-dev.js'), ...args, '--reason', 'Apply the requested document update', '--json'], {
         cwd: opts.cwd || child, encoding: 'utf8', timeout: 15000,
         env: { ...process.env, HOME: home, SDOCS_HOME: prefix, SDOCS_CLOUD_FILE_CREDENTIALS: '1',
           SDOCS_CLOUD_URL: f.origin, SDOCS_URL: f.origin, SDOCS_LIBRARY: opts.library || '',

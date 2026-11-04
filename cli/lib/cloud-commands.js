@@ -12,7 +12,7 @@ const cloudEdit = require('./cloud-edit');
 const cloudComments = require('./cloud-comments');
 const destinationConfig = require('./cloud-destination');
 
-const EXIT = { unexpected: 1, invalid_request: 2, login_required: 3,
+const EXIT = { unexpected: 1, invalid_request: 2, edit_reason_required: 2, login_required: 3,
   resource_unavailable: 4, account_required: 4, account_selection_required: 4,
   permission_denied: 4, terms_acceptance_required: 4, revision_conflict: 5,
   idempotency_mismatch: 5,
@@ -154,11 +154,11 @@ Run cloud comments --help for filters, replies, resolution, deletion and anchore
 
 UPDATE AN EXISTING DOCUMENT
 
-  sdoc cloud edit DOCUMENT_ID --old 'Cap: 10' --new 'Cap: 20' --json
+  sdoc cloud edit DOCUMENT_ID --old 'Cap: 10' --new 'Cap: 20' --reason "Use the approved capacity limit of 20" --json
   sdoc cloud pull DOCUMENT_UUID --output ./plan.md --json
   # Edit ./plan.md with normal file tools.
-  sdoc cloud push ./plan.md --dry-run --json
-  sdoc cloud push ./plan.md --json
+  sdoc cloud push ./plan.md --dry-run --reason "Reflect the revised launch and handover plan" --json
+  sdoc cloud push ./plan.md --reason "Reflect the revised launch and handover plan" --json
 
 Use cloud edit for exact text replacements or a contextual unified diff without
 retrieving the full document. Run cloud edit --help for scoped edits, batch JSON,
@@ -178,7 +178,7 @@ Cloud may combine work saved by another writer since the pull.
 CREATE, ORGANIZE, AND SHARE ACCESS
 
   sdoc PATH --cloud --no-open --json +subject +project
-  sdoc cloud tag DOCUMENT_UUID --tag TAG [--tag TAG ...] --json
+  sdoc cloud tag DOCUMENT_UUID --tag TAG [--tag TAG ...] --reason "Organise the document for later research" --json
   sdoc cloud access DOCUMENT_UUID [--only-you | --everyone | --member USER_ID ...] --json
   sdoc cloud members [--account UUID] --json
   sdoc cloud permission-groups [--account UUID] --json
@@ -195,7 +195,7 @@ notifying them.
 HISTORY AND DELETION
 
   sdoc cloud history DOCUMENT_UUID --diffs --json
-  sdoc cloud restore DOCUMENT_UUID --revision REVISION_UUID --json
+  sdoc cloud restore DOCUMENT_UUID --revision REVISION_UUID --reason "Recover the version approved in review" --json
   sdoc cloud delete DOCUMENT_UUID --base-revision UUID --json
   sdoc cloud deleted --json
   sdoc cloud undelete DOCUMENT_UUID --base-revision UUID --json
@@ -252,7 +252,7 @@ lower-level upload command and does not apply +tag arguments.
 REPLACE THE COMPLETE TAG SET ON AN EXISTING DOCUMENT
 
   sdoc cloud read DOCUMENT_UUID --json
-  sdoc cloud tag DOCUMENT_UUID --tag payments --tag idempotency --tag api-design --json
+  sdoc cloud tag DOCUMENT_UUID --tag payments --tag idempotency --tag api-design --reason "Organise the document for later research" --json
 
 cloud tag replaces all tags with the repeated --tag values. Include every
 existing tag you intend to keep. It changes Cloud tags without changing
@@ -433,12 +433,12 @@ Use cloud diff DOCUMENT_ID --from REVISION_ID --json to compare it with the head
 const CLOUD_UPDATE_HELP = `SmallDocs Cloud document updates
 
   sdoc cloud pull DOCUMENT_ID --output ./plan.md --json
-  sdoc cloud push ./plan.md --dry-run --json
-  sdoc cloud push ./plan.md --json
+  sdoc cloud push ./plan.md --dry-run --reason "Reflect the revised launch and handover plan" --json
+  sdoc cloud push ./plan.md --reason "Reflect the revised launch and handover plan" --json
 
 For a save that must match a reviewed head:
 
-  sdoc cloud push ./plan.md --if-current REVIEWED_HEAD_ID --json
+  sdoc cloud push ./plan.md --if-current REVIEWED_HEAD_ID --reason "Reflect the revised launch and handover plan" --json
 
 Pull binds a working file to a document ID and revision. Editing a differently
 named local file does not rename the Cloud document. Push preserves permissions.
@@ -481,12 +481,29 @@ access DOCUMENT_ID --only-you, --everyone, or --member USER_ID (repeatable).
 Document permissions apply
 to current content, old revisions, comparisons, previews and saves.
 
+EDIT REASONS
+
+Updates require --reason "Why this change is needed", including changed bound
+file opens, push, direct edit, tags, comment actions and restore. The reason is
+encrypted with the saved revision and appears in document history. New documents,
+unchanged file opens and read-only commands do not need it. Previews can omit it.
+
 HISTORY AND RECOVERY
 
   sdoc cloud history DOCUMENT_ID --diffs --json
+  sdoc cloud copy DOCUMENT_ID --revision REVISION_ID --no-open --json
   sdoc cloud read DOCUMENT_ID --revision REVISION_ID --json
-  sdoc cloud restore DOCUMENT_ID --revision REVISION_ID --dry-run --json
-  sdoc cloud restore DOCUMENT_ID --revision REVISION_ID --base-revision REVIEWED_HEAD_ID --json
+  sdoc cloud restore DOCUMENT_ID --revision REVISION_ID --dry-run --reason "Recover the version approved in review" --json
+  sdoc cloud restore DOCUMENT_ID --revision REVISION_ID --base-revision REVIEWED_HEAD_ID --reason "Recover the version approved in review" --json
+
+Copy creates a new private document in the same library, with that version's
+content, formatting and tags. The current document stays unchanged. A copy
+starts a fresh history and does not inherit local source paths or shared access.
+Use --no-open for a headless save. Copying is creation and does not require a reason.
+
+Long reasons have edit_reason_truncated: true in history. Read that retained
+revision with cloud read DOCUMENT_ID --revision REVISION_ID --json for the full
+edit_reason. Selected section/line reads omit it.
 
 History --diffs adds a before/after diff for each retained change, alongside
 its revision, author IDs and timestamp. A pruned parent is marked unavailable.
@@ -494,8 +511,9 @@ Changed saves retain a revision. All revisions are kept for 90 days, and the
 current revision is always kept. Revisions older than 90 days may be deleted.
 
 The browser's Document history panel becomes available after an Agent / CLI
-update and groups consecutive browser saves from one editing session. The CLI
-lists each retained revision. Display grouping does not remove saved revisions.
+update and groups consecutive browser saves from one editing session. It shows the person whose credentials saved the update and its edit reason, offers Open as new document, and keeps View changes
+available. Copies are private and keep that version's content, formatting and tags.
+The CLI lists each retained revision and its edit_reason. Display grouping does not remove saved revisions.
 
 Restore creates a new revision containing the entire older document. For a
 single-field repair, read the older revision, edit that field in a pull of the
@@ -887,11 +905,11 @@ async function setTags(opts, client) {
   const current = await client.authenticated('/api/cloud/v1/documents/' + encodeURIComponent(documentId));
   const response = await client.authenticated('/api/cloud/v1/documents/' + encodeURIComponent(documentId)
     + '/tags', { method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tags: opts.tagFilters || [],
+      body: JSON.stringify({ tags: opts.tagFilters || [], edit_reason: require('../shared/sdocs-edit-reason').normalize(opts.reasonText, true),
         expected_head_revision_id: current.document.current_revision_id,
         idempotency_key: crypto.randomUUID() }) });
   emit(opts, 'cloud.tag', { document_id: documentId,
-    revision_id: response.document.current_revision_id, tags: response.document.tags },
+    revision_id: response.document.current_revision_id, tags: response.document.tags, edit_reason: response.document.edit_reason },
   'Updated tags for ' + documentId + '.');
 }
 
@@ -1085,6 +1103,7 @@ async function read(opts, client) {
     const value = { ...document, document_id: id, url: document.url || documentUrl(client, id),
       revision_id: document.revision_id || document.current_revision_id,
       permission: response.permission || document.permission };
+    delete value.edit_reason;
     if (opts.outlineFlag) delete value.markdown;
     if (!opts.jsonFlag && !opts.silent && !opts.outlineFlag) { process.stdout.write(document.markdown); return value; }
     return emit(opts, 'cloud.read', value);
@@ -1095,7 +1114,7 @@ async function read(opts, client) {
   if (!document || typeof document.markdown !== 'string') throw new CloudCommandError('temporary_service_failure',
     'Cloud returned an invalid document response.');
   const value = { document_id: document.id, url: documentUrl(client, document.id),
-    revision_id: document.current_revision_id, revision_number: document.revision_number,
+    revision_id: document.current_revision_id, revision_number: document.revision_number, edit_reason: document.edit_reason,
     title: document.title, filename: document.filename, tags: document.tags,
     workspace_id: document.workspace_id, permission: response.permission,
     sha256: bindings.hash(document.markdown), markdown: document.markdown };
@@ -1141,14 +1160,21 @@ function configuredDestination(opts) {
 
 async function create(opts, client) {
   const file = requireFile(opts.extra);
-  const content = fs.readFileSync(file, 'utf8');
-  const digest = bindings.hash(content);
+  const localContent = fs.readFileSync(file, 'utf8');
+  const digest = bindings.hash(localContent);
+  let content = localContent;
+  if (opts.addTags && opts.addTags.length) {
+    const parsed = SDocYaml.parseFrontMatter(content);
+    const tags = Array.from(new Set([...(parsed.meta.tags || []), ...opts.addTags]));
+    content = SDocYaml.serializeFrontMatter({ ...parsed.meta, tags }) + '\n' + parsed.body;
+  }
+  const uploadDigest = bindings.hash(content);
   const credential = requireCredential(client);
   const selected = configuredDestination(opts);
   const selectionKey = JSON.stringify(selected);
   let pending = bindings.getPending(credential.user_id, file);
-  if (!pending || pending.operation !== 'create' || pending.sha256 !== digest) {
-    pending = { operation: 'create', destination: 'unresolved-default', selection_key: selectionKey, sha256: digest,
+  if (!pending || pending.operation !== 'create' || pending.sha256 !== digest || pending.upload_sha256 !== uploadDigest) {
+    pending = { operation: 'create', destination: 'unresolved-default', selection_key: selectionKey, sha256: digest, upload_sha256: uploadDigest,
       source_file: sourceFileForPath(opts.extra, file), idempotency_key: crypto.randomUUID() };
     bindings.setPending(credential.user_id, file, pending);
   }
@@ -1162,7 +1188,7 @@ async function create(opts, client) {
     destination = selected.account.id;
   }
   if (!pending || pending.operation !== 'create' || pending.destination !== destination || pending.sha256 !== digest) {
-    pending = { operation: 'create', destination, selection_key: selectionKey, sha256: digest, source_file: pending && pending.source_file,
+    pending = { operation: 'create', destination, selection_key: selectionKey, sha256: digest, upload_sha256: uploadDigest, source_file: pending && pending.source_file,
       idempotency_key: crypto.randomUUID() };
     bindings.setPending(credential.user_id, file, pending);
   } else if (pending.selection_key !== selectionKey) {
@@ -1299,6 +1325,7 @@ async function push(opts, client) {
       remote_changed_since_pull: current.current_revision_id !== binding.revision_id },
     'No local changes to push.' + (current.markdown === localContent ? '' : ' Cloud has newer changes; pull to read them.'));
   }
+  const editReason = require('../shared/sdocs-edit-reason').normalize(opts.reasonText, !opts.dryRunFlag);
   const targetMarkdown = bindings.readBase(credential.user_id, binding.document_id,
     binding.revision_id);
   let content = localContent;
@@ -1314,7 +1341,7 @@ async function push(opts, client) {
   const uploadDigest = bindings.hash(content);
   const request = { target_revision_id: binding.revision_id,
     target_markdown: targetMarkdown == null ? undefined : targetMarkdown,
-    markdown: content, reject_conflicts: Boolean(opts.rejectConflictsFlag),
+    markdown: content, edit_reason: editReason, reject_conflicts: Boolean(opts.rejectConflictsFlag),
     expected_current_revision_id: opts.ifCurrentFlag || undefined };
   if (opts.dryRunFlag) {
     const response = await client.authenticated('/api/cloud/v1/documents/' + encodeURIComponent(binding.document_id) + '/revisions/preview', {
@@ -1373,7 +1400,7 @@ async function push(opts, client) {
     merge_classification: document.merge_classification || 'clean',
     combined: Boolean(document.combined),
     comment_id_remaps: document.comment_id_remaps || [],
-    comment_follow_up: document.comment_follow_up,
+    comment_follow_up: document.comment_follow_up, edit_reason: document.edit_reason,
     local_updated_from_cloud: localUpdated,
     binding_changed_during_upload: bindingChanged,
     local_changed_after_upload: localChanged }, 'Pushed revision ' + document.revision_number
@@ -1401,7 +1428,7 @@ async function addCloudTags(documentId, requestedTags, client, local) {
   const response = await client.authenticated('/api/cloud/v1/documents/'
     + encodeURIComponent(documentId) + '/tags', {
     method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ tags,
+    body: JSON.stringify({ tags, edit_reason: require('../shared/sdocs-edit-reason').normalize(local && local.reasonText, true),
       expected_head_revision_id: current.document.current_revision_id,
       idempotency_key: crypto.randomUUID() }),
   });
@@ -1437,13 +1464,13 @@ async function autoSyncOpen(opts, dependencies) {
   });
   const result = binding ? await push(syncOpts, client) : await create(syncOpts, client);
   const tagged = await addCloudTags(result.document_id, opts.addTags, client,
-    { credential, file, silent: syncOpts.silent });
+    { credential, file, silent: syncOpts.silent, reasonText: opts.reasonText });
   return { synced: true, documentId: result.document_id,
     revisionId: tagged && tagged.current_revision_id || result.revision_id, created: !binding,
     librarySelection: result.library_selection || { source: 'binding', library_id: result.workspace_id || null },
     tags: tagged && tagged.tags || result.tags || [],
     localChangedAfterUpload: Boolean(result.local_changed_after_upload),
-    commentFollowUp: result.comment_follow_up };
+    commentFollowUp: result.comment_follow_up, editReason: tagged && tagged.edit_reason || result.edit_reason };
 }
 
 async function openCloudDocument(opts, dependencies) {
@@ -1467,7 +1494,7 @@ async function openCloudDocument(opts, dependencies) {
       document_id: saved.documentId, revision_id: saved.revisionId,
       url: canonicalUrl, created: saved.created, tags: saved.tags,
       library_selection: saved.librarySelection,
-      comment_follow_up: saved.commentFollowUp,
+      comment_follow_up: saved.commentFollowUp, edit_reason: saved.editReason,
       local_changed_after_upload: saved.localChangedAfterUpload,
     }, canonicalUrl + (saved.localChangedAfterUpload
       ? '\nThe local file changed during upload. Run sdoc again to save the latest changes.' : ''));
@@ -1478,6 +1505,29 @@ async function openCloudDocument(opts, dependencies) {
     }
     fail(opts, 'cloud.open', error);
   }
+}
+
+async function copyDocument(opts, client, openBrowser) {
+  if (!opts.extra || !opts.revisionFlag) throw new CloudCommandError('invalid_request',
+    'usage: sdoc cloud copy DOCUMENT_ID --revision REVISION_ID --json');
+  const credential = requireCredential(client), resource = opts.extra + ':' + opts.revisionFlag;
+  const editReason = require('../shared/sdocs-edit-reason').normalize(opts.reasonText);
+  let pending = bindings.getOperationPending(credential.user_id, 'copy', resource);
+  if (!pending || pending.edit_reason !== editReason) {
+    pending = { edit_reason: editReason, idempotency_key: crypto.randomUUID() };
+    bindings.setOperationPending(credential.user_id, 'copy', resource, pending);
+  }
+  const response = await client.authenticated('/api/cloud/v1/documents/' + encodeURIComponent(opts.extra)
+    + '/revisions/' + encodeURIComponent(opts.revisionFlag) + '/copy', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(pending),
+  });
+  const document = response.document;
+  if (!document || !document.id) throw new CloudCommandError('temporary_service_failure', 'Cloud did not return the copied document.');
+  const url = documentUrl(client, document.id);
+  bindings.clearOperationPending(credential.user_id, 'copy', resource);
+  if (!opts.noOpenFlag) openBrowser(url, message => process.stderr.write(message + '\n'));
+  return emit(opts, 'cloud.copy', { ...document, document_id: document.id,
+    revision_id: document.current_revision_id, url, permission: response.permission }, 'Created a private copy: ' + url);
 }
 
 async function history(opts, client) {
@@ -1524,6 +1574,7 @@ async function history(opts, client) {
 async function restore(opts, client) {
   const documentId = opts.extra;
   const sourceRevisionId = opts.revisionFlag;
+  const editReason = require('../shared/sdocs-edit-reason').normalize(opts.reasonText, !opts.dryRunFlag);
   if (!documentId || !sourceRevisionId) throw new CloudCommandError('invalid_request',
     'usage: sdoc cloud restore DOCUMENT_UUID --revision REVISION_UUID');
   const currentResponse = await client.authenticated('/api/cloud/v1/documents/'
@@ -1549,8 +1600,8 @@ async function restore(opts, client) {
   const credential = client.loadCredential();
   const pendingResource = documentId + ':' + sourceRevisionId;
   let pending = bindings.getOperationPending(credential.user_id, 'restore', pendingResource);
-  if (!pending || (opts.baseRevisionFlag && pending.expected_head_revision_id !== opts.baseRevisionFlag)) {
-    pending = { expected_head_revision_id: opts.baseRevisionFlag || current.current_revision_id,
+  if (!pending || (opts.baseRevisionFlag && pending.expected_head_revision_id !== opts.baseRevisionFlag) || pending.edit_reason !== editReason) {
+    pending = { expected_head_revision_id: opts.baseRevisionFlag || current.current_revision_id, edit_reason: editReason,
       idempotency_key: crypto.randomUUID() };
     bindings.setOperationPending(credential.user_id, 'restore', pendingResource, pending);
   }
@@ -1560,7 +1611,7 @@ async function restore(opts, client) {
     response = await client.authenticated('/api/cloud/v1/documents/'
       + encodeURIComponent(documentId) + '/revisions/' + encodeURIComponent(sourceRevisionId) + '/restore', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ expected_head_revision_id: baseRevisionId,
+      body: JSON.stringify({ expected_head_revision_id: baseRevisionId, edit_reason: editReason,
         idempotency_key: pending.idempotency_key }),
     });
   } catch (error) {
@@ -1577,7 +1628,7 @@ async function restore(opts, client) {
     restored_from_revision_id: document.restored_from_revision_id || sourceRevisionId,
     revision_id: document.current_revision_id,
     revision_number: document.revision_number,
-    tags: document.tags }, 'Restored revision ' + sourceRevisionId + ' as revision '
+    tags: document.tags, edit_reason: document.edit_reason }, 'Restored revision ' + sourceRevisionId + ' as revision '
       + document.revision_number + '.');
 }
 
@@ -1677,7 +1728,7 @@ async function runCloudCommand(opts, dependencies) {
     if (opts.helpFlag || action === 'help') return process.stdout.write(
       (management.ACTIONS.includes(action) ? management.HELP : (action === 'search' || action === 'ls') ? CLOUD_SEARCH_HELP : action === 'comments' ? cloudComments.HELP : action === 'read' ? CLOUD_READ_HELP : action === 'edit' ? cloudEdit.HELP
         : ['tag', 'tags'].includes(action) ? CLOUD_TAG_HELP : action === 'create' ? CLOUD_CREATE_HELP
-        : ['push', 'pull', 'diff', 'history', 'restore', 'access'].includes(action) ? CLOUD_UPDATE_HELP : CLOUD_HELP + '\n' + management.HELP) + '\n');
+        : ['push', 'pull', 'diff', 'history', 'copy', 'restore', 'access'].includes(action) ? CLOUD_UPDATE_HELP : CLOUD_HELP + '\n' + management.HELP) + '\n');
     if (opts.searchArgumentErrors && opts.searchArgumentErrors.length) {
       throw new CloudCommandError('invalid_request', opts.searchArgumentErrors.join('; '));
     }
@@ -1713,6 +1764,7 @@ async function runCloudCommand(opts, dependencies) {
     if (action === 'permission-groups') return await permissionGroups(opts, client);
     if (action === 'access') return await access(opts, client);
     if (action === 'notify') return await notify(opts, client);
+    if (action === 'copy') return await copyDocument(opts, client, dependencies && dependencies.openBrowser || io.openBrowser);
     if (action === 'tag') return await setTags(opts, client);
     if (action === 'ls') return await list(opts, client);
     if (action === 'search') return await search(opts, client);

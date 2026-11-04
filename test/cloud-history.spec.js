@@ -11,14 +11,14 @@ async function setup(page, markdown = '# History\n\nOriginal paragraph.\n') {
   f.auth.approveDeviceAuthorization({ userCode: issued.userCode, userId: f.users.bob.id });
   const credential = f.auth.pollDeviceAuthorization({ deviceCode: issued.deviceCode });
   const doc = await f.store.createDocument({ userId: f.users.bob.id, projectId: f.team.projectId,
-    credentialId: credential.credentialId, filename: 'history.md', markdown, idempotencyKey: 'history-create' });
+    credentialId: credential.credentialId, editReason: 'Apply the requested document update', filename: 'history.md', markdown, idempotencyKey: 'history-create' });
   await page.context().addCookies([{ name: 'sdocs_cloud', value: f.users.bob.sessionToken, url: f.origin }]);
   await page.goto(f.origin + '/docs?cloud-document=' + doc.id); await expect(page.locator('#_sd_rendered h1')).toHaveText('History');
-  async function agent(markdown) {
+  async function agent(markdown, editReason = 'Clarify the delivery plan') {
     const current = (await f.api('bob', '/api/cloud/v1/documents/' + doc.id)).data.document;
     const response = await fetch(f.origin + '/api/cloud/v1/documents/' + doc.id + '/revisions', {
       method: 'POST', headers: { Authorization: 'Bearer ' + credential.accessToken, Origin: f.origin, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ markdown, target_revision_id: current.current_revision_id, idempotency_key: crypto.randomUUID(), edit_session_id: crypto.randomUUID() }),
+      body: JSON.stringify({ markdown, target_revision_id: current.current_revision_id, idempotency_key: crypto.randomUUID(), edit_reason: editReason, edit_session_id: crypto.randomUUID() }),
     });
     expect(response.status).toBe(201); return (await response.json()).document;
   }
@@ -58,7 +58,7 @@ test('opening an update fetches its two versions and displays a safe text compar
     await agent('# History\n\nChanged paragraph. <img src=x onerror=alert(1)>\n'); await page.evaluate(() => SDocs.checkCloudNow());
     const reads = []; page.on('request', request => { if (/\/revisions\//.test(request.url())) reads.push(request.url()); });
     await historyButton(page).click(); await expect(page.locator('#_sd_history-panel')).toContainText('Agent / CLI update'); expect(reads).toHaveLength(0);
-    await page.getByRole('button', { name: /Agent \/ CLI update/ }).click(); await expect(page.locator('.sdoc-history-diff-line.removed')).toContainText('Original paragraph.');
+    await page.getByRole('button', { name: /Agent \/ CLI update/ }).click(); await page.getByRole('button', { name: 'View changes', exact: true }).click(); await expect(page.locator('.sdoc-history-diff-line.removed')).toContainText('Original paragraph.');
     await expect(page.locator('.sdoc-history-diff-line.added')).toContainText('Changed paragraph.'); expect(reads).toHaveLength(2); await expect(page.locator('.sdoc-history-diff img')).toHaveCount(0);
     await expect(page.locator('.sdoc-share-disclosure.open .sdoc-history-comparison')).toContainText('Lines added: 1. Lines removed: 1.');
   } finally { await f.close(); }
@@ -77,7 +77,7 @@ test('older updates paginate without loading document contents', async ({ page }
   try {
     let current = (await f.api('bob', '/api/cloud/v1/documents/' + doc.id)).data.document;
     for (let n = 0; n < 24; n++) current = await f.store.saveRevision({ userId: f.users.bob.id, documentId: doc.id, expectedHeadRevisionId: current.current_revision_id,
-      credentialId: 'assistant', markdown: '# History\n\nUpdate ' + n, idempotencyKey: 'page-' + n });
+      credentialId: 'assistant', editReason: 'Apply the requested document update', markdown: '# History\n\nUpdate ' + n, idempotencyKey: 'page-' + n });
     await page.evaluate(() => SDocs.checkCloudNow()); const reads = [];
     page.on('request', request => { if (/\/revisions\//.test(request.url())) reads.push(request.url()); });
     await historyButton(page).click(); await expect(page.locator('.sdoc-history-entry')).toHaveCount(20);
@@ -98,7 +98,7 @@ test('large comparisons page their lines while the reader stays interactive', as
   const { f, agent } = await setup(page, before);
   try {
     await agent(before.replaceAll('Original line', 'Changed line')); await page.evaluate(() => SDocs.checkCloudNow()); await historyButton(page).click();
-    await page.getByRole('button', { name: /Agent \/ CLI update/ }).click(); await expect(page.locator('.sdoc-history-diff-line')).toHaveCount(120);
+    await page.getByRole('button', { name: /Agent \/ CLI update/ }).click(); await page.getByRole('button', { name: 'View changes', exact: true }).click(); await expect(page.locator('.sdoc-history-diff-line')).toHaveCount(120);
     const more = page.getByRole('button', { name: 'Show more changes', exact: true });
     await expect(more).toBeVisible();
     for (let n = 0; n < 4 && await more.isVisible(); n++) { const count = await page.locator('.sdoc-history-diff-line').count(); await more.click(); await expect.poll(() => page.locator('.sdoc-history-diff-line').count()).toBeGreaterThan(count); }
@@ -112,7 +112,7 @@ test('expired earlier versions show an explicit unavailable state', async ({ pag
     await agent('# History\n\nAgent update.\n'); const current = (await f.api('bob', '/api/cloud/v1/documents/' + doc.id)).data.document;
     await f.store.saveRevision({ userId: f.users.bob.id, documentId: doc.id, expectedHeadRevisionId: current.current_revision_id, markdown: '# History\n\nBrowser update.\n', idempotencyKey: 'retained-browser' });
     f.store.pruneRevisions({ documentId: doc.id, retainAfterMs: Date.now() + 1000 }); await page.evaluate(() => SDocs.checkCloudNow());
-    await historyButton(page).click(); await page.getByRole('button', { name: /Browser edit/ }).click(); await expect(page.locator('#_sd_history-panel')).toContainText('One of these versions is no longer available.');
+    await historyButton(page).click(); await page.getByRole('button', { name: /Edited in browser/ }).click(); await page.getByRole('button', { name: 'View changes', exact: true }).click(); await expect(page.locator('#_sd_history-panel')).toContainText('One of these versions is no longer available.');
     await expect(page.locator('#_sd_rendered > p')).toHaveText('Browser update.');
   } finally { await f.close(); }
 });
@@ -123,7 +123,7 @@ test('revocation refuses new comparisons and clears the panel on reopening', asy
     await page.context().clearCookies(); await page.context().addCookies([{ name: 'sdocs_cloud', value: f.users.member.sessionToken, url: f.origin }]); await page.reload(); await historyButton(page).click();
     let release; const gate = new Promise(resolve => { release = resolve; });
     await page.route('**/api/cloud/v1/documents/*/revisions/*', async route => { await gate; await route.continue(); });
-    await page.getByRole('button', { name: /Agent \/ CLI update/ }).click(); await expect(page.locator('.sdoc-share-disclosure.open')).toContainText('Loading changes...');
+    await page.getByRole('button', { name: /Agent \/ CLI update/ }).click(); await page.getByRole('button', { name: 'View changes', exact: true }).click(); await expect(page.locator('.sdoc-share-disclosure.open')).toContainText('Loading changes...');
     f.store.setDocumentPermission({ userId: f.users.bob.id, documentId: doc.id, mode: 'custom', memberUserIds: [f.users.bob.id] }); release();
     await expect(page.locator('.sdoc-share-disclosure.open')).toContainText('One of these versions is no longer available.'); await expect(page.locator('.sdoc-history-diff-line')).toHaveCount(0);
     await page.getByRole('button', { name: 'Close history panel', exact: true }).click(); await historyButton(page).click(); await expect(page.locator('#_sd_history-panel')).toContainText('History is unavailable for this document.'); await expect(page.locator('.sdoc-history-entry')).toHaveCount(0);
@@ -148,7 +148,7 @@ test('closing the panel discards a delayed comparison before starting a worker',
     let release, completed = 0; const gate = new Promise(resolve => { release = resolve; }); const workers = [];
     page.on('worker', worker => { if (worker.url().includes('sdocs-history-diff-worker')) workers.push(worker); });
     await page.route('**/api/cloud/v1/documents/*/revisions/*', async route => { await gate; await route.fulfill({ json: { ok: true, document: { markdown: 'Late result' } } }); completed++; });
-    await page.getByRole('button', { name: /Agent \/ CLI update/ }).click(); await page.getByRole('button', { name: 'Close history panel', exact: true }).click(); release();
+    await page.getByRole('button', { name: /Agent \/ CLI update/ }).click(); await page.getByRole('button', { name: 'View changes', exact: true }).click(); await page.getByRole('button', { name: 'Close history panel', exact: true }).click(); release();
     await expect.poll(() => completed).toBe(2); await expect(page.locator('#_sd_history-panel')).toBeHidden(); expect(workers).toHaveLength(0);
   } finally { await f.close(); }
 });
@@ -164,5 +164,92 @@ test('history links reopen Cloud history while private copies have no history pa
     await page.waitForFunction(() => window.SDocs && SDocs.shortLinkId);
     await expect(historyButton(page)).toBeHidden(); await expect(page.locator('#_sd_history-panel')).toBeHidden();
     expect(await page.evaluate(() => SDocs.currentMode)).toBe('read');
+  } finally { await f.close(); }
+});
+test('history puts the person and explanation first and leaves text differences optional', async ({ page }) => {
+  const { f, agent } = await setup(page);
+  try {
+    await agent('# History\n\nUpdated paragraph.\n'); await page.evaluate(() => SDocs.checkCloudNow());
+    const reads = []; page.on('request', request => { if (/\/revisions\//.test(request.url())) reads.push(request.url()); });
+    await historyButton(page).click();
+    const entry = page.locator('.sdoc-history-entry').filter({ hasText: 'Agent / CLI update' });
+    await expect(entry.locator('.sdoc-history-title')).toHaveText('You');
+    await expect(entry.locator('.sdoc-history-reason')).toHaveText('Clarify the delivery plan');
+    await entry.getByRole('button', { expanded: false }).click();
+    await expect(page.getByRole('button', { name: 'Open as new document', exact: true })).toBeVisible();
+    await expect(page.locator('.sdoc-history-diff-line')).toHaveCount(0); expect(reads).toHaveLength(0);
+    await page.getByRole('button', { name: 'View changes', exact: true }).click();
+    await expect(page.locator('.sdoc-history-diff-line.added')).toContainText('Updated paragraph.'); expect(reads).toHaveLength(2);
+    await page.getByRole('button', { name: 'Hide changes', exact: true }).click();
+    await expect(page.locator('.sdoc-share-disclosure.open .sdoc-history-comparison')).toBeHidden();
+  } finally { await f.close(); }
+});
+test('open as new document copies a selected older version into a new tab without changing the original', async ({ page }) => {
+  const source = '---\ntags:\n  - delivery\nstyles:\n  fontSize: 18\n---\n# History\n\nOriginal paragraph.\n';
+  const { f, doc, agent } = await setup(page, source);
+  try {
+    await agent(source.replace('Original', 'First updated')); const latest = await agent(source.replace('Original', 'Latest updated'));
+    await page.evaluate(() => SDocs.checkCloudNow()); await historyButton(page).click();
+    await page.locator('.sdoc-history-entry').filter({ hasText: 'Agent / CLI update' }).nth(1).getByRole('button', { expanded: false }).click();
+    const opening = page.waitForEvent('popup'); await page.getByRole('button', { name: 'Open as new document', exact: true }).click();
+    const copy = await opening; await expect(copy.locator('#_sd_rendered h1')).toHaveText('History');
+    await expect(copy.locator('#_sd_rendered > p')).toHaveText('First updated paragraph.');
+    const copied = await copy.evaluate(() => ({ id: SDocs.cloudDocument.id, tags: SDocs.cloudDocument.tags, revision: SDocs.cloudDocument.revision_number }));
+    expect(copied.id).not.toBe(doc.id); expect(copied.tags).toEqual(['delivery']); expect(copied.revision).toBe(1);
+    const stored = (await f.api('bob', '/api/cloud/v1/documents/' + copied.id)).data.document;
+    expect(stored.markdown).toBe(source.replace('Original', 'First updated'));
+    expect((await f.api('bob', '/api/cloud/v1/documents/' + doc.id + '/head')).data.document.current_revision_id).toBe(latest.current_revision_id);
+    const documents = f.store.db.prepare('SELECT count(*) AS n FROM cloud_documents').get().n;
+    const reopening = page.waitForEvent('popup'); await page.getByRole('button', { name: 'Open copy', exact: true }).click();
+    const reopened = await reopening; await expect(reopened).toHaveURL(new RegExp(copied.id));
+    expect(f.store.db.prepare('SELECT count(*) AS n FROM cloud_documents').get().n).toBe(documents);
+    await reopened.close(); await copy.close();
+  } finally { await f.close(); }
+});
+test('a lost copy response can be retried without creating a second document', async ({ page }) => {
+  const { f, agent } = await setup(page);
+  try {
+    await agent('# History\n\nUpdated paragraph.\n'); await page.evaluate(() => SDocs.checkCloudNow()); await historyButton(page).click();
+    await page.locator('.sdoc-history-entry').filter({ hasText: 'Agent / CLI update' }).getByRole('button', { expanded: false }).click();
+    const savedIds = [], keys = [];
+    await page.route('**/revisions/*/copy', async route => {
+      keys.push(route.request().postDataJSON().idempotency_key);
+      const response = await route.fetch(); savedIds.push((await response.json()).document.id);
+      if (savedIds.length === 1) await route.abort('failed'); else await route.fulfill({ response });
+    });
+    const firstPopup = page.waitForEvent('popup'); await page.getByRole('button', { name: 'Open as new document', exact: true }).click();
+    const failedTab = await firstPopup; await expect(page.locator('#_sd_history-panel')).toContainText('Could not create this copy. Try again.');
+    await expect.poll(() => failedTab.isClosed()).toBe(true);
+    const retryPopup = page.waitForEvent('popup'); await page.getByRole('button', { name: 'Open as new document', exact: true }).click();
+    const copy = await retryPopup; await expect(copy.locator('#_sd_rendered h1')).toHaveText('History');
+    expect(savedIds).toHaveLength(2); expect(savedIds[0]).toBe(savedIds[1]); expect(keys[0]).toBe(keys[1]); await copy.close();
+  } finally { await f.close(); }
+});
+test('a new update arriving during copy creation leaves the refreshed action usable', async ({ page }) => {
+  const { f, agent } = await setup(page);
+  try {
+    await agent('# History\n\nFirst update.\n'); await page.evaluate(() => SDocs.checkCloudNow()); await historyButton(page).click();
+    await page.locator('.sdoc-history-entry').filter({ hasText: 'Agent / CLI update' }).getByRole('button', { expanded: false }).click();
+    let release; const gate = new Promise(resolve => { release = resolve; });
+    await page.route('**/revisions/*/copy', async route => { await gate; await route.continue(); });
+    const opening = page.waitForEvent('popup'); await page.getByRole('button', { name: 'Open as new document', exact: true }).click(); const copy = await opening;
+    await agent('# History\n\nSecond update.\n'); await page.evaluate(() => SDocs.checkCloudNow());
+    await expect(page.locator('.sdoc-history-entry').filter({ hasText: 'Agent / CLI update' })).toHaveCount(2);
+    release(); await expect(copy.locator('#_sd_rendered > p')).toHaveText('First update.');
+    await expect(page.getByRole('button', { name: 'Open copy', exact: true })).toBeEnabled(); await copy.close();
+  } finally { await f.close(); }
+});
+test('long reasons use a preview and load the full explanation only on request', async ({ page }) => {
+  const { f, agent } = await setup(page);
+  try {
+    const reason = 'Use the approved delivery decision. '.repeat(80) + '<img src=x onerror=alert(1)>';
+    await agent('# History\n\nUpdated paragraph.\n', reason); await page.evaluate(() => SDocs.checkCloudNow());
+    const reads = []; page.on('request', request => { if (/\/revisions\//.test(request.url())) reads.push(request.url()); });
+    await historyButton(page).click(); const entry = page.locator('.sdoc-history-entry').filter({ hasText: 'Agent / CLI update' });
+    expect((await entry.locator('.sdoc-history-reason').first().textContent()).length).toBeLessThanOrEqual(515);
+    await entry.getByRole('button', { expanded: false }).click(); expect(reads).toHaveLength(0);
+    await page.getByRole('button', { name: 'Read full reason', exact: true }).click();
+    await expect(entry.locator('p.sdoc-history-reason')).toHaveText(reason); expect(reads).toHaveLength(1);
+    await expect(entry.locator('img')).toHaveCount(0);
   } finally { await f.close(); }
 });

@@ -7,7 +7,9 @@ module.exports = function (h) {
   const io = require('../cli/lib/io');
   const bindings = require('../cli/lib/cloud-bindings');
   const comments = require('../cli/lib/cloud-comments');
-  const { CloudClient, CloudCommandError, runCloudCommand, CLOUD_COMMENTS_HELP } = require('../cli/lib/cloud-commands');
+  const { CloudClient, CloudCommandError, runCloudCommand: rawRunCloudCommand, CLOUD_COMMENTS_HELP } = require('../cli/lib/cloud-commands');
+
+  const runCloudCommand = (opts, dependencies) => rawRunCloudCommand({ reasonText: 'Apply the requested document update', ...opts, ...(opts.reasonText == null ? { reasonText: 'Apply the requested document update' } : {}) }, dependencies);
 
   test('Cloud comments grammar preserves literal reply and quoted source text', () => {
     const opts = io.parseArgs(['cloud', 'comments', 'doc', '--id', 'c7', '--reply', '+tag\n10:30', '--json']);
@@ -437,7 +439,7 @@ module.exports = function (h) {
         function cli(args, actor = 'bob') {
           fs.writeFileSync(path.join(cliState, 'cloud', 'credentials.json'), JSON.stringify({ [f.origin]: actualCredentials[actor] }));
           const child = spawnSync(process.execPath, [path.join(__dirname, '../cli/bin/sdocs-dev.js'),
-            'cloud', 'comments', ...args, '--json'], { encoding: 'utf8', cwd: dir, timeout: 15000,
+            'cloud', 'comments', ...args, '--reason', 'Apply the requested document update', '--json'], { encoding: 'utf8', cwd: dir, timeout: 15000,
             env: { ...process.env, SDOCS_HOME: cliState, SDOCS_CLOUD_FILE_CREDENTIALS: '1',
               SDOCS_CLOUD_URL: f.origin, SDOCS_URL: f.origin, NO_UPDATE_NOTIFIER: '1',
               SDOCS_NO_SETUP: '1', SDOCS_NO_REFRESH: '1', CI: '1' } });

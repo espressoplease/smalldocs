@@ -11,7 +11,7 @@ test('a service-worker-controlled Cloud reader upgrades from the previous releas
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'sdocs-history-upgrade-'));
   const old = path.join(temp, 'old'); fs.mkdirSync(old);
   const archive = path.join(temp, 'old.tar');
-  execFileSync('git', ['archive', '--output=' + archive, '7a6f50f7b0f6cdcdee88985494c9999d699dfea3'], { cwd: root });
+  execFileSync('git', ['archive', '--output=' + archive, '01b6ff53e147596d1f2b97fe5190152ec8ea1865'], { cwd: root });
   execFileSync('tar', ['-xf', archive, '-C', old]);
   let f; const errors = []; page.on('pageerror', error => errors.push(error.message));
   try {
@@ -21,17 +21,19 @@ test('a service-worker-controlled Cloud reader upgrades from the previous releas
     await page.context().addCookies([{ name: 'sdocs_cloud', value: f.users.bob.sessionToken, url: f.origin }]);
     await page.goto(f.origin + '/docs?cloud-document=' + doc.id);
     await expect(page.locator('#_sd_rendered h1')).toHaveText('History');
-    await expect(page.locator('#_sd_btn-history')).toHaveCount(0);
+    await expect(page.locator('#_sd_btn-history')).toBeHidden();
     await page.evaluate(async () => {
       await navigator.serviceWorker.ready;
       if (!navigator.serviceWorker.controller) await new Promise(resolve => navigator.serviceWorker.addEventListener('controllerchange', resolve, { once: true }));
     });
-    await f.store.saveRevision({ userId: f.users.bob.id, documentId: doc.id, credentialId: 'assistant',
+    await f.store.saveRevision({ userId: f.users.bob.id, documentId: doc.id, credentialId: 'assistant', editReason: 'Apply the requested document update',
       expectedHeadRevisionId: doc.current_revision_id, markdown: '# History\n\nUpdated paragraph.\n', idempotencyKey: 'update' });
     await f.restart(root); await page.reload();
     const button = page.getByRole('button', { name: 'Document history', exact: true });
     await expect(button).toBeVisible(); await button.click();
+    await expect(page.locator('.sdoc-history-reason').first()).toHaveText('Apply the requested document update');
     await page.getByRole('button', { name: /Agent \/ CLI update/ }).click();
+    await page.getByRole('button', { name: 'View changes', exact: true }).click();
     await expect(page.locator('.sdoc-history-diff-line.added')).toContainText('Updated paragraph.');
     await expect(page.locator('.sdoc-history-diff-line.removed')).toContainText('Original paragraph.');
     expect(await page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);

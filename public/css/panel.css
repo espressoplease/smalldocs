@@ -44,7 +44,9 @@ body:is(.share-mode, .metadata-mode, .history-mode) #_sd_right > .panel-section 
 .sdoc-history-message { margin: 0; padding: 14px 12px; color: var(--text-2); font-size: 12px; line-height: 1.5; }
 .sdoc-history-entry { border-bottom: 1px solid var(--border-subtle); }
 .sdoc-history-title, .sdoc-history-meta { display: block; }
-.sdoc-history-title { font-size: 13px; }
+.sdoc-history-title { font-size: 13px; font-weight: 600; }
+.sdoc-history-reason { display: block; margin-top: 6px; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; line-height: 1.5; }
+.sdoc-history-actions { min-width: 0; }
 .sdoc-history-meta { margin-top: 4px; font-size: 11.5px; color: var(--text-2); }
 .sdoc-history-comparison { min-width: 0; }
 .sdoc-history-diff { font: 11px/1.5 ui-monospace, monospace; }

@@ -14,7 +14,7 @@ module.exports = function (h) { return async function () {
   async function save(doc, text, options = {}) {
     return f.store.saveTargetRevision({ userId: owner, documentId: doc.id,
       targetRevisionId: doc.current_revision_id, markdown: '# Launch notes\n\n' + text + '\n',
-      idempotencyKey: crypto.randomUUID(), ...options });
+      idempotencyKey: crypto.randomUUID(), editReason: 'Apply the requested document update', ...options });
   }
   try {
     await h.testAsync('history groups consecutive browser saves and preserves interleaved writers', async () => {
@@ -22,7 +22,7 @@ module.exports = function (h) { return async function () {
       doc = await save(doc, 'First', { editSessionId: session }); doc = await save(doc, 'Second', { editSessionId: session });
       let page = f.store.listDocumentHistory({ userId: owner, documentId: doc.id, limit: 20 });
       assert.deepStrictEqual(page.entries.map(e => e.save_count), [2, 1]);
-      doc = await save(doc, 'Agent', { credentialId: 'agent-credential', editSessionId: session });
+      doc = await save(doc, 'Agent', { credentialId: 'agent-credential', editReason: 'Apply the requested document update', editSessionId: session });
       doc = await save(doc, 'Browser again', { editSessionId: session });
       page = f.store.listDocumentHistory({ userId: owner, documentId: doc.id, limit: 20 });
       assert.deepStrictEqual(page.entries.map(e => e.kind), ['browser', 'agent', 'browser', 'created']);
@@ -33,10 +33,10 @@ module.exports = function (h) { return async function () {
       let doc = await create('history-retention', 'agent-credential');
       assert.strictEqual(f.store.getDocumentHead({ userId: owner, documentId: doc.id }).activity.has_agent_edits, false);
       const unchanged = await f.store.saveTargetRevision({ userId: owner, documentId: doc.id,
-        targetRevisionId: doc.current_revision_id, markdown: '# Launch notes\n\nOriginal paragraph.\n', credentialId: 'agent-credential', idempotencyKey: 'history-agent-no-op' });
+        targetRevisionId: doc.current_revision_id, markdown: '# Launch notes\n\nOriginal paragraph.\n', credentialId: 'agent-credential', editReason: 'Apply the requested document update', idempotencyKey: 'history-agent-no-op' });
       assert.strictEqual(unchanged.revision_created, false);
       assert.strictEqual(f.store.getDocumentHead({ userId: owner, documentId: doc.id }).activity.has_agent_edits, false);
-      doc = await save(doc, 'Agent edit', { credentialId: 'agent-credential' });
+      doc = await save(doc, 'Agent edit', { credentialId: 'agent-credential', editReason: 'Apply the requested document update' });
       doc = await save(doc, 'Browser edit');
       f.store.pruneRevisions({ documentId: doc.id, retainAfterMs: Date.now() + 1000 });
       const activity = f.store.getDocumentHead({ userId: owner, documentId: doc.id }).activity;
@@ -90,7 +90,7 @@ module.exports = function (h) { return async function () {
       assert.strictEqual(result.data.document.activity.has_agent_edits, false);
     });
     await h.testAsync('legacy history upgrades without decrypting or rewriting revision bodies', async () => {
-      let doc = await create('history-migration', 'assistant'); doc = await save(doc, 'Saved by an assistant', { credentialId: 'assistant' });
+      let doc = await create('history-migration', 'assistant'); doc = await save(doc, 'Saved by an assistant', { credentialId: 'assistant', editReason: 'Apply the requested document update' });
       const file = path.join(f.dir, 'history-upgrade.db'); await f.store.db.backup(file);
       const Database = require('better-sqlite3'), legacy = new Database(file);
       const before = legacy.prepare('SELECT id,body_ciphertext FROM cloud_document_revisions ORDER BY id').all();

@@ -6,6 +6,7 @@ var panel = document.getElementById('_sd_history-panel');
 if (!S || !button || !panel) return;
 var scriptURL = document.currentScript.src;
 var docId = null, activity = null, sessionId = null, entries = [], cursor = null;
+var diffId = null, copies = new Map();
 var generation = 0, diffGeneration = 0, worker = null, loading = false, refreshPending = false, openId = null, noticeTimer = null;
 
 function node(tag, className, text) {
@@ -22,10 +23,10 @@ function notify(value) {
   button.querySelector('.sdoc-history-notice').textContent = 'Updated ' + time;
   button.classList.add('is-updated'); noticeTimer = setTimeout(clearNotice, 3500);
 }
-async function request(path) {
-  var response = await fetch(path, { credentials: 'same-origin', cache: 'no-store' });
+async function request(path, options) {
+  var response = await fetch(path, Object.assign({ credentials: 'same-origin', cache: 'no-store' }, options));
   var data = await response.json();
-  if (!response.ok || !data.ok) { var error = new Error('History is unavailable.'); error.status = response.status; throw error; }
+  if (!response.ok || !data.ok) { var error = new Error('History is unavailable.'); error.status = response.status; error.code = data.error; throw error; }
   return data;
 }
 function observe(document) {
@@ -33,7 +34,7 @@ function observe(document) {
   var changedDocument = id !== docId;
   if (changedDocument) {
     generation++; stopDiff(); clearNotice(); docId = id || null; activity = null;
-    entries = []; cursor = null; openId = null; loading = false; refreshPending = false;
+    entries = []; cursor = null; openId = null; diffId = null; copies.clear(); loading = false; refreshPending = false;
     sessionId = S.currentMode === 'write' ? crypto.randomUUID() : null;
     panel.replaceChildren();
   }
@@ -88,22 +89,57 @@ async function load(more) {
 }
 function render() {
   stopDiff(); panel.replaceChildren();
-  panel.appendChild(node('p', 'sdoc-history-message', 'Previous versions are kept for 90 days. The current document is always kept. Consecutive browser saves from one editing session appear together.'));
+  panel.appendChild(node('p', 'sdoc-history-message', 'Open a saved version as a new document, or view its changes. Previous versions are kept for 90 days. The current document is always kept.'));
   if (!entries.length) panel.appendChild(node('p', 'sdoc-history-message', 'No updates to show.'));
   entries.forEach(function (entry) {
     var section = node('section', 'sdoc-history-entry');
     var toggle = node('button', 'export-option sdoc-share-toggle'); toggle.type = 'button';
     toggle.setAttribute('aria-expanded', String(openId === entry.id));
     var label = node('span', 'export-option-text');
-    label.appendChild(node('span', 'sdoc-history-title', entry.kind === 'created' ? 'Created' : entry.kind === 'agent' ? 'Agent / CLI update' : 'Browser edit'));
-    label.appendChild(node('span', 'sdoc-history-meta', (entry.is_you ? 'You' : entry.actor_name) + ' · ' + date(entry.updated_at)));
+    label.appendChild(node('span', 'sdoc-history-title', entry.is_you ? 'You' : entry.actor_name));
+    if (entry.edit_reason) label.appendChild(node('span', 'sdoc-history-reason', entry.edit_reason + (entry.edit_reason_truncated ? '...' : '')));
+    else if (entry.kind === 'agent') label.appendChild(node('span', 'sdoc-history-reason', 'No reason recorded'));
+    label.appendChild(node('span', 'sdoc-history-meta', (entry.kind === 'created' ? 'Created' : entry.kind === 'agent' ? 'Agent / CLI update' : 'Edited in browser') + ' · ' + date(entry.updated_at)));
     if (entry.save_count > 1) label.appendChild(node('span', 'sdoc-history-meta', entry.save_count + ' saves'));
     var arrow = node('span', 'arrow', '›'); arrow.setAttribute('aria-hidden', 'true'); toggle.append(label, arrow);
-    var disclosure = node('div', 'sdoc-share-disclosure'), inner = node('div', 'sdoc-history-comparison'); disclosure.appendChild(inner);
+    var disclosure = node('div', 'sdoc-share-disclosure'), actions = node('div', 'sdoc-history-actions');
+    var copy = node('button', 'export-option sdoc-share-action', copies.get(entry.revision_id)?.result ? 'Open copy' : 'Open as new document'); copy.type = 'button';
+    var state = copies.get(entry.revision_id);
+    var status = node('p', 'sdoc-history-message', state?.pending ? 'Creating your copy...' : state?.error || '');
+    status.setAttribute('role', 'status'); status.hidden = !(state?.pending || state?.error);
+    copy.disabled = Boolean(copies.get(entry.revision_id)?.pending);
+    copy.addEventListener('click', function () { openCopy(entry, copy, status); });
+    var explanation = node('p', 'sdoc-history-message', 'A private copy in this library. Your current document stays unchanged.');
+    var changes = node('button', 'export-option sdoc-share-action', 'View changes'); changes.type = 'button';
+    changes.setAttribute('aria-expanded', String(diffId === entry.id));
+    var inner = node('div', 'sdoc-history-comparison'); inner.hidden = diffId !== entry.id;
+    changes.addEventListener('click', function () {
+      stopDiff(); diffId = diffId === entry.id ? null : entry.id;
+      inner.hidden = diffId !== entry.id; changes.setAttribute('aria-expanded', String(!inner.hidden));
+      changes.textContent = inner.hidden ? 'View changes' : 'Hide changes';
+      if (!inner.hidden) compare(entry, inner);
+    });
+    actions.append(copy, explanation);
+    if (entry.edit_reason_truncated) {
+      var fullReason = node('button', 'export-option sdoc-share-action', 'Read full reason'); fullReason.type = 'button';
+      var reasonText = node('p', 'sdoc-history-message sdoc-history-reason'); reasonText.hidden = true;
+      fullReason.addEventListener('click', async function () {
+        var id = docId; fullReason.disabled = true;
+        try {
+          var data = await request('/api/cloud/v1/documents/' + encodeURIComponent(id) + '/revisions/' + encodeURIComponent(entry.revision_id));
+          if (docId !== id || openId !== entry.id || !reasonText.isConnected) return;
+          reasonText.textContent = data.document.edit_reason || 'No reason recorded'; reasonText.hidden = false; fullReason.hidden = true;
+        } catch (_) { reasonText.textContent = 'Could not load the full reason. Try again.'; reasonText.hidden = false; }
+        finally { fullReason.disabled = false; }
+      });
+      actions.append(fullReason, reasonText);
+    }
+    actions.append(changes, status, inner); disclosure.appendChild(actions);
     section.append(toggle, disclosure); panel.appendChild(section);
     function open() {
       panel.querySelectorAll('.sdoc-share-disclosure.open').forEach(function (el) { el.classList.remove('open'); el.previousElementSibling.classList.remove('open'); el.previousElementSibling.setAttribute('aria-expanded', 'false'); });
-      stopDiff(); openId = entry.id; disclosure.classList.add('open'); toggle.classList.add('open'); toggle.setAttribute('aria-expanded', 'true'); compare(entry, inner);
+      stopDiff(); openId = entry.id; disclosure.classList.add('open'); toggle.classList.add('open'); toggle.setAttribute('aria-expanded', 'true');
+      if (diffId === entry.id) { changes.textContent = 'Hide changes'; inner.hidden = false; compare(entry, inner); }
     }
     toggle.addEventListener('click', function () {
       if (openId === entry.id) { openId = null; stopDiff(); disclosure.classList.remove('open'); toggle.classList.remove('open'); toggle.setAttribute('aria-expanded', 'false'); }
@@ -114,6 +150,35 @@ function render() {
   if (cursor) {
     var more = node('button', 'export-option sdoc-share-action', 'Load older updates'); more.type = 'button';
     more.addEventListener('click', function () { more.disabled = true; load(true); }); panel.appendChild(more);
+  }
+}
+async function openCopy(entry, button, status) {
+  var id = docId, saved = copies.get(entry.revision_id);
+  if (saved?.result) { window.open(saved.result.url, '_blank', 'noopener'); return; }
+  if (saved?.pending) return;
+  var tab = window.open('about:blank', '_blank'); if (tab) tab.opener = null;
+  saved = saved || { key: crypto.randomUUID() }; saved.pending = true; saved.error = null; copies.set(entry.revision_id, saved);
+  button.disabled = true; status.hidden = false; status.textContent = 'Creating your copy...';
+  try {
+    var data = await request('/api/cloud/v1/documents/' + encodeURIComponent(id) + '/revisions/' + encodeURIComponent(entry.revision_id) + '/copy', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ idempotency_key: saved.key }) });
+    var url = new URL(data.document.url);
+    if (url.origin !== location.origin || url.pathname !== '/docs' || url.searchParams.get('cloud-document') !== data.document.id) throw new Error('Invalid copy URL');
+    saved.result = { url: url.href };
+    if (tab && !tab.closed) tab.location.replace(url.href);
+    if (docId === id) {
+      button.textContent = 'Open copy'; status.textContent = 'Copy created. ';
+      var link = node('a', '', 'Open copy'); link.href = url.href; link.target = '_blank'; link.rel = 'noopener'; status.appendChild(link);
+    }
+  } catch (error) {
+    if (tab && !tab.closed) tab.close();
+    saved.error = ['permission_denied', 'trial_payment_required', 'subscription_read_only', 'subscription_required'].includes(error.code)
+      ? 'Your access or subscription does not allow creating a copy in this library.'
+      : 'Could not create this copy. Try again.';
+    if (docId === id) status.textContent = saved.error;
+  } finally {
+    saved.pending = false; button.disabled = false;
+    if (docId === id && S.currentMode === 'history' && !button.isConnected) render();
   }
 }
 async function compare(entry, target) {

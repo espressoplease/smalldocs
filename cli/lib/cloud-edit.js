@@ -14,12 +14,12 @@ FIND, READ, EDIT
 Choose the intended library. Check the result's title, tags and snippets, then
 read the relevant section. Pass its revision_id as --base-revision when saving.
 
-  sdoc cloud edit DOCUMENT_ID --old 'Cap: 10' --new 'Cap: 20' --json
-  sdoc cloud edit DOCUMENT_ID --section Pricing --old '10' --new '20' --json
-  sdoc cloud edit DOCUMENT_ID --lines 10:30 --old 'Old text' --new 'New text' --json
-  sdoc cloud edit DOCUMENT_ID --edits-file edits.json --dry-run --json
-  sdoc cloud edit DOCUMENT_ID --edits '[{"old_text":"Draft","new_text":"Final"}]' --json
-  sdoc cloud edit DOCUMENT_ID --patch-file change.diff --json
+  sdoc cloud edit DOCUMENT_ID --old 'Cap: 10' --new 'Cap: 20' --reason "Use the approved capacity limit of 20" --json
+  sdoc cloud edit DOCUMENT_ID --section Pricing --old '10' --new '20' --reason "Use the price approved in the pricing review" --json
+  sdoc cloud edit DOCUMENT_ID --lines 10:30 --old 'Old text' --new 'New text' --reason "Apply the rollout wording agreed in review" --json
+  sdoc cloud edit DOCUMENT_ID --edits-file edits.json --dry-run --reason "Apply the rollout wording agreed in review" --json
+  sdoc cloud edit DOCUMENT_ID --edits '[{"old_text":"Draft","new_text":"Final"}]' --reason "Mark the proposal approved after review" --json
+  sdoc cloud edit DOCUMENT_ID --patch-file change.diff --reason "Apply the retry-policy review" --json
 
 Replace exact, case-sensitive text in a Cloud document without downloading or
 uploading its full Markdown. --new '' deletes the matched text. Old text must
@@ -56,6 +56,12 @@ Overlapping edits are refused. Batch files cannot use the single-edit flags.
 --patch-file accepts a contextual unified diff for this one document. Its
 context must match the base. Patch files cannot use replacement or scope flags.
 
+EDIT REASONS
+
+Every saved update requires --reason "Why this change is needed". Explain the
+intent and context in a concise sentence. The reason is encrypted and shown in
+document history with the person whose credentials saved the update. A preview can omit it.
+
 PREVIEW, SAVE, AND RETRY
 
 --dry-run returns matches, a diff and merge details without saving a revision
@@ -83,7 +89,7 @@ edit the local file, and cloud push. Run cloud push --help for that workflow.
 Receipts include comment_follow_up: open_count, resolved_count, up to 20
 open_comment_ids and ids_truncated. These describe feedback in this revision,
 not whether an edit satisfied it. Verify the change, then normally delete its
-addressed thread with cloud comments DOCUMENT_ID --id ID --delete --json.
+addressed thread with cloud comments DOCUMENT_ID --id ID --delete --reason "The correction is saved and verified" --json.
 Resolve with --note instead when discussion should be retained. Leave unclear
 feedback open. Dry-run previews do not justify closing feedback.
 Diffs with diff_basis: body describe Markdown after front matter.
@@ -203,6 +209,7 @@ function editRequest(opts) {
 async function runEdit(opts, client, helpers) {
   // Validate the entire local payload before credential access or a request.
   const input = editRequest(opts);
+  input.edit_reason = require('../shared/sdocs-edit-reason').normalize(opts.reasonText, !opts.dryRunFlag);
   const credential = client.loadCredential();
   if (!credential) throw error('login_required', 'Run `sdoc cloud login`.');
   const documentId = opts.extra;

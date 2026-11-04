@@ -56,13 +56,13 @@ visual cell, slide or diagram targets.
 EDIT THE DOCUMENT, RESPOND, AND RESOLVE
 
   sdoc cloud read DOCUMENT_ID --section Production --json
-  sdoc cloud edit DOCUMENT_ID --section Production --old '10' --new '20' --base-revision READ_REVISION_ID --json
-  sdoc cloud comments DOCUMENT_ID --id c7 --reply 'Updated the production limit.' --json
-  sdoc cloud comments DOCUMENT_ID --id c7 --resolve --note 'Corrected and checked.' --json
-  sdoc cloud comments DOCUMENT_ID --id c7 --reopen --json
-  sdoc cloud comments DOCUMENT_ID --id c7 --delete --json
-  sdoc cloud comments DOCUMENT_ID --id c7 --reattach --quote '45 minutes' --section Production --json
-  sdoc cloud comments DOCUMENT_ID --id c7 --resolve --base-revision REVISION_ID --dry-run --json
+  sdoc cloud edit DOCUMENT_ID --section Production --old '10' --new '20' --base-revision READ_REVISION_ID --reason "Use the approved production limit of 20" --json
+  sdoc cloud comments DOCUMENT_ID --id c7 --reply 'Updated the production limit.' --reason "Confirm the saved production-limit correction" --json
+  sdoc cloud comments DOCUMENT_ID --id c7 --resolve --note 'Corrected and checked.' --reason "The requested correction is saved and verified" --json
+  sdoc cloud comments DOCUMENT_ID --id c7 --reopen --reason "The production limit still needs verification" --json
+  sdoc cloud comments DOCUMENT_ID --id c7 --delete --reason "The requested correction is saved and verified" --json
+  sdoc cloud comments DOCUMENT_ID --id c7 --reattach --quote '45 minutes' --section Production --reason "Keep the feedback attached after the wording changed" --json
+  sdoc cloud comments DOCUMENT_ID --id c7 --resolve --base-revision REVISION_ID --dry-run --reason "The requested correction is saved and verified" --json
 
 Use scoped reads and cloud edit to change document content. Verify the saved
 passage, then normally --delete its addressed thread to keep the document clean.
@@ -104,9 +104,12 @@ the same command: durable pending state retains its original base and
 idempotency key. Changing its payload starts a new operation. Listing does not
 download or bind a local Markdown file.
 
+Each saved comment action requires --reason "Why this feedback is changing".
+This explanation is separate from --note, which adds a reply when resolving.
+
 ADD A COMMENT
 
-  sdoc cloud comments DOCUMENT_ID --add --text 'Check this limit.' --quote '10 minutes' --section Production --json
+  sdoc cloud comments DOCUMENT_ID --add --text 'Check this limit.' --quote '10 minutes' --section Production --reason "Ask the reviewer to verify the approved limit" --json
 
 --add requires --text and an exact visible-text --quote from the document. Optional
 --section HEADING or --lines START:END selects content in the base revision.
@@ -266,6 +269,7 @@ async function run(opts, client, helpers) {
     } while (pagesFetched < input.pageLimit);
     return helpers.emit(opts, 'cloud.comments', result('page_limit'));
   }
+  input.action.edit_reason = require('../shared/sdocs-edit-reason').normalize(opts.reasonText, !opts.dryRunFlag);
   const credential = client.loadCredential();
   if (!credential) throw error('login_required', 'Run `sdoc cloud login`.');
   const requestHash = bindings.hash(JSON.stringify({ ...input.action, explicit_base_revision_id: opts.baseRevisionFlag || null }));

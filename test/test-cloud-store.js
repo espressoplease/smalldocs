@@ -809,7 +809,7 @@ module.exports = function(harness) {
         mode: 'custom', memberUserIds: [collaborator] });
       const notification = await store.createDocumentNotification({
         userId: member,
-        credentialId: 'cli-build-server',
+        credentialId: 'cli-build-server', editReason: 'Apply the requested document update',
         documentIds: [document.id, second.id],
         recipientUserIds: [collaborator],
         note: 'Review these before Monday.\nThe release note changed.',
@@ -825,7 +825,7 @@ module.exports = function(harness) {
       assert.strictEqual(storedNote.note_nonce.length, 12);
       const replay = await store.createDocumentNotification({
         userId: member,
-        credentialId: 'cli-build-server',
+        credentialId: 'cli-build-server', editReason: 'Apply the requested document update',
         documentIds: [document.id, second.id],
         recipientUserIds: [collaborator],
         note: 'Review these before Monday.\r\nThe release note changed.',
@@ -852,7 +852,7 @@ module.exports = function(harness) {
         documentIds: [document.id], recipientUserIds: [owner], idempotencyKey: 'notify-admin' }),
       (error) => error.code === 'permission_denied');
       const editorNotification = await store.createDocumentNotification({
-        userId: collaborator, credentialId: 'cli-editor-machine',
+        userId: collaborator, credentialId: 'cli-editor-machine', editReason: 'Apply the requested document update',
         documentIds: [document.id], recipientUserIds: [member],
         note: 'I checked this version.', idempotencyKey: 'notify-by-editor',
       });

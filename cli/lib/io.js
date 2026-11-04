@@ -79,6 +79,7 @@ function parseArgs(argv) {
   let sharedWithMeFlag = false;
   let starredOnlyFlag = false;
   let noteText = null;
+  let reasonText = null;
   let roleFlag = null;
   let ratingFlag = null;
   const memberFlags = [];
@@ -101,6 +102,12 @@ function parseArgs(argv) {
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
+    if (arg === '--reason' || arg.startsWith('--reason=')) {
+      if (arg.startsWith('--reason=')) reasonText = arg.slice(9);
+      else if (args[i + 1] != null && !args[i + 1].startsWith('--')) reasonText = args[++i];
+      else reasonText = '';
+      continue;
+    }
 
     if (subcommand === 'cloud' && file === 'comments') {
       const scalarOptions = { '--status': 'commentStatusFlag', '--id': 'commentIdFlag',
@@ -368,7 +375,7 @@ function parseArgs(argv) {
     projectFlag, accountFlag, outputPath, revisionFlag, documentFlag, baseRevisionFlag,
     ifCurrentFlag, rejectConflictsFlag, fromRevisionFlag, toRevisionFlag,
     limitFlag, noOpenFlag, noBindFlag, forceFlag, tagFilters,
-    everyoneFlag, onlyYouFlag, sharedWithMeFlag, starredOnlyFlag, noteText, roleFlag, ratingFlag, memberFlags, documentFlags,
+    everyoneFlag, onlyYouFlag, sharedWithMeFlag, starredOnlyFlag, noteText, reasonText, roleFlag, ratingFlag, memberFlags, documentFlags,
     addTags, annotations, files,
   }, discovery, cloudContent, cloudComments);
 }

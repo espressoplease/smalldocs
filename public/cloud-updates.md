@@ -11,14 +11,20 @@ sdoc cloud search 'retry policy' --tag production --json
 sdoc cloud read DOCUMENT_ID --json
 sdoc cloud pull DOCUMENT_ID --output ./policy.md --json
 # Edit the working file.
-sdoc cloud push ./policy.md --dry-run --json
-sdoc cloud push ./policy.md --json
+sdoc cloud push ./policy.md --dry-run --reason "Use the retry policy agreed in the release review" --json
+sdoc cloud push ./policy.md --reason "Use the retry policy agreed in the release review" --json
 sdoc cloud read DOCUMENT_ID --revision SAVED_REVISION_ID --json
 ```
 
 Use the returned `url` in chat. It identifies the document and requires the reader to have access. Run `sdoc cloud push --help` for the full update reference.
 
 Cloud creation saves the source file's absolute path and any supplied relative path as encrypted metadata, separate from the document's Markdown. Only the creator can see these paths in the file info panel. Sharing the document does not reveal them to other readers. Paths identify the source file; they do not connect the browser to that file or confirm it still exists. For older documents, opening an unchanged bound working file through the CLI as its creator fills in missing paths without creating a content revision.
+
+## Explain each update
+
+For agent and CLI updates, include `--reason "Why this change is needed"` when saving an edit, pushing a changed file, updating tags, acting on comments or restoring a revision. Write a concise explanation of the intent and relevant context. The reason is encrypted with the saved revision metadata and appears in History with the update time and the name of the person whose credentials saved it. New documents, unchanged file opens, reads and previews do not require one. Browser autosaves do not require a reason.
+
+The browser History panel offers **Open as new document** for each listed version. It creates a private copy in the same library with that version's content, formatting and tags. The copy has a new URL and fresh history. The original document stays unchanged. **View changes** shows the text differences when you want them.
 
 ## Concurrent edits
 
@@ -39,7 +45,7 @@ sdoc cloud read DOCUMENT_ID --outline --json
 sdoc cloud read DOCUMENT_ID --section 'Pricing' --json
 sdoc cloud edit DOCUMENT_ID --section 'Pricing' \
   --old 'The plan costs $4 per month.' --new 'The plan costs $5 per month.' \
-  --base-revision READ_REVISION_ID --json
+  --base-revision READ_REVISION_ID --reason "Use the current subscription price" --json
 ```
 
 You can also read `--lines 10:30`. Line numbers are one-based and inclusive. Sections include the heading and its nested content, stopping at the next heading of the same or higher level. Use a full heading path such as `Guide > Pricing` when names repeat. Headings in fenced code are ignored.
@@ -58,9 +64,9 @@ Batch related changes in a JSON file:
 ```
 
 ```sh
-sdoc cloud edit DOCUMENT_ID --edits-file changes.json --base-revision READ_REVISION_ID --json
-sdoc cloud edit DOCUMENT_ID --edits '[{"old_text":"Draft","new_text":"Final"}]' --json
-sdoc cloud edit DOCUMENT_ID --patch-file change.diff --base-revision READ_REVISION_ID --json
+sdoc cloud edit DOCUMENT_ID --edits-file changes.json --base-revision READ_REVISION_ID --reason "Apply the rollout wording agreed in review" --json
+sdoc cloud edit DOCUMENT_ID --edits '[{"old_text":"Draft","new_text":"Final"}]' --reason "Mark the proposal approved after review" --json
+sdoc cloud edit DOCUMENT_ID --patch-file change.diff --base-revision READ_REVISION_ID --reason "Apply the retry-policy review" --json
 sdoc cloud edit --help
 ```
 
@@ -79,7 +85,7 @@ If the base revision has been pruned, `target_too_old` returns the current revis
 A preview describes the head observed during that request. To commit against exactly that reviewed head:
 
 ```sh
-sdoc cloud push ./policy.md --if-current REVIEWED_HEAD_ID --json
+sdoc cloud push ./policy.md --if-current REVIEWED_HEAD_ID --reason "Use the retry policy agreed in the release review" --json
 ```
 
 If another writer has saved since the preview, the operation returns `revision_conflict`. This option protects the reviewed head; it does not reserve or lock the document.
@@ -107,13 +113,13 @@ The default response contains up to 25 open comments. Each has an ID, original n
 Read the relevant section, edit its content and verify the saved revision. Normally delete the addressed thread to keep the document clean. Resolve with a note instead when the discussion should be retained:
 
 ```sh
-sdoc cloud comments DOCUMENT_ID --id c7 --delete --json
+sdoc cloud comments DOCUMENT_ID --id c7 --delete --reason "The requested correction is saved and verified" --json
 ```
 
 Or retain the discussion:
 
 ```sh
-sdoc cloud comments DOCUMENT_ID --id c7 --resolve --note 'Corrected and checked.' --json
+sdoc cloud comments DOCUMENT_ID --id c7 --resolve --note 'Corrected and checked.' --reason "The requested correction is saved and verified" --json
 ```
 
 A reply alone leaves feedback open. Resolution keeps the original note and discussion, including its card in comment mode. `--note` adds a reply with the resolution. Content edits and comment actions save separately. The browser loads both through its existing revision checks. Earlier revisions remain available for 90 days, and the current revision is always retained. Finish with `sdoc cloud comments DOCUMENT_ID --status open --all --context none --json` and check `complete`. Leave unclear or unplaced feedback open.
@@ -121,7 +127,7 @@ A reply alone leaves feedback open. Resolution keeps the original note and discu
 To reopen a retained, resolved discussion:
 
 ```sh
-sdoc cloud comments DOCUMENT_ID --id c7 --reopen --json
+sdoc cloud comments DOCUMENT_ID --id c7 --reopen --reason "The production limit still needs verification" --json
 ```
 
 Delete removes the comment and all its replies from the current document. The document text and other comments stay unchanged. Resolve keeps the discussion in the current document. Deleted feedback remains in earlier revisions under the same 90-day retention policy. The deletion receipt identifies `comment_id` and returns `comment: null`; read the saved revision's feedback to verify it is absent. `--dry-run` previews deletion without saving it.
@@ -132,14 +138,14 @@ Add an inline comment using its visible text. A section or line range disambigua
 
 ```sh
 sdoc cloud comments DOCUMENT_ID --add --text 'Check the approved limit.' \
-  --quote '10 minutes' --section Production --json
+  --quote '10 minutes' --section Production --reason "Ask the reviewer to verify the approved limit" --json
 ```
 
 If the target is lost or ambiguous, locate the intended passage before repairing its anchor:
 
 ```sh
 sdoc cloud comments DOCUMENT_ID --id c7 --reattach \
-  --quote '45 minutes' --section Production --json
+  --quote '45 minutes' --section Production --reason "Keep feedback attached after the wording changed" --json
 ```
 
 Reattachment preserves the note, discussion and resolution state. It does not change the document text. Comment links use the document's existing permissions and do not grant access. Run `sdoc cloud comments --help` for command options and recovery.
@@ -164,6 +170,7 @@ A receipt confirms one committed revision. Another person can save a later revis
 
 ```sh
 sdoc cloud history DOCUMENT_ID --diffs --json
+sdoc cloud copy DOCUMENT_ID --revision OLD_REVISION_ID --no-open --json
 sdoc cloud read DOCUMENT_ID --revision OLD_REVISION_ID --json
 sdoc cloud diff DOCUMENT_ID --from OLD_REVISION_ID --json
 ```
@@ -175,8 +182,8 @@ For a single-field correction, copy the older value into a working copy of the c
 For a full restore, preview and then bind the operation to the reviewed head:
 
 ```sh
-sdoc cloud restore DOCUMENT_ID --revision OLD_REVISION_ID --dry-run --json
-sdoc cloud restore DOCUMENT_ID --revision OLD_REVISION_ID --base-revision REVIEWED_HEAD_ID --json
+sdoc cloud restore DOCUMENT_ID --revision OLD_REVISION_ID --dry-run --reason "Recover the version approved in review" --json
+sdoc cloud restore DOCUMENT_ID --revision OLD_REVISION_ID --base-revision REVIEWED_HEAD_ID --reason "Recover the version approved in review" --json
 ```
 
 A restore creates a new revision. Every revision is kept for 90 days, and the current revision is always kept. Revisions older than 90 days may be deleted.
