@@ -89,11 +89,13 @@ for (const width of [1328, 390, 320]) {
     });
     expect(note.status).toBe(201);
     await page.goto(f.origin + '/docs?cloud-document=' + saved.data.document.id);
-    const surface = page.locator('#_sd_document-tools');
-    const viewportTop = width <= 768 ? 44 : 0;
-    const top = width <= 768 ? 42 : -6;
+    const mobile = width <= 768;
+    const surface = page.locator(mobile ? '#_sd_mobile-header' : '#_sd_document-tools');
+    const viewportTop = 0;
+    const top = mobile ? 0 : -6;
     const initial = await surface.boundingBox();
-    expect(initial.y).toBeGreaterThan(top);
+    if (mobile) expect(initial.y).toBe(top);
+    else expect(initial.y).toBeGreaterThan(top);
     await page.getByRole('button', { name: 'Expand all', exact: true }).click();
     await page.locator('#_sd_rendered p').filter({ hasText: 'Passage 18.' }).evaluate(el =>
       el.scrollIntoView({ block: 'start' }));
@@ -112,7 +114,7 @@ for (const width of [1328, 390, 320]) {
     const spaceAbove = read.y - viewportTop;
     const spaceBelow = pinned.y + pinned.height - read.y - read.height;
     expect(spaceAbove).toBeCloseTo(spaceBelow, 4);
-    expect(spaceAbove).toBe(12);
+    expect(spaceAbove).toBe(mobile ? 7 : 12);
     const passage = page.locator('#_sd_rendered p').filter({ hasText: 'Passage 18.' });
     const passageBefore = await passage.boundingBox();
     // Click the visible sticky icon as a reader would. Locator.click first
@@ -153,7 +155,8 @@ for (const width of [1328, 390, 320]) {
     await checkSticky();
     await page.screenshot({ path: testInfo.outputPath('sticky-tools.png') });
     await page.evaluate(() => { if (innerWidth <= 768) scrollTo(0, 0); else document.getElementById('_sd_content-area').scrollTop = 0; });
-    await expect.poll(async () => (await surface.boundingBox()).y).toBeGreaterThan(top);
+    if (mobile) await expect.poll(async () => (await surface.boundingBox()).y).toBe(top);
+    else await expect.poll(async () => (await surface.boundingBox()).y).toBeGreaterThan(top);
     await expect(page.locator('#_sd_rendered h1')).toBeInViewport();
   });
 }
@@ -187,6 +190,53 @@ test('document actions sit between file info and the title and retain their hand
   await expect(page.locator('body')).toHaveClass(/style-mode/);
   await page.getByRole('button', { name: 'Format document', exact: true }).click();
   await expect(page.locator('body')).toHaveClass(/read-mode/);
+});
+
+for (const width of [320, 390, 768]) {
+  test('mobile document controls share the 44px top menu and leave only Cloud controls above the title at ' + width + 'px', async ({ page }) => {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto(url);
+    const actions = page.getByRole('toolbar', { name: 'Document actions' });
+    await expect(actions).toBeVisible();
+    await expect(page.locator('#_sd_content-area #_sd_left-toolbar')).toHaveCount(0);
+    await expect(page.locator('#_sd_mobile-navigation #_sd_left-toolbar')).toHaveCount(1);
+    await expect(page.locator('#_sd_mobile-header')).toHaveCSS('height', '44px');
+    const toolbar = await page.locator('#_sd_left-toolbar').boundingBox();
+    expect(toolbar.y).toBe(0);
+    expect(toolbar.height).toBe(44);
+    const info = page.locator('#_sd_sdocs-file-info');
+    await expect(info.locator('.fic-row-cloud')).toHaveCount(1);
+    await expect(info.locator('.fic-row:not(.fic-row-cloud)')).toHaveCount(0);
+    const cloud = await info.boundingBox();
+    const heading = await page.locator('#_sd_rendered h1').boundingBox();
+    expect(cloud.y).toBeGreaterThanOrEqual(44);
+    expect(heading.y).toBeGreaterThanOrEqual(cloud.y + cloud.height);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  });
+}
+
+test('resizing between mobile and desktop reuses the same working controls', async ({ page }) => {
+  await page.setViewportSize({ width: 1328, height: 844 });
+  await page.goto(url);
+  await page.getByRole('button', { name: 'Comment mode', exact: true }).click();
+  for (const width of [390, 769, 320, 1328]) {
+    await page.setViewportSize({ width, height: 844 });
+    const mobile = width <= 768;
+    await expect(page.locator(mobile ? '#_sd_mobile-navigation #_sd_left-toolbar' : '#_sd_document-tools #_sd_left-toolbar')).toHaveCount(1);
+    await expect(page.locator('#_sd_btn-comment')).toHaveCount(1);
+    await expect(page.locator('#_sd_left-toolbar')).not.toHaveAttribute('inert');
+    await expect(page.getByRole('toolbar', { name: 'Comment tools' })).toBeVisible();
+    await expect(page.locator(mobile ? '#_sd_mobile-header #_sd_comment-toolbar' : '#_sd_content-area #_sd_comment-toolbar')).toHaveCount(1);
+    await page.getByRole('button', { name: 'Read', exact: true }).click();
+    await expect(page.getByRole('toolbar', { name: 'Comment tools' })).toBeHidden();
+    await page.getByRole('button', { name: 'Comment mode', exact: true }).click();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    if (width === 320) {
+      await page.getByRole('button', { name: 'Open SmallDocs menu', exact: true }).click();
+      await expect(page.locator('#_sd_left-toolbar')).toHaveAttribute('inert', '');
+      await expect(page.locator('#_sd_mobile-header')).toHaveCSS('height', '44px');
+    }
+  }
 });
 
 test('account icons sit together above the trial and work from the compact rail', async ({ page }) => {

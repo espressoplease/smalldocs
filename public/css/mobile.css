@@ -21,7 +21,21 @@
   #_sd_left { overflow: visible; }
   #_sd_content-area { overflow: visible; --sdocs-content-top-space: 20px; --sdocs-tools-top-space: 12px; }
   html { scroll-padding-top: calc(44px + var(--sdocs-document-tools-height, 0px) + 24px); }
-  #_sd_document-tools { top: 42px; }
+  #_sd_document-tools {
+    position: static;
+    padding-bottom: 0;
+    margin-bottom: 0;
+    transition: opacity .3s cubic-bezier(.4,0,.2,1),
+                visibility .3s cubic-bezier(.4,0,.2,1),
+                padding-bottom .3s cubic-bezier(.4,0,.2,1);
+  }
+  body:is(.write-mode, .comment-mode) #_sd_document-tools { padding-bottom: 8px; }
+  html.sdocs-cloud-document-loading :is(#_sd_left-toolbar, #_sd_document-tools) {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+  html.sdocs-cloud-document-error #_sd_left-toolbar { display: none; }
 
   body.sdocs-reader-shell::after {
     content: '';
@@ -127,6 +141,7 @@
     left: 0;
     z-index: 101;
     width: 100%;
+    background: var(--sdocs-document-bg, var(--bg-input));
   }
   #_sd_mobile-header-spacer {
     display: none;
@@ -135,6 +150,7 @@
   body.sdocs-mobile-nav-open #_sd_comment-toolbar {
     display: none;
   }
+  body.sdocs-mobile-nav-open #_sd_document-tools { padding-bottom: 0; }
   #_sd_mobile-navigation {
     display: flex;
     position: relative;
@@ -155,15 +171,26 @@
     -webkit-backdrop-filter: none;
     overflow: hidden;
   }
-  #_sd_left-toolbar { padding: var(--sdocs-tools-top-space, 12px) 20px 0; }
-  .sdocs-mobile-brand-wrap { flex: 1; min-width: 0; }
+  #_sd_left-toolbar {
+    min-width: 0;
+    max-width: none;
+    width: auto;
+    height: 44px;
+    flex: 1 1 auto;
+    padding: 0;
+    transition: opacity .3s cubic-bezier(.4,0,.2,1), visibility .3s cubic-bezier(.4,0,.2,1);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    #_sd_document-tools, #_sd_left-toolbar { transition: none; }
+  }
+  .sdocs-mobile-brand-wrap { display: none; }
   .sdocs-mobile-toolbar-scroll {
     min-width: 0;
     flex: 1 1 auto;
     justify-content: flex-start;
     overflow-x: auto;
     overflow-y: hidden;
-    padding: 0;
+    padding: 0 4px 0 8px;
     scrollbar-width: none;
     -ms-overflow-style: none;
     -webkit-overflow-scrolling: touch;

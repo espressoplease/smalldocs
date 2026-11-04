@@ -287,7 +287,7 @@ test('mobile document controls remain visible while the window scrolls', async (
   await expect(page.locator('#_sd_sidebar')).toHaveCSS('display', 'none');
   await menu.evaluate(element => element.click());
   await expect(page.locator('#_sd_sidebar')).toBeVisible();
-  await expect(scroller).toHaveAttribute('inert', '');
+  await expect(toolbar).toHaveAttribute('inert', '');
   await expect(page.locator('#_sd_content-area')).toHaveAttribute('inert', '');
   await expect(cloudButton).toBeFocused();
   await page.keyboard.press('Shift+Tab');
@@ -297,7 +297,7 @@ test('mobile document controls remain visible while the window scrolls', async (
   await page.keyboard.press('Escape');
   await expect(menu).toHaveAttribute('aria-expanded', 'false');
   await expect(page.locator('#_sd_sidebar')).toBeHidden();
-  await expect(scroller).not.toHaveAttribute('inert', '');
+  await expect(toolbar).not.toHaveAttribute('inert', '');
   await expect(page.locator('#_sd_content-area')).not.toHaveAttribute('inert', '');
   await expect(menu).toBeFocused();
   expect(await page.evaluate(() => window.scrollY)).toBe(drawerScroll);

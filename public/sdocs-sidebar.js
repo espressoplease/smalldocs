@@ -458,6 +458,8 @@ var mobileMenuButton = document.getElementById('_sd_mobile_menu');
 var mobileSidebar = document.getElementById('_sd_sidebar');
 var mobileBackground = [
   document.querySelector('.sdocs-mobile-toolbar-brand'),
+  document.getElementById('_sd_left-toolbar'),
+  document.getElementById('_sd_document-tools'),
   document.getElementById('_sd_content-area'),
   document.getElementById('_sd_right'),
   document.getElementById('_sd_statusbar'),

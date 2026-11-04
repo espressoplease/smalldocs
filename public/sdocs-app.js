@@ -1243,7 +1243,7 @@ function setToolbarOverflowOpen(open) {
 function captureReadingPosition() {
   var mobile = window.matchMedia('(max-width: 768px)').matches;
   if (!(mobile ? window.scrollY : contentArea.scrollTop)) return null;
-  var tools = document.getElementById('_sd_document-tools');
+  var tools = document.getElementById(mobile ? '_sd_mobile-header' : '_sd_document-tools');
   if (!tools) return null;
   var top = tools.getBoundingClientRect().bottom;
   var bottom = mobile ? window.innerHeight : contentArea.getBoundingClientRect().bottom;
