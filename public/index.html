@@ -58,13 +58,7 @@ __CLOUD_UI_STYLES__
 <link rel="stylesheet" href="/public/css/cells.css">
 <link rel="stylesheet" href="/public/css/mobile.css">
 __EMBED_STYLES__
-<script nonce="__CSP_NONCE__">
-  (function(){
-    var t = localStorage.getItem('sdocs-theme');
-    if (!t) t = window.matchMedia('(prefers-color-scheme:dark)').matches ? 'dark' : 'light';
-    if (t === 'dark') document.documentElement.dataset.theme = 'dark';
-  })();
-</script>
+<script src="/public/sdocs-theme-preference.js"></script>
 </head>
 <body class="sdocs-reader-shell">
 

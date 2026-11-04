@@ -185,7 +185,8 @@ for (const width of [1280, 390]) {
       return window._loadingFrames.filter(frame => frame.opacity > 0);
     });
     expect(visibleFrames.length).toBeGreaterThan(0);
-    expect(visibleFrames.every(frame => frame.heading === 'A complete document' && frame.cloudRow)).toBe(true);
+    expect(visibleFrames.every(frame => frame.heading === 'A complete document' && frame.cloudRow),
+      JSON.stringify(visibleFrames.filter(frame => frame.heading !== 'A complete document' || !frame.cloudRow))).toBe(true);
   });
 }
 

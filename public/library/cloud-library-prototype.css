@@ -49,6 +49,12 @@
 .workspace-mark svg { width: 20px; height: 20px; }
 .cloud-create-library,
 .cloud-manage-members { padding: 3px 10px; text-decoration: none; }
+.library-theme-toggle { width: auto; aspect-ratio: 1; flex: 0 0 auto; justify-content: center; padding: 0; }
+.library-theme-toggle > svg { width: 16px; height: 16px; color: var(--text); stroke-width: 1.5; }
+.library-theme-toggle [data-theme-sun],
+html[data-theme="dark"] .library-theme-toggle [data-theme-moon] { display: none; }
+html[data-theme="dark"] .library-theme-toggle [data-theme-sun] { display: block; }
+.library-theme-toggle:focus-visible { outline: 2px solid var(--accent, var(--blue)); outline-offset: 2px; }
 .personal-library-note { margin: 8px 0 16px; color: var(--text-2); font: 12px/1.6 var(--font-ui); }
 .personal-library-note[hidden] { display: none; }
 .personal-library-note a { color: var(--accent-text); }

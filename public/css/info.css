@@ -193,8 +193,13 @@ textarea#_sd_info-feedback:focus {
   border: 1px solid #fdba74;
   border-radius: var(--radius, 5px);
 }
+html[data-theme="dark"] .info-feedback-warning {
+  color: #fdba74;
+  background: #2a1b0f;
+  border-color: #7c2d12;
+}
 @media (prefers-color-scheme: dark) {
-  .info-feedback-warning {
+  html:not([data-theme]) .info-feedback-warning {
     color: #fdba74;
     background: #2a1b0f;
     border-color: #7c2d12;

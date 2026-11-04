@@ -36,8 +36,9 @@ body.sdocs-site-shell .library-onboarding-nav {
 .sdocs-site-mobilebar-brand-short,
 .sdocs-site-mobilebar-brand-tiny { display: none; }
 
+html[data-theme="dark"] body.sdocs-site-shell { background: var(--bg, #1c1a17); }
 @media (prefers-color-scheme: dark) {
-  body.sdocs-site-shell { background: var(--bg, #1c1a17); }
+  html:not([data-theme]) body.sdocs-site-shell { background: var(--bg, #1c1a17); }
 }
 
 @media (max-width: 768px) {

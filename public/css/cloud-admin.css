@@ -158,7 +158,8 @@
     .confirm { padding:14px; }
     .confirm-actions .btn { flex:1; }
   }
-  @media(prefers-color-scheme:dark) { :root{--bg:#1C1A17;--surface:#211F1D;--surface-2:#252320;--bg-hover:#32302C;--text:#E7E5E2;--text-2:#A8A29E;--text-3:#77716B;--border:#3D3935;--border-2:#332F2B;--blue:#3B82F6;--blue-2:#17233A;--green:#4ADE80;--red:#FCA5A5}.notice{background:#17233A;border-color:#284B80;color:#BFDBFE} }
+  html[data-theme="dark"]{--bg:#1C1A17;--surface:#211F1D;--surface-2:#252320;--bg-hover:#32302C;--text:#E7E5E2;--text-2:#A8A29E;--text-3:#77716B;--border:#3D3935;--border-2:#332F2B;--blue:#3B82F6;--blue-2:#17233A;--green:#4ADE80;--red:#FCA5A5}
+  html[data-theme="dark"] .notice{background:#17233A;border-color:#284B80;color:#BFDBFE}
 
 .library-settings-header, .library-documents-link, .library-details { display:none; }
 body[data-settings-scope="account"] .account-switcher,

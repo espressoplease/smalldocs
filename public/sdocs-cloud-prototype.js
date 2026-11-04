@@ -255,6 +255,7 @@ async function loadCloudDocument(id) {
     cloudSaveBlocked = false;
     if (S.refreshCommentIdentity) S.refreshCommentIdentity();
     if (S.setMode) S.setMode(['read', 'comment', 'style', 'share', 'metadata', 'write', 'raw', 'export', 'info'].indexOf(requestedMode) >= 0 ? requestedMode : 'read', true);
+    insertRow();
     if (data.document.workspace_id) loadAccountData(data.document.workspace_id).catch(function () {});
     if (S.setDocumentLoadState) S.setDocumentLoadState('ready');
   } catch (error) {

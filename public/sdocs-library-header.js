@@ -1,5 +1,6 @@
 (function (exports) {
   'use strict';
+  var theme = typeof module !== 'undefined' && module.exports ? require('./sdocs-theme-preference') : window.SDocsThemePreference;
   var markup = `<div class="cloud-library-nav" id="cloud-library-nav" hidden>
       <div class="library-scope" aria-label="Library location">
         <a class="library-scope-option" id="local-scope-link" href="/library">
@@ -25,6 +26,7 @@
         </div>
         <a class="workspace-button cloud-manage-members" id="manage-members-link" href="/library/settings?panel=people" hidden>Manage members</a>
         <a class="workspace-button cloud-create-library" href="/library/settings?panel=libraries">Create team library</a>
+        ${theme ? theme.buttonMarkup : ''}
       </div>
     </div>`;
   function settingsUrl(id, panel) {
@@ -37,6 +39,7 @@
     if (!root.querySelector('#workspace-button')) root.innerHTML = markup;
     var button = root.querySelector('#workspace-button');
     var menu = root.querySelector('#workspace-menu');
+    if (theme) theme.bindButton(root.querySelector('.library-theme-toggle'));
     var selection = window.SDocsCloudAccountSelection;
     function mark(workspace) {
       var node = document.createElement('span'); node.className = 'workspace-mark';

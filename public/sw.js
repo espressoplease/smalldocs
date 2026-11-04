@@ -17,6 +17,7 @@ var APP_SHELL = [
   '/public/sdocs-yaml.js',
   '/public/sdocs-styles.js',
   '/public/sdocs-state.js',
+  '/public/sdocs-theme-preference.js',
   '/public/sdocs-theme.js',
   '/public/sdocs-controls.js',
   '/public/sdocs-export.js',
