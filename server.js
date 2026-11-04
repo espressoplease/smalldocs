@@ -1175,7 +1175,7 @@ function documentShellSubstitutions(req, nonce, defaultMdPath, compile = false) 
     '__CLOUD_UI_STYLES__': CLOUD_DEPLOYMENT.publicEnabled && !compile
       ? '<link rel="stylesheet" href="/public/css/cloud-prototype.css"><link rel="stylesheet" href="/public/css/cloud-ui-lab.css">' : '',
     '__CLOUD_UI_SCRIPT__': CLOUD_DEPLOYMENT.publicEnabled && !compile
-      ? '<script src="/public/sdocs-cloud-account-selection.js"></script><script src="/public/sdocs-cloud-prototype.js"></script>' +
+      ? '<script src="/public/sdocs-cloud-account-selection.js"></script><script src="/public/sdocs-text-diff.js"></script><script src="/public/sdocs-merge.js"></script><script src="/public/sdocs-cloud-prototype.js"></script>' +
         (CLOUD_UI_LAB_ENABLED ? '<script src="/public/sdocs-cloud-ui-lab.js"></script>' : '') : '',
     '__EMBED_STYLES__':'', '__EMBED_SCRIPT__':'',
     ...(compile ? {} : documentNavigation(req).substitutions)

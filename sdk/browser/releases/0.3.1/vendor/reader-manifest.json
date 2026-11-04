@@ -13,8 +13,8 @@
   },
   "sdocs-prose-reader.css": {
     "source": "public/css/prose-reader.css",
-    "sha256": "18847cba82a5b08202ecebefb3fd930a43d9b61bb7f4456ae9ab45c540a7e100",
-    "sourceSha256": "080f6a5f9ea9fd6cd339c250b8a475456d0276b08833e78d78a34fc77a7fd766",
+    "sha256": "cc92acf8c4ce9a3c380dd90a5fd76bd16a6549c4d9fe8e0f37144ca5a09f1be0",
+    "sourceSha256": "d4f2899b9b857507b29b735ec646ad1b1f8881182d7ae867439812031e88d394",
     "transform": "sdk-layered-css"
   },
   "sdocs-code-reader.js": {

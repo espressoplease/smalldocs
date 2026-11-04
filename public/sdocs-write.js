@@ -5,26 +5,192 @@
 var S = SDocs;
 var writeEl = document.getElementById('_sd_write');
 S.writeEl = writeEl;
+var editSession = null;
+var sourceBlockAttribute = 'data-sdoc-write-block';
+var writeHistory = null;
+var beforeInputSelection = null;
+
+// Compare the editable structure, not KaTeX's generated display markup.
+// Checkbox state is a property, so include it even before HTML reflects it.
+function editorSignature(nodes) {
+  return Array.prototype.map.call(nodes, function (node) {
+    if (node.nodeType === 3) return node.textContent.trim() ? node.textContent : '';
+    if (node.nodeType !== 1) return '';
+    var copy = node.cloneNode(true);
+    var originals = [node].concat(Array.prototype.slice.call(node.querySelectorAll('*')));
+    var copies = [copy].concat(Array.prototype.slice.call(copy.querySelectorAll('*')));
+    originals.forEach(function (original, i) {
+      if (original.tagName === 'INPUT' && original.type === 'checkbox') {
+        if (original.checked) copies[i].setAttribute('checked', '');
+        else copies[i].removeAttribute('checked');
+      }
+    });
+    [copy].concat(Array.prototype.slice.call(copy.querySelectorAll('[' + sourceBlockAttribute + '],[data-sdoc-write-caret]')))
+      .forEach(function (el) { el.removeAttribute(sourceBlockAttribute); el.removeAttribute('data-sdoc-write-caret'); });
+    var math = copy.matches('.sdocs-math-display,.sdocs-math-inline') ? [copy] : [];
+    math.concat(Array.prototype.slice.call(copy.querySelectorAll('.sdocs-math-display,.sdocs-math-inline')))
+      .forEach(function (el) {
+        el.innerHTML = '';
+        el.className = el.classList.contains('sdocs-math-display') ? 'sdocs-math-display' : 'sdocs-math-inline';
+      });
+    return copy.outerHTML;
+  }).join('');
+}
+
+function buildWriteSession(source) {
+  var normalized = '', offsets = [0];
+  for (var i = 0; i < source.length; i++) {
+    if (source[i] === '\r') {
+      normalized += '\n';
+      if (source[i + 1] === '\n') i++;
+    } else normalized += source[i];
+    offsets.push(i + 1);
+  }
+  // Marked expands leading tabs before tokenizing. Map that expansion back to
+  // the original bytes so an untouched indented block is never duplicated.
+  var expanded = '', expandedOffsets = [0], previous = 0;
+  normalized.replace(/^( *)(\t+)/gm, function (match, spaces, tabs, at) {
+    for (var n = previous; n < at + spaces.length; n++) {
+      expanded += normalized[n]; expandedOffsets.push(offsets[n + 1]);
+    }
+    for (var t = at + spaces.length; t < at + match.length; t++) {
+      for (var pad = 0; pad < 4; pad++) { expanded += ' '; expandedOffsets.push(offsets[t + (pad === 3 ? 1 : 0)]); }
+    }
+    previous = at + match.length;
+    return match;
+  });
+  for (var tail = previous; tail < normalized.length; tail++) { expanded += normalized[tail]; expandedOffsets.push(offsets[tail + 1]); }
+  normalized = expanded; offsets = expandedOffsets;
+  var tokens = marked.lexer(normalized), cursor = 0, blocks = [];
+  writeEl.innerHTML = '';
+  tokens.forEach(function (token) {
+    if (token.type === 'space') return;
+    var input = [token]; input.links = tokens.links;
+    var template = document.createElement('template');
+    template.innerHTML = DOMPurify.sanitize(marked.parser(input), { FORBID_ATTR: ['style'] });
+    var nodes = Array.prototype.filter.call(template.content.childNodes, function (node) {
+      return node.nodeType === 1 || (node.nodeType === 3 && node.textContent.trim());
+    });
+    if (!nodes.length) return;
+    var at = normalized.indexOf(token.raw, cursor);
+    var mapped = at >= 0;
+    var end = mapped ? at + token.raw.length : cursor;
+    var record = { id: String(blocks.length), token: token,
+      raw: mapped ? source.slice(offsets[at], offsets[end]) : token.raw,
+      before: mapped ? source.slice(offsets[cursor], offsets[at]) : '',
+      nodes: nodes };
+    var codeTokens = [], pres = [];
+    marked.walkTokens([token], function (part) { if (part.type === 'code') codeTokens.push(part); });
+    nodes.forEach(function (node) {
+      if (node.nodeType === 1) {
+        node.setAttribute(sourceBlockAttribute, record.id);
+        if (node.tagName === 'PRE') pres.push(node);
+        pres.push.apply(pres, node.querySelectorAll('pre'));
+        node.querySelectorAll('input[type="checkbox"]').forEach(function (input) { input.disabled = false; });
+      }
+      writeEl.appendChild(node);
+    });
+    pres.forEach(function (pre, index) {
+      var code = codeTokens[index];
+      if (!code) return;
+      pre.dataset.sdocsFenceInfo = code.lang || '';
+      var fence = code.raw.match(/^ {0,3}(`{3,}|~{3,})/);
+      if (fence) pre.dataset.sdocsFence = fence[1];
+    });
+    record.signature = editorSignature(nodes);
+    blocks.push(record);
+    if (mapped) cursor = end;
+  });
+  if (!writeEl.childNodes.length) writeEl.innerHTML = '<p><br></p>';
+  resetWriteHistory();
+  return { original: source, blocks: blocks, trailing: source.slice(offsets[cursor]),
+    signature: editorSignature(writeEl.childNodes), lastSaved: source };
+}
+
+function serializeWriteSession() {
+  if (!editSession) return htmlToMarkdown(writeEl);
+  if (editorSignature(writeEl.childNodes) === editSession.signature) return editSession.original;
+  var groups = [], used = new Set();
+  Array.prototype.forEach.call(writeEl.childNodes, function (node) {
+    if (node.nodeType === 3 && !node.textContent.trim()) return;
+    var id = node.nodeType === 1 ? node.getAttribute(sourceBlockAttribute) : null;
+    var previous = groups[groups.length - 1];
+    if (id !== null && previous && previous.id === id) previous.nodes.push(node);
+    else groups.push({ id: id, nodes: [node] });
+  });
+  var output = '', previousIndex = -1;
+  groups.forEach(function (group) {
+    var record = group.id !== null ? editSession.blocks[Number(group.id)] : null;
+    var firstUse = record && !used.has(record.id);
+    var before = firstUse ? record.before : '';
+    var unchanged = firstUse && editorSignature(group.nodes) === record.signature;
+    var text;
+    if (unchanged) text = record.raw;
+    else {
+      var container = document.createElement('div');
+      group.nodes.forEach(function (node) { container.appendChild(node.cloneNode(true)); });
+      // cloneNode does not copy an input's live checked property.
+      var originals = group.nodes.flatMap(function (node) { return node.querySelectorAll ? Array.from(node.querySelectorAll('input[type="checkbox"]')) : []; });
+      Array.from(container.querySelectorAll('input[type="checkbox"]')).forEach(function (el, i) { el.checked = originals[i].checked; });
+      text = htmlToMarkdown(container).replace(/\n$/, '');
+      if (record) text += (record.raw.match(/\r?\n(?:\s*\r?\n)*$/) || [''])[0];
+    }
+    if (output && !(firstUse && Number(record.id) === previousIndex + 1)) {
+      if (!/\n\s*\n$/.test(output + before)) output += /\n$/.test(output) ? '\n' : '\n\n';
+    }
+    output += before + text;
+    if (record) used.add(record.id);
+    previousIndex = record ? Number(record.id) : -1;
+  });
+  // Definitions are not visible editor nodes. Retain them even if the block
+  // that followed them was deleted or moved.
+  editSession.blocks.forEach(function (record) {
+    if (!used.has(record.id) && record.before.trim()) output += '\n\n' + record.before;
+  });
+  return output + editSession.trailing;
+}
+
+function flushWriteChanges() {
+  clearTimeout(S._writeSyncTimer); S._writeSyncTimer = null;
+  if (!editSession) return false;
+  var body = serializeWriteSession();
+  if (body === editSession.lastSaved) return false;
+  S.currentBody = body;
+  editSession.lastSaved = body;
+  if (S.invalidateLocalMeta) S.invalidateLocalMeta();
+  S.syncAll('write');
+  return true;
+}
 
 // ── Enter / exit write mode ──────────────────────────
 
 function enterWriteMode() {
-  var html = DOMPurify.sanitize(marked.parse(S.currentBody), { FORBID_ATTR: ['style'] });
-  writeEl.innerHTML = html || '<p><br></p>';
+  if (editSession && editSession.lastSaved === S.currentBody) { copyStyleVars(); return; }
+  clearTimeout(S._writeSyncTimer);
+  editSession = buildWriteSession(S.currentBody);
   copyStyleVars();
   if (S.processMath) S.processMath(writeEl);
-  if (S.processMermaid) S.processMermaid(writeEl);
+  // Rich fences stay as source while editing, matching charts and slides.
+  // Read-mode renderers may replace their DOM without becoming save input.
   setTimeout(updateToolbarState, 0);
 }
 
 function exitWriteMode() {
-  S.currentBody = htmlToMarkdown(writeEl);
+  flushWriteChanges();
+  resetWriteSession();
   S.render();
-  S.currentMeta = Object.assign({}, S.currentMeta, { styles: S.collectStyles() });
-  S.rawEl.value = SDocYaml.serializeFrontMatter(S.currentMeta) + '\n' + S.currentBody;
+}
+
+function resetWriteSession() {
+  clearTimeout(S._writeSyncTimer); S._writeSyncTimer = null;
+  S._checkCodeBlockExit = null;
+  editSession = null;
+  writeHistory = null;
+  beforeInputSelection = null;
 }
 
 function copyStyleVars() {
+  Array.from(writeEl.style).forEach(function (prop) { if (prop.startsWith('--md-')) writeEl.style.removeProperty(prop); });
   var style = S.renderedEl.style;
   for (var i = 0; i < style.length; i++) {
     var prop = style[i];
@@ -39,7 +205,35 @@ function copyStyleVars() {
 function htmlToMarkdown(container) {
   var lines = [];
   walkBlock(container.childNodes, lines, '');
-  return lines.join('\n').replace(/\n{3,}/g, '\n\n').trim() + '\n';
+  var compact = [];
+  lines.forEach(function (line) {
+    if (line === '' && (!compact.length || compact[compact.length - 1] === '')) return;
+    compact.push(line);
+  });
+  while (compact.length && compact[compact.length - 1] === '') compact.pop();
+  return compact.join('\n') + '\n';
+}
+
+function escapeText(text) {
+  return text.replace(/\\/g, '\\\\').replace(/([`*_\[\]<>~])/g, '\\$1')
+    .replace(/(^|\n)(\s*)(#{1,6}|[-+>]|\d+[.)])(?=\s)/g, function (_, newline, space, marker) {
+      return newline + space + marker.replace(/([#.+>)*-])/g, '\\$1');
+    });
+}
+
+function plainCode(node) {
+  var text = '';
+  node.childNodes.forEach(function (child) {
+    if (child.nodeType === 3) text += child.textContent;
+    else if (child.nodeType === 1) {
+      if (child.tagName === 'BR') text += '\n';
+      else {
+        if (/^(DIV|P)$/.test(child.tagName) && text && !text.endsWith('\n')) text += '\n';
+        text += plainCode(child);
+      }
+    }
+  });
+  return text;
 }
 
 function walkBlock(nodes, lines, indent) {
@@ -47,7 +241,7 @@ function walkBlock(nodes, lines, indent) {
     var node = nodes[i];
     if (node.nodeType === 3) {
       var text = node.textContent.trim();
-      if (text) lines.push(indent + text);
+      if (text) lines.push(indent + escapeText(text));
       continue;
     }
     if (node.nodeType !== 1) continue;
@@ -97,11 +291,18 @@ function walkBlock(nodes, lines, indent) {
         if (m) lang = m[1];
       }
       lines.push('');
-      lines.push('```' + lang);
+      lang = node.dataset.sdocsFenceInfo || lang;
+      var source = plainCode(codeEl || node).replace(/\n$/, '');
+      var originalFence = node.dataset.sdocsFence || '```';
+      var character = originalFence[0], fenceLength = Math.max(3, originalFence.length);
+      var runs = source.match(character === '`' ? /`+/g : /~+/g) || [];
+      runs.forEach(function (run) { fenceLength = Math.max(fenceLength, run.length + 1); });
+      var fence = repeat(character, fenceLength);
+      lines.push(fence + lang);
       // Strip the single trailing newline browsers keep on code textContent;
       // left in, it serialized as a blank line before the closing fence.
-      lines.push((codeEl || node).textContent.replace(/\n$/, ''));
-      lines.push('```');
+      lines.push(source);
+      lines.push(fence);
       lines.push('');
     } else if (tag === 'TABLE') {
       lines.push('');
@@ -138,7 +339,8 @@ function walkBlock(nodes, lines, indent) {
 
 function walkList(listEl, lines, indent, type) {
   var items = listEl.children;
-  var num = 1;
+  var num = listEl.hasAttribute('start') ? Number(listEl.getAttribute('start')) : 1;
+  if (!Number.isFinite(num)) num = 1;
   // Fallback indent for a stray nested list (see the UL/OL branch below); tracks
   // the content column of the item most recently emitted.
   var lastChildIndent = indent + '  ';
@@ -154,24 +356,44 @@ function walkList(listEl, lines, indent, type) {
     }
     if (item.tagName !== 'LI') continue;
     var li = item;
+    if (type === 'ol' && item.hasAttribute('value') && Number.isFinite(Number(item.getAttribute('value')))) num = Number(item.getAttribute('value'));
     var bullet = type === 'ul' ? '- ' : (num++) + '. ';
     // Nested content aligns under the marker (2 cols for "- ", 3 for "1. ") so
     // it re-parses as a child list rather than a sibling / lazy continuation.
     var childIndent = indent + repeat(' ', bullet.length);
     lastChildIndent = childIndent;
     // GFM task list: preserve the checkbox state as [ ] / [x].
-    var checkbox = li.querySelector ? li.querySelector('input[type="checkbox"]') : null;
+    var checkbox = Array.from(li.children).find(function (child) { return child.matches('input[type="checkbox"]'); });
+    if (!checkbox && li.firstElementChild && li.firstElementChild.tagName === 'P') checkbox = li.firstElementChild.querySelector('input[type="checkbox"]');
     var prefix = checkbox ? (checkbox.checked ? '[x] ' : '[ ] ') : '';
     // inlineToMd over the whole <li> keeps top-level **bold** / [links] that a
     // per-child pass dropped, and skips nested UL/OL (walked separately below).
-    var text = inlineToMd(li);
-    lines.push(indent + bullet + prefix + text.trim());
-    var kids = li.children;
-    for (var k = 0; k < kids.length; k++) {
-      if (kids[k].tagName === 'UL' || kids[k].tagName === 'OL') {
-        walkList(kids[k], lines, childIndent, kids[k].tagName === 'UL' ? 'ul' : 'ol');
-      }
+    var body = [], inline = document.createElement('span');
+    function flushInline() {
+      var text = inlineToMd(inline).trim();
+      if (text) body.push(text);
+      inline.innerHTML = '';
     }
+    Array.from(li.childNodes).forEach(function (child) {
+      if (child.nodeType === 1 && /^(P|DIV|UL|OL|PRE|BLOCKQUOTE|TABLE|HR|H[1-6])$/.test(child.tagName)) {
+        flushInline();
+        if (child.tagName === 'UL' || child.tagName === 'OL') walkList(child, body, '', child.tagName === 'UL' ? 'ul' : 'ol');
+        else walkBlock([child], body, '');
+      } else inline.appendChild(child.cloneNode(true));
+    });
+    flushInline();
+    while (body.length && body[0] === '') body.shift();
+    while (body.length && body[body.length - 1] === '') body.pop();
+    var first = (body.shift() || '').split('\n');
+    lines.push(indent + bullet + prefix + first.shift());
+    first.forEach(function (line) { lines.push(childIndent + line); });
+    var lastBlank = false;
+    body.forEach(function (line) {
+      if (line === '' && lastBlank) return;
+      lines.push(line === '' ? '' : line.split('\n').map(function (part) { return childIndent + part; }).join('\n'));
+      lastBlank = line === '';
+    });
+    if (Array.from(li.children).some(function (child) { return child.tagName === 'P'; }) && i < items.length - 1) lines.push('');
   }
 }
 
@@ -188,14 +410,17 @@ function walkTable(table, lines, indent) {
     var cells = row.querySelectorAll('th,td');
     var out = [];
     for (var i = 0; i < cells.length; i++) {
-      out.push(inlineToMd(cells[i]).trim().replace(/\|/g, '\\|'));
+      out.push(inlineToMd(cells[i]).trim().replace(/ *\n */g, '<br>').replace(/\|/g, '\\|'));
     }
     return out;
   }
   var header = cellsOf(rows[0]);
   if (!header.length) return;
   lines.push(indent + '| ' + header.join(' | ') + ' |');
-  lines.push(indent + '| ' + header.map(function () { return '---'; }).join(' | ') + ' |');
+  lines.push(indent + '| ' + Array.from(rows[0].children).map(function (cell) {
+    var align = cell.getAttribute('align') || cell.style.textAlign;
+    return align === 'center' ? ':---:' : align === 'right' ? '---:' : align === 'left' ? ':---' : '---';
+  }).join(' | ') + ' |');
   for (var r = 1; r < rows.length; r++) {
     var cells = cellsOf(rows[r]);
     if (!cells.length) continue;
@@ -203,33 +428,48 @@ function walkTable(table, lines, indent) {
   }
 }
 
+function formatInline(marker, element) {
+  var text = inlineToMd(element), parts = text.match(/^(\s*)([\s\S]*?)(\s*)$/);
+  return parts[2] ? parts[1] + marker + parts[2] + marker + parts[3] : text;
+}
+
 function inlineToMd(node) {
   var result = '';
   for (var i = 0; i < node.childNodes.length; i++) {
     var child = node.childNodes[i];
     if (child.nodeType === 3) {
-      result += child.textContent;
+      result += escapeText(child.textContent);
     } else if (child.nodeType === 1) {
       var tag = child.tagName;
       if (tag === 'STRONG' || tag === 'B') {
-        result += '**' + inlineToMd(child) + '**';
+        result += formatInline('**', child);
       } else if (tag === 'EM' || tag === 'I') {
-        result += '*' + inlineToMd(child) + '*';
+        result += formatInline('*', child);
       } else if (tag === 'S' || tag === 'STRIKE' || tag === 'DEL') {
-        result += '~~' + inlineToMd(child) + '~~';
+        result += formatInline('~~', child);
       } else if (tag === 'CODE') {
-        result += '`' + child.textContent + '`';
+        var codeText = child.textContent.replace(/\u200B/g, '');
+        if (!codeText) continue;
+        var ticks = repeat('`', Math.max.apply(null, [0].concat((codeText.match(/`+/g) || []).map(function (run) { return run.length; }))) + 1);
+        var pad = /^`|`$/.test(codeText) || (/^ | $/.test(codeText) && /\S/.test(codeText));
+        result += ticks + (pad ? ' ' : '') + codeText + (pad ? ' ' : '') + ticks;
       } else if (tag === 'SPAN' && child.classList && child.classList.contains('sdocs-math-inline')) {
         result += '$' + (child.getAttribute('data-tex') || '') + '$';
       } else if (tag === 'A') {
         var href = child.getAttribute('href') || '';
-        result += '[' + inlineToMd(child) + '](' + href + ')';
+        var title = child.getAttribute('title');
+        result += '[' + inlineToMd(child) + '](' + href.replace(/([\\()])/g, '\\$1') + (title ? ' "' + title.replace(/([\\"])/g, '\\$1') + '"' : '') + ')';
       } else if (tag === 'IMG') {
         var alt = child.getAttribute('alt') || '';
         var src = child.getAttribute('src') || '';
-        result += '![' + alt + '](' + src + ')';
+        var imageTitle = child.getAttribute('title');
+        result += '![' + escapeText(alt) + '](' + src.replace(/([\\()])/g, '\\$1')
+          + (imageTitle ? ' \"' + imageTitle.replace(/([\\\"])/g, '\\$1') + '\"' : '') + ')';
       } else if (tag === 'BR') {
         result += '  \n';
+      } else if (tag === 'DIV' || tag === 'P') {
+        if (result && !result.endsWith('\n')) result += '  \n';
+        result += inlineToMd(child);
       } else if (tag === 'UL' || tag === 'OL') {
         // Nested lists inside an <li> are serialized by walkList, not here.
       } else if (tag === 'INPUT') {
@@ -338,6 +578,7 @@ function checkShortcuts() {
   var olm = text.match(/^(\d+)\.\s(.*)$/);
   if (olm) {
     var ol = document.createElement('ol');
+    if (Number(olm[1]) !== 1) ol.start = Number(olm[1]);
     var oli = document.createElement('li');
     oli.textContent = olm[2];
     ol.appendChild(oli);
@@ -347,17 +588,111 @@ function checkShortcuts() {
   }
 }
 
+// Store reversible HTML deltas, including selections, for both native input
+// and custom structure changes. Never carry an undo stack into another document.
+function captureWriteSelection() {
+  var selection = window.getSelection();
+  if (!selection.rangeCount || !writeEl.contains(selection.anchorNode) || !writeEl.contains(selection.focusNode)) return null;
+  function point(node, offset) {
+    var path = [];
+    while (node !== writeEl) { path.unshift(Array.prototype.indexOf.call(node.parentNode.childNodes, node)); node = node.parentNode; }
+    return { path: path, offset: offset };
+  }
+  return { anchor: point(selection.anchorNode, selection.anchorOffset), focus: point(selection.focusNode, selection.focusOffset) };
+}
+
+function restoreWriteSelection(saved) {
+  if (!saved) return;
+  function point(value) {
+    var node = writeEl;
+    value.path.forEach(function (index) { if (node.childNodes.length) node = node.childNodes[Math.min(index, node.childNodes.length - 1)]; });
+    return { node: node, offset: Math.min(value.offset, node.nodeType === 3 ? node.length : node.childNodes.length) };
+  }
+  var anchor = point(saved.anchor), focus = point(saved.focus), selection = window.getSelection();
+  selection.setBaseAndExtent(anchor.node, anchor.offset, focus.node, focus.offset);
+}
+
+function historyHtml() {
+  var copy = writeEl.cloneNode(true);
+  var originals = writeEl.querySelectorAll('input[type="checkbox"]');
+  copy.querySelectorAll('input[type="checkbox"]').forEach(function (input, i) { input.toggleAttribute('checked', originals[i].checked); });
+  copy.querySelectorAll('.sdocs-math-display,.sdocs-math-inline').forEach(function (math) {
+    math.innerHTML = '';
+    math.className = math.classList.contains('sdocs-math-display') ? 'sdocs-math-display' : 'sdocs-math-inline';
+  });
+  return copy.innerHTML;
+}
+
+function resetWriteHistory() {
+  writeHistory = { html: historyHtml(), selection: null, undo: [], redo: [], restoring: false };
+}
+
+function htmlDelta(before, after) {
+  var at = 0, endBefore = before.length, endAfter = after.length;
+  while (at < endBefore && at < endAfter && before[at] === after[at]) at++;
+  while (endBefore > at && endAfter > at && before[endBefore - 1] === after[endAfter - 1]) { endBefore--; endAfter--; }
+  return { at: at, before: before.slice(at, endBefore), after: after.slice(at, endAfter) };
+}
+
+function recordWriteHistory(inputType) {
+  if (!writeHistory || writeHistory.restoring) return;
+  var html = historyHtml(), history = writeHistory, selection = captureWriteSelection();
+  if (html === history.html) { beforeInputSelection = null; return; }
+  var previous = history.undo[history.undo.length - 1], beforeSelection = beforeInputSelection || history.selection;
+  var combine = inputType === 'insertText' && previous && previous.type === inputType && Date.now() - previous.time < 1000
+    && JSON.stringify(previous.selection) === JSON.stringify(beforeSelection);
+  var before = history.html;
+  if (combine) {
+    before = before.slice(0, previous.at) + previous.before + before.slice(previous.at + previous.after.length);
+    beforeSelection = previous.beforeSelection;
+    history.undo.pop();
+  }
+  var delta = htmlDelta(before, html);
+  delta.beforeSelection = beforeSelection; delta.selection = selection; delta.type = inputType; delta.time = Date.now();
+  history.undo.push(delta); history.redo = [];
+  history.html = html; history.selection = selection; beforeInputSelection = null;
+}
+
+function travelWriteHistory(redo) {
+  if (!writeHistory) return;
+  recordWriteHistory('pending');
+  var history = writeHistory, from = redo ? history.redo : history.undo, to = redo ? history.undo : history.redo;
+  var delta = from.pop();
+  if (!delta) return;
+  history.restoring = true;
+  var old = redo ? delta.before : delta.after, replacement = redo ? delta.after : delta.before;
+  history.html = history.html.slice(0, delta.at) + replacement + history.html.slice(delta.at + old.length);
+  writeEl.innerHTML = history.html;
+  history.selection = redo ? delta.selection : delta.beforeSelection;
+  restoreWriteSelection(history.selection);
+  to.push(delta);
+  if (S.processMath) S.processMath(writeEl);
+  history.restoring = false;
+  beforeInputSelection = null;
+  writeEl.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: redo ? 'historyRedo' : 'historyUndo' }));
+}
+
+writeEl.addEventListener('beforeinput', function (event) {
+  if (!writeHistory) return;
+  if (event.inputType === 'historyUndo' || event.inputType === 'historyRedo') {
+    event.preventDefault(); travelWriteHistory(event.inputType === 'historyRedo'); return;
+  }
+  beforeInputSelection = captureWriteSelection();
+});
+
 // ── Input handler + debounced sync ──────────────────
 
 writeEl.addEventListener('input', function(e) {
-  // Content has diverged from the on-disk file — drop local paths.
-  if (S.invalidateLocalMeta) S.invalidateLocalMeta();
+  if (!editSession || S.currentMode !== 'write') return;
+  if (e.inputType !== 'historyUndo' && e.inputType !== 'historyRedo') {
+    queueMicrotask(function () { if (editSession) recordWriteHistory(e.inputType); });
+  }
 
   // Debounce sync
   clearTimeout(S._writeSyncTimer);
+  var session = editSession;
   S._writeSyncTimer = setTimeout(function() {
-    S.currentBody = htmlToMarkdown(writeEl);
-    S.syncAll('write');
+    if (editSession === session && S.currentMode === 'write') flushWriteChanges();
   }, 500);
 
   // Code block exit: after Enter inserts a line break, check for 2+ consecutive
@@ -400,15 +735,47 @@ writeEl.addEventListener('input', function(e) {
   }
 
   // Check block-level shortcuts
-  if (e.inputType === 'insertText' || e.inputType === 'insertParagraph') {
+  if (!e.isComposing && (e.inputType === 'insertText' || e.inputType === 'insertParagraph')) {
     checkShortcuts();
   }
 });
 
+function changeListIndent(item, outdent) {
+  var list = item.parentElement, parentItem = list.parentElement.closest('li');
+  beforeInputSelection = captureWriteSelection();
+  var selection = window.getSelection();
+  var anchor = selection.anchorNode, anchorOffset = selection.anchorOffset;
+  var focus = selection.focusNode, focusOffset = selection.focusOffset;
+  if (outdent && parentItem && writeEl.contains(parentItem)) {
+    var following = [], sibling = item.nextElementSibling;
+    while (sibling) { following.push(sibling); sibling = sibling.nextElementSibling; }
+    if (following.length) {
+      var remaining = document.createElement(list.tagName);
+      following.forEach(function (child) { remaining.appendChild(child); });
+      item.appendChild(remaining);
+    }
+    parentItem.after(item);
+    if (!list.children.length) list.remove();
+  } else if (!outdent && item.previousElementSibling) {
+    var previous = item.previousElementSibling;
+    var nested = Array.from(previous.children).find(function (child) { return child.tagName === list.tagName; });
+    if (!nested) { nested = document.createElement(list.tagName); previous.appendChild(nested); }
+    nested.appendChild(item);
+  } else if (outdent) {
+    document.execCommand('outdent', false, null);
+    return;
+  } else return;
+  selection.setBaseAndExtent(anchor, anchorOffset, focus, focusOffset);
+  writeEl.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'formatIndent' }));
+}
+
 // ── Keyboard shortcuts ──────────────────────────────
 
 writeEl.addEventListener('keydown', function(e) {
+  if (e.isComposing || e.keyCode === 229) return;
   var mod = e.ctrlKey || e.metaKey;
+  if (mod && e.key.toLowerCase() === 'z') { e.preventDefault(); travelWriteHistory(e.shiftKey); return; }
+  if (mod && e.key.toLowerCase() === 'y' && !e.shiftKey) { e.preventDefault(); travelWriteHistory(true); return; }
 
   // Inline formatting shortcuts
   if (mod && !e.shiftKey) {
@@ -471,10 +838,12 @@ writeEl.addEventListener('keydown', function(e) {
 
   // Tab for list indent
   if (e.key === 'Tab') {
-    var block = getContainingBlock(window.getSelection().anchorNode);
-    if (block && block.tagName === 'LI') {
+    var anchor = window.getSelection().anchorNode;
+    var element = anchor && (anchor.nodeType === 1 ? anchor : anchor.parentElement);
+    var item = element && element.closest('li');
+    if (item && writeEl.contains(item)) {
       e.preventDefault();
-      document.execCommand(e.shiftKey ? 'outdent' : 'indent', false, null);
+      changeListIndent(item, e.shiftKey);
     }
   }
 });
@@ -490,73 +859,61 @@ writeEl.addEventListener('paste', function(e) {
 // ── Blur handler: sync immediately ──────────────────
 
 writeEl.addEventListener('blur', function() {
-  clearTimeout(S._writeSyncTimer);
-  S.currentBody = htmlToMarkdown(writeEl);
-  S.syncAll('write');
+  if (S.currentMode === 'write' && editSession) flushWriteChanges();
 });
 
 // ── Toolbar actions ──────────────────────────────────
 
+// Custom structure changes use DOM ranges so the browser cannot inherit a
+// removed wrapper. The shared history below covers typing and toolbar actions.
+function insertEditorNodes(range, nodes, focus, placement) {
+  if (!writeEl.contains(range.commonAncestorContainer)) return;
+  beforeInputSelection = captureWriteSelection();
+  range.deleteContents();
+  var fragment = document.createDocumentFragment();
+  nodes.forEach(function (node) { fragment.appendChild(node); });
+  var last = fragment.lastChild;
+  range.insertNode(fragment);
+  var selection = window.getSelection(), caret = document.createRange();
+  if (focus) {
+    if (placement === 'after') { caret.setStartAfter(focus); caret.collapse(true); }
+    else { caret.selectNodeContents(focus); if (placement !== 'select') caret.collapse(false); }
+  } else if (last) { caret.setStartAfter(last); caret.collapse(true); }
+  else { caret = range; caret.collapse(true); }
+  selection.removeAllRanges(); selection.addRange(caret);
+  writeEl.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'formatBlock' }));
+}
+
+function replaceEditorBlock(block, nodes, focus, placement) {
+  var range = document.createRange(); range.selectNode(block);
+  insertEditorNodes(range, nodes, focus, placement);
+}
+
 function execInlineCode() {
   var sel = window.getSelection();
-  if (!sel.rangeCount) return;
+  if (!sel.rangeCount || !writeEl.contains(sel.anchorNode)) return;
   var range = sel.getRangeAt(0);
-
-  // Check if cursor/selection is already inside a <code> element
-  var node = sel.anchorNode;
-  var existingCode = null;
-  var el = node && (node.nodeType === 1 ? node : node.parentElement);
-  while (el && el !== writeEl) {
-    if (el.tagName === 'CODE' && !el.closest('pre')) { existingCode = el; break; }
-    el = el.parentElement;
-  }
-
-  if (existingCode) {
-    // Unwrap: replace <code> with its text content
-    var text = document.createTextNode(existingCode.textContent);
-    existingCode.replaceWith(text);
-    range = document.createRange();
-    range.selectNodeContents(text);
-    sel.removeAllRanges();
-    sel.addRange(range);
+  var el = sel.anchorNode.nodeType === 1 ? sel.anchorNode : sel.anchorNode.parentElement;
+  var existing = el.closest('code');
+  if (existing && !existing.closest('pre')) {
+    range.selectNode(existing);
+    insertEditorNodes(range, [document.createTextNode(existing.textContent.replace(/\u200B/g, ''))]);
     return;
   }
-
-  if (range.collapsed) {
-    // No selection: insert an empty <code> span the user can type into
-    var code = document.createElement('code');
-    code.textContent = '\u200B'; // zero-width space as placeholder
-    range.insertNode(code);
-    range = document.createRange();
-    range.setStart(code.firstChild, 1);
-    range.collapse(true);
-    sel.removeAllRanges();
-    sel.addRange(range);
-    return;
-  }
-
-  // Wrap selection in <code>
   var code = document.createElement('code');
-  code.appendChild(range.extractContents());
-  range.insertNode(code);
-  range.selectNodeContents(code);
-  sel.removeAllRanges();
-  sel.addRange(range);
+  code.textContent = range.collapsed ? '\u200B' : sel.toString();
+  insertEditorNodes(range, [code], code, range.collapsed ? 'end' : 'select');
 }
 
 function insertLink() {
   var sel = window.getSelection();
-  if (!sel.rangeCount) return;
-  var text = sel.toString() || 'link text';
+  if (!sel.rangeCount || !writeEl.contains(sel.anchorNode)) return;
+  var range = sel.getRangeAt(0).cloneRange(), text = sel.toString() || 'link text';
   var url = prompt('Enter URL:', 'https://');
   if (!url) return;
-  var a = document.createElement('a');
-  a.href = url;
-  a.textContent = text;
-  var range = sel.getRangeAt(0);
-  range.deleteContents();
-  range.insertNode(a);
-  placeCursorAtEnd(a);
+  var a = document.createElement('a'); a.href = url; a.textContent = text;
+  var safe = DOMPurify.sanitize(a.outerHTML, { RETURN_DOM_FRAGMENT: true });
+  insertEditorNodes(range, Array.from(safe.childNodes), safe.firstChild);
 }
 
 function wrapBlock(tagName) {
@@ -578,45 +935,19 @@ function wrapBlock(tagName) {
 
 function toggleBlockquote() {
   var sel = window.getSelection();
-  if (!sel.rangeCount) return;
-  var node = sel.anchorNode;
-  // Check if cursor is inside a blockquote
-  var el = node.nodeType === 1 ? node : node.parentElement;
-  var bq = null;
-  while (el && el !== writeEl) {
-    if (el.tagName === 'BLOCKQUOTE') { bq = el; break; }
-    el = el.parentElement;
-  }
+  if (!sel.rangeCount || !writeEl.contains(sel.anchorNode)) return;
+  var el = sel.anchorNode.nodeType === 1 ? sel.anchorNode : sel.anchorNode.parentElement;
+  var bq = el.closest('blockquote');
   if (bq) {
-    // Unwrap: move all children out of blockquote, replace with paragraphs
-    var children = [].slice.call(bq.childNodes);
-    var frag = document.createDocumentFragment();
-    for (var i = 0; i < children.length; i++) {
-      var child = children[i];
-      if (child.nodeType === 1 && (child.tagName === 'P' || child.tagName === 'DIV')) {
-        frag.appendChild(child);
-      } else if (child.nodeType === 3 && child.textContent.trim()) {
-        var p = document.createElement('p');
-        p.textContent = child.textContent.trim();
-        frag.appendChild(p);
-      } else {
-        frag.appendChild(child);
-      }
-    }
-    bq.replaceWith(frag);
-    // Place cursor in first paragraph
-    var firstP = frag.firstChild || frag;
-    if (firstP.nodeType === 11) firstP = firstP.firstChild; // DocumentFragment
-    placeCursorAtEnd(firstP);
-    return;
-  }
-  // Wrap current block in blockquote
-  var block = getContainingBlock(sel.anchorNode);
-  if (block && block !== writeEl) {
-    var bqNew = document.createElement('blockquote');
-    block.replaceWith(bqNew);
-    bqNew.appendChild(block);
-    placeCursorAtEnd(block);
+    var copy = bq.cloneNode(true), nodes = Array.from(copy.childNodes);
+    var first = copy.querySelector('p,div') || copy.firstElementChild;
+    replaceEditorBlock(bq, nodes, first);
+  } else {
+    var block = getContainingBlock(sel.anchorNode);
+    if (!block || block === writeEl) return;
+    var quote = document.createElement('blockquote');
+    var content = block.cloneNode(true); quote.appendChild(content);
+    replaceEditorBlock(block, [quote], content);
   }
 }
 
@@ -625,89 +956,41 @@ function insertHR() {
   if (!sel.rangeCount) return;
   var block = getContainingBlock(sel.anchorNode);
   if (!block) return;
-  var hr = document.createElement('hr');
-  var p = document.createElement('p');
-  p.innerHTML = '<br>';
-  block.after(hr);
-  hr.after(p);
-  placeCursorAtEnd(p);
+  var range = document.createRange(); range.setStartAfter(block); range.collapse(true);
+  var p = document.createElement('p'); p.appendChild(document.createElement('br'));
+  insertEditorNodes(range, [document.createElement('hr'), p], p);
 }
 
 function insertImage() {
+  var sel = window.getSelection();
+  if (!sel.rangeCount || !writeEl.contains(sel.anchorNode)) return;
+  var range = sel.getRangeAt(0).cloneRange();
   var url = prompt('Image URL:', 'https://');
   if (!url) return;
   var alt = prompt('Alt text:', '') || '';
-  var img = document.createElement('img');
-  img.src = url;
-  img.alt = alt;
-  var sel = window.getSelection();
-  if (!sel.rangeCount) return;
-  var range = sel.getRangeAt(0);
-  range.deleteContents();
-  range.insertNode(img);
-  // Place cursor after the image
-  range.setStartAfter(img);
-  range.collapse(true);
-  sel.removeAllRanges();
-  sel.addRange(range);
+  var img = document.createElement('img'); img.src = url; img.alt = alt;
+  var safe = DOMPurify.sanitize(img.outerHTML, { RETURN_DOM_FRAGMENT: true });
+  insertEditorNodes(range, Array.from(safe.childNodes), safe.firstChild, 'after');
 }
 
 function insertCodeBlock() {
   var sel = window.getSelection();
-  if (!sel.rangeCount) return;
-  var node = sel.anchorNode;
-
-  // Check if cursor is already inside a code block — toggle off
-  var el = node && (node.nodeType === 1 ? node : node.parentElement);
-  var existingPre = null;
-  while (el && el !== writeEl) {
-    if (el.tagName === 'PRE') { existingPre = el; break; }
-    el = el.parentElement;
-  }
-  if (existingPre) {
-    // Unwrap: convert code block content to a paragraph
-    var codeEl = existingPre.querySelector('code') || existingPre;
-    var text = codeEl.textContent.replace(/\n+$/, '').replace(/^\n+/, '');
-    var p = document.createElement('p');
-    p.textContent = text || '\u00A0';
-    existingPre.replaceWith(p);
-    placeCursorAtEnd(p);
+  if (!sel.rangeCount || !writeEl.contains(sel.anchorNode)) return;
+  var el = sel.anchorNode.nodeType === 1 ? sel.anchorNode : sel.anchorNode.parentElement;
+  var existing = el.closest('pre');
+  if (existing) {
+    var p = document.createElement('p'); p.textContent = plainCode(existing.querySelector('code') || existing).replace(/^\n|\n$/g, '') || '\u00A0';
+    replaceEditorBlock(existing, [p], p);
     return;
   }
-
-  // Insert new code block — use selected text as content if any
-  var range = sel.getRangeAt(0);
-  var selectedText = sel.toString();
-  var block = getContainingBlock(node);
-  var pre = document.createElement('pre');
-  var code = document.createElement('code');
-
-  if (selectedText) {
-    code.textContent = selectedText + '\n';
-    // Remove the selected content from the DOM
-    range.deleteContents();
-    // If the containing block is now empty, replace it with the code block
-    if (block && block !== writeEl && !block.textContent.trim()) {
-      block.replaceWith(pre);
-    } else if (block && block !== writeEl) {
-      block.after(pre);
-    } else {
-      writeEl.appendChild(pre);
-    }
-  } else {
-    code.textContent = '\n';
-    if (block && block !== writeEl) {
-      block.after(pre);
-    } else {
-      writeEl.appendChild(pre);
-    }
-  }
-
-  pre.appendChild(code);
-  var after = document.createElement('p');
-  after.innerHTML = '<br>';
-  pre.after(after);
-  placeCursorAtEnd(code);
+  var range = sel.getRangeAt(0).cloneRange(), selected = sel.toString();
+  var block = getContainingBlock(sel.anchorNode);
+  var pre = document.createElement('pre'), code = document.createElement('code');
+  code.textContent = selected + '\n'; pre.appendChild(code);
+  var after = document.createElement('p'); after.appendChild(document.createElement('br'));
+  if (selected && block && selected === block.textContent) range.selectNode(block);
+  else if (!selected && block) { range.setStartAfter(block); range.collapse(true); }
+  insertEditorNodes(range, [pre, after], code);
 }
 
 // Toolbar button wiring
@@ -812,6 +1095,7 @@ function updateToolbarState() {
 document.addEventListener('selectionchange', function() {
   if (S.currentMode === 'write') {
     rememberBlockSelection();
+    if (writeHistory && historyHtml() === writeHistory.html) writeHistory.selection = captureWriteSelection();
     updateToolbarState();
   }
 });
@@ -832,5 +1116,9 @@ for (var t = 0; t < tipBtns.length; t++) {
 S.enterWriteMode = enterWriteMode;
 S.exitWriteMode = exitWriteMode;
 S.updateToolbarState = updateToolbarState;
+S.flushWriteChanges = flushWriteChanges;
+S.resetWriteSession = resetWriteSession;
+S.refreshWriteStyles = copyStyleVars;
+S.hasPendingWriteChanges = function () { return !!editSession && serializeWriteSession() !== editSession.lastSaved; };
 
 })();

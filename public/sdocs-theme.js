@@ -202,6 +202,7 @@ function switchThemeAndUpdate(theme, persist) {
   // Single sync with 'theme' source: refreshes currentMeta/raw/hash
   // without flipping _isDefaultState.
   S.syncAll('theme');
+  if (S.currentMode === 'write' && S.refreshWriteStyles) S.refreshWriteStyles();
   // Canvas graphics and body-portaled viewers do not inherit a live CSS
   // palette. Refresh them after all controls have finished changing.
   if (window.SDocShapeRender && window.SDocShapeRender.refreshThemes) window.SDocShapeRender.refreshThemes();

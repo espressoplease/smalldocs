@@ -102,7 +102,9 @@ test('ordinary html fences remain readable source', async ({ page }) => {
   await page.waitForFunction(() => window.SDocs && typeof window.SDocs.loadText === 'function');
   await page.evaluate((source) => window.SDocs.loadText(source, 'ordinary-html.md'),
     '```html\n<button onclick="window.ran=true">Source only</button>\n```');
-  await expect(page.locator('code.language-html')).toContainText('Source only');
+  await expect(page.locator('#_sd_write code.language-html')).toContainText('Source only');
+  await page.evaluate(() => SDocs.setMode('read'));
+  await expect(page.locator('#_sd_rendered code.language-html')).toContainText('Source only');
   await expect(page.locator('.sdoc-app-frame')).toHaveCount(0);
   expect(await page.evaluate(() => window.ran)).toBeUndefined();
 });

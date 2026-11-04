@@ -21,6 +21,7 @@ var cloudState = { account: null, accounts: [], user: null, members: [], permiss
 var cloudSaveTimer = null;
 var cloudSavePromise = null;
 var cloudSaveQueued = false;
+var cloudDraftMergeBase = null;
 var cloudSaveBlocked = false;
 var cloudLastSavedMarkdown = null;
 var cloudTargetRevisionId = null;
@@ -97,8 +98,11 @@ async function saveCloudRevision() {
     cloudSaveQueued = true;
     return cloudSavePromise;
   }
-  var markdown = currentMarkdown();
-  if (markdown === cloudLastSavedMarkdown) return S.cloudDocument;
+  var observedMarkdown = currentMarkdown();
+  var markdown = cloudDraftMergeBase && window.SDocsMerge
+    ? window.SDocsMerge.mergeTargetRevision(cloudDraftMergeBase, cloudTargetMarkdown, observedMarkdown).markdown
+    : observedMarkdown;
+  if (observedMarkdown === cloudLastSavedMarkdown) return S.cloudDocument;
   var documentId = S.cloudDocument.id;
   var targetRevisionId = cloudTargetRevisionId || S.cloudDocument.current_revision_id;
   setCloudSaveStatus('Saving to Cloud...');
@@ -109,18 +113,24 @@ async function saveCloudRevision() {
         idempotency_key: crypto.randomUUID() }) })
     .then(function (data) {
       if (!S.cloudDocument || S.cloudDocument.id !== documentId) return null;
+      if (S.hasPendingWriteChanges && S.hasPendingWriteChanges()) S.flushWriteChanges();
       var current = currentMarkdown();
       var savedMarkdown = typeof data.document.markdown === 'string'
         ? data.document.markdown : markdown;
       S.cloudDocument = Object.assign({}, S.cloudDocument, data.document);
-      if (current === markdown) {
+      if (current === observedMarkdown) {
         applyCloudMarkdown(savedMarkdown, data.document.filename || currentFilename());
         cloudLastSavedMarkdown = currentMarkdown();
-        cloudTargetRevisionId = data.document.current_revision_id;
-        cloudTargetMarkdown = cloudLastSavedMarkdown;
+        cloudDraftMergeBase = null;
       } else {
-        cloudLastSavedMarkdown = markdown;
+        // New typing is based on the submitted local draft. Rebase that delta
+        // onto the acknowledged revision before the next request, using the
+        // same merge implementation as the server.
+        cloudLastSavedMarkdown = observedMarkdown;
+        cloudDraftMergeBase = observedMarkdown;
       }
+      cloudTargetRevisionId = data.document.current_revision_id;
+      cloudTargetMarkdown = savedMarkdown;
       setCloudSaveStatus(data.document.combined
         ? 'Saved and combined with Cloud changes.' : 'Saved to Cloud.');
       if (S.publications) S.publications.refresh();
@@ -128,6 +138,7 @@ async function saveCloudRevision() {
     })
     .catch(function (error) {
       if (!S.cloudDocument || S.cloudDocument.id !== documentId) return null;
+      if (S.hasPendingWriteChanges && S.hasPendingWriteChanges()) S.flushWriteChanges();
       if (error.data && (error.data.error === 'target_too_old' ||
           error.data.error === 'revision_conflict')) {
         cloudSaveBlocked = true;
@@ -162,6 +173,7 @@ function queueCloudSave(source) {
 }
 
 async function flushCloudSave() {
+  if (S.hasPendingWriteChanges && S.hasPendingWriteChanges()) S.flushWriteChanges();
   do {
     if (cloudSaveTimer) {
       clearTimeout(cloudSaveTimer);
@@ -253,6 +265,7 @@ async function loadCloudDocument(id) {
     cloudTargetMarkdown = cloudLastSavedMarkdown;
     cloudRecoveryMarkdown = null;
     cloudSaveBlocked = false;
+    cloudDraftMergeBase = null;
     if (S.refreshCommentIdentity) S.refreshCommentIdentity();
     if (S.setMode) S.setMode(['read', 'comment', 'style', 'share', 'metadata', 'write', 'raw', 'export', 'info'].indexOf(requestedMode) >= 0 ? requestedMode : 'read', true);
     insertRow();
@@ -285,6 +298,7 @@ async function loadCloudDocument(id) {
 
 async function checkCloudDocument() {
   if (!S.cloudDocument || cloudSaveBlocked || cloudSavePromise || document.hidden) return null;
+  if (S.hasPendingWriteChanges && S.hasPendingWriteChanges()) { S.flushWriteChanges(); return null; }
   if (S.commentsUi && S.commentsUi.hasDraft && S.commentsUi.hasDraft()) return null;
   var documentId = S.cloudDocument.id;
   try {
@@ -301,8 +315,13 @@ async function checkCloudDocument() {
     var data = await jsonRequest('/api/cloud/v1/documents/' + encodeURIComponent(documentId));
     if (!S.cloudDocument || S.cloudDocument.id !== documentId) return null;
     if (S.commentsUi && S.commentsUi.hasDraft && S.commentsUi.hasDraft()) return null;
-    S.cloudDocument = Object.assign({}, S.cloudDocument, data.document);
+    if (S.hasPendingWriteChanges && S.hasPendingWriteChanges()) { S.flushWriteChanges(); return null; }
+    if (currentMarkdown() !== cloudLastSavedMarkdown) { queueCloudSave('remote'); return null; }
     if (cloudState.account && cloudState.account.id !== data.document.workspace_id) await loadAccountData(data.document.workspace_id);
+    if (!S.cloudDocument || S.cloudDocument.id !== documentId) return null;
+    if (S.hasPendingWriteChanges && S.hasPendingWriteChanges()) { S.flushWriteChanges(); return null; }
+    if (currentMarkdown() !== cloudLastSavedMarkdown) { queueCloudSave('remote'); return null; }
+    S.cloudDocument = Object.assign({}, S.cloudDocument, data.document);
     cloudState.permission = data.permission || cloudState.permission;
     applyCloudMarkdown(data.document.markdown, data.document.filename);
     cloudLastSavedMarkdown = currentMarkdown();
@@ -500,6 +519,7 @@ function renderCodePrompt(row, email) {
 }
 
 async function beginAdd(event, accountId) {
+  var generation = S.documentGeneration;
   if (event) {
     event.preventDefault();
     event.stopPropagation();
@@ -508,6 +528,7 @@ async function beginAdd(event, accountId) {
   cloudState.busy = true;
   try {
     var accountData = await loadAccountData(accountId || null);
+    if (S.documentGeneration !== generation) return;
     if (accountData.needs_selection) {
       openAccountChoice(accountData.accounts, accountData.user);
       return;
@@ -522,23 +543,27 @@ async function beginAdd(event, accountId) {
         encodeURIComponent(location.pathname + location.search + location.hash);
       return;
     }
+    if (S.hasPendingWriteChanges && S.hasPendingWriteChanges()) S.flushWriteChanges();
+    var submittedMarkdown = currentMarkdown();
     var data = await jsonRequest('/api/cloud/v1/account/documents', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ account_id: accountData.account.id, filename: currentFilename(),
-        markdown: currentMarkdown(), source_file: {
+        markdown: submittedMarkdown, source_file: {
           absolute_path: S.localMeta && S.localMeta.fullPath,
           relative_path: S.localMeta && S.localMeta.path,
         }, idempotency_key: crypto.randomUUID() }),
     });
+    if (S.documentGeneration !== generation) return;
     S.cloudDocument = data.document;
     S.cloudDocument.workspace_id = data.account.id;
     cloudState.account = Object.assign({}, accountData.account, data.account);
     cloudState.permission = data.permission;
-    cloudLastSavedMarkdown = currentMarkdown();
+    cloudLastSavedMarkdown = submittedMarkdown;
     cloudTargetRevisionId = data.document.current_revision_id;
     cloudTargetMarkdown = cloudLastSavedMarkdown;
     cloudRecoveryMarkdown = null;
     cloudSaveBlocked = false;
+    cloudDraftMergeBase = null;
     if (S.refreshCommentIdentity) S.refreshCommentIdentity();
     clearLocalDocumentContext();
     // Rebuild the base rows now that Cloud owns the document. This removes
@@ -551,6 +576,8 @@ async function beginAdd(event, accountId) {
       refreshRow();
       return;
     }
+    if (S.hasPendingWriteChanges && S.hasPendingWriteChanges()) S.flushWriteChanges();
+    if (currentMarkdown() !== cloudLastSavedMarkdown) queueCloudSave('remote');
     cloudState.status = 'Added to Cloud.';
     refreshRow();
   } catch (error) {
@@ -619,6 +646,7 @@ async function removeCloudDocument(event) {
     cloudTargetMarkdown = null;
     cloudRecoveryMarkdown = null;
     cloudSaveBlocked = false;
+    cloudDraftMergeBase = null;
     cloudState.permission = null;
     if (S.refreshCommentIdentity) S.refreshCommentIdentity();
     closeCloudPanel();
@@ -883,12 +911,15 @@ async function saveTags(tags) {
   try {
     await flushCloudSave();
     var markdownBeforeTags = currentMarkdown();
+    var documentId = S.cloudDocument.id;
     var targetRevisionId = cloudTargetRevisionId || S.cloudDocument.current_revision_id;
     var data = await jsonRequest('/api/cloud/v1/documents/' + encodeURIComponent(S.cloudDocument.id)
       + '/tags', { method: 'PATCH', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tags: tags, filename: currentFilename(),
           target_revision_id: targetRevisionId, target_markdown: cloudTargetMarkdown,
           idempotency_key: crypto.randomUUID() }) });
+    if (!S.cloudDocument || S.cloudDocument.id !== documentId) return;
+    if (S.hasPendingWriteChanges && S.hasPendingWriteChanges()) S.flushWriteChanges();
     S.cloudDocument = Object.assign({}, S.cloudDocument, data.document);
     var savedMarkdown = typeof data.document.markdown === 'string'
       ? data.document.markdown : null;
@@ -896,10 +927,15 @@ async function saveTags(tags) {
       applyCloudMarkdown(savedMarkdown, data.document.filename || currentFilename());
       cloudLastSavedMarkdown = currentMarkdown();
       cloudTargetMarkdown = cloudLastSavedMarkdown;
+      cloudDraftMergeBase = null;
     } else {
+      var base = SDocYaml.parseFrontMatter(markdownBeforeTags);
+      base.meta.tags = data.document.tags.slice();
+      cloudDraftMergeBase = SDocYaml.serializeFrontMatter(base.meta) + '\n' + base.body;
       if (!S.currentMeta) S.currentMeta = {};
       S.currentMeta.tags = data.document.tags.slice();
       cloudLastSavedMarkdown = savedMarkdown || currentMarkdown();
+      cloudTargetMarkdown = savedMarkdown || cloudTargetMarkdown;
       if (savedMarkdown && currentMarkdown() !== savedMarkdown) queueCloudSave('remote');
     }
     cloudTargetRevisionId = data.document.current_revision_id;

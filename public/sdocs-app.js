@@ -787,6 +787,8 @@ function setStatus(msg) {
 // ── Load content ──────────────────────────────────
 
 function loadText(text, filename) {
+  S.documentGeneration = (S.documentGeneration || 0) + 1;
+  if (S.resetWriteSession) S.resetWriteSession();
   // A Cloud refresh can replace both source and comments while the viewer is
   // open. Dismiss its old working set before any action can edit the new doc.
   if (S.codeFocus && S.codeFocus.close) S.codeFocus.close();
@@ -852,6 +854,7 @@ function loadText(text, filename) {
   S.rawEl.value = SDocYaml.serializeFrontMatter(S.currentMeta) + '\n' + S.currentBody;
   setStatus('');
   syncAll('load');
+  if (S.currentMode === 'write' && S.enterWriteMode) S.enterWriteMode();
 }
 
 // ── Compression helpers (brotli + base64url) ──

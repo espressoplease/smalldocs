@@ -333,6 +333,9 @@
   background: var(--md-table-header-bg);
   font-weight: 600;
 }
+:is(#_sd_rendered, #_sd_write, .sdoc-reader) :is(th, td)[align="center"] { text-align: center; }
+:is(#_sd_rendered, #_sd_write, .sdoc-reader) :is(th, td)[align="right"] { text-align: right; }
+:is(#_sd_rendered, #_sd_write, .sdoc-reader) :is(th, td)[align="left"] { text-align: left; }
 :is(#_sd_rendered, #_sd_write, .sdoc-reader) tr:nth-child(even) td { background: var(--md-table-even-bg); }
 :is(#_sd_rendered, #_sd_write, .sdoc-reader) tr:nth-child(odd) td { background: var(--md-table-odd-bg); }
 :is(#_sd_rendered, .sdoc-reader) .table-copy-btn {
