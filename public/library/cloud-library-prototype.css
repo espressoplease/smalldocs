@@ -55,6 +55,13 @@
 html[data-theme="dark"] .library-theme-toggle [data-theme-moon] { display: none; }
 html[data-theme="dark"] .library-theme-toggle [data-theme-sun] { display: block; }
 .library-theme-toggle:focus-visible { outline: 2px solid var(--accent, var(--blue)); outline-offset: 2px; }
+body:is([data-sdocs-site-page="library"], [data-settings-scope="library"]) .cloud-library-actions .workspace-button { border-radius: 999px; }
+body:is([data-sdocs-site-page="library"], [data-settings-scope="library"]) .cloud-library-actions .library-theme-toggle { border-radius: 50%; }
+@media (min-width: 769px) {
+  /* Use the document's top framing beside the sidebar's Library row. */
+  body[data-sdocs-site-page="library"] > .container,
+  body.sdocs-site-shell[data-settings-scope="library"] .main { padding-top: 74px; }
+}
 .personal-library-note { margin: 8px 0 16px; color: var(--text-2); font: 12px/1.6 var(--font-ui); }
 .personal-library-note[hidden] { display: none; }
 .personal-library-note a { color: var(--accent-text); }
