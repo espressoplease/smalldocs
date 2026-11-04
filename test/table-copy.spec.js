@@ -175,11 +175,16 @@ test('column controls expand upward on header hover without reserving a blank st
   const column = header.getByRole('button', { name: 'Copy column', exact: true }).last();
   await column.click();
   await expect.poll(() => copiedText(page)).toBe('Notes\n"Hello, world"\n"Said ""yes"""');
+  await after.hover();
+  await expect(toolbar).toHaveCSS('height', '35px');
+  await expect(wrapper.locator('.sdoc-table-copy-preview')).toHaveCount(0);
+  await header.locator('th').last().hover();
+  await expect(toolbar).toHaveCSS('height', '63px');
   // Crossing to CSV must not collapse the strip and move the target away.
   await toolbar.locator('.table-copy-csv-btn').click();
   await expect(toolbar).toHaveCSS('height', '63px');
   await expect.poll(() => copiedText(page)).toBe('Name,Notes\nAda,"Hello, world"\nGrace,"Said ""yes"""');
-  await after.click();
+  await after.hover();
   await expect(toolbar).toHaveCSS('height', '35px');
   expect((await header.boundingBox()).y).toBeCloseTo(initial.header.y, 0);
 });
@@ -193,6 +198,9 @@ test('keyboard focus reveals the column strip and leaving the table collapses it
   await expect(toolbar).toHaveCSS('height', '63px');
   await page.keyboard.press('Enter');
   await expect.poll(() => copiedText(page)).toBe('Name\nAda\nGrace');
+  await page.mouse.move(1, 1);
+  await expect(toolbar).toHaveCSS('height', '63px');
+  await expect(column).toBeFocused();
   await page.locator('#_sd_btn-theme').focus();
   await expect(toolbar).toHaveCSS('height', '35px');
 });
@@ -276,11 +284,14 @@ test.describe('touch table copies', () => {
   test.use({ hasTouch: true, viewport: { width: 390, height: 844 } });
   test('a header tap exposes its column copy control', async ({ page }) => {
     await loadTable(page);
+    await page.evaluate(markdown => SDocs.loadText(markdown + '\n\nAfter the table.'), TABLE);
     const toolbar = page.locator('#_sd_rendered .md-table-toolbar');
     await expect(toolbar).toHaveCSS('height', '35px');
     await page.locator('thead th').last().tap();
     await expect(toolbar).toHaveCSS('height', '63px');
     await page.locator('thead th').last().getByRole('button', { name: 'Copy column', exact: true }).tap();
     await expect.poll(() => copiedText(page)).toBe('Notes\n"Hello, world"\n"Said ""yes"""');
+    await page.locator('#_sd_rendered p').filter({ hasText: 'After the table.' }).tap();
+    await expect(toolbar).toHaveCSS('height', '35px');
   });
 });

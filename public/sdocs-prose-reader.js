@@ -464,7 +464,7 @@
       }
       function preview() { targets().forEach(function (cell) { cell.classList.add('sdoc-table-copy-preview'); }); }
       function clear() {
-        if (!button.matches(':hover, :focus')) targets().forEach(function (cell) { cell.classList.remove('sdoc-table-copy-preview'); });
+        if (!button.matches(':hover, :focus-visible')) targets().forEach(function (cell) { cell.classList.remove('sdoc-table-copy-preview'); });
       }
       button.addEventListener('pointerenter', preview); button.addEventListener('focus', preview);
       button.addEventListener('pointerleave', clear); button.addEventListener('blur', clear);
@@ -511,9 +511,12 @@
         var header = table.rows[0];
         header.tabIndex = -1;
         function revealColumns() { wrapper.classList.add('sdoc-table-columns-open'); }
-        function collapseWhenIdle() {
+        function collapseWhenIdle(event) {
+          var touch = event && event.pointerType === 'touch';
           win.requestAnimationFrame(function () {
-            if (active(wrapper) && !wrapper.matches(':hover') && !wrapper.contains(doc.activeElement)) {
+            var focused = doc.activeElement;
+            var keepFocus = wrapper.contains(focused) && (touch || focused.matches(':focus-visible'));
+            if (active(wrapper) && !wrapper.matches(':hover') && !keepFocus) {
               wrapper.classList.remove('sdoc-table-columns-open');
             }
           });

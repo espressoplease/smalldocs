@@ -30,8 +30,9 @@ dimensions as table comment controls. All targets use CSV quoting for commas
 and quotes. Row values are comma-separated; a column is one field per line,
 including its header. The column-control strip expands upward when a header
 is hovered or focused, staying in the document flow so it does not cover preceding
-text. A header tap also reveals it on touch screens. It remains available while
-the pointer or focus is in the table, then collapses without reserving space.
+text. A header tap also reveals it on touch screens. Mouse copies collapse when
+the pointer leaves, even if the clicked button retains focus. Keyboard focus
+keeps the controls available; touch controls close after tapping outside.
 Whole-table CSV and PNG copy remain available. Copies exclude controls and
 comment cards and do not change Markdown or metadata.
 
