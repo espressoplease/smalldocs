@@ -279,7 +279,7 @@ async function loadCloudDocument(id) {
     cloudDraftMergeBase = null;
     cloudDeferredRichUpdate = null;
     if (S.refreshCommentIdentity) S.refreshCommentIdentity();
-    if (S.setMode) S.setMode(['read', 'comment', 'style', 'share', 'metadata', 'history', 'write', 'raw', 'export', 'info'].indexOf(requestedMode) >= 0 ? requestedMode : 'read', true);
+    if (S.setMode) S.setMode(['read', 'comment', 'style', 'share', 'history', 'write', 'raw', 'export', 'info'].indexOf(requestedMode) >= 0 ? requestedMode : 'read', true);
     insertRow();
     if (data.document.workspace_id) loadAccountData(data.document.workspace_id).catch(function () {});
     if (S.setDocumentLoadState) S.setDocumentLoadState('ready');
@@ -457,10 +457,7 @@ function insertRow() {
   var hasDocument = !!(S.currentBody || (S.currentMeta && Object.keys(S.currentMeta).length));
   if (!hasDocument || S._isDefaultState) return;
   var row = cloudRow();
-  var filename = rows.querySelector('[data-key="file"]');
-  if (filename && filename.nextSibling) rows.insertBefore(row, filename.nextSibling);
-  else if (filename) rows.appendChild(row);
-  else rows.insertBefore(row, rows.firstChild);
+  rows.insertBefore(row, rows.firstChild);
   rows.hidden = false;
   card.hidden = false;
 }
@@ -975,7 +972,7 @@ async function saveTags(tags) {
 }
 
 function openCloudPanel(kind) {
-  if (S.currentMode === 'share' || S.currentMode === 'metadata' || S.currentMode === 'history') S.setMode('read');
+  if (S.currentMode === 'share' || S.currentMode === 'history') S.setMode('read');
   cloudState.panel = kind === 'library' ? 'library' : kind === 'tags' ? 'tags' : 'access';
   if (kind === 'library') {
     selectedLibrary = S.cloudDocument && S.cloudDocument.workspace_id; librarySettings = null;

@@ -595,10 +595,18 @@ var BRIDGE_SCREEN_SHARE_OFF_SVG = ''
   +   '<path d="m17 3 5 5"/>'
   + '</svg>';
 
+function dataRowHtml(key, label, value, copyLabel, localOnly, extraHtml) {
+  return '<div class="fic-row" data-key="' + key + '">'
+    + '<span class="fic-label">' + label + '</span>'
+    + '<span class="fic-value">' + escapeHtml(value) + '</span>'
+    + (extraHtml || '')
+    + (localOnly ? '<span class="fic-local-tag" title="Only visible on this device, not included in shared sdocs">Local only</span>' : '')
+    + '<button class="fic-copy" type="button" aria-label="Copy ' + copyLabel + '" title="Copy ' + copyLabel + '">' + COPY_SVG + '</button></div>';
+}
+
 function renderFileInfoCard() {
   if (S.cloudHistory) S.cloudHistory.observe(S.cloudDocument);
   if (S.publications) S.publications.update();
-  if (S.metadata) S.metadata.update();
   var card = document.getElementById('_sd_sdocs-file-info');
   if (!card) return;
   if (S.publicationSource && S.publicationSource.isViewing()) {
@@ -621,7 +629,7 @@ function renderFileInfoCard() {
   // Edits is a local-only row, but it only renders in editing modes — so
   // only count it toward the privacy-note flag when it'll actually appear.
   var bridgeRowWillRender = !!bridge && bridgeShouldRender(S.currentMode);
-  var hasLocalRow = bridgeRowWillRender;
+  var hasLocalRow = bridgeRowWillRender || (!local.creatorOnly && !!(local.path || local.fullPath));
 
   if (!hasDoc && !meta.file && !hasLocalRow && !bridge) {
     card.hidden = true;
@@ -633,9 +641,24 @@ function renderFileInfoCard() {
   card.hidden = false;
   var note = card.querySelector('.fic-privacy-note');
   if (note) note.hidden = !hasLocalRow;
+  var copyStatus = card.querySelector('.fic-copy-status');
+  if (copyStatus) { copyStatus.hidden = true; copyStatus.textContent = ''; }
 
-  // Metadata lives in the toolbar panel. Keep local-session actions here.
+  // Cloud controls are inserted first; copyable file details follow them.
   var slots = [];
+  var heading = S.renderedEl && S.renderedEl.querySelector('h1');
+  if (heading) {
+    heading = heading.cloneNode(true);
+    heading.querySelectorAll('button, .heading-anchor, .heading-copy').forEach(function (node) { node.remove(); });
+  }
+  var title = heading ? heading.textContent.replace(/\s+/g, ' ').trim() : String(meta.title || '');
+  var filename = local.fullPath || local.path ? '' : String(meta.file || (bridge && bridge.cfg && bridge.cfg.file) || '');
+  var liveChip = bridge && ['connected', 'saving', 'saved'].indexOf(bridge.status) >= 0 && !bridgeRowWillRender
+    ? '<span class="fic-live-chip" data-tip="Connected to the file on your machine. Edits flow both ways.">' + BRIDGE_SCREEN_SHARE_SVG + '<span>local sync</span></span>' : '';
+  if (title) slots.push({ type: 'data', html: dataRowHtml('title', 'Title', title, 'document title', false, liveChip) });
+  if (filename) slots.push({ type: 'data', html: dataRowHtml('file', 'Filename', filename, 'filename', false, title ? '' : liveChip) });
+  if (local.fullPath) slots.push({ type: 'data', html: dataRowHtml('fullPath', 'Abs. Path', local.fullPath, 'absolute path', !local.creatorOnly) });
+  if (local.path && local.path !== local.fullPath) slots.push({ type: 'data', html: dataRowHtml('path', 'Rel. Path', local.path, 'relative path', !local.creatorOnly) });
 
   // Tags row: YAML front-matter tags only. Editing is gated to "the
   // Bridge is connected and can save" - the Bridge is the single write
@@ -677,11 +700,13 @@ function renderFileInfoCard() {
     slots.push({ type: 'bridge', state: bridge.status || 'connecting', label: bridge.statusLabel || bridgeStateLabel(bridge.status) });
   }
 
-  // Keep local-session actions and tags in their existing document position.
+  // Keep data, local-session actions and tags in their document position.
   rowsEl.innerHTML = '';
   rowsEl.hidden = slots.length === 0;
   slots.forEach(function(slot) {
-    if (slot.type === 'bridge') {
+    if (slot.type === 'data') {
+      rowsEl.insertAdjacentHTML('beforeend', slot.html);
+    } else if (slot.type === 'bridge') {
       // Edits row: mirrors the data-row layout (label · value · pill · RHS
       // icon slot) so it aligns with the copy buttons above. The icon
       // swaps to screen-share-off and turns dark red when the bridge has
@@ -735,6 +760,20 @@ function renderFileInfoCard() {
       rowsEl.appendChild(tagRow);
     }
   });
+  rowsEl.querySelectorAll('.fic-row[data-key]').forEach(function (row) {
+    row.addEventListener('click', function (event) {
+      var control = event.target.closest('button');
+      if (control && !control.classList.contains('fic-copy')) return;
+      if (!control && window.getSelection().toString()) return;
+      var value = row.querySelector('.fic-value').textContent;
+      copyWithIconFeedback(value, row.querySelector('.fic-copy')).then(function () {
+        if (copyStatus) { copyStatus.hidden = true; copyStatus.textContent = ''; }
+      }).catch(function () {
+        if (copyStatus) { copyStatus.textContent = 'Could not copy. Select the text to copy it.'; copyStatus.hidden = false; }
+      });
+    });
+  });
+  if (typeof S.attachTooltips === 'function') S.attachTooltips(rowsEl);
 }
 
 function escapeHtml(s) {
@@ -765,7 +804,7 @@ function copyWithIconFeedback(text, btn) {
 S.copyIcon = COPY_SVG;
 S.copyWithIconFeedback = copyWithIconFeedback;
 
-// Sharing and metadata show selectable values with a separate copy control.
+// Share links show selectable values with a separate copy control.
 S.panelValueHTML = function (label, value, id) {
   var group = document.createElement('div');
   group.className = 'sdoc-panel-value';
@@ -1310,7 +1349,7 @@ function setMode(mode, skipHash) {
   S.renderedEl.style.display = (mode === 'raw' || mode === 'write') ? 'none' : '';
   S.rawEl.style.display      = mode === 'raw' ? 'block' : 'none';
 
-  ['read', 'style', 'share', 'metadata', 'history', 'write', 'raw', 'export', 'info', 'comment'].forEach(function (buttonMode) {
+  ['read', 'style', 'share', 'history', 'write', 'raw', 'export', 'info', 'comment'].forEach(function (buttonMode) {
     var button = document.getElementById('_sd_btn-' + buttonMode);
     var selected = mode === buttonMode;
     if (!button) return;
@@ -1328,28 +1367,21 @@ function setMode(mode, skipHash) {
 
   document.body.classList.toggle('style-mode',   mode === 'style');
   document.body.classList.toggle('share-mode', mode === 'share');
-  document.body.classList.toggle('metadata-mode', mode === 'metadata');
   var sharing = mode === 'share';
-  var metadata = mode === 'metadata';
   var historyMode = mode === 'history';
   document.body.classList.toggle('history-mode', historyMode);
-  if ((sharing || metadata || historyMode) && S.closeCloudPanel) S.closeCloudPanel();
+  if ((sharing || historyMode) && S.closeCloudPanel) S.closeCloudPanel();
   var sharePanel = document.getElementById('_sd_share-panel');
   if (sharePanel) sharePanel.hidden = !sharing;
-  var metadataPanel = document.getElementById('_sd_metadata-panel');
-  if (metadataPanel) metadataPanel.hidden = !metadata;
   var historyPanel = document.getElementById('_sd_history-panel');
   if (historyPanel) historyPanel.hidden = !historyMode;
   var historyButton = document.getElementById('_sd_btn-history');
   if (historyButton) historyButton.setAttribute('aria-expanded', String(historyMode));
   var panelTitle = document.querySelector('#_sd_right-header .sdocs-sheet-title');
-  if (panelTitle) panelTitle.textContent = sharing ? 'Share document' : metadata ? 'Document metadata' : historyMode ? 'Document history' : 'Format document';
-  document.getElementById('_sd_right-close').setAttribute('aria-label', sharing ? 'Close sharing panel' : metadata ? 'Close metadata panel' : historyMode ? 'Close history panel' : 'Close formatting panel');
+  if (panelTitle) panelTitle.textContent = sharing ? 'Share document' : historyMode ? 'Document history' : 'Format document';
+  document.getElementById('_sd_right-close').setAttribute('aria-label', sharing ? 'Close sharing panel' : historyMode ? 'Close history panel' : 'Close formatting panel');
   var shareButton = document.getElementById('_sd_btn-share');
   if (shareButton) shareButton.setAttribute('aria-expanded', String(sharing));
-  var metadataButton = document.getElementById('_sd_btn-metadata');
-  if (metadataButton) metadataButton.setAttribute('aria-expanded', String(metadata));
-  if (S.metadata) S.metadata.update();
   if (S.publications) S.publications.update();
   document.body.classList.toggle('read-mode',    mode === 'read');
   document.body.classList.toggle('write-mode',   mode === 'write');
@@ -1793,7 +1825,7 @@ async function loadFromHash() {
     }
   }
 
-  if (modeParam && ['read', 'style', 'share', 'metadata', 'history', 'write', 'raw', 'export', 'info', 'comment'].includes(modeParam)) {
+  if (modeParam && ['read', 'style', 'share', 'history', 'write', 'raw', 'export', 'info', 'comment'].includes(modeParam)) {
     setMode(modeParam, true);
   } else {
     setMode('read', true);
@@ -1877,7 +1909,7 @@ async function initShortLink(id) {
     // real edit, updateHash runs again and normalizes the URL to / + #md=.
     clearTimeout(S._hashTimer);
     var modeParam = params.get('mode');
-    if (modeParam && ['read', 'style', 'share', 'metadata', 'history', 'write', 'raw', 'export', 'info', 'comment'].indexOf(modeParam) >= 0) {
+    if (modeParam && ['read', 'style', 'share', 'history', 'write', 'raw', 'export', 'info', 'comment'].indexOf(modeParam) >= 0) {
       setMode(modeParam, true);
     } else {
       setMode('read', true);

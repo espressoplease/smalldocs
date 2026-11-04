@@ -31,7 +31,8 @@ for (const width of [1328, 390, 320]) {
     await page.getByRole('button', { name: 'Edit document', exact: true }).click();
     const editTools = page.getByRole('toolbar', { name: 'Editing tools' });
     await expect(editTools).toBeVisible();
-    await expect(editTools.locator('.sdoc-toolbar-pill')).toHaveCount(4);
+    await expect(editTools.locator('.sdoc-toolbar-pill')).toHaveCount(5);
+    await expect(editTools.getByRole('group', { name: 'Edit history', exact: true })).toBeVisible();
     await page.locator('#_sd_write-toolbar').evaluate(el =>
       Promise.all(el.getAnimations({ subtree: true }).map(animation => animation.finished)));
     async function checkPills(toolbar) {
@@ -148,7 +149,8 @@ for (const width of [1328, 390, 320]) {
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.getByRole('button', { name: 'Read', exact: true }).click();
     await expect(editing).toBeHidden();
-    await page.getByRole('button', { name: 'Toggle dark mode', exact: true }).click();
+    const themeButton = await page.getByRole('button', { name: 'Toggle dark mode', exact: true }).boundingBox();
+    await page.mouse.click(themeButton.x + themeButton.width / 2, themeButton.y + themeButton.height / 2);
     await checkSticky();
     await page.evaluate(() => window.SDocs.applyStylesFromMeta({ background: '#123142', color: '#f4ede1' }));
     await expect.poll(async () => page.evaluate(() => getComputedStyle(document.getElementById('_sd_document-tools')).backgroundColor)).toBe('rgb(18, 49, 66)');
@@ -193,7 +195,7 @@ test('document actions sit between file info and the title and retain their hand
 });
 
 for (const width of [320, 390, 768]) {
-  test('mobile document controls share the 44px top menu and leave only Cloud controls above the title at ' + width + 'px', async ({ page }) => {
+  test('mobile document controls share the 44px top menu above Cloud and copyable file information at ' + width + 'px', async ({ page }) => {
     await page.setViewportSize({ width, height: 844 });
     await page.goto(url);
     const actions = page.getByRole('toolbar', { name: 'Document actions' });
@@ -206,7 +208,9 @@ for (const width of [320, 390, 768]) {
     expect(toolbar.height).toBe(44);
     const info = page.locator('#_sd_sdocs-file-info');
     await expect(info.locator('.fic-row-cloud')).toHaveCount(1);
-    await expect(info.locator('.fic-row:not(.fic-row-cloud)')).toHaveCount(0);
+    await expect(info.locator('.fic-row').first()).toHaveClass(/fic-row-cloud/);
+    await expect(info.locator('[data-key="title"] .fic-value')).toHaveText('A working guide');
+    await expect(info.locator('[data-key="fullPath"] .fic-value')).toHaveText('/Users/josh/Documents/guide.md');
     const cloud = await info.boundingBox();
     const heading = await page.locator('#_sd_rendered h1').boundingBox();
     expect(cloud.y).toBeGreaterThanOrEqual(44);

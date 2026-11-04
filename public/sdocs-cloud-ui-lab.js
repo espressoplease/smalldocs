@@ -162,10 +162,7 @@ function insertRow() {
   if (existing && existing.classList.contains('fic-row-cloud-lab')) return;
   if (existing) existing.remove();
   var row = makeRow();
-  var filename = rows.querySelector('[data-key="file"]');
-  if (filename && filename.nextSibling) rows.insertBefore(row, filename.nextSibling);
-  else if (filename) rows.appendChild(row);
-  else rows.insertBefore(row, rows.firstChild);
+  rows.insertBefore(row, rows.firstChild);
   rows.hidden = false;
   card.hidden = false;
 }

@@ -522,6 +522,7 @@ html[data-theme="dark"] :is(#_sd_rendered, .sdoc-code-focus) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex: 0 0 20px;
   width: 20px;
   height: 20px;
   background: transparent;
@@ -532,6 +533,9 @@ html[data-theme="dark"] :is(#_sd_rendered, .sdoc-code-focus) {
   cursor: pointer;
   transition: background .12s, color .12s;
 }
+#_sd_sdocs-file-info .fic-row[data-key] { align-items: flex-start; }
+#_sd_sdocs-file-info .fic-live-chip svg { width: 12px; height: 12px; }
+#_sd_sdocs-file-info .fic-copy-status { padding: 5px 0; color: var(--md-p-color); }
 /* Icon shouldn't swallow pointer events; the button does. Keeps e.target
    as the button itself so delegated row click handlers behave consistently. */
 #_sd_sdocs-file-info .fic-copy svg,

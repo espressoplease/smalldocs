@@ -645,7 +645,6 @@ html[data-theme="dark"] #_sd_content-area {
 }
 body.style-mode #_sd_divider,
 body.share-mode #_sd_divider,
-body.metadata-mode #_sd_divider,
 body.history-mode #_sd_divider,
 body.export-mode #_sd_divider { width: 1px; }
 

@@ -225,6 +225,7 @@ __EMBED_STYLES__
     <div id="_sd_content-area" tabindex="0">
       <div id="_sd_sdocs-file-info" hidden>
         <div class="fic-rows"></div>
+        <span class="fic-copy-status" role="status" hidden></span>
         <span class="fic-privacy-note" hidden>Local only rows aren't included in shared sdocs</span>
       </div>
       <div id="_sd_document-tools">
@@ -254,9 +255,6 @@ __EMBED_STYLES__
         </button>
         <button class="btn" id="_sd_btn-write" data-tip="Edit document" aria-label="Edit document">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z"/></svg>
-        </button>
-        <button class="btn" id="_sd_btn-metadata" type="button" data-tip="Metadata: file paths &amp; document title" aria-label="Document metadata" aria-controls="_sd_right" aria-expanded="false">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
         </button>
         <button class="btn sdoc-history-button" id="_sd_btn-history" type="button" data-tip="Document history" aria-label="Document history" aria-controls="_sd_right" aria-expanded="false" hidden>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>
@@ -384,7 +382,6 @@ __EMBED_STYLES__
     </div>
 
     <div id="_sd_share-panel" role="region" aria-label="Sharing options" hidden></div>
-    <div id="_sd_metadata-panel" role="region" aria-label="Document metadata" hidden></div>
     <div id="_sd_history-panel" role="region" aria-label="Document history" hidden></div>
 
     <!-- GENERAL -->
@@ -1164,7 +1161,6 @@ __EMBED_STYLES__
 __CLOUD_UI_SCRIPT__
 <script src="/public/sdocs-bridge.js"></script>
 <script src="/public/sdocs-publications.js"></script>
-<script src="/public/sdocs-metadata.js"></script>
 <script src="/public/sdocs-app.js"></script>
 __EMBED_SCRIPT__
 <script src="/public/sdocs-info.js"></script>

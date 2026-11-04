@@ -25,7 +25,6 @@ var APP_SHELL = [
   '/public/sdocs-charts.js',
   '/public/sdocs-math.js',
   '/public/sdocs-app.js',
-  '/public/sdocs-metadata.js',
   '/public/sdocs-comments.js',
   '/public/sdocs-comments-ui.js',
   '/public/sdocs-info.js',

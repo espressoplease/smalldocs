@@ -11,7 +11,7 @@ test('a service-worker-controlled Cloud reader upgrades from the previous releas
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'sdocs-history-upgrade-'));
   const old = path.join(temp, 'old'); fs.mkdirSync(old);
   const archive = path.join(temp, 'old.tar');
-  execFileSync('git', ['archive', '--output=' + archive, '58ce799821aa3d2b722fdb4446c83d88229699e0'], { cwd: root });
+  execFileSync('git', ['archive', '--output=' + archive, 'fc4c8a2606cef4208a06202073127e1a34c76916'], { cwd: root });
   execFileSync('tar', ['-xf', archive, '-C', old]);
   let f; const errors = []; page.on('pageerror', error => errors.push(error.message));
   try {
@@ -31,6 +31,8 @@ test('a service-worker-controlled Cloud reader upgrades from the previous releas
     await f.restart(root); await page.reload();
     const button = page.getByRole('button', { name: 'Document history', exact: true });
     await expect(button).toBeVisible(); await button.click();
+    await expect(page.locator('#_sd_btn-metadata, #_sd_metadata-panel, script[src*="sdocs-metadata.js"]')).toHaveCount(0);
+    await expect(page.locator('#_sd_sdocs-file-info [data-key="title"] .fic-value')).toHaveText('History');
     await expect(page.locator('.sdoc-history-reason').first()).toHaveText('Apply the requested document update');
     await page.getByRole('button', { name: /Agent \/ CLI update/ }).click();
     await expect(page.getByRole('button', { name: 'Open as new document', exact: true })).toHaveCSS('border-radius', '999px');

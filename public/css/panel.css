@@ -14,7 +14,7 @@
   transition: width .32s cubic-bezier(.4,0,.2,1),
               opacity .25s ease;
 }
-body:is(.style-mode, .share-mode, .metadata-mode, .history-mode) #_sd_right {
+body:is(.style-mode, .share-mode, .history-mode) #_sd_right {
   width: var(--ui-panel-width);
   opacity: 1;
   overflow-y: auto;
@@ -38,8 +38,8 @@ body:is(.style-mode, .share-mode, .metadata-mode, .history-mode) #_sd_right {
   flex-shrink: 0;
 }
 .sdocs-sheet-close { display: none; }
-body:is(.share-mode, .metadata-mode, .history-mode) #_sd_right > .panel-section { display: none; }
-#_sd_share-panel[hidden], #_sd_history-panel[hidden], #_sd_metadata-panel[hidden] { display: none; }
+body:is(.share-mode, .history-mode) #_sd_right > .panel-section { display: none; }
+#_sd_share-panel[hidden], #_sd_history-panel[hidden] { display: none; }
 
 .sdoc-history-message { margin: 0; padding: 14px 12px; color: var(--text-2); font-size: 12px; line-height: 1.5; }
 .sdoc-history-entry { border-bottom: 1px solid var(--border-subtle); }
@@ -123,7 +123,7 @@ body:is(.share-mode, .metadata-mode, .history-mode) #_sd_right > .panel-section 
 .sdoc-share-section code { font-family: var(--font-mono); font-size: inherit; }
 .sdoc-share-label { display: flex; flex-direction: column; gap: 6px; }
 .sdoc-share-status { color: var(--text); }
-body:is(.share-mode, .metadata-mode, .history-mode) #_sd_right-close {
+body:is(.share-mode, .history-mode) #_sd_right-close {
   display: grid;
   place-items: center;
   width: 30px;
@@ -135,10 +135,8 @@ body:is(.share-mode, .metadata-mode, .history-mode) #_sd_right-close {
   color: var(--text);
   cursor: pointer;
 }
-body:is(.share-mode, .metadata-mode, .history-mode) #_sd_right-close:hover { background: var(--bg-hover); }
+body:is(.share-mode, .history-mode) #_sd_right-close:hover { background: var(--bg-hover); }
 
-.sdoc-metadata-field { padding: 16px 12px; }
-.sdoc-metadata-label { margin: 0 0 8px; font-size: 12px; font-weight: 600; color: var(--text-2); }
 .sdoc-panel-value {
   display: flex;
   align-items: flex-start;
@@ -163,9 +161,6 @@ body:is(.share-mode, .metadata-mode, .history-mode) #_sd_right-close:hover { bac
   .sdoc-panel-action, .btn.sdoc-panel-action, .export-option.sdoc-panel-action, .export-option.sdoc-share-action { min-height: 42px; }
   .btn.sdoc-panel-copy { width: 36px; height: 36px; flex-basis: 36px; }
 }
-.sdoc-metadata-status { display: block; font-size: 11.5px; color: var(--text-2); }
-.sdoc-metadata-status:not(:empty) { margin-top: 6px; }
-.sdoc-metadata-note { margin: 0; padding: 16px 12px; font-size: 11.5px; line-height: 1.5; color: var(--text-2); }
 
 /* ── Theme tabs ── */
 #_sd_theme-tabs {

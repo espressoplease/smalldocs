@@ -68,16 +68,14 @@ test('open mode: external change pushes through and the file-info row shows the 
     await page.goto(bridgeUrl(bridge));
     await page.waitForFunction(() => window.SDocs && window.SDocs.bridge && window.SDocs.bridge._helloed === true);
 
-    // Reading keeps local connection details in Metadata. Editing still
+    // Reading shows the live file connection beside its title. Editing
     // shows connection warnings next to the document.
     await expect(page.locator('.fic-row-bridge')).toHaveCount(0);
-    await page.getByRole('button', { name: 'Document metadata', exact: true }).click();
-    await expect(page.locator('.sdoc-metadata-sync')).toContainText('Connected to the file on your machine.');
+    await expect(page.locator('.fic-live-chip')).toHaveAttribute('data-tip', 'Connected to the file on your machine. Edits flow both ways.');
 
     await page.evaluate(() => window.SDocs.setMode('write'));
     await expect(page.locator('.fic-row-bridge .fic-bridge-icon svg')).toBeVisible();
     await expect(page.locator('.fic-row-bridge .fic-local-tag')).toContainText('Local only');
-    await expect(page.locator('#_sd_metadata-panel')).toBeHidden();
 
     await expect.poll(
       () => page.evaluate(() => window.SDocs.currentBody),
