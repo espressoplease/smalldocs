@@ -415,7 +415,7 @@ function cloudRow() {
     var tags = documentTags().map(cloudTag).join('');
     var many = cloudState.permission && (cloudState.permission.mode === 'everyone' ||
       (cloudState.permission.member_user_ids || []).length > 1);
-    row.innerHTML = '<span class="fic-label">Cloud</span><div class="sdoc-cloud-lab-row-main"><div class="sdoc-cloud-lab-pills">'
+    row.innerHTML = '<span class="fic-label">Library</span><div class="sdoc-cloud-lab-row-main"><div class="sdoc-cloud-lab-pills">'
       + (cloudState.accounts.length > 1 ? '<button class="sdoc-cloud-lab-access sdoc-cloud-library-pill" type="button" data-cloud-open="library" aria-label="Library: '
         + escapeHtml(cloudState.account && cloudState.account.name || 'Library') + '"><span class="sdoc-cloud-library-icon" style="color:' + window.SDocsCloudAccountSelection.color(S.cloudDocument.workspace_id) + '">' + LIBRARY_SVG + '</span><span>' + escapeHtml(cloudState.account && cloudState.account.name || 'Library') + '</span></button>' : '')
       + '<button class="sdoc-cloud-lab-access" type="button" data-cloud-open="access"'
@@ -438,7 +438,7 @@ function cloudRow() {
   }
   var showPaidIntro = !cloudState.account || !cloudState.account.can_write;
   if (showPaidIntro) row.classList.add('fic-row-cloud-intro');
-  row.innerHTML = '<span class="fic-label">Cloud</span><button class="sdoc-cloud-lab-add-link" type="button" title="Add this document to Cloud">Add to Cloud</button>'
+  row.innerHTML = '<span class="fic-label">Library</span><button class="sdoc-cloud-lab-add-link" type="button" title="Add this document to Cloud">Add to Cloud</button>'
     + (showPaidIntro
       ? '<span class="fic-short-intro-text">Encrypted document on our server; paid feature '
         + '(<a class="fic-short-intro-learn fic-cloud-learn" href="/cloud" target="_blank" rel="noopener">learn more</a>)</span>' : '')
@@ -471,7 +471,7 @@ function refreshRow() {
 
 function renderEmailPrompt(row) {
   row.className = 'fic-row fic-row-cloud fic-row-cloud-auth';
-  row.innerHTML = '<span class="fic-label">Cloud</span><form class="fic-cloud-auth-fields">'
+  row.innerHTML = '<span class="fic-label">Library</span><form class="fic-cloud-auth-fields">'
     + '<input class="fic-cloud-email" type="email" autocomplete="email" placeholder="you@example.com" aria-label="Email address" required>'
     + '<button class="fic-cloud-send" type="submit">Email me a code</button>'
     + '<button class="fic-cloud-cancel" type="button">Cancel</button></form>'
@@ -504,7 +504,7 @@ function renderEmailPrompt(row) {
 
 function renderCodePrompt(row, email) {
   row.className = 'fic-row fic-row-cloud fic-row-cloud-auth';
-  row.innerHTML = '<span class="fic-label">Cloud</span><form class="fic-cloud-auth-fields">'
+  row.innerHTML = '<span class="fic-label">Library</span><form class="fic-cloud-auth-fields">'
     + '<input class="fic-cloud-email" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="6-digit code" aria-label="Six-digit code" required>'
     + '<button class="fic-cloud-send" type="submit">Verify</button>'
     + '<button class="fic-cloud-cancel" type="button">Cancel</button></form>'

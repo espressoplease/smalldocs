@@ -96,7 +96,7 @@ function makeRow() {
   row.setAttribute('data-prototype-account', state.account);
   row.setAttribute('data-prototype-saved', String(state.saved));
   if (!state.saved) {
-    row.innerHTML = '<span class="fic-label">Cloud</span>'
+    row.innerHTML = '<span class="fic-label">Library</span>'
       + '<button class="sdoc-cloud-lab-add-link" type="button">Add to Cloud</button>'
       + '<button class="sdoc-cloud-lab-state-icon sdoc-cloud-lab-upload" type="button"'
       + ' aria-label="Upload to Cloud" title="Add to Cloud">' + CLOUD_UPLOAD_SVG + '</button>';
@@ -106,7 +106,7 @@ function makeRow() {
     return row;
   }
   var tags = state.tags.map(makeCloudTag).join('');
-  row.innerHTML = '<span class="fic-label">Cloud</span>'
+  row.innerHTML = '<span class="fic-label">Library</span>'
     + '<div class="sdoc-cloud-lab-row-main">'
     + '<div class="sdoc-cloud-lab-pills">'
     + '<button class="sdoc-cloud-lab-access" type="button" data-cloud-lab-open="access"'

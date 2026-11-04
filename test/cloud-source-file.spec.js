@@ -81,7 +81,7 @@ for (const width of [1440, 390, 320]) {
     await expect(page.locator('#_sd_rendered h1')).toContainText('A complete title');
     const panel = page.locator('#_sd_sdocs-file-info');
     await expect(panel.locator('.fic-row').first()).toHaveClass(/fic-row-cloud/);
-    await expect(panel.locator('.fic-row-cloud > .fic-label')).toHaveText('Cloud');
+    await expect(panel.locator('.fic-row-cloud > .fic-label')).toHaveText('Library');
     const starts = await panel.evaluate(el => [el.querySelector('.sdoc-cloud-lab-pills'), el.querySelector('[data-key="title"] .fic-value')].map(value => value.getBoundingClientRect().left));
     expect(Math.abs(starts[0] - starts[1])).toBeLessThan(1);
     for (const [label, value] of [['document title', title], ['absolute path', source.absolute_path], ['relative path', source.relative_path]]) {

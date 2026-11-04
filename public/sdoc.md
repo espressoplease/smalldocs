@@ -583,7 +583,7 @@ Because the URL includes your full document and dynamically updates via JavaScri
 
 ### File information
 
-The file information table above the document shows its title and file paths beneath the Cloud controls. Use the copy button beside each value. The title comes from the first H1, or the saved title when there is no H1. Paths wrap so you can read them in full. A file name appears when no path is available.
+The file information table above the document shows its title and file paths beneath the Library controls. Use the copy button beside each value. The title comes from the first H1, or the saved title when there is no H1. Paths wrap so you can read them in full. A file name appears when no path is available.
 
 Cloud-first saves preserve the source file's absolute path and any supplied relative path as encrypted metadata. Only the document's creator receives these paths, including in a fresh browser tab. Shared readers do not receive them. A path identifies the source file; it does not create a live connection to it.
 
