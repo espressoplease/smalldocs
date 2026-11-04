@@ -696,8 +696,20 @@ module.exports = function (harness) {
     });
     const { sock } = await clientHandshake(b.port, b.token);
     await nextMessage(sock); // hello
+    let terminated = false;
+    const terminalPromise = b.awaitTerminal().then(term => {
+      terminated = true;
+      return term;
+    });
     sendJson(sock, { type: 'submit', id: 's1', content: 'final\n' });
-    const term = await b.awaitTerminal();
+    const ack = await nextMessage(sock);
+    assert.strictEqual(ack.type, 'ack');
+    assert.strictEqual(ack.for, 's1');
+    assert.strictEqual(terminated, false,
+      'terminal must wait until the client can observe the final acknowledgements');
+    const submitted = await nextMessage(sock);
+    assert.strictEqual(submitted.type, 'submitted');
+    const term = await terminalPromise;
     assert.strictEqual(term.kind, 'submit');
     assert.strictEqual(term.code, 0);
     assert.strictEqual(fs.readFileSync(f, 'utf-8'), 'final\n');

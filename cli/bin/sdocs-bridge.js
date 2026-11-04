@@ -27,6 +27,18 @@ const path   = require('path');
 const crypto = require('crypto');
 const FormBlock = require('../shared/sdocs-form-block.js');
 const { isWrappedFile, wrapForDisplay } = require('../lib/file-wrap');
+const { loadDefaultStyles, applyDefaultStyles } = require('../lib/styles');
+
+function prepareBridgeContent(rawContent, filepath) {
+  let display = wrapForDisplay(rawContent, filepath);
+  if (!isWrappedFile(filepath)) {
+    const defaults = loadDefaultStyles();
+    if (defaults) {
+      display = applyDefaultStyles(display);
+    }
+  }
+  return display;
+}
 
 // ── Constants ─────────────────────────────────────────────
 
@@ -38,6 +50,8 @@ const WATCH_DEBOUNCE_MS     = 50;       // collapse rapid fs.watch bursts
 const NO_CONNECT_TIMEOUT_MS = 30000;    // exit if the browser never connects
 const IDLE_TIMEOUT_MS       = 0;        // 0 = off. Background-throttled tabs
                                         // otherwise stall pings and trip this.
+const CLOSE_DRAIN_TIMEOUT_MS = 1000;    // let final acks + close frame flush
+                                        // before forcing a dead peer closed
 const MAX_MESSAGE_BYTES     = 20 * 1024 * 1024;
 const ALLOWED_ROOT = 'smalldocs.org';
 const LOOPBACK_HOSTS = ['127.0.0.1', 'localhost'];
@@ -456,18 +470,48 @@ function startBridge(opts) {
   function terminate(t) {
     if (terminated) return;
     terminated = true;
-    terminal = t;
     clearAllTimers();
     if (watchStop) { try { watchStop(); } catch (_) {} watchStop = null; }
     closeIdentity(identity);
     identity = null;
-    if (socket && !socket.destroyed) {
-      wsSendClose(socket, 1000, '');
-      try { socket.destroy(); } catch (_) {}
-    }
     try { server.close(); } catch (_) {}
-    emit(t.kind, t);
-    terminalWaiters.splice(0).forEach(fn => fn(t));
+
+    // A final submit sends `form-submitted` + `submitted` immediately before
+    // termination. Destroying the socket here can discard those queued frames,
+    // leaving the browser stuck on "Sending…" even though the file was saved.
+    // Detach the active socket from reconnect handling, send a normal WS close,
+    // and resolve awaitTerminal only after the peer closes (or a short
+    // dead-peer fallback fires). CLI callers can then exit without racing the
+    // acknowledgement onto the wire.
+    const activeSocket = socket;
+    socket = null;
+    parser = null;
+
+    let completed = false;
+    let closeTimer = null;
+    const complete = () => {
+      if (completed) return;
+      completed = true;
+      if (closeTimer) clearTimeout(closeTimer);
+      terminal = t;
+      emit(t.kind, t);
+      terminalWaiters.splice(0).forEach(fn => fn(t));
+    };
+
+    if (activeSocket && !activeSocket.destroyed && activeSocket.writable) {
+      activeSocket.once('close', complete);
+      wsSendClose(activeSocket, 1000, '');
+      closeTimer = setTimeout(() => {
+        try { activeSocket.destroy(); } catch (_) {}
+        complete();
+      }, CLOSE_DRAIN_TIMEOUT_MS);
+      if (closeTimer.unref) closeTimer.unref();
+    } else {
+      if (activeSocket && !activeSocket.destroyed) {
+        try { activeSocket.destroy(); } catch (_) {}
+      }
+      complete();
+    }
   }
 
   function handleMessage(raw) {
@@ -749,8 +793,8 @@ function startBridge(opts) {
     wsSendJson(socket, {
       type: 'external-change',
       // Same display transform as hello: wrapped files travel as their
-      // renderable fenced-block document.
-      content: wrapForDisplay(change.content.toString('utf-8'), filepath),
+      // renderable fenced-block document. Applies default styles if present.
+      content: prepareBridgeContent(change.content.toString('utf-8'), filepath),
       file: path.basename(filepath),
     });
   }
@@ -762,14 +806,17 @@ function startBridge(opts) {
     if (noConnectTimer) { clearTimeout(noConnectTimer); noConnectTimer = null; }
     bumpIdle();
 
-    parser = new WsParser({
+    const socketParser = new WsParser({
       onMessage: (_op, payload) => handleMessage(payload),
       onPing:    (d) => wsSend(sock, 0xA, d),
       onPong:    () => bumpIdle(),
       onClose:   () => detachSocket('peer-close'),
       onError:   () => detachSocket('parser-error'),
     });
-    sock.on('data',  (chunk) => parser.feed(chunk));
+    parser = socketParser;
+    // Capture this connection's parser. Shutdown/reconnect deliberately clears
+    // the shared `parser` reference while a final close frame may still arrive.
+    sock.on('data',  (chunk) => socketParser.feed(chunk));
     sock.on('error', () => detachSocket('socket-error'));
     sock.on('end',   () => detachSocket('socket-end'));
     sock.on('close', () => detachSocket('socket-close'));
@@ -792,8 +839,8 @@ function startBridge(opts) {
       file: path.basename(filepath),
       // Wrapped files (.csv -> ```cells sheet, .mmd -> ```mermaid diagram)
       // are sent as their renderable document, matching what the URL-snapshot
-      // path (io.js readContent) builds. Markdown goes through raw.
-      content: wrapForDisplay(state.content.toString('utf-8'), filepath),
+      // path (io.js readContent) builds. Markdown applies default styles.
+      content: prepareBridgeContent(state.content.toString('utf-8'), filepath),
       mode,
       message,
       path: localPath,
