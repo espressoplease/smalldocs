@@ -27,6 +27,18 @@ const path   = require('path');
 const crypto = require('crypto');
 const FormBlock = require('../shared/sdocs-form-block.js');
 const { isWrappedFile, wrapForDisplay } = require('../lib/file-wrap');
+const { loadDefaultStyles, applyDefaultStyles } = require('../lib/styles');
+
+function prepareBridgeContent(rawContent, filepath) {
+  let display = wrapForDisplay(rawContent, filepath);
+  if (!isWrappedFile(filepath)) {
+    const defaults = loadDefaultStyles();
+    if (defaults) {
+      display = applyDefaultStyles(display);
+    }
+  }
+  return display;
+}
 
 // ── Constants ─────────────────────────────────────────────
 
@@ -781,8 +793,8 @@ function startBridge(opts) {
     wsSendJson(socket, {
       type: 'external-change',
       // Same display transform as hello: wrapped files travel as their
-      // renderable fenced-block document.
-      content: wrapForDisplay(change.content.toString('utf-8'), filepath),
+      // renderable fenced-block document. Applies default styles if present.
+      content: prepareBridgeContent(change.content.toString('utf-8'), filepath),
       file: path.basename(filepath),
     });
   }
@@ -827,8 +839,8 @@ function startBridge(opts) {
       file: path.basename(filepath),
       // Wrapped files (.csv -> ```cells sheet, .mmd -> ```mermaid diagram)
       // are sent as their renderable document, matching what the URL-snapshot
-      // path (io.js readContent) builds. Markdown goes through raw.
-      content: wrapForDisplay(state.content.toString('utf-8'), filepath),
+      // path (io.js readContent) builds. Markdown applies default styles.
+      content: prepareBridgeContent(state.content.toString('utf-8'), filepath),
       mode,
       message,
       path: localPath,

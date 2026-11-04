@@ -25,6 +25,8 @@ const { stripAndCompress } = require('./url');
 const { wrapForDisplay } = require('./file-wrap');
 const { isCodeFile } = require('./code-langs');
 
+const { loadDefaultStyles, applyDefaultStyles } = require('./styles');
+
 function baseUrlFor(opts) {
   return opts.url || process.env.SDOCS_URL || DEFAULT_URL;
 }
@@ -43,7 +45,11 @@ function bridgeSnapshot(file) {
   if (!file) return null;
   if (WRAPPED_EXT.has(path.extname(file).toLowerCase())) return null;
   try {
-    const raw = fs.readFileSync(file, 'utf-8');
+    let raw = fs.readFileSync(file, 'utf-8');
+    const defaults = loadDefaultStyles();
+    if (defaults && !isCodeFile(file)) {
+      raw = applyDefaultStyles(raw);
+    }
     // A code file's renderable document is the file wrapped in a fence (the same
     // transform the live bridge applies). The snapshot must embed THAT, not the
     // raw source: otherwise the read-only fallback - which is what every page
