@@ -470,7 +470,8 @@
       button.addEventListener('pointerleave', clear); button.addEventListener('blur', clear);
       button.addEventListener('click', function (event) {
         event.preventDefault(); event.stopPropagation();
-        var text = targets().map(tableCellCopyText).join(scope === 'row' ? '\t' : '\n');
+        var values = targets().map(tableCellCopyText);
+        var text = serializeTableCsv(scope === 'column' ? values.map(function (value) { return [value]; }) : [values]);
         copyText(text, button, '').then(function (ok) {
           if (ok || !active(button)) return;
           var clipboard = options.clipboard || (win.navigator && win.navigator.clipboard);
@@ -507,6 +508,23 @@
             if (!index) cell.appendChild(tablePartButton('column', table, row, cell));
           });
         });
+        var header = table.rows[0];
+        header.tabIndex = -1;
+        function revealColumns() { wrapper.classList.add('sdoc-table-columns-open'); }
+        function collapseWhenIdle() {
+          win.requestAnimationFrame(function () {
+            if (active(wrapper) && !wrapper.matches(':hover') && !wrapper.contains(doc.activeElement)) {
+              wrapper.classList.remove('sdoc-table-columns-open');
+            }
+          });
+        }
+        header.addEventListener('pointerenter', revealColumns);
+        header.addEventListener('focusin', revealColumns);
+        header.addEventListener('pointerdown', function (event) {
+          if (event.pointerType === 'touch' && !event.target.closest('button')) header.focus({ preventScroll: true });
+        });
+        wrapper.addEventListener('pointerleave', collapseWhenIdle);
+        wrapper.addEventListener('focusout', collapseWhenIdle);
       });
     }
 

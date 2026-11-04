@@ -26,9 +26,12 @@ Top and bottom participant boxes refer to the same thread target.
 ## Reading table data
 
 Read mode exposes hover and keyboard copy controls in the same positions and
-dimensions as table comment controls. Cell copy returns displayed text. Row
-copy returns tab-separated displayed values, suitable for spreadsheet paste.
-Column copy includes the header, followed by newline-separated displayed values.
+dimensions as table comment controls. All targets use CSV quoting for commas
+and quotes. Row values are comma-separated; a column is one field per line,
+including its header. The column-control strip expands upward when a header
+is hovered or focused, staying in the document flow so it does not cover preceding
+text. A header tap also reveals it on touch screens. It remains available while
+the pointer or focus is in the table, then collapses without reserving space.
 Whole-table CSV and PNG copy remain available. Copies exclude controls and
 comment cards and do not change Markdown or metadata.
 
@@ -83,6 +86,10 @@ The retained example is [Delivery plan and budget](https://cloud-staging.smalldo
 
 ## Local release gate
 
+- CSV and collapsing table controls: 2,285 Node tests and 26 browser checks
+  passed, including CSV quoting, touch, keyboard focus, spacing, clipboard
+  errors, comment-mode controls and SDK isolation. Old-shell service-worker
+  upgrade and current SDK snapshot/manifest checks passed.
 - Sequence and table-copy follow-up: 2,285 Node tests, 32 focused browser tests,
   23 Cloud/comment/Mermaid-copy regressions and 3 earlier-SDK prose checks passed.
   The focused run includes current-SDK table copy while its host is in comment

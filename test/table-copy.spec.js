@@ -150,6 +150,53 @@ test('table copy controls do not change cell padding', async ({ page }) => {
   expect(paddings.every((padding) => padding.left === '12px' && padding.right === '12px')).toBeTruthy();
 });
 
+test('column controls expand upward on header hover without reserving a blank strip or covering preceding text', async ({ page }) => {
+  await loadTable(page);
+  await page.evaluate(markdown => SDocs.loadText('Before the table.\n\n' + markdown + '\n\nAfter the table.'), TABLE);
+  const wrapper = page.locator('#_sd_rendered .md-table-scroll');
+  const toolbar = wrapper.locator('.md-table-toolbar');
+  const header = wrapper.locator('thead');
+  const after = page.locator('#_sd_rendered p').filter({ hasText: 'After the table.' });
+  const before = page.locator('#_sd_rendered p').filter({ hasText: 'Before the table.' });
+  await expect(toolbar).toHaveCSS('height', '35px');
+  const initial = { wrapper: await wrapper.boundingBox(), header: await header.boundingBox(), after: await after.boundingBox() };
+  // The whole-table buttons remain stationary until a header is visited.
+  await toolbar.locator('.table-copy-csv-btn').hover();
+  await expect(toolbar).toHaveCSS('height', '35px');
+  await header.locator('th').last().hover();
+  await expect(toolbar).toHaveCSS('height', '63px');
+  expect((await wrapper.boundingBox()).y).toBeLessThan(initial.wrapper.y);
+  const previous = await before.boundingBox();
+  expect((await wrapper.boundingBox()).y).toBeGreaterThanOrEqual(previous.y + previous.height);
+  const shift = (await header.boundingBox()).y - initial.header.y;
+  expect(shift).toBeGreaterThanOrEqual(0);
+  expect(shift).toBeLessThan(28);
+  expect((await after.boundingBox()).y).toBeCloseTo(initial.after.y + shift, 0);
+  const column = header.getByRole('button', { name: 'Copy column', exact: true }).last();
+  await column.click();
+  await expect.poll(() => copiedText(page)).toBe('Notes\n"Hello, world"\n"Said ""yes"""');
+  // Crossing to CSV must not collapse the strip and move the target away.
+  await toolbar.locator('.table-copy-csv-btn').click();
+  await expect(toolbar).toHaveCSS('height', '63px');
+  await expect.poll(() => copiedText(page)).toBe('Name,Notes\nAda,"Hello, world"\nGrace,"Said ""yes"""');
+  await after.click();
+  await expect(toolbar).toHaveCSS('height', '35px');
+  expect((await header.boundingBox()).y).toBeCloseTo(initial.header.y, 0);
+});
+
+test('keyboard focus reveals the column strip and leaving the table collapses it', async ({ page }) => {
+  await loadTable(page);
+  const toolbar = page.locator('#_sd_rendered .md-table-toolbar');
+  const column = page.locator('thead th').first().getByRole('button', { name: 'Copy column', exact: true });
+  await expect(toolbar).toHaveCSS('height', '35px');
+  await column.focus();
+  await expect(toolbar).toHaveCSS('height', '63px');
+  await page.keyboard.press('Enter');
+  await expect.poll(() => copiedText(page)).toBe('Name\nAda\nGrace');
+  await page.locator('#_sd_btn-theme').focus();
+  await expect(toolbar).toHaveCSS('height', '35px');
+});
+
 test('table copy controls yield to table comment controls in comment mode', async ({ page }) => {
   await loadTable(page);
   await page.evaluate(() => window.SDocs.setMode('comment'));
@@ -170,7 +217,7 @@ test('hover and keyboard copy a cell, row or column without changing source or i
   await cell.hover();
   const copyCell = cell.getByRole('button', { name: 'Copy cell', exact: true });
   await copyCell.click();
-  await expect.poll(() => copiedText(page)).toBe('Hello, world');
+  await expect.poll(() => copiedText(page)).toBe('"Hello, world"');
   await expect(copyCell.locator('polyline')).toHaveCount(1);
   const row = page.locator('tbody tr').first();
   await row.hover();
@@ -178,11 +225,11 @@ test('hover and keyboard copy a cell, row or column without changing source or i
   await copyRow.hover();
   await expect(row.locator('.sdoc-table-copy-preview')).toHaveCount(2);
   await copyRow.click();
-  await expect.poll(() => copiedText(page)).toBe('Ada\tHello, world');
+  await expect.poll(() => copiedText(page)).toBe('Ada,"Hello, world"');
   const copyColumn = page.locator('thead th').last().getByRole('button', { name: 'Copy column', exact: true });
   await copyColumn.focus();
   await page.keyboard.press('Enter');
-  await expect.poll(() => copiedText(page)).toBe('Notes\nHello, world\nSaid "yes"');
+  await expect.poll(() => copiedText(page)).toBe('Notes\n"Hello, world"\n"Said ""yes"""');
   expect(await page.evaluate(() => SDocs.currentBody)).toBe(TABLE);
   for (let i = 0; i < 2; i++) {
     await page.evaluate(() => SDocs.setMode('comment'));
@@ -223,4 +270,17 @@ test('failed part copies report failure without a success tick or source mutatio
   await copy.click();
   await expect(page.getByRole('status').filter({ hasText: 'Not supported' })).toBeVisible();
   expect(await page.evaluate(() => SDocs.currentBody)).toBe(TABLE);
+});
+
+test.describe('touch table copies', () => {
+  test.use({ hasTouch: true, viewport: { width: 390, height: 844 } });
+  test('a header tap exposes its column copy control', async ({ page }) => {
+    await loadTable(page);
+    const toolbar = page.locator('#_sd_rendered .md-table-toolbar');
+    await expect(toolbar).toHaveCSS('height', '35px');
+    await page.locator('thead th').last().tap();
+    await expect(toolbar).toHaveCSS('height', '63px');
+    await page.locator('thead th').last().getByRole('button', { name: 'Copy column', exact: true }).tap();
+    await expect.poll(() => copiedText(page)).toBe('Notes\n"Hello, world"\n"Said ""yes"""');
+  });
 });

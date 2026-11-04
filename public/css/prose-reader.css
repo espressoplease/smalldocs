@@ -428,13 +428,29 @@ body.comment-mode #_sd_rendered .table-copy-btn {
 }
 
 :is(#_sd_rendered, .sdoc-reader) .md-table-scroll.sdoc-table-copyable {
+  --sdoc-table-column-space: 0px;
   width: calc(100% + 32px);
   max-width: none;
+  margin-top: calc(1.2em - var(--sdoc-table-column-space));
   margin-left: -32px;
   padding-left: 32px;
   box-sizing: border-box;
+  transition: margin-top .3s cubic-bezier(.4,0,.2,1);
 }
-:is(#_sd_rendered, .sdoc-reader) .sdoc-table-copyable > .md-table-toolbar { height: 63px; padding-bottom: 32px; }
+:is(#_sd_rendered, .sdoc-reader) .md-table-scroll.sdoc-table-columns-open { --sdoc-table-column-space: 28px; }
+:is(#_sd_rendered, .sdoc-reader) .sdoc-table-copyable > .md-table-toolbar {
+  height: calc(35px + var(--sdoc-table-column-space));
+  padding-bottom: calc(4px + var(--sdoc-table-column-space));
+}
+:is(#_sd_rendered, .sdoc-reader) .table-copy-column-btn {
+  top: auto;
+  bottom: 100%;
+  height: var(--sdoc-table-column-space, 0px);
+  overflow: hidden;
+  transition: height .3s cubic-bezier(.4,0,.2,1),
+    opacity .3s cubic-bezier(.4,0,.2,1), background .2s ease,
+    color .2s ease, box-shadow .15s ease;
+}
 .table-part-copy-status { margin-right: auto; font: 500 11px/1.2 var(--font-ui); }
 :is(#_sd_rendered, .sdoc-reader) .sdoc-table-copy-targets :is(th, td) { position: relative; }
 :is(#_sd_rendered, .sdoc-reader) .sdoc-table-copy-targets :is(th, td)::before {

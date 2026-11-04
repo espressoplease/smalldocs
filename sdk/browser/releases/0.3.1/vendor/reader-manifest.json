@@ -5,12 +5,12 @@
   },
   "sdocs-prose-reader.js": {
     "source": "public/sdocs-prose-reader.js",
-    "sha256": "96e0d57f370c575ffb4298418073dde4b4775072c0f0f4fe27d116e7a7b9005d"
+    "sha256": "7a6323b779a1e6ca9b5c102422fd9c60a4bf40bd264a7a8c417c84d116dc9c35"
   },
   "sdocs-prose-reader.css": {
     "source": "public/css/prose-reader.css",
-    "sha256": "da7dda1baae6d67e94761dc8b0641f2818be5a42a69d8aed2950995f50ef376b",
-    "sourceSha256": "3d723db385bdefdb8721b3e964e0b47f87bfb4a1dd2380df167bfc906ce2e26e",
+    "sha256": "18847cba82a5b08202ecebefb3fd930a43d9b61bb7f4456ae9ab45c540a7e100",
+    "sourceSha256": "080f6a5f9ea9fd6cd339c250b8a475456d0276b08833e78d78a34fc77a7fd766",
     "transform": "sdk-layered-css"
   },
   "sdocs-code-reader.js": {

@@ -17,7 +17,7 @@ test('SDK sheets and diagrams keep their own controls when the host has comment 
   await expect(target.locator('.sdoc-cells-comment-add, .sdoc-diagram-add, .sdoc-gutter-add')).toHaveCount(0);
   const row = target.locator('table tbody tr').first();
   await row.hover(); await row.getByRole('button', { name: 'Copy row', exact: true }).click();
-  expect(await page.evaluate(() => window.sdkCopiedText)).toBe('Ada\t10');
+  expect(await page.evaluate(() => window.sdkCopiedText)).toBe('Ada,10');
   const column = target.locator('table th').last();
   await column.hover(); await column.getByRole('button', { name: 'Copy column', exact: true }).click();
   expect(await page.evaluate(() => window.sdkCopiedText)).toBe('Value\n10');
