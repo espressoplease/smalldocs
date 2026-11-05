@@ -20,7 +20,8 @@ function cloneSource(node) {
 }
 function signal(owner, type) {
   if (!active(owner)) return;
-  var event = new InputEvent('input', { bubbles: true, inputType: type || 'formatRich' });
+  var event = new InputEvent('input', { bubbles: true, inputType: 'insertReplacementText' });
+  event._sdocRichInputType = type || 'formatRich';
   event._sdocRichGroup = owner.historyGroup; S.writeEl.dispatchEvent(event);
 }
 function update(owner, entry, source, type) {

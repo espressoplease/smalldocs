@@ -121,6 +121,11 @@ body.comment-mode #_sd_comment-toolbar {
   color: var(--text);
   background: var(--bg-hover);
 }
+.write-tb-btn:disabled {
+  opacity: .4;
+  cursor: default;
+  background: transparent;
+}
 .write-tb-btn.active {
   color: var(--text);
   background: var(--bg-input);

@@ -50,6 +50,10 @@ Other Mermaid diagram types remain rendered. This iteration does not claim text 
 
 Object source changes enter the same document undo history and Cloud save pipeline as prose. Cell editors also retain their existing local editing history. Source changes survive switching between read and edit modes, reloading Cloud documents, and asynchronous saves.
 
+The edit toolbar exposes Undo in its final pill. It reverses the existing browser edit-session history and is disabled when that stack is empty. Opening another document or starting a new edit session resets it. Using Undo after an acknowledged save produces an ordinary autosave on the same Cloud document. It does not restore historical revisions or identify and reverse an agent's changes. Those broader version-history interactions remain a separate product decision.
+
+Rich fields use their field identity to group a burst of typing. The adapter carries that identity and operation type as event metadata alongside a standard browser input type; browsers can discard unrecognised custom input-type strings. This keeps slide text undo consistent across engines without changing the Cloud revision protocol.
+
 While a rich text field is active, a successful combined Cloud save may acknowledge the saved revision without replacing the field's DOM. The acknowledged source becomes the baseline for later changes. Deferred remote content is applied after the field closes, with new local input checked before applying it.
 
 Destroy editor instances, listeners, portal inputs, slide render sessions and pending asynchronous render ownership when the document changes. Removing an input must detach its blur handler first, preventing a recursive commit during teardown.
@@ -68,10 +72,11 @@ Destroy editor instances, listeners, portal inputs, slide render sessions and pe
 ## Verification results
 
 - The full shared Node suite passed, 2,301 tests, including 15 rich-source tests.
-- Across the complete editor matrix and targeted follow-ups, 234 browser checks passed in Chromium, Firefox and WebKit: 45 prose/Cloud scenarios and 33 rich-object/Cloud scenarios per engine. Coverage includes numeric and Unicode identifiers, repeated diagrams, template overrides, empty text, literal punctuation, native typing, composition flags, mobile layout, draft preservation, concurrent saves, undo and cancellation.
+- The complete editor matrix passed 261 browser checks in Chromium, Firefox and WebKit: 45 prose/Cloud scenarios, 33 rich-object/Cloud scenarios and nine Undo-control scenarios per engine. Coverage includes numeric and Unicode identifiers, repeated diagrams, template overrides, empty text, literal punctuation, native typing, composition flags, mobile layout, draft preservation, concurrent saves, undo and cancellation. The 52 existing write-mode checks passed again after adding the Undo control.
 - Related Chromium suites passed 285 checks covering existing editing, cells, workbook isolation, comments, Cloud UI, HTML components, tables, slide templates, theme contrast, SDK readers and sanitisation. Ten focused reader-cell checks also passed after the formula-bar changes.
 - SDK 0.3.1 reader-snapshot and release-manifest checks passed. The released 0.3.0 files are unchanged. The adapted shape renderer received the same empty-text and refit lifecycle changes as the application renderer; the editor adapter is not part of the SDK.
 - A production-mode service-worker rehearsal loaded the previous release, restarted the same origin with this implementation and reloaded normally. Rendered editing loaded, a cell edit survived returning to read mode, hidden editor widgets were removed and no browser errors were recorded.
+- The same upgrade rehearsal exercised the new Undo button and keyboard Redo after a spreadsheet edit. Both restored the expected values before returning to read mode.
 - Desktop light and dark slide text, an active diagram label and a narrow dark cell editor were visually inspected. Text remained readable and the rendered objects retained their layout. No browser errors were recorded.
 
 The workbook-group tests had a fixed localhost port; they now accept the same origin override as the other suites. One existing Cloud list-comment hover timed out during the broader run. The complete comment-structure suite passed on rerun. WebKit's automation reports an incorrect content quad for SVG text; sequence-message testing uses an actual pointer click at the browser's measured text rectangle. Native shadow-text typing is exercised with keyboard input rather than an automation fill that WebKit can silently ignore.

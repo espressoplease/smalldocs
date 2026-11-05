@@ -8,6 +8,7 @@ S.writeEl = writeEl;
 var editSession = null;
 var sourceBlockAttribute = 'data-sdoc-write-block';
 var writeHistory = null;
+var undoButton = document.getElementById('_sd_wb-undo');
 var beforeInputSelection = null;
 
 // Compare the editable structure, not KaTeX's generated display markup.
@@ -184,6 +185,7 @@ function resetWriteSession() {
   S._checkCodeBlockExit = null;
   editSession = null;
   writeHistory = null;
+  updateUndoButton();
   beforeInputSelection = null;
 }
 
@@ -624,6 +626,11 @@ function historyHtml() {
 
 function resetWriteHistory() {
   writeHistory = { html: historyHtml(), selection: null, undo: [], redo: [], restoring: false };
+  updateUndoButton();
+}
+
+function updateUndoButton() {
+  if (undoButton) undoButton.disabled = !writeHistory || !writeHistory.undo.length;
 }
 
 function htmlDelta(before, after) {
@@ -638,8 +645,11 @@ function recordWriteHistory(inputType, group) {
   var html = historyHtml(), history = writeHistory, selection = captureWriteSelection();
   if (html === history.html) { beforeInputSelection = null; return; }
   var previous = history.undo[history.undo.length - 1], beforeSelection = beforeInputSelection || history.selection;
-  var combine = (inputType === 'insertText' || inputType === 'insertRichText' && group === previous?.group) && previous && previous.type === inputType && Date.now() - previous.time < 1000
-    && JSON.stringify(previous.selection) === JSON.stringify(beforeSelection);
+  // Shadow-root text selections are retargeted to their host in the document.
+  // Rich fields supply their own identity for grouping a burst of typing.
+  var combine = previous && previous.type === inputType && Date.now() - previous.time < 1000
+    && (inputType === 'insertRichText' && group === previous.group
+      || inputType === 'insertText' && JSON.stringify(previous.selection) === JSON.stringify(beforeSelection));
   var before = history.html;
   if (combine) {
     before = before.slice(0, previous.at) + previous.before + before.slice(previous.at + previous.after.length);
@@ -650,6 +660,7 @@ function recordWriteHistory(inputType, group) {
   delta.beforeSelection = beforeSelection; delta.selection = selection; delta.type = inputType; delta.group = group; delta.time = Date.now();
   history.undo.push(delta); history.redo = [];
   history.html = html; history.selection = selection; beforeInputSelection = null;
+  updateUndoButton();
 }
 
 function travelWriteHistory(redo) {
@@ -666,6 +677,7 @@ function travelWriteHistory(redo) {
   history.selection = redo ? delta.selection : delta.beforeSelection;
   restoreWriteSelection(history.selection);
   to.push(delta);
+  updateUndoButton();
   if (S.processMath) S.processMath(writeEl);
   history.restoring = false;
   beforeInputSelection = null;
@@ -687,7 +699,7 @@ writeEl.addEventListener('input', function(e) {
   if (!editSession || S.currentMode !== 'write') return;
   if (e.target !== writeEl && e.target.closest && e.target.closest('.sdoc-write-rich')) return;
   if (e.inputType !== 'historyUndo' && e.inputType !== 'historyRedo') {
-    queueMicrotask(function () { if (editSession) recordWriteHistory(e.inputType, e._sdocRichGroup); });
+    queueMicrotask(function () { if (editSession) recordWriteHistory(e._sdocRichInputType || e.inputType, e._sdocRichGroup); });
   }
 
   // Debounce sync
@@ -866,6 +878,16 @@ writeEl.addEventListener('blur', function() {
 });
 
 // ── Toolbar actions ──────────────────────────────────
+
+if (undoButton) {
+  undoButton.addEventListener('pointerdown', function (event) { event.preventDefault(); });
+  undoButton.addEventListener('click', function () {
+    if (S.currentMode !== 'write' || !editSession) return;
+    if (S.richWrite) S.richWrite.finish(false);
+    writeEl.focus({ preventScroll: true });
+    travelWriteHistory(false);
+  });
+}
 
 // Custom structure changes use DOM ranges so the browser cannot inherit a
 // removed wrapper. The shared history below covers typing and toolbar actions.
