@@ -175,7 +175,7 @@ test('typing during the first upload is saved after Cloud takes ownership', asyn
     await page.waitForFunction(() => SDocs._appReady && window.SDocsCloudAccountSelection);
     await page.evaluate(id => { SDocsCloudAccountSelection.remember(localStorage,id); SDocs._isDefaultState=false; SDocs.loadText('# First upload\n\nLocal paragraph.\n'); SDocs.renderFileInfoCard(); SDocs.setMode('write'); },f.team.workspaceId);
     pending = await hold(page, '**/account/documents');
-    await page.getByRole('button',{name:'Add to Cloud',exact:true}).click(); await pending.started;
+    await page.locator('.sdoc-cloud-lab-add-link').click(); await pending.started;
     await type(page,' Typed during first upload.');
     await expect.poll(() => page.evaluate(() => SDocs.currentBody)).toContain('Typed during first upload.');
     pending.release();
@@ -192,7 +192,7 @@ test('a first-upload response cannot attach a different document opened while it
     await page.goto(f.origin + '/docs'); await page.waitForFunction(() => SDocs._appReady && window.SDocsCloudAccountSelection);
     await page.evaluate(id => { SDocsCloudAccountSelection.remember(localStorage,id); SDocs._isDefaultState=false; SDocs.loadText('# First upload\n\nLocal paragraph.\n'); SDocs.renderFileInfoCard(); SDocs.setMode('write'); },f.team.workspaceId);
     pending = await hold(page, '**/account/documents');
-    await page.getByRole('button',{name:'Add to Cloud',exact:true}).click(); await pending.started;
+    await page.locator('.sdoc-cloud-lab-add-link').click(); await pending.started;
     await page.evaluate(() => SDocs.loadText('# Different document\n\nKeep this separate.\n'));
     const response = page.waitForResponse(r => r.url().endsWith('/account/documents') && r.request().method()==='POST');
     pending.release(); await response; await page.waitForTimeout(100);

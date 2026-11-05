@@ -1555,18 +1555,32 @@ function restoreDocumentAfterSignIn() {
 
 restoreDocumentAfterSignIn();
 
+async function documentReturnPath() {
+  if (S.hasPendingWriteChanges && S.hasPendingWriteChanges()) S.flushWriteChanges();
+  if (S.updateDocumentLocationNow) await S.updateDocumentLocationNow();
+  var returnTo = window.location.pathname + window.location.search + window.location.hash;
+  try {
+    window.sessionStorage.setItem(CLOUD_SIGN_IN_RETURN_KEY, returnTo);
+    return /^\/p\//.test(location.pathname) ? location.pathname + '?sdocs_resume=1' : '/docs?sdocs_resume=1';
+  } catch (_) {
+    return '/docs';
+  }
+}
+
+async function signInFromDocument(event) {
+  if (event) event.preventDefault();
+  try {
+    window.location.href = '/cloud/sign-in?return=' + encodeURIComponent(await documentReturnPath());
+  } catch (_) {
+    S.setStatus('Could not keep this document for sign-in. Download a copy before continuing.', 'error');
+  }
+}
+S.documentReturnPath = documentReturnPath;
+S.signInFromDocument = signInFromDocument;
+
 function wireDocumentSiteNavigation() {
-  var signIn = document.querySelector('[data-sdocs-sign-in-return]');
-  if (signIn) signIn.addEventListener('click', function (event) {
-    event.preventDefault();
-    var returnTo = window.location.pathname + window.location.search + window.location.hash;
-    try {
-      window.sessionStorage.setItem(CLOUD_SIGN_IN_RETURN_KEY, returnTo);
-      var resume = /^\/p\//.test(location.pathname) ? location.pathname + '?sdocs_resume=1' : '/docs?sdocs_resume=1';
-      window.location.href = '/cloud/sign-in?return=' + encodeURIComponent(resume);
-    } catch (_) {
-      window.location.href = '/cloud/sign-in?return=%2Fdocs';
-    }
+  document.querySelectorAll('[data-sdocs-sign-in-return]').forEach(function (signIn) {
+    signIn.addEventListener('click', signInFromDocument);
   });
   var menu = document.getElementById('doc-site-menu');
   if (!menu) return;

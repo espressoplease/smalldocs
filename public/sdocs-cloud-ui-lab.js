@@ -97,9 +97,10 @@ function makeRow() {
   row.setAttribute('data-prototype-saved', String(state.saved));
   if (!state.saved) {
     row.innerHTML = '<span class="fic-label">Library</span>'
-      + '<button class="sdoc-cloud-lab-add-link" type="button">Add to Cloud</button>'
+      + '<div class="sdoc-cloud-lab-row-main sdoc-cloud-lab-intro">'
+      + '<button class="sdoc-cloud-lab-add-link" type="button">Add to your library</button></div>'
       + '<button class="sdoc-cloud-lab-state-icon sdoc-cloud-lab-upload" type="button"'
-      + ' aria-label="Upload to Cloud" title="Add to Cloud">' + CLOUD_UPLOAD_SVG + '</button>';
+      + ' aria-label="Upload to Cloud" title="Add to your library">' + CLOUD_UPLOAD_SVG + '</button>';
     row.querySelectorAll('.sdoc-cloud-lab-add-link, .sdoc-cloud-lab-upload').forEach(function (button) {
       button.addEventListener('click', addToCloud);
     });

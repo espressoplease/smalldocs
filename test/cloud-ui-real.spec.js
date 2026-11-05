@@ -55,33 +55,167 @@ test('signed-in users without access stay on a generic unavailable document page
   await expect(page.locator('body')).not.toContainText('permission_denied');
 });
 
-test('signed-out Cloud helper follows the inline Short URL row layout', async ({ page }) => {
-  await page.route('**/api/cloud/v1/account', route => route.fulfill({
-    status: 401, json: { ok: false, error: 'login_required' },
-  }));
-
+async function openUnsavedDocument(page) {
   await openFixtureDocument(page);
+  await page.addScriptTag({ url: '/public/sdocs-cloud-account-selection.js' });
   await page.addStyleTag({ url: '/public/css/cloud-ui-lab.css' });
   await page.evaluate(() => {
     window.SDocs._isDefaultState = false;
-    window.SDocs.currentBody = '# Cloud helper layout';
-    window.SDocs.syncAll('write');
+    window.SDocs.loadText('# Library helper layout\n\nKeep this document.');
   });
   await page.addScriptTag({ url: '/public/sdocs-cloud-prototype.js' });
+}
 
+function mockLibraryAccount(page, options = {}) {
+  return page.route('**/api/cloud/v1/**', async route => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname;
+    if (options.onRequest) options.onRequest(request);
+    if (path === '/api/cloud/v1/workspaces') {
+      if (options.workspaces) return options.workspaces(route);
+      return route.fulfill({ json: { ok: true, workspaces: [
+        { id: 'personal-1', kind: 'personal', name: 'Personal', role: 'owner' },
+      ], user: { id: 'user-1' } } });
+    }
+    if (path === '/api/cloud/v1/account') return route.fulfill({ json: { ok: true,
+      account: { id: 'personal-1', kind: 'personal', can_write: true, ...options.account },
+      accounts: [], user: { id: 'user-1' } } });
+    if (path.endsWith('/members')) return route.fulfill({ json: { members: [] } });
+    if (path.endsWith('/tags')) return route.fulfill({ json: { tags: [] } });
+    return route.fulfill({ status: 404, json: { error: 'resource_unavailable' } });
+  });
+}
+
+for (const width of [1440, 390, 320]) {
+  test('signed-out Library row has signup and homepage links, with aligned actions at ' + width + 'px', async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await mockLibraryAccount(page, { workspaces: route => route.fulfill({
+      status: 401, json: { error: 'login_required' },
+    }) });
+    await openUnsavedDocument(page);
+    const row = page.locator('.fic-row-cloud');
+    await expect(row.getByRole('link', { name: 'Sign up to save to your library', exact: true })).toHaveCount(2);
+    await expect(row.getByRole('link', { name: 'Learn more about SmallDocs' })).toHaveAttribute('href', '/home');
+    await expect(row).not.toContainText('paid feature');
+    await expect(row).not.toContainText('Add to Cloud');
+    const upload = await row.locator('.sdoc-cloud-lab-upload').boundingBox();
+    const copy = await page.locator('[data-key="title"] .fic-copy').boundingBox();
+    const label = await row.locator('.fic-label').boundingBox();
+    const title = await page.locator('[data-key="title"] .fic-value').boundingBox();
+    const action = await row.locator('.sdoc-cloud-lab-add-link').boundingBox();
+    expect(Math.abs(upload.x - copy.x)).toBeLessThanOrEqual(1);
+    expect(Math.abs(upload.width - copy.width)).toBeLessThanOrEqual(1);
+    expect(action.x).toBeGreaterThan(label.x + label.width);
+    expect(Math.abs(action.x - title.x)).toBeLessThanOrEqual(1);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
+  });
+}
+
+for (const subscription of ['trial', 'active']) {
+  test(subscription + ' users see Add to your library without a signup or paid-feature message', async ({ page }) => {
+    await mockLibraryAccount(page, { account: { subscription_status: subscription } });
+    await openUnsavedDocument(page);
+    const row = page.locator('.fic-row-cloud');
+    await expect(row.locator('.sdoc-cloud-lab-add-link')).toBeEnabled();
+    await expect(row.getByRole('button', { name: 'Add to your library', exact: true })).toHaveCount(2);
+    await expect(row).not.toContainText('Sign up');
+    await expect(row).not.toContainText('paid feature');
+  });
+}
+
+test('Library row waits for authentication without flashing a signup offer', async ({ page }) => {
+  let release;
+  const gate = new Promise(resolve => { release = resolve; });
+  await mockLibraryAccount(page, { workspaces: async route => {
+    await gate;
+    return route.fulfill({ json: { workspaces: [], user: { id: 'user-1' } } });
+  } });
+  try {
+    await openUnsavedDocument(page);
+    const row = page.locator('.fic-row-cloud');
+    await expect(row).toHaveAttribute('aria-busy', 'true');
+    await expect(row.locator('.sdoc-cloud-lab-add-link')).toBeDisabled();
+    await expect(row).not.toContainText('Sign up');
+    release();
+    await expect(row).toHaveAttribute('aria-busy', 'false');
+    await expect(row.locator('.sdoc-cloud-lab-add-link')).toBeEnabled();
+    await expect(row).not.toContainText('Sign up');
+  } finally { release(); }
+});
+
+test('temporary discovery errors allow retry instead of treating the user as signed out', async ({ page }) => {
+  await mockLibraryAccount(page, { workspaces: route => route.fulfill({
+    status: 503, json: { error: 'temporarily_unavailable' },
+  }) });
+  await openUnsavedDocument(page);
   const row = page.locator('.fic-row-cloud');
-  const action = row.locator('.sdoc-cloud-lab-add-link');
-  const helper = row.locator('.fic-short-intro-text');
-  await expect(row).toContainText('Encrypted document on our server; paid feature');
-  await expect(action).toHaveCSS('flex-grow', '0');
-  await expect(helper).toHaveCSS('white-space', 'nowrap');
+  await expect(row.locator('.sdoc-cloud-lab-add-link')).toBeEnabled();
+  await expect(row).not.toContainText('Sign up');
+  await row.locator('.sdoc-cloud-lab-add-link').click();
+  await expect(page.getByRole('heading', { name: 'Cloud unavailable' })).toBeVisible();
+  expect(new URL(page.url()).pathname).toBe('/docs');
+});
 
-  const actionBox = await action.boundingBox();
-  const helperBox = await helper.boundingBox();
-  expect(actionBox).not.toBeNull();
-  expect(helperBox).not.toBeNull();
-  expect(Math.abs(helperBox.x - (actionBox.x + actionBox.width + 12))).toBeLessThanOrEqual(1);
-  expect(Math.abs(helperBox.y - actionBox.y)).toBeLessThanOrEqual(2);
+test('a signed-in user without a library is sent to setup with the document preserved', async ({ page }) => {
+  await mockLibraryAccount(page, { workspaces: route => route.fulfill({
+    json: { workspaces: [], user: { id: 'user-1' } },
+  }) });
+  await page.route('**/cloud/start?return=*', route => route.fulfill({
+    contentType: 'text/html', body: '<title>Library setup</title>',
+  }));
+  await openUnsavedDocument(page);
+  await page.locator('.sdoc-cloud-lab-add-link').click();
+  await expect(page).toHaveURL(/cloud\/start\?return=/);
+  expect(new URL(page.url()).searchParams.get('return')).toBe('/docs?sdocs_resume=1');
+  expect(await page.evaluate(() => sessionStorage.getItem('sdocs-cloud-sign-in-return-v1'))).toContain('#md=');
+});
+
+test('missing editing permission does not send an already entitled user to payment', async ({ page }) => {
+  const writes = [];
+  await mockLibraryAccount(page, { account: { can_write: false, write_entitlement: true },
+    onRequest: request => { if (request.method() === 'POST') writes.push(request.url()); } });
+  await openUnsavedDocument(page);
+  await page.locator('.sdoc-cloud-lab-add-link').click();
+  await expect(page.getByRole('heading', { name: 'Cannot add to this library' })).toBeVisible();
+  await expect(page.locator('.sdoc-cloud-proto-dialog')).toContainText('You need editing access');
+  expect(new URL(page.url()).pathname).toBe('/docs');
+  expect(writes).toEqual([]);
+});
+
+for (const control of ['.sdoc-cloud-lab-add-link', '.sdoc-cloud-lab-upload']) {
+  test('signup via ' + control + ' preserves the document without putting it in authentication requests', async ({ page }) => {
+    await mockLibraryAccount(page, { workspaces: route => route.fulfill({
+      status: 401, json: { error: 'login_required' },
+    }) });
+    await openUnsavedDocument(page);
+    await page.evaluate(() => SDocs.updateDocumentLocationNow());
+    const before = new URL(page.url());
+    await expect(page.locator('.fic-row-cloud ' + control)).toHaveAttribute('href', /cloud\/sign-in/);
+    await page.locator('.fic-row-cloud ' + control).click();
+    await expect(page).toHaveURL(/cloud\/sign-in\?return=/);
+    expect(new URL(page.url()).searchParams.get('return')).toBe('/docs?sdocs_resume=1');
+    expect(page.url()).not.toContain('md=');
+    expect(await page.evaluate(() => sessionStorage.getItem('sdocs-cloud-sign-in-return-v1')))
+      .toBe(before.pathname + before.search + before.hash);
+    await page.goto('/docs?sdocs_resume=1');
+    await expect(page.locator('#_sd_rendered h1')).toHaveText('Library helper layout');
+    await expect(page.locator('#_sd_rendered')).toContainText('Keep this document.');
+  });
+}
+
+test('an expired session during Add to your library uses the shared Google and email sign-in flow', async ({ page }) => {
+  let expired = false;
+  await mockLibraryAccount(page, { workspaces: route => route.fulfill(expired
+    ? { status: 401, json: { error: 'login_required' } }
+    : { json: { workspaces: [{ id: 'personal-1', kind: 'personal' }], user: { id: 'user-1' } } }) });
+  await openUnsavedDocument(page);
+  await expect(page.locator('.sdoc-cloud-lab-add-link')).toBeEnabled();
+  await page.evaluate(() => SDocs.updateDocumentLocationNow());
+  expired = true;
+  await page.locator('.sdoc-cloud-lab-add-link').click();
+  await expect(page).toHaveURL(/cloud\/sign-in\?return=/);
+  expect(new URL(page.url()).searchParams.get('return')).toBe('/docs?sdocs_resume=1');
+  expect(await page.evaluate(() => sessionStorage.getItem('sdocs-cloud-sign-in-return-v1'))).toContain('#md=');
 });
 
 test('Cloud identity canonicalizes a new-document URL without carrying its snapshot', async ({ page }) => {
@@ -342,7 +476,7 @@ test('Add to Cloud asks before uploading when several accounts have no saved cho
   await page.addScriptTag({ url: '/public/sdocs-cloud-prototype.js' });
   await page.locator('.sdoc-cloud-lab-add-link').click();
 
-  await expect(page.getByRole('heading', { name: 'Choose an account' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Choose a library' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Personal', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'SmallDocs' })).toBeVisible();
   expect(calls.some(call => call.path === '/api/cloud/v1/account/documents')).toBe(false);

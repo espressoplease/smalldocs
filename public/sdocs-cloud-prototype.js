@@ -15,9 +15,8 @@ var selectedLibrary = null;
 var PLUS_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg>';
 var CHECK_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m20 6-11 11-5-5"/></svg>';
 var CLOSE_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
-var pendingChallenge = null;
 var cloudState = { account: null, accounts: [], user: null, members: [], permission: null,
-  suggestedTags: [], panel: null, status: '', busy: false };
+  suggestedTags: [], panel: null, status: '', busy: false, authStatus: 'checking' };
 var cloudSaveTimer = null;
 var cloudSavePromise = null;
 var cloudSaveQueued = false;
@@ -226,19 +225,42 @@ async function jsonRequest(url, options) {
 }
 
 async function loadAccountData(accountId) {
+  try {
+    return await fetchAccountData(accountId);
+  } catch (error) {
+    if (error.status === 401) {
+      cloudState.authStatus = 'signed-out';
+      cloudState.account = null;
+      cloudState.accounts = [];
+      cloudState.user = null;
+    } else if (cloudState.authStatus === 'checking') {
+      cloudState.authStatus = 'unavailable';
+    }
+    throw error;
+  } finally {
+    refreshRow();
+  }
+}
+
+async function fetchAccountData(accountId) {
   if (!accountId) {
     var workspaceData = await jsonRequest('/api/cloud/v1/workspaces');
+    cloudState.authStatus = 'signed-in';
     cloudState.accounts = workspaceData.workspaces || [];
     cloudState.user = workspaceData.user || null;
     var selected = window.SDocsCloudAccountSelection.resolve(
       cloudState.accounts, null, localStorage);
-    if (!selected) return { account: null, accounts: cloudState.accounts,
-      user: cloudState.user, needs_selection: cloudState.accounts.length > 1 };
+    if (!selected) {
+      cloudState.account = null;
+      return { account: null, accounts: cloudState.accounts,
+        user: cloudState.user, needs_selection: cloudState.accounts.length > 1 };
+    }
     accountId = selected.id;
   }
   window.SDocsCloudAccountSelection.remember(localStorage, accountId);
   var suffix = '?account_id=' + encodeURIComponent(accountId);
   var data = await jsonRequest('/api/cloud/v1/account' + suffix);
+  cloudState.authStatus = 'signed-in';
   cloudState.singlePlan = Boolean(data.single_plan);
   cloudState.account = data.account;
   cloudState.accounts = data.accounts || [];
@@ -252,7 +274,6 @@ async function loadAccountData(accountId) {
   cloudState.members = details[0].members || [];
   cloudState.suggestedTags = details[1].tags || [];
   if (S.refreshCommentIdentity) S.refreshCommentIdentity();
-  refreshRow();
   return data;
 }
 
@@ -436,16 +457,22 @@ function cloudRow() {
     row.querySelector('.sdoc-cloud-lab-saved').addEventListener('click', removeCloudDocument);
     return row;
   }
-  var showPaidIntro = !cloudState.account || !cloudState.account.can_write;
-  if (showPaidIntro) row.classList.add('fic-row-cloud-intro');
-  row.innerHTML = '<span class="fic-label">Library</span><button class="sdoc-cloud-lab-add-link" type="button" title="Add this document to Cloud">Add to Cloud</button>'
-    + (showPaidIntro
-      ? '<span class="fic-short-intro-text">Encrypted document on our server; paid feature '
-        + '(<a class="fic-short-intro-learn fic-cloud-learn" href="/cloud" target="_blank" rel="noopener">learn more</a>)</span>' : '')
-    + '<button class="sdoc-cloud-lab-state-icon sdoc-cloud-lab-upload" type="button" title="Add this document to Cloud">'
-    + CLOUD_UPLOAD_SVG + '</button>';
-  row.querySelector('.sdoc-cloud-lab-add-link').addEventListener('click', beginAdd);
-  row.querySelector('.sdoc-cloud-lab-upload').addEventListener('click', beginAdd);
+  var signedOut = cloudState.authStatus === 'signed-out';
+  var label = signedOut ? 'Sign up to save to your library' : 'Add to your library';
+  var checking = cloudState.authStatus === 'checking';
+  var tag = signedOut ? 'a' : 'button';
+  var attributes = signedOut ? ' href="/cloud/sign-in?return=%2Fdocs"'
+    : ' type="button"' + (checking || cloudState.busy ? ' disabled' : '');
+  row.setAttribute('aria-busy', String(checking || cloudState.busy));
+  row.innerHTML = '<span class="fic-label">Library</span>'
+    + '<div class="sdoc-cloud-lab-row-main sdoc-cloud-lab-intro">'
+    + '<' + tag + ' class="sdoc-cloud-lab-add-link"' + attributes + '>' + label + '</' + tag + '>'
+    + '<a class="fic-cloud-learn" href="/home" target="_blank" rel="noopener">Learn more about SmallDocs</a></div>'
+    + '<' + tag + ' class="sdoc-cloud-lab-state-icon sdoc-cloud-lab-upload"' + attributes
+    + ' aria-label="' + label + '" title="' + label + '">' + CLOUD_UPLOAD_SVG + '</' + tag + '>';
+  var action = signedOut ? S.signInFromDocument : beginAdd;
+  row.querySelector('.sdoc-cloud-lab-add-link').addEventListener('click', action);
+  row.querySelector('.sdoc-cloud-lab-upload').addEventListener('click', action);
   return row;
 }
 
@@ -469,73 +496,6 @@ function refreshRow() {
   insertRow();
 }
 
-function renderEmailPrompt(row) {
-  row.className = 'fic-row fic-row-cloud fic-row-cloud-auth';
-  row.innerHTML = '<span class="fic-label">Library</span><form class="fic-cloud-auth-fields">'
-    + '<input class="fic-cloud-email" type="email" autocomplete="email" placeholder="you@example.com" aria-label="Email address" required>'
-    + '<button class="fic-cloud-send" type="submit">Email me a code</button>'
-    + '<button class="fic-cloud-cancel" type="button">Cancel</button></form>'
-    + '<button class="fic-copy fic-cloud-icon" type="button" title="Email me a code">' + CLOUD_UPLOAD_SVG + '</button>';
-  var form = row.querySelector('form');
-  var input = row.querySelector('input');
-  async function submit(event) {
-    event.preventDefault();
-    if (!input.checkValidity()) { input.reportValidity(); return; }
-    var button = row.querySelector('.fic-cloud-send');
-    button.disabled = true;
-    button.textContent = 'Sending...';
-    try {
-      var data = await jsonRequest('/api/cloud/auth/email/request', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: input.value.trim() }),
-      });
-      pendingChallenge = data.challenge_id;
-      renderCodePrompt(row, input.value.trim());
-    } catch (_) {
-      button.disabled = false;
-      button.textContent = 'Try again';
-    }
-  }
-  form.addEventListener('submit', submit);
-  row.querySelector('.fic-cloud-icon').addEventListener('click', submit);
-  row.querySelector('.fic-cloud-cancel').addEventListener('click', refreshRow);
-  setTimeout(function () { input.focus(); }, 0);
-}
-
-function renderCodePrompt(row, email) {
-  row.className = 'fic-row fic-row-cloud fic-row-cloud-auth';
-  row.innerHTML = '<span class="fic-label">Library</span><form class="fic-cloud-auth-fields">'
-    + '<input class="fic-cloud-email" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="6-digit code" aria-label="Six-digit code" required>'
-    + '<button class="fic-cloud-send" type="submit">Verify</button>'
-    + '<button class="fic-cloud-cancel" type="button">Cancel</button></form>'
-    + '<button class="fic-copy fic-cloud-icon" type="button" title="Verify code">' + CLOUD_UPLOAD_SVG + '</button>';
-  var form = row.querySelector('form');
-  var input = row.querySelector('input');
-  async function verify(event) {
-    event.preventDefault();
-    if (!/^\d{6}$/.test(input.value)) { input.focus(); return; }
-    try {
-      await jsonRequest('/api/cloud/auth/email/verify', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ challenge_id: pendingChallenge, code: input.value,
-          return_to: location.pathname + location.search + location.hash }),
-      });
-      pendingChallenge = null;
-      refreshRow();
-      beginAdd(event);
-    } catch (_) {
-      input.setCustomValidity('That code is invalid or has expired.');
-      input.reportValidity();
-      input.setCustomValidity('');
-    }
-  }
-  form.addEventListener('submit', verify);
-  row.querySelector('.fic-cloud-icon').addEventListener('click', verify);
-  row.querySelector('.fic-cloud-cancel').addEventListener('click', refreshRow);
-  row.setAttribute('data-email', email);
-  setTimeout(function () { input.focus(); }, 0);
-}
-
 async function beginAdd(event, accountId) {
   var generation = S.documentGeneration;
   if (event) {
@@ -552,13 +512,15 @@ async function beginAdd(event, accountId) {
       return;
     }
     if (!accountData.account) {
-      location.href = '/cloud/checkout?return=' +
-        encodeURIComponent(location.pathname + location.search + location.hash);
+      location.href = '/cloud/start?return=' + encodeURIComponent(await S.documentReturnPath());
+      return;
+    }
+    if (!accountData.account.can_write && accountData.account.write_entitlement === true) {
+      openErrorDialog('You need editing access to add documents to this library.', 'Cannot add to this library');
       return;
     }
     if (!accountData.account.can_write) {
-      location.href = '/cloud/checkout?return=' +
-        encodeURIComponent(location.pathname + location.search + location.hash);
+      location.href = '/cloud/checkout?return=' + encodeURIComponent(await S.documentReturnPath());
       return;
     }
     if (S.hasPendingWriteChanges && S.hasPendingWriteChanges()) S.flushWriteChanges();
@@ -602,18 +564,17 @@ async function beginAdd(event, accountId) {
     refreshRow();
   } catch (error) {
     if (error.status === 401) {
-      var row = document.querySelector('.fic-row-cloud');
-      if (row) renderEmailPrompt(row);
+      S.signInFromDocument();
       return;
     }
     if (error.status === 402) {
-      location.href = '/cloud/checkout?return=' +
-        encodeURIComponent(location.pathname + location.search + location.hash);
+      location.href = '/cloud/checkout?return=' + encodeURIComponent(await S.documentReturnPath());
       return;
     }
     openErrorDialog('Cloud is temporarily unavailable.');
   } finally {
     cloudState.busy = false;
+    refreshRow();
   }
 }
 
@@ -622,8 +583,8 @@ function openAccountChoice(accounts, user) {
   var dialog = backdrop.querySelector('.sdoc-cloud-proto-dialog');
   backdrop.hidden = false;
   document.body.style.overflow = 'hidden';
-  dialog.innerHTML = shell('Choose an account',
-    'This document will be added to the account you select.',
+  dialog.innerHTML = shell('Choose a library',
+    'This document will be saved to the library you choose.',
     documentPreview() + '<div class="sdoc-cloud-proto-account-list"></div>'
     + '<div class="sdoc-cloud-proto-actions"><button class="sdoc-cloud-proto-btn" data-action="cancel" type="button">Cancel</button></div>');
   wireClose(dialog);
@@ -1024,11 +985,11 @@ function wireClose(dialog) {
   dialog.querySelector('.sdoc-cloud-proto-close').addEventListener('click', closeDialog);
 }
 
-function openErrorDialog(message) {
+function openErrorDialog(message, title) {
   var backdrop = ensureDialog();
   var dialog = backdrop.querySelector('.sdoc-cloud-proto-dialog');
   backdrop.hidden = false;
-  dialog.innerHTML = shell('Cloud unavailable', message,
+  dialog.innerHTML = shell(title || 'Cloud unavailable', message,
     '<div class="sdoc-cloud-proto-actions"><button class="sdoc-cloud-proto-btn primary" data-action="done" type="button">Close</button></div>');
   wireClose(dialog);
   dialog.querySelector('[data-action="done"]').addEventListener('click', closeDialog);
@@ -1146,7 +1107,7 @@ function waitForSubscription(workspaceId, attempt) {
       if (attempt < 9) {
         setTimeout(function () { waitForSubscription(workspaceId, attempt + 1); }, 1000);
       } else {
-        openErrorDialog('Payment was accepted, but Cloud access is still being activated. Try Add to Cloud again in a moment.');
+        openErrorDialog('Payment was accepted, but Cloud access is still being activated. Try Add to your library again in a moment.');
       }
     });
 }
