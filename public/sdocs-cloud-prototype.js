@@ -467,7 +467,8 @@ function cloudRow() {
   row.innerHTML = '<span class="fic-label">Library</span>'
     + '<div class="sdoc-cloud-lab-row-main sdoc-cloud-lab-intro">'
     + '<' + tag + ' class="sdoc-cloud-lab-add-link"' + attributes + '>' + label + '</' + tag + '>'
-    + '<a class="fic-cloud-learn" href="/home" target="_blank" rel="noopener">Learn more about SmallDocs</a></div>'
+    + (signedOut ? '<a class="fic-cloud-learn" href="/home" target="_blank" rel="noopener">Learn more about SmallDocs</a>' : '')
+    + '</div>'
     + '<' + tag + ' class="sdoc-cloud-lab-state-icon sdoc-cloud-lab-upload"' + attributes
     + ' aria-label="' + label + '" title="' + label + '">' + CLOUD_UPLOAD_SVG + '</' + tag + '>';
   var action = signedOut ? S.signInFromDocument : beginAdd;

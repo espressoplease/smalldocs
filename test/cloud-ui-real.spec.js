@@ -120,6 +120,7 @@ for (const subscription of ['trial', 'active']) {
     await expect(row.getByRole('button', { name: 'Add to your library', exact: true })).toHaveCount(2);
     await expect(row).not.toContainText('Sign up');
     await expect(row).not.toContainText('paid feature');
+    await expect(row.locator('.fic-cloud-learn')).toHaveCount(0);
   });
 }
 
@@ -136,10 +137,12 @@ test('Library row waits for authentication without flashing a signup offer', asy
     await expect(row).toHaveAttribute('aria-busy', 'true');
     await expect(row.locator('.sdoc-cloud-lab-add-link')).toBeDisabled();
     await expect(row).not.toContainText('Sign up');
+    await expect(row.locator('.fic-cloud-learn')).toHaveCount(0);
     release();
     await expect(row).toHaveAttribute('aria-busy', 'false');
     await expect(row.locator('.sdoc-cloud-lab-add-link')).toBeEnabled();
     await expect(row).not.toContainText('Sign up');
+    await expect(row.locator('.fic-cloud-learn')).toHaveCount(0);
   } finally { release(); }
 });
 
@@ -151,6 +154,7 @@ test('temporary discovery errors allow retry instead of treating the user as sig
   const row = page.locator('.fic-row-cloud');
   await expect(row.locator('.sdoc-cloud-lab-add-link')).toBeEnabled();
   await expect(row).not.toContainText('Sign up');
+  await expect(row.locator('.fic-cloud-learn')).toHaveCount(0);
   await row.locator('.sdoc-cloud-lab-add-link').click();
   await expect(page.getByRole('heading', { name: 'Cloud unavailable' })).toBeVisible();
   expect(new URL(page.url()).pathname).toBe('/docs');
