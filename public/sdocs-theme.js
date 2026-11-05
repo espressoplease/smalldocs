@@ -202,6 +202,12 @@ function switchThemeAndUpdate(theme, persist) {
   // Single sync with 'theme' source: refreshes currentMeta/raw/hash
   // without flipping _isDefaultState.
   S.syncAll('theme');
+  // Canvas graphics and body-portaled viewers do not inherit a live CSS
+  // palette. Refresh them after all controls have finished changing.
+  if (window.SDocShapeRender && window.SDocShapeRender.refreshThemes) window.SDocShapeRender.refreshThemes();
+  if (S.refreshChartColors) S.refreshChartColors();
+  if (window.SDocPresent && window.SDocPresent.refreshTheme) window.SDocPresent.refreshTheme();
+  if (S.cellsFocus && S.cellsFocus.refreshTheme) S.cellsFocus.refreshTheme();
   // Mermaid bakes its palette into the rendered SVG, so a CSS-variable swap
   // doesn't re-colour existing diagrams. Regenerate them for the new theme.
   if (S.rethemeMermaid) S.rethemeMermaid();

@@ -9,6 +9,15 @@ module.exports = function (harness) {
 
   console.log('\n── SDocContrast Tests ─────────────────────────\n');
 
+  test('readable foreground keeps safe colours and covers the full grey ramp', () => {
+    assert.strictEqual(C.readableColor('#2563eb', '#fff'), '#2563eb');
+    assert.strictEqual(C.contrastRatio('rgb(255, 255, 255)', '#000'), 21);
+    for (let n = 0; n < 256; n++) {
+      const bg = '#' + n.toString(16).padStart(2, '0').repeat(3);
+      assert.ok(C.contrastRatio(C.readableColor('#e7e5e2', bg), bg) >= 4.5, bg);
+    }
+  });
+
   test('contrastRatio: black on white is 21:1', () => {
     assert.ok(Math.abs(C.contrastRatio('#000000', '#ffffff') - 21) < 0.01);
   });

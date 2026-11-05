@@ -897,7 +897,7 @@
       '--hl-keyword': '#7c3aed', '--hl-string': '#b45309', '--hl-number': '#be185d',
       '--hl-function': '#2563eb', '--hl-type': '#0e7490', '--hl-meta': '#6d28d9',
       '--hl-attr': '#0369a1', '--hl-tag': '#9333ea', '--hl-muted': '#8a857d',
-      '--hl-comment': '#0f766e', '--hl-comment-bg': 'rgba(15,118,110,0.07)',
+      '--hl-comment': '#0b6962', '--hl-comment-bg': 'rgba(15,118,110,0.07)',
       '--sdoc-ann-accent': '#7c84d8', '--sdoc-ann-card-bg': '#fff',
       '--sdoc-ann-card-shadow': '0 1px 2px color-mix(in oklab, #1c1917 12%, transparent)',
       '--sdoc-ann-wash': 'color-mix(in oklab, #7c84d8 15%, transparent)'

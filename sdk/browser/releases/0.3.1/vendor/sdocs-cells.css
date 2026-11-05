@@ -35,6 +35,9 @@
   --sdoc-cells-head-bg: color-mix(in oklab, var(--md-bg, #fff) 90%, var(--sdoc-cells-accent) 10%);
   --sdoc-cells-head-fg: color-mix(in oklab, var(--md-color, #1c1917) 68%, var(--sdoc-cells-accent) 32%);
   --sdoc-cells-surface: color-mix(in oklab, var(--md-bg, #fff) 95%, var(--md-color, #1c1917) 5%);
+  --sdoc-cells-error: color-mix(in srgb, var(--md-color, #1c1917) 55%, #b91c1c 45%);
+  --sdoc-cells-formula: color-mix(in srgb, var(--md-color, #1c1917) 45%, #7c4fe0 55%);
+  --sdoc-cells-warning: color-mix(in srgb, var(--md-color, #1c1917) 45%, #b45309 55%);
   margin: 1.2em 0;
   width: max-content;       /* hug the grid, not the column width */
   max-width: 100%;          /* but never exceed the content area */
@@ -54,7 +57,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 5px 7px;
+  padding: 4px 7px;
   /* Reserve the height of the bordered dynamic button (border-box global
    * reset, so this is the full bar height) so the bar doesn't grow the
    * moment the selection / cell copy button appears. */
@@ -355,12 +358,12 @@
 .sdoc-cells-cell.is-number { justify-content: flex-end; }
 .sdoc-cells-cell.is-text   { justify-content: flex-start; }
 .sdoc-cells-cell.is-empty  { min-width: var(--sdoc-cells-col-min, 64px); }
-.sdoc-cells-cell.is-negative { color: #d64545; }   /* muted red for negatives */
+.sdoc-cells-cell.is-negative { color: var(--sdoc-cells-error); }
 .sdoc-cells-cell.is-header   { font-weight: 600; }  /* a detected header row */
 /* A formula cell whose evaluation failed shows its #ERROR! code in red,
  * left-aligned like text so the short code reads clearly. */
 .sdoc-cells-cell.is-formula-error {
-  color: #d64545;
+  color: var(--sdoc-cells-error);
   justify-content: flex-start;
   font-variant-numeric: normal;
 }
@@ -421,7 +424,7 @@
   font-size: 0.85em;
   justify-content: flex-start;
   font-variant-numeric: normal;
-  color: #7c4fe0;
+  color: var(--sdoc-cells-formula);
 }
 
 /* Fill handle: the small square on the selection's bottom-right corner
@@ -465,7 +468,7 @@
   margin: 0;
   padding: 8px 10px;
   font-size: 0.85em;
-  color: #b91c1c;
+  color: var(--sdoc-cells-error);
   white-space: pre-wrap;
 }
 
@@ -493,7 +496,7 @@
   text-overflow: ellipsis;
 }
 .sdoc-cells-caption.is-duplicate {
-  color: #b45309;
+  color: var(--sdoc-cells-warning);
   background: color-mix(in oklab, var(--md-bg, #fff) 86%, #b45309 14%);
 }
 
@@ -598,6 +601,9 @@
   --sdoc-cells-head-bg: color-mix(in oklab, var(--md-bg, #fff) 90%, var(--sdoc-cells-accent) 10%);
   --sdoc-cells-head-fg: color-mix(in oklab, var(--md-color, #1c1917) 68%, var(--sdoc-cells-accent) 32%);
   --sdoc-cells-surface: color-mix(in oklab, var(--md-bg, #fff) 95%, var(--md-color, #1c1917) 5%);
+  --sdoc-cells-error: color-mix(in srgb, var(--md-color, #1c1917) 55%, #b91c1c 45%);
+  --sdoc-cells-formula: color-mix(in srgb, var(--md-color, #1c1917) 45%, #7c4fe0 55%);
+  --sdoc-cells-warning: color-mix(in srgb, var(--md-color, #1c1917) 45%, #b45309 55%);
   margin: 1.2em 0;
   width: max-content;       /* hug the grid, not the column width */
   max-width: 100%;          /* but never exceed the content area */
@@ -617,7 +623,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 5px 7px;
+  padding: 4px 7px;
   /* Reserve the height of the bordered dynamic button (border-box global
    * reset, so this is the full bar height) so the bar doesn't grow the
    * moment the selection / cell copy button appears. */
@@ -918,12 +924,12 @@
 .sdoc-cells-cell.is-number { justify-content: flex-end; }
 .sdoc-cells-cell.is-text   { justify-content: flex-start; }
 .sdoc-cells-cell.is-empty  { min-width: var(--sdoc-cells-col-min, 64px); }
-.sdoc-cells-cell.is-negative { color: #d64545; }   /* muted red for negatives */
+.sdoc-cells-cell.is-negative { color: var(--sdoc-cells-error); }
 .sdoc-cells-cell.is-header   { font-weight: 600; }  /* a detected header row */
 /* A formula cell whose evaluation failed shows its #ERROR! code in red,
  * left-aligned like text so the short code reads clearly. */
 .sdoc-cells-cell.is-formula-error {
-  color: #d64545;
+  color: var(--sdoc-cells-error);
   justify-content: flex-start;
   font-variant-numeric: normal;
 }
@@ -984,7 +990,7 @@
   font-size: 0.85em;
   justify-content: flex-start;
   font-variant-numeric: normal;
-  color: #7c4fe0;
+  color: var(--sdoc-cells-formula);
 }
 
 /* Fill handle: the small square on the selection's bottom-right corner
@@ -1028,7 +1034,7 @@
   margin: 0;
   padding: 8px 10px;
   font-size: 0.85em;
-  color: #b91c1c;
+  color: var(--sdoc-cells-error);
   white-space: pre-wrap;
 }
 
@@ -1056,7 +1062,7 @@
   text-overflow: ellipsis;
 }
 .sdoc-cells-caption.is-duplicate {
-  color: #b45309;
+  color: var(--sdoc-cells-warning);
   background: color-mix(in oklab, var(--md-bg, #fff) 86%, #b45309 14%);
 }
 

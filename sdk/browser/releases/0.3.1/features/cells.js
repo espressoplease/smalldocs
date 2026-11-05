@@ -1,4 +1,4 @@
-import { loadScript, loadStyle, vendorAsset } from '../assets.js';
+import { loadScript, loadStyle, vendorAsset, watchTheme } from '../assets.js';
 import { downloadBlob } from '../download.js';
 import { openOverlayLease } from '../overlay.js';
 import { SDK_VERSION } from '../version.js';
@@ -128,6 +128,7 @@ export async function mount(context) {
     selection.destroy();
     return;
   }
+  context.cleanups.push(watchTheme(context.root, () => { if (focus) focus.refreshTheme(); }));
   return (reason) => {
     if (focus) focus.destroy(reason);
     renderer.destroy();

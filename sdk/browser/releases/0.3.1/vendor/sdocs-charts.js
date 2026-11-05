@@ -237,12 +237,31 @@
     return getComputedStyle(rendered).getPropertyValue(name).trim();
   }
 
-  function theme() {
+  function paintedBackground(source) {
+    var node = source;
+    while (node) {
+      var color = getComputedStyle(node).backgroundColor;
+      if (color && color !== 'transparent' && !/^rgba\([^)]*,\s*0\)$/.test(color)) return color;
+      if (node.classList && node.classList.contains('shape-md')) {
+        var shapeSurface = getComputedStyle(node).getPropertyValue('--sdoc-shape-surface').trim();
+        if (shapeSurface) return shapeSurface;
+      }
+      node = node.parentElement || (node.getRootNode && node.getRootNode().host);
+    }
+    return '#ffffff';
+  }
+
+  function theme(source) {
     var dark = isDark();
     var chartText = cssVar('--md-chart-text');
     var chartBg = cssVar('--md-chart-bg');
     var textColor = chartText || (dark ? '#A8A29E' : '#78716c');
     var titleColor = chartText || (dark ? '#E7E5E2' : '#1C1917');
+    var surface = source && paintedBackground(source.querySelector('.sdoc-chart-plot') || source);
+    if (surface && window.SDocContrast && window.SDocContrast.hexToRgb(surface)) {
+      textColor = window.SDocContrast.readableColor(textColor, surface);
+      titleColor = window.SDocContrast.readableColor(titleColor, surface);
+    }
     // Grid: semi-transparent version of the text color
     var gridColor;
     if (chartText) {
@@ -710,9 +729,9 @@
   }
 
   // ── Build Chart.js config ──
-  function buildConfig(data, layoutWidth) {
+  function buildConfig(data, layoutWidth, source) {
     var rawType = normalizeType(data.type);
-    var th = theme();
+    var th = theme(source);
 
     // Map our types to Chart.js types + options
     var chartJsType = rawType;
@@ -886,7 +905,7 @@
         wrapper.className = 'sdoc-chart';
         wrapper.setAttribute('data-chart-index', chartIndex);
         var canvas = document.createElement('canvas');
-        var entry = { chart: null, data: data, canvas: canvas, wrapper: wrapper };
+        var entry = { chart: null, data: data, canvas: canvas, wrapper: wrapper, slideOptions: options };
         var plot = document.createElement('div');
         plot.className = 'sdoc-chart-plot';
         plot.appendChild(canvas);
@@ -905,7 +924,8 @@
         target.parentNode.replaceChild(wrapper, target);
 
         var layoutWidth = options.slideContext ? options.shapeWidth : chartLayoutWidth(wrapper);
-        if (!options.slideContext) config = buildConfig(data, layoutWidth);
+        config = buildConfig(data, options.slideContext ? 1024 : layoutWidth, wrapper);
+        if (options.slideContext) tuneConfigForSlide(config);
         entry.layoutWidth = layoutWidth;
 
         // With responsive:false we own canvas dimensions. The caller
@@ -929,6 +949,7 @@
         entry.chart = chart;
         activeCharts.push(chart);
         chartDataStore.push(entry);
+        observeTheme();
       });
     });
   }
@@ -1114,7 +1135,7 @@
     if (!entry) return;
     entry.chart.destroy();
     var layoutWidth = chartLayoutWidth(entry.wrapper);
-    var config = buildConfig(entry.data, layoutWidth);
+    var config = buildConfig(entry.data, layoutWidth, entry.wrapper);
     entry.layoutWidth = layoutWidth;
     entry.chart = new Chart(entry.canvas, config);
     activeCharts = chartDataStore.map(function (e) { return e.chart; });
@@ -1277,13 +1298,32 @@
   function refreshChartColors() {
     chartDataStore.forEach(function (entry) {
       entry.chart.destroy();
-      var layoutWidth = chartLayoutWidth(entry.wrapper);
-      var config = buildConfig(entry.data, layoutWidth);
+      var slide = entry.slideOptions && entry.slideOptions.slideContext;
+      var layoutWidth = slide ? entry.slideOptions.shapeWidth : chartLayoutWidth(entry.wrapper);
+      var config = buildConfig(entry.data, slide ? 1024 : layoutWidth, entry.wrapper);
+      if (slide) tuneConfigForSlide(config);
       entry.layoutWidth = layoutWidth;
       entry.chart = new Chart(entry.canvas, config);
     });
     // Update activeCharts
     activeCharts = chartDataStore.map(function (e) { return e.chart; });
+  }
+
+  // Theme tokens may change in a containing SDK host or in another app tab.
+  // Observe only ancestors, so rebuilding a canvas cannot trigger this again.
+  var themeObserver = null, themeFrame = 0;
+  function observeTheme() {
+    if (themeObserver || typeof window.MutationObserver !== 'function') return;
+    var source = styleRoot();
+    if (!source || !source.isConnected) return;
+    themeObserver = new window.MutationObserver(function () {
+      if (themeFrame || destroyed) return;
+      themeFrame = window.requestAnimationFrame(function () { themeFrame = 0; if (!destroyed) refreshChartColors(); });
+    });
+    while (source) {
+      themeObserver.observe(source, { attributes: true, attributeFilter: ['style', 'class', 'data-theme', 'data-sdocs-theme'] });
+      source = source.parentElement || (source.getRootNode && source.getRootNode().host);
+    }
   }
 
   // ── Reflow charts on viewport breakpoint changes ──
@@ -1297,12 +1337,13 @@
     resizeTimer = setTimeout(function () {
       if (destroyed) return;
       chartDataStore.forEach(function (entry) {
+        if (entry.slideOptions && entry.slideOptions.slideContext) return;
         var layoutWidth = chartLayoutWidth(entry.wrapper);
         var nextAspect = computeAspect(entry.data, layoutWidth);
         var widthChanged = Math.abs(layoutWidth - (entry.layoutWidth || 0)) > 8;
         if (!widthChanged && entry.chart.options.aspectRatio === nextAspect) return;
         entry.chart.destroy();
-        entry.chart = new Chart(entry.canvas, buildConfig(entry.data, layoutWidth));
+        entry.chart = new Chart(entry.canvas, buildConfig(entry.data, layoutWidth, entry.wrapper));
         entry.layoutWidth = layoutWidth;
       });
       activeCharts = chartDataStore.map(function (e) { return e.chart; });
@@ -1349,6 +1390,8 @@
     copyTimers.forEach(function (timer) { window.clearTimeout(timer); });
     copyTimers = [];
     if (resizeTimer) clearTimeout(resizeTimer);
+    if (themeObserver) themeObserver.disconnect();
+    if (themeFrame) window.cancelAnimationFrame(themeFrame);
     window.removeEventListener('resize', onResize);
     document.removeEventListener('click', onDocumentClick);
     document.removeEventListener('change', onDocumentChange);

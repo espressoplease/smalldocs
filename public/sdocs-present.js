@@ -154,7 +154,7 @@ var CSS = [
   '  font-family: ui-monospace, Menlo, monospace;',
   '}',
   '.sdoc-present-thumb .sd-slide-wrap {',
-  '  background: #ffffff; border-radius: 2px;',
+  '  background: var(--md-bg, #ffffff); border-radius: 2px;',
   '}',
   '.sdoc-present-stage-wrap {',
   '  grid-row: 2;',
@@ -432,6 +432,7 @@ function forwardDocStyleVars(target) {
 function buildRailThumb(idx, dsl) {
   var btn = document.createElement('button');
   btn.className = 'sdoc-present-thumb';
+  btn.classList.toggle('active', idx === state.index);
   btn.setAttribute('data-slide-index', String(idx));
   btn.setAttribute('aria-label', 'Go to slide ' + (idx + 1));
   var num = document.createElement('div');
@@ -447,6 +448,9 @@ function buildRailThumb(idx, dsl) {
   var srcSlide = sourceRoot().querySelectorAll('.sdoc-slide[data-dsl]')[idx];
   var srcWrap = srcSlide && srcSlide.querySelector('.sd-slide-wrap');
   var chartImages = srcWrap && srcWrap.__chartImages;
+  var renderer = shapeRenderer();
+  var sourceStage = srcWrap && srcWrap.querySelector('.sd-shape-stage');
+  if (chartImages && (!sourceStage || !renderer.themeSignature || srcWrap.__chartTheme !== renderer.themeSignature(sourceStage))) chartImages = null;
   renderShapes(dsl, wrap, idx, 'thumbnail', { chartImages: chartImages });
   btn.addEventListener('click', function () { go(idx); });
   return btn;
@@ -454,10 +458,18 @@ function buildRailThumb(idx, dsl) {
 
 function rebuildRail() {
   if (!state.rail) return;
+  var scrollTop = state.rail.scrollTop;
+  var focused = document.activeElement;
+  var focusIndex = focused && state.rail.contains(focused) ? focused.getAttribute('data-slide-index') : null;
   destroyWithin(state.rail);
   while (state.rail.firstChild) state.rail.removeChild(state.rail.firstChild);
   for (var i = 0; i < state.slides.length; i++) {
     state.rail.appendChild(buildRailThumb(i, state.slides[i]));
+  }
+  state.rail.scrollTop = scrollTop;
+  if (focusIndex != null) {
+    var replacement = state.rail.querySelector('[data-slide-index="' + focusIndex + '"]');
+    if (replacement) replacement.focus({ preventScroll: true });
   }
 }
 
@@ -990,6 +1002,7 @@ function refresh() {
     return;
   }
   state.index = clamp(state.index);
+  forwardDocStyleVars(state.modal);
   rebuildRail();
   renderActive();
   updateHashPresent(state.index);
@@ -1041,6 +1054,13 @@ var api = {
   close: close,
   go: go,
   refresh: refresh,
+  refreshTheme: function () {
+    if (!state.modal) return;
+    forwardDocStyleVars(state.modal);
+    rebuildRail();
+    var renderer = shapeRenderer();
+    if (renderer && renderer.refreshThemes) renderer.refreshThemes(state.modal);
+  },
   syncFromHash: syncFromHash,
   maybeOpenFromHash: maybeOpenFromHash,
   // Re-fit the active stage to its current wrap width. Called when the

@@ -452,7 +452,8 @@
     if (editor && editor.destroy) editor.destroy();
   }
 
-  return { open: open, close: close, destroy: destroy };
+  return { open: open, close: close, destroy: destroy,
+    refreshTheme: function () { if (state.modal) forwardVars(state.modal); } };
   }
 
   function installProduction(root) {

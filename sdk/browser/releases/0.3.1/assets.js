@@ -110,3 +110,34 @@ export function loadedAssetUrls() {
     styles: Array.from(stylePromises.keys()),
   };
 }
+// Portaled surfaces and canvas/SVG renderers need an explicit refresh after
+// host CSS changes. Compare computed tokens to avoid reacting to other views.
+export function watchTheme(source, changed) {
+  const root = source.host || source;
+  let frame = 0;
+  const palette = () => {
+    const css = getComputedStyle(root);
+    return ['--md-bg', '--md-color', '--md-h1-color', '--md-link-color', '--md-code-bg', '--md-code-color',
+      '--md-block-bg', '--md-block-text', '--md-chart-bg', '--md-chart-text', '--md-font-family',
+      '--md-table-text', '--md-table-header-bg', '--md-table-odd-bg', '--md-table-even-bg']
+      .map(name => css.getPropertyValue(name)).join('|');
+  };
+  let previous = palette();
+  const update = () => {
+    if (frame) return;
+    frame = requestAnimationFrame(() => {
+      frame = 0;
+      const next = palette();
+      if (next !== previous) { previous = next; changed(); }
+    });
+  };
+  const observer = new MutationObserver(update);
+  let node = root;
+  while (node) {
+    observer.observe(node, { attributes: true, attributeFilter: ['style', 'class', 'data-theme', 'data-sdocs-theme'] });
+    node = node.parentElement || node.getRootNode()?.host;
+  }
+  const media = matchMedia('(prefers-color-scheme: dark)');
+  media.addEventListener('change', update);
+  return () => { observer.disconnect(); media.removeEventListener('change', update); if (frame) cancelAnimationFrame(frame); };
+}

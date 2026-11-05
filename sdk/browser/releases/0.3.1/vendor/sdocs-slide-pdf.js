@@ -1358,7 +1358,10 @@ async function drawSlide(ctx) {
 
   var st = createStage(grid.w, grid.h, ctx.root);
   try {
-    SDocShapeRender.renderShapes(dsl, st.stage);
+    var rendered = SDocShapeRender.renderShapes(dsl, st.stage);
+    rendered = SDocShapeRender.resolvePaints(rendered, st.stage);
+    grid = rendered.grid;
+    shapes = rendered.shapes;
     // Force layout so getBoundingClientRect reflects the final geometry.
     // eslint-disable-next-line no-unused-expressions
     st.stage.offsetHeight;
@@ -1369,7 +1372,10 @@ async function drawSlide(ctx) {
     // be read. Reading it off the stage works because createStage parents
     // the wrap inside #_sd_rendered.
     var bg;
-    if (grid.attrs && grid.attrs.bg) {
+    var canvas = st.stage.querySelector('.sd-shape-stage');
+    if (canvas) {
+      bg = toHex(getComputedStyle(canvas).backgroundColor);
+    } else if (grid.attrs && grid.attrs.bg) {
       bg = toHex(grid.attrs.bg);
     } else {
       var mdBg = '';
@@ -1465,6 +1471,7 @@ async function drawSlide(ctx) {
       }
     }
   } finally {
+    SDocShapeRender.destroyWithin(st.stage);
     if (st.wrap.parentNode) st.wrap.parentNode.removeChild(st.wrap);
     ACTIVE = null;
   }

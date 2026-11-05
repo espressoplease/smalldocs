@@ -2,8 +2,8 @@
   "version": "0.3.1",
   "files": {
     "assets.js": {
-      "bytes": 3517,
-      "sha256": "3ca5ab7a62e283e1470ab5cf29bf188057290265bb54604fc263c5550228804f"
+      "bytes": 4943,
+      "sha256": "3a603787b29b262434a66fd8c71d1e71669fc22d127e6280041692485a3dcc62"
     },
     "code-reader.css": {
       "bytes": 111,
@@ -22,8 +22,8 @@
       "sha256": "dfed9db29939123b548fc91752059c74b78d42e72f93c2619070f1e376baeebc"
     },
     "features/cells.js": {
-      "bytes": 4847,
-      "sha256": "afb7f2452d39adee32138c798e2f3f0510e43a58c90427dc9a6c9769850e156e"
+      "bytes": 4954,
+      "sha256": "266496e894213c8d654ea40a5c8b5c07bf9e49c305912a2475ff9f86ccc6420d"
     },
     "features/charts.js": {
       "bytes": 3448,
@@ -42,12 +42,12 @@
       "sha256": "58628663b60491e91ab4c04fbe62de14c8e4291f070e27703b388ff82334e801"
     },
     "features/mermaid.js": {
-      "bytes": 5918,
-      "sha256": "a0e6e46b804742783c0d8899e3acc85a2e6c5aa44df3013a1ae3d6767a0106e8"
+      "bytes": 6480,
+      "sha256": "647f2fedc69445a34eb5c5dece8e1340e6a1194e2895aea36881a36806061693"
     },
     "features/slides.js": {
-      "bytes": 10129,
-      "sha256": "f34a4394077f7c1803defc6ca657551ab1a30d3c3c24f0ebcafc71c795303bbe"
+      "bytes": 10325,
+      "sha256": "11b6bf89c49f8a41a6183a355b94e0ff04b508d665be39661fb00269bdf0bf84"
     },
     "features/video.js": {
       "bytes": 652,
@@ -110,8 +110,8 @@
       "sha256": "b8fa73f210aac6c5aca30fd79b344e9a38949a340dc7445038731118a1c49fe9"
     },
     "vendor/reader-manifest.json": {
-      "bytes": 11893,
-      "sha256": "463ba39c679435f1c67a7e2ad470744ae8e8a71e26af17f51b970085fa1cfa95"
+      "bytes": 12050,
+      "sha256": "8a99ffe3b3c898b53f526e10ee9b022bb3f75383e259e5dc23afc0dffc59ce94"
     },
     "vendor/sdocs-app-runner.html": {
       "bytes": 256,
@@ -130,8 +130,8 @@
       "sha256": "d7828bd3060e583409b5a804f2a32bc8a462c546a75c454378b36e4df71e8dcc"
     },
     "vendor/sdocs-cells-focus.js": {
-      "bytes": 21691,
-      "sha256": "a1c54dd8ddfe46406bbae565a6872e658ddcedbf32c1f6d8d85ae30bcc3f2c95"
+      "bytes": 21769,
+      "sha256": "20c6d9b92d980d66d5150b90988ec80d0bcf20fb5f2f518f17db7dc7b23dadb1"
     },
     "vendor/sdocs-cells-formula.js": {
       "bytes": 40549,
@@ -150,8 +150,8 @@
       "sha256": "0a1ce014656cd04427439f7850d7dbb004525d251234bd054c8d8abc1b16453e"
     },
     "vendor/sdocs-cells.css": {
-      "bytes": 54180,
-      "sha256": "4518a4668f4383e3e97d43250c1b3e74fce0856058964552a907409985323322"
+      "bytes": 54802,
+      "sha256": "7d74ab2163c15cdeee70fd53a48935a5b8457fb032a243496261abb995c05108"
     },
     "vendor/sdocs-cells.js": {
       "bytes": 24265,
@@ -162,12 +162,12 @@
       "sha256": "a4600e02fc87be14f47e7f84dfecff997bca6b9510e7c2543868edb5cc8a0449"
     },
     "vendor/sdocs-charts.js": {
-      "bytes": 54240,
-      "sha256": "ef5a97d9b5c1a634f04b0f7acea51db7109bf802770979eb5067653306b8194e"
+      "bytes": 56565,
+      "sha256": "8d7a8954b7cd6870e28a077b535b2a5f9450da9e72917c206727d2bcdf03c4be"
     },
     "vendor/sdocs-code-focus.js": {
       "bytes": 154346,
-      "sha256": "308beaf99f739c2d2672d225ebf77e9ed530ef35bbc5aa4175e215259496d23a"
+      "sha256": "f7fbb352c09b315cb7e060d44e2a70dedd1706ac8aecfa7d28765bbc9739e4d9"
     },
     "vendor/sdocs-code-lang/csharp.js": {
       "bytes": 495,
@@ -211,11 +211,15 @@
     },
     "vendor/sdocs-code-reader.css": {
       "bytes": 8583,
-      "sha256": "2354a4b125dfa86a55865cec99ebbfc17c74e91b6b5d86b99af9afd21967c33c"
+      "sha256": "055e9f3938f3ef811fdc8e60ef8185b78681cbb7ae3c2386f8f3a9b219cca3f8"
     },
     "vendor/sdocs-code-reader.js": {
       "bytes": 9400,
       "sha256": "34fbfeedeef8b3b944c45120642d099819a6872f4ce139fef0939984299f7b4b"
+    },
+    "vendor/sdocs-contrast.js": {
+      "bytes": 10381,
+      "sha256": "98dae7b848ed7c78351ab87961e8601f71e7f0d2f9871b1a7462aee00707a19d"
     },
     "vendor/sdocs-docwalk.css": {
       "bytes": 6032,
@@ -254,8 +258,8 @@
       "sha256": "95f2325437099cad572598b073ad2daa2d1c6a39a9ade124c21636660b2fa045"
     },
     "vendor/sdocs-mermaid-focus.js": {
-      "bytes": 43164,
-      "sha256": "6c6b3ef85f6f4bcd7d67473caa8d60e550467c8eabb2996945ca2e8dc95c6736"
+      "bytes": 43927,
+      "sha256": "7ec15f27b21a21424b9769c18a9962285f21389a54996342cbd9e7ab39e333ce"
     },
     "vendor/sdocs-mermaid-reader.css": {
       "bytes": 1693,
@@ -266,16 +270,16 @@
       "sha256": "9d94c6137c0acf17e1bce6b0992183d9d606c3d153407eb395d41de478ae2f2c"
     },
     "vendor/sdocs-mermaid.js": {
-      "bytes": 40592,
-      "sha256": "6972cd375fad706ba2f9f01f15aeeb239a52cb4ca865ed2aeff723dda7fbc62b"
+      "bytes": 42102,
+      "sha256": "5945287391e819fd100e1329501df02214543a599fded7824db2173fd97873c9"
     },
     "vendor/sdocs-present-mobile.js": {
       "bytes": 24706,
       "sha256": "ffd0d72ae4fde5f905b04df4badaaf0c90a6884f97c52f61feadb07d75d1bfb2"
     },
     "vendor/sdocs-present.js": {
-      "bytes": 43258,
-      "sha256": "7e809006e775286feb261e867bcb3ec7674c80e08eb511a20ce69d7932e83fcc"
+      "bytes": 44273,
+      "sha256": "5bea8e240fc93d483921c969cf9d6dcc07196a91dd34bc69ee9ea95b5557c6a2"
     },
     "vendor/sdocs-prose-reader.css": {
       "bytes": 17799,
@@ -286,20 +290,20 @@
       "sha256": "71113b28d3ec193212eb09e29a8c9401a83e6cc58feba7adbdeca5bc65f0b3b9"
     },
     "vendor/sdocs-shape-render.js": {
-      "bytes": 105767,
-      "sha256": "4e73a5627b1025b25b1d7c25e0edc4cc850615db9c275e640899037804b75603"
+      "bytes": 113811,
+      "sha256": "61f53f9d700a312e8f80400504e4105a8e730d3912b146936748f7e6ca56c919"
     },
     "vendor/sdocs-shapes.js": {
       "bytes": 40681,
       "sha256": "9c2e7266f177aacd294be18365aa43b20ddabc0f5e578e5b4c4dcde589385dcc"
     },
     "vendor/sdocs-slide-pdf.js": {
-      "bytes": 59491,
-      "sha256": "cb7d118270b550c5f3679ca2c63aa61e552014a971572acc08fbbbbd6f46213b"
+      "bytes": 59818,
+      "sha256": "1fd371287bbac920f2b0316c84b28abcdc2236e69ca52cb85b11031347b26fb7"
     },
     "vendor/sdocs-slide-pptx.js": {
-      "bytes": 35589,
-      "sha256": "d4cee5c8a73b01c2afaa44c58c1d031c549638d2151f05f6018c3665740605af"
+      "bytes": 36737,
+      "sha256": "e4c3d597f2eca870c688ade395f5546b97153d51e4740f9ab0f0edbf6400f943"
     },
     "vendor/sdocs-slide-reader.css": {
       "bytes": 2808,

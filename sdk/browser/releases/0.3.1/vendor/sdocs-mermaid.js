@@ -631,6 +631,28 @@
     }
   }
 
+  // Authored node fills do not change with the document theme. Keep their
+  // labels readable when Mermaid inherits a foreground for another surface.
+  function contrastNodeLabels(svg, themeVars) {
+    var contrast = window.SDocContrast;
+    if (!contrast) return;
+    svg.querySelectorAll('g.node').forEach(function (node) {
+      var surface = node.querySelector(':scope > rect, :scope > polygon, :scope > circle, :scope > ellipse, :scope > path');
+      if (!surface) return;
+      var bg = getComputedStyle(surface).fill;
+      if (!contrast.hexToRgb(bg)) bg = themeVars.background;
+      node.querySelectorAll('.nodeLabel, .nodeLabel *, text, tspan').forEach(function (label) {
+        var cs = getComputedStyle(label);
+        var svgText = label.localName === 'text' || label.localName === 'tspan';
+        var fg = svgText ? cs.fill : cs.color;
+        if (!contrast.hexToRgb(fg) || !contrast.hexToRgb(bg) || contrast.contrastRatio(fg, bg) >= 4.5) return;
+        var readable = contrast.readableColor(fg, bg);
+        label.style.color = readable;
+        if (svgText) label.style.fill = readable;
+      });
+    });
+  }
+
   // Render mermaid source into an existing .sdoc-mermaid wrapper/stage.
   // Shared by the initial pass and the theme re-render. The source is
   // stashed on the wrapper so a later theme toggle can regenerate the SVG
@@ -638,6 +660,8 @@
   // render time, so swapping CSS variables alone leaves stale fills behind.
   function renderSourceIntoWrapper(mermaid, wrapper, stage, rawSrc, themeVars) {
     wrapper._sdMermaidSource = rawSrc;
+    var version = (wrapper._sdMermaidRenderVersion || 0) + 1;
+    wrapper._sdMermaidRenderVersion = version;
 
     if (rawSrc.length > SOURCE_BYTE_CAP) {
       renderError(wrapper, 'Diagram source exceeds ' + (SOURCE_BYTE_CAP / 1024) + ' KB cap');
@@ -658,7 +682,7 @@
 
     return withTimeout(p, RENDER_TIMEOUT_MS)
       .then(function (out) {
-        if (!isActive() || destroyed || !isNodeActive(wrapper)) return;
+        if (!isActive() || destroyed || !isNodeActive(wrapper) || version !== wrapper._sdMermaidRenderVersion) return;
         var svg = (out && out.svg) || '';
         setSvgHTML(stage, sanitizeSvg(svg));
         // Stamp a class on the rendered <svg> so polish rules in
@@ -671,6 +695,7 @@
           svgEl.classList.add('sdoc-mermaid-svg');
           try { applyClusterTints(svgEl, themeVars.background); } catch (_) {}
           try { fixClusterTitleOverlap(svgEl); } catch (_) {}
+          contrastNodeLabels(svgEl, themeVars);
         }
         // Per-diagram source-copy and fullscreen buttons
         // (sdocs-mermaid-focus.js). Optional, and guarded so a theme
@@ -679,8 +704,10 @@
             !wrapper.querySelector('.sdoc-mermaid-tools')) {
           wrapper.appendChild(S.SDocMermaidFocus.buildTools(wrapper));
         }
+        if (S.SDocMermaidFocus && S.SDocMermaidFocus.refreshTheme) S.SDocMermaidFocus.refreshTheme(wrapper);
       })
       .catch(function (err) {
+        if (version !== wrapper._sdMermaidRenderVersion) return;
         renderError(wrapper, (err && err.message) || 'Mermaid render error');
       })
       .then(function () { cleanupRenderOrphan(id); });
