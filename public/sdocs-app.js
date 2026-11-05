@@ -765,6 +765,39 @@ function copyWithIconFeedback(text, btn) {
 S.copyIcon = COPY_SVG;
 S.copyWithIconFeedback = copyWithIconFeedback;
 
+// Sharing and metadata show selectable values with a separate copy control.
+S.panelValueHTML = function (label, value, id) {
+  var group = document.createElement('div');
+  group.className = 'sdoc-panel-value';
+  group.setAttribute('role', 'group');
+  group.setAttribute('aria-label', label);
+  var text = document.createElement('span');
+  text.className = 'sdoc-panel-value-text';
+  text.textContent = value;
+  if (id) text.id = id;
+  var copy = document.createElement('button');
+  copy.type = 'button';
+  copy.className = 'btn sdoc-panel-copy';
+  copy.dataset.panelCopy = value;
+  copy.dataset.panelLabel = label;
+  copy.setAttribute('aria-label', 'Copy ' + label.charAt(0).toLowerCase() + label.slice(1));
+  copy.title = copy.getAttribute('aria-label');
+  if (id) copy.setAttribute('aria-describedby', id);
+  copy.innerHTML = COPY_SVG;
+  group.append(text, copy);
+  return group.outerHTML;
+};
+S.wirePanelValues = function (root, report) {
+  root.querySelectorAll('[data-panel-copy]').forEach(function (copy) {
+    copy.addEventListener('click', async function () {
+      try {
+        await S.copyWithIconFeedback(copy.dataset.panelCopy, copy);
+        report(copy.dataset.panelLabel + ' copied.');
+      } catch (_) { report('Could not copy. Select the text to copy it.'); }
+    });
+  });
+};
+
 document.addEventListener('DOMContentLoaded', function() {
   var copyFile = document.getElementById('_sd_btn-copy-file');
   if (copyFile) {
@@ -1339,8 +1372,10 @@ function setMode(mode, skipHash) {
     var hasSlides = !!document.querySelector('.sdoc-slide');
     var slidesOpt = document.getElementById('_sd_exp-slides-pdf');
     if (slidesOpt) slidesOpt.style.display = hasSlides ? '' : 'none';
+    if (slidesOpt && slidesOpt.closest('.sdoc-export-choice')) slidesOpt.closest('.sdoc-export-choice').hidden = !hasSlides;
     var pptxOpt = document.getElementById('_sd_exp-slides-pptx');
     if (pptxOpt) pptxOpt.style.display = hasSlides ? '' : 'none';
+    if (pptxOpt && pptxOpt.closest('.sdoc-export-choice')) pptxOpt.closest('.sdoc-export-choice').hidden = !hasSlides;
   }
 
   // Enter write mode — populate contentEditable

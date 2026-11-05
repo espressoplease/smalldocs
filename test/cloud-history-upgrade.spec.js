@@ -11,7 +11,7 @@ test('a service-worker-controlled Cloud reader upgrades from the previous releas
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'sdocs-history-upgrade-'));
   const old = path.join(temp, 'old'); fs.mkdirSync(old);
   const archive = path.join(temp, 'old.tar');
-  execFileSync('git', ['archive', '--output=' + archive, '01b6ff53e147596d1f2b97fe5190152ec8ea1865'], { cwd: root });
+  execFileSync('git', ['archive', '--output=' + archive, '58ce799821aa3d2b722fdb4446c83d88229699e0'], { cwd: root });
   execFileSync('tar', ['-xf', archive, '-C', old]);
   let f; const errors = []; page.on('pageerror', error => errors.push(error.message));
   try {
@@ -33,6 +33,8 @@ test('a service-worker-controlled Cloud reader upgrades from the previous releas
     await expect(button).toBeVisible(); await button.click();
     await expect(page.locator('.sdoc-history-reason').first()).toHaveText('Apply the requested document update');
     await page.getByRole('button', { name: /Agent \/ CLI update/ }).click();
+    await expect(page.getByRole('button', { name: 'Open as new document', exact: true })).toHaveCSS('border-radius', '999px');
+    await expect(page.getByRole('button', { name: 'Open as new document', exact: true }).locator('svg')).toHaveCount(1);
     await page.getByRole('button', { name: 'View changes', exact: true }).click();
     await expect(page.locator('.sdoc-history-diff-line.added')).toContainText('Updated paragraph.');
     await expect(page.locator('.sdoc-history-diff-line.removed')).toContainText('Original paragraph.');

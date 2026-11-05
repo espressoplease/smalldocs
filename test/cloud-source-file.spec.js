@@ -25,8 +25,8 @@ test('creator paths survive a fresh browser load without duplicate filename or l
   await expect(page.locator('#_sd_rendered h1')).toHaveText('Brief');
   await page.getByRole('button', { name: 'Document metadata', exact: true }).click();
   const metadata = page.locator('#_sd_metadata-panel');
-  await expect(metadata.locator('[data-metadata="fullPath"] button')).toHaveText(doc.source.absolute_path);
-  await expect(metadata.locator('[data-metadata="path"] button')).toHaveText(doc.source.relative_path);
+  await expect(metadata.locator('[data-metadata="fullPath"] .sdoc-panel-value-text')).toHaveText(doc.source.absolute_path);
+  await expect(metadata.locator('[data-metadata="path"] .sdoc-panel-value-text')).toHaveText(doc.source.relative_path);
   await expect(metadata).toContainText('File paths are visible only to you.');
   await expect(card.locator('[data-key], .fic-label')).toHaveCount(0);
   await expect(metadata.locator('[data-metadata="file"]')).toHaveCount(0);
@@ -38,7 +38,7 @@ test('creator paths survive a fresh browser load without duplicate filename or l
   expect(await page.evaluate(() => window.SDocs.currentMarkdown?.() || window.SDocs.currentBody)).not.toContain(doc.source.absolute_path);
   await page.reload();
   await expect(metadata).toBeVisible();
-  await expect(metadata.locator('[data-metadata="fullPath"] button')).toHaveText(doc.source.absolute_path);
+  await expect(metadata.locator('[data-metadata="fullPath"] .sdoc-panel-value-text')).toHaveText(doc.source.absolute_path);
   const fresh = await browser.newContext({ serviceWorkers: 'block' });
   try {
     const other = await fresh.newPage(); await signIn(other, 'member');
@@ -91,12 +91,12 @@ for (const width of [1440, 390, 320]) {
     await expect(page.getByRole('button', { name: 'Close metadata panel' })).toBeVisible();
     for (const [label, value] of [['document title', title], ['absolute path', source.absolute_path], ['relative path', source.relative_path]]) {
       const copy = panel.getByRole('button', { name: 'Copy ' + label, exact: true });
-      await expect(copy).toHaveText(value);
+      await expect(copy.locator('..').locator('.sdoc-panel-value-text')).toHaveText(value);
       await copy.click();
       expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(value);
       await expect(copy.locator('svg polyline')).toHaveAttribute('points', '20 6 9 17 4 12');
     }
-    const geometry = await panel.locator('[data-metadata="fullPath"] button > span').evaluate(el => {
+    const geometry = await panel.locator('[data-metadata="fullPath"] .sdoc-panel-value-text').evaluate(el => {
       const box = el.getBoundingClientRect(), style = getComputedStyle(el);
       return { height: box.height, lineHeight: parseFloat(style.lineHeight), client: el.clientWidth, scroll: el.scrollWidth, right: box.right };
     });
@@ -135,7 +135,7 @@ test('metadata follows remote edits and leaves document access controls usable',
   });
   expect(saved.status).toBe(201);
   await page.evaluate(() => SDocs.checkCloudNow());
-  await expect(page.getByRole('button', { name: 'Copy document title', exact: true })).toHaveText('Revised title');
+  await expect(page.getByRole('button', { name: 'Copy document title', exact: true }).locator('..').locator('.sdoc-panel-value-text')).toHaveText('Revised title');
   await page.locator('[data-cloud-open="access"]').click();
   await expect(page.locator('#_sd_metadata-panel')).toBeHidden();
   await expect(page.locator('body')).toHaveClass(/cloud-lab-mode/);
@@ -153,7 +153,7 @@ test('private copies omit the creator paths from metadata, including in the crea
   await page.getByRole('button', { name: 'Share document', exact: true }).click();
   await page.getByRole('button', { name: 'Private link', exact: true }).click();
   await page.getByRole('button', { name: 'Create private link', exact: true }).click();
-  const privateUrl = await page.getByRole('textbox', { name: 'Private URL', exact: true }).inputValue();
+  const privateUrl = await page.getByRole('group', { name: 'Private URL', exact: true }).locator('.sdoc-panel-value-text').textContent();
   const guest = await browser.newContext({ serviceWorkers: 'block' });
   try {
     const reader = await guest.newPage();
@@ -161,7 +161,7 @@ test('private copies omit the creator paths from metadata, including in the crea
       await target.goto(privateUrl);
       await expect(target.locator('#_sd_rendered h1')).toHaveText('Shareable title');
       await target.getByRole('button', { name: 'Document metadata', exact: true }).click();
-      await expect(target.getByRole('button', { name: 'Copy document title', exact: true })).toHaveText('Shareable title');
+      await expect(target.getByRole('button', { name: 'Copy document title', exact: true }).locator('..').locator('.sdoc-panel-value-text')).toHaveText('Shareable title');
       await expect(target.locator('[data-metadata="fullPath"], [data-metadata="path"]')).toHaveCount(0);
       expect(await target.locator('body').innerHTML()).not.toContain('/Users/alex');
     }
@@ -175,7 +175,7 @@ test('metadata falls back to the saved title and reports copy failures', async (
   await expect(page.locator('#_sd_rendered')).toContainText('A passage without a heading.');
   await page.getByRole('button', { name: 'Document metadata', exact: true }).click();
   const title = page.getByRole('button', { name: 'Copy document title', exact: true });
-  await expect(title).toHaveText('A saved title');
+  await expect(title.locator('..').locator('.sdoc-panel-value-text')).toHaveText('A saved title');
   await page.evaluate(() => { SDocs.copyWithIconFeedback = () => Promise.reject(new Error('Clipboard unavailable')); });
   await title.click();
   await expect(page.locator('[data-metadata="title"] [role="status"]')).toHaveText('Could not copy. Select the text to copy it.');

@@ -886,48 +886,48 @@ __EMBED_STYLES__
       </button>
     </div>
     <div id="_sd_export-panel-body">
-      <button class="export-option" id="_sd_exp-pdf">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="12" height="16" rx="2"/><path d="M8 2v4h8"/><path d="M4 14h16" stroke-dasharray="2 2"/><path d="M8 19h8"/></svg>
-        <div class="export-option-text">
+      <div class="sdoc-export-choice">
+        <button class="export-option sdoc-panel-action" id="_sd_exp-pdf" aria-describedby="_sd_exp-pdf-description">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="12" height="16" rx="2"/><path d="M8 2v4h8"/><path d="M4 14h16" stroke-dasharray="2 2"/><path d="M8 19h8"/></svg>
           <span class="export-option-title">PDF</span>
-          <span class="export-option-desc">Download as PDF document</span>
-        </div>
-      </button>
-      <button class="export-option" id="_sd_exp-slides-pdf" style="display:none">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="14" rx="2"/><path d="m8 22 4-4 4 4"/><path d="M12 18v-4"/></svg>
-        <div class="export-option-text">
+        </button>
+        <p class="export-option-desc" id="_sd_exp-pdf-description">Download as PDF document</p>
+      </div>
+      <div class="sdoc-export-choice" hidden>
+        <button class="export-option sdoc-panel-action" id="_sd_exp-slides-pdf" style="display:none" aria-describedby="_sd_exp-slides-pdf-description">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="14" rx="2"/><path d="m8 22 4-4 4 4"/><path d="M12 18v-4"/></svg>
           <span class="export-option-title">Slides PDF</span>
-          <span class="export-option-desc">One slide per landscape page with selectable text</span>
-        </div>
-      </button>
-      <button class="export-option" id="_sd_exp-slides-pptx" style="display:none">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="14" rx="2"/><path d="M7 9h10"/><path d="M7 13h7"/><path d="m8 22 4-4 4 4"/></svg>
-        <div class="export-option-text">
+        </button>
+        <p class="export-option-desc" id="_sd_exp-slides-pdf-description">One slide per landscape page with selectable text</p>
+      </div>
+      <div class="sdoc-export-choice" hidden>
+        <button class="export-option sdoc-panel-action" id="_sd_exp-slides-pptx" style="display:none" aria-describedby="_sd_exp-slides-pptx-description">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="14" rx="2"/><path d="M7 9h10"/><path d="M7 13h7"/><path d="m8 22 4-4 4 4"/></svg>
           <span class="export-option-title">PowerPoint (.pptx)</span>
-          <span class="export-option-desc">Editable shapes and text in PowerPoint / Keynote / Slides</span>
-        </div>
-      </button>
-      <button class="export-option" id="_sd_exp-word">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="12" height="16" rx="2"/><path d="M8 2v4h8"/><path d="M8 12l1.5 4 2-3 2 3 1.5-4"/></svg>
-        <div class="export-option-text">
+        </button>
+        <p class="export-option-desc" id="_sd_exp-slides-pptx-description">Editable shapes and text in PowerPoint / Keynote / Slides</p>
+      </div>
+      <div class="sdoc-export-choice">
+        <button class="export-option sdoc-panel-action" id="_sd_exp-word" aria-describedby="_sd_exp-word-description">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="12" height="16" rx="2"/><path d="M8 2v4h8"/><path d="M8 12l1.5 4 2-3 2 3 1.5-4"/></svg>
           <span class="export-option-title">Word (.docx)</span>
-          <span class="export-option-desc">Download as Word document</span>
-        </div>
-      </button>
-      <button class="export-option" id="_sd_exp-raw">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><polyline points="14 2 14 8 20 8"/></svg>
-        <div class="export-option-text">
+        </button>
+        <p class="export-option-desc" id="_sd_exp-word-description">Download as Word document</p>
+      </div>
+      <div class="sdoc-export-choice">
+        <button class="export-option sdoc-panel-action" id="_sd_exp-raw" aria-describedby="_sd_exp-raw-description">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><polyline points="14 2 14 8 20 8"/></svg>
           <span class="export-option-title">.md</span>
-          <span class="export-option-desc">Plain markdown, no styles</span>
-        </div>
-      </button>
-      <button class="export-option" id="_sd_exp-styled">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><polyline points="14 2 14 8 20 8"/><path d="M9 15h6"/><path d="M9 11h6"/></svg>
-        <div class="export-option-text">
+        </button>
+        <p class="export-option-desc" id="_sd_exp-raw-description">Plain markdown, no styles</p>
+      </div>
+      <div class="sdoc-export-choice">
+        <button class="export-option sdoc-panel-action" id="_sd_exp-styled" aria-describedby="_sd_exp-styled-description">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><polyline points="14 2 14 8 20 8"/><path d="M9 15h6"/><path d="M9 11h6"/></svg>
           <span class="export-option-title">Styled .md</span>
-          <span class="export-option-desc">Markdown with YAML front matter styles</span>
-        </div>
-      </button>
+        </button>
+        <p class="export-option-desc" id="_sd_exp-styled-description">Markdown with YAML front matter styles</p>
+      </div>
     </div>
   </div>
 

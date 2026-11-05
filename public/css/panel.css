@@ -46,7 +46,10 @@ body:is(.share-mode, .metadata-mode, .history-mode) #_sd_right > .panel-section 
 .sdoc-history-title, .sdoc-history-meta { display: block; }
 .sdoc-history-title { font-size: 13px; font-weight: 600; }
 .sdoc-history-reason { display: block; margin-top: 6px; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; line-height: 1.5; }
-.sdoc-history-actions { min-width: 0; }
+.sdoc-history-actions { display: grid; justify-items: start; gap: 12px; min-width: 0; padding: 14px 12px; }
+.sdoc-history-actions > .sdoc-history-message { padding: 0; }
+.sdoc-history-comparison { width: 100%; }
+#_sd_history-panel > .sdoc-share-action { margin: 12px; max-width: calc(100% - 24px); }
 .sdoc-history-meta { margin-top: 4px; font-size: 11.5px; color: var(--text-2); }
 .sdoc-history-comparison { min-width: 0; }
 .sdoc-history-diff { font: 11px/1.5 ui-monospace, monospace; }
@@ -72,7 +75,6 @@ body:is(.share-mode, .metadata-mode, .history-mode) #_sd_right > .panel-section 
 }
 .sdoc-share-disclosure.open { grid-template-rows: 1fr; opacity: 1; visibility: visible; }
 .sdoc-share-disclosure > div { min-height: 0; overflow: hidden; }
-.sdoc-share-primary { min-height: 40px; padding: 10px 14px; justify-content: center; font-size: 13px; color: var(--text); }
 @media (prefers-reduced-motion: reduce) {
   .sdoc-share-disclosure, .export-option.sdoc-share-toggle, .export-option.sdoc-share-toggle .arrow { transition: none; }
 }
@@ -90,32 +92,36 @@ body:is(.share-mode, .metadata-mode, .history-mode) #_sd_right > .panel-section 
   overflow-wrap: anywhere;
 }
 .sdoc-share-section > a { color: var(--accent-text); }
-.export-option.sdoc-share-action {
+.sdoc-panel-action, .btn.sdoc-panel-action, .export-option.sdoc-panel-action, .export-option.sdoc-share-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: flex-start;
+  gap: 8px;
+  width: fit-content;
+  max-width: 100%;
+  min-height: 36px;
+  padding: 8px 14px;
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--bg-input);
+  border-radius: 999px;
+  background: transparent;
   color: var(--text);
+  font: 500 13px/1.4 var(--font-ui);
+  text-align: center;
+  white-space: normal;
   text-decoration: none;
+  box-shadow: none;
+  cursor: pointer;
+  transition: background .12s, border-color .12s;
 }
-.export-option.sdoc-share-action:hover:not(:disabled) { background: var(--bg-hover); }
-.export-option.sdoc-share-action:active:not(:disabled) { background: var(--bg-active); }
-.export-option.sdoc-share-action:disabled { cursor: default; }
-.export-option.sdoc-share-action > svg { color: inherit; }
+.sdoc-panel-action:hover:not(:disabled), .export-option.sdoc-share-action:hover:not(:disabled) { background: var(--bg-hover); border-color: var(--border-strong); color: var(--text); }
+.sdoc-panel-action:active:not(:disabled), .export-option.sdoc-share-action:active:not(:disabled) { background: var(--bg-active); }
+.sdoc-panel-action:disabled, .export-option.sdoc-share-action:disabled { opacity: .6; cursor: default; }
+.sdoc-panel-action > svg, .export-option.sdoc-panel-action > svg, .export-option.sdoc-share-action > svg { width: 16px; height: 16px; flex: 0 0 16px; color: inherit; stroke-width: 1.5; }
+.sdoc-share-section > a.sdoc-panel-action { color: var(--text); font-size: 13px; }
+.sdoc-panel-action:focus-visible, .sdoc-share-action:focus-visible, .sdoc-panel-copy:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .sdoc-share-section code { font-family: var(--font-mono); font-size: inherit; }
 .sdoc-share-label { display: flex; flex-direction: column; gap: 6px; }
-.sdoc-share-url { display: flex; align-items: stretch; gap: 6px; }
-.sdoc-share-copy { flex: 0 0 36px; justify-content: center; padding: 8px; }
-.sdoc-share-url input {
-  width: 0;
-  min-width: 0;
-  flex: 1;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 8px;
-  background: var(--bg-input);
-  color: var(--text);
-  font: inherit;
-}
 .sdoc-share-status { color: var(--text); }
 body:is(.share-mode, .metadata-mode, .history-mode) #_sd_right-close {
   display: grid;
@@ -133,25 +139,30 @@ body:is(.share-mode, .metadata-mode, .history-mode) #_sd_right-close:hover { bac
 
 .sdoc-metadata-field { padding: 16px 12px; }
 .sdoc-metadata-label { margin: 0 0 8px; font-size: 12px; font-weight: 600; color: var(--text-2); }
-.btn.sdoc-metadata-value {
+.sdoc-panel-value {
   display: flex;
   align-items: flex-start;
   gap: 12px;
   width: 100%;
   min-width: 0;
   padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--bg-input);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--bg-input) 55%, var(--bg-panel));
   color: var(--text);
   text-align: left;
   font-size: 13px;
   line-height: 1.5;
   white-space: normal;
 }
-.btn.sdoc-metadata-value:hover { background: var(--bg-hover); }
-.sdoc-metadata-value > span { flex: 1; min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; }
-.sdoc-metadata-value > svg { flex: 0 0 14px; margin-top: 3px; }
+.sdoc-panel-value-text { flex: 1; min-width: 0; padding-top: 4px; white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; }
+.btn.sdoc-panel-copy { display: inline-flex; justify-content: center; flex: 0 0 30px; width: 30px; height: 30px; padding: 0; border-radius: 50%; background: transparent; color: var(--text); box-shadow: none; }
+.btn.sdoc-panel-copy:hover { background: var(--bg-hover); }
+.sdoc-panel-copy > svg { width: 15px; height: 15px; stroke-width: 1.5; }
+@media (max-width: 768px) {
+  .sdoc-panel-action, .btn.sdoc-panel-action, .export-option.sdoc-panel-action, .export-option.sdoc-share-action { min-height: 42px; }
+  .btn.sdoc-panel-copy { width: 36px; height: 36px; flex-basis: 36px; }
+}
 .sdoc-metadata-status { display: block; font-size: 11.5px; color: var(--text-2); }
 .sdoc-metadata-status:not(:empty) { margin-top: 6px; }
 .sdoc-metadata-note { margin: 0; padding: 16px 12px; font-size: 11.5px; line-height: 1.5; color: var(--text-2); }
@@ -485,6 +496,9 @@ body.export-mode #_sd_export-panel {
   font-size: 11px;
   color: var(--text-3);
 }
+.sdoc-export-choice { padding: 16px 12px; border-bottom: 1px solid var(--border-subtle); }
+.sdoc-export-choice:last-child { border-bottom: 0; }
+.sdoc-export-choice .export-option-desc { margin: 8px 0 0; color: var(--text-2); font-size: 11.5px; line-height: 1.5; }
 
 /* ═══════════════════════════════════════════════════
    INFO PANEL

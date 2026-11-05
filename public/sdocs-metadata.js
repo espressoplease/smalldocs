@@ -16,27 +16,13 @@
     var heading = document.createElement('h2');
     heading.className = 'sdoc-metadata-label';
     heading.textContent = label;
-    var copy = document.createElement('button');
-    copy.type = 'button';
-    copy.className = 'btn sdoc-metadata-value';
-    copy.setAttribute('aria-label', 'Copy ' + label.toLowerCase());
-    var text = document.createElement('span');
-    text.textContent = value;
-    text.id = 'sdoc-metadata-' + key + '-value';
-    copy.setAttribute('aria-describedby', text.id);
-    copy.appendChild(text);
-    copy.insertAdjacentHTML('beforeend', S.copyIcon || '');
     var status = document.createElement('span');
     status.className = 'sdoc-metadata-status';
     status.setAttribute('role', 'status');
-    copy.addEventListener('click', function () {
-      S.copyWithIconFeedback(value, copy).then(function () {
-        status.textContent = label + ' copied.';
-      }).catch(function () {
-        status.textContent = 'Could not copy. Select the text to copy it.';
-      });
-    });
-    section.append(heading, copy, status);
+    section.append(heading);
+    section.insertAdjacentHTML('beforeend', S.panelValueHTML(label, value, 'sdoc-metadata-' + key + '-value'));
+    section.append(status);
+    S.wirePanelValues(section, function (message) { status.textContent = message; });
     panel.appendChild(section);
   }
 

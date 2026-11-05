@@ -13,6 +13,16 @@ function node(tag, className, text) {
   var el = document.createElement(tag); if (className) el.className = className;
   if (text != null) el.textContent = text; return el;
 }
+function action(text, kind) {
+  var el = node('button', 'export-option sdoc-share-action sdoc-panel-action'); el.type = 'button';
+  var paths = { changes: '<path d="M9 3H5v18h4M15 3h4v18h-4M8 8h8M8 16h8M12 12v8"/>',
+    more: '<path d="m6 9 6 6 6-6"/>', reason: '<circle cx="12" cy="12" r="10"/><path d="M12 11v6M12 7h.01"/>',
+    retry: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5"/>' };
+  el.innerHTML = kind === 'copy' ? S.copyIcon : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + paths[kind] + '</svg>';
+  el.appendChild(node('span', 'sdoc-panel-action-label', text));
+  return el;
+}
+function actionText(el, text) { el.querySelector('.sdoc-panel-action-label').textContent = text; }
 function date(value) {
   return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
 }
@@ -61,8 +71,8 @@ function modeChanged(previous, mode) {
 function message(text, retry) {
   panel.replaceChildren(node('p', 'sdoc-history-message', text));
   if (retry) {
-    var action = node('button', 'export-option sdoc-share-action', 'Try again'); action.type = 'button';
-    action.addEventListener('click', function () { load(false); }); panel.appendChild(action);
+    var retry = action('Try again', 'retry');
+    retry.addEventListener('click', function () { load(false); }); panel.appendChild(retry);
   }
 }
 async function load(more) {
@@ -102,26 +112,26 @@ function render() {
     label.appendChild(node('span', 'sdoc-history-meta', (entry.kind === 'created' ? 'Created' : entry.kind === 'agent' ? 'Agent / CLI update' : 'Edited in browser') + ' · ' + date(entry.updated_at)));
     if (entry.save_count > 1) label.appendChild(node('span', 'sdoc-history-meta', entry.save_count + ' saves'));
     var arrow = node('span', 'arrow', '›'); arrow.setAttribute('aria-hidden', 'true'); toggle.append(label, arrow);
-    var disclosure = node('div', 'sdoc-share-disclosure'), actions = node('div', 'sdoc-history-actions');
-    var copy = node('button', 'export-option sdoc-share-action', copies.get(entry.revision_id)?.result ? 'Open copy' : 'Open as new document'); copy.type = 'button';
+    var disclosure = node('div', 'sdoc-share-disclosure'), wrapper = node('div'), actions = node('div', 'sdoc-history-actions');
+    var copy = action(copies.get(entry.revision_id)?.result ? 'Open copy' : 'Open as new document', 'copy');
     var state = copies.get(entry.revision_id);
     var status = node('p', 'sdoc-history-message', state?.pending ? 'Creating your copy...' : state?.error || '');
     status.setAttribute('role', 'status'); status.hidden = !(state?.pending || state?.error);
     copy.disabled = Boolean(copies.get(entry.revision_id)?.pending);
     copy.addEventListener('click', function () { openCopy(entry, copy, status); });
     var explanation = node('p', 'sdoc-history-message', 'A private copy in this library. Your current document stays unchanged.');
-    var changes = node('button', 'export-option sdoc-share-action', 'View changes'); changes.type = 'button';
+    var changes = action('View changes', 'changes');
     changes.setAttribute('aria-expanded', String(diffId === entry.id));
     var inner = node('div', 'sdoc-history-comparison'); inner.hidden = diffId !== entry.id;
     changes.addEventListener('click', function () {
       stopDiff(); diffId = diffId === entry.id ? null : entry.id;
       inner.hidden = diffId !== entry.id; changes.setAttribute('aria-expanded', String(!inner.hidden));
-      changes.textContent = inner.hidden ? 'View changes' : 'Hide changes';
+      actionText(changes, inner.hidden ? 'View changes' : 'Hide changes');
       if (!inner.hidden) compare(entry, inner);
     });
     actions.append(copy, explanation);
     if (entry.edit_reason_truncated) {
-      var fullReason = node('button', 'export-option sdoc-share-action', 'Read full reason'); fullReason.type = 'button';
+      var fullReason = action('Read full reason', 'reason');
       var reasonText = node('p', 'sdoc-history-message sdoc-history-reason'); reasonText.hidden = true;
       fullReason.addEventListener('click', async function () {
         var id = docId; fullReason.disabled = true;
@@ -134,12 +144,12 @@ function render() {
       });
       actions.append(fullReason, reasonText);
     }
-    actions.append(changes, status, inner); disclosure.appendChild(actions);
+    actions.append(changes, status, inner); wrapper.appendChild(actions); disclosure.appendChild(wrapper);
     section.append(toggle, disclosure); panel.appendChild(section);
     function open() {
       panel.querySelectorAll('.sdoc-share-disclosure.open').forEach(function (el) { el.classList.remove('open'); el.previousElementSibling.classList.remove('open'); el.previousElementSibling.setAttribute('aria-expanded', 'false'); });
       stopDiff(); openId = entry.id; disclosure.classList.add('open'); toggle.classList.add('open'); toggle.setAttribute('aria-expanded', 'true');
-      if (diffId === entry.id) { changes.textContent = 'Hide changes'; inner.hidden = false; compare(entry, inner); }
+      if (diffId === entry.id) { actionText(changes, 'Hide changes'); inner.hidden = false; compare(entry, inner); }
     }
     toggle.addEventListener('click', function () {
       if (openId === entry.id) { openId = null; stopDiff(); disclosure.classList.remove('open'); toggle.classList.remove('open'); toggle.setAttribute('aria-expanded', 'false'); }
@@ -148,7 +158,7 @@ function render() {
     if (openId === entry.id) open();
   });
   if (cursor) {
-    var more = node('button', 'export-option sdoc-share-action', 'Load older updates'); more.type = 'button';
+    var more = action('Load older updates', 'more');
     more.addEventListener('click', function () { more.disabled = true; load(true); }); panel.appendChild(more);
   }
 }
@@ -167,7 +177,7 @@ async function openCopy(entry, button, status) {
     saved.result = { url: url.href };
     if (tab && !tab.closed) tab.location.replace(url.href);
     if (docId === id) {
-      button.textContent = 'Open copy'; status.textContent = 'Copy created. ';
+      actionText(button, 'Open copy'); status.textContent = 'Copy created. ';
       var link = node('a', '', 'Open copy'); link.href = url.href; link.target = '_blank'; link.rel = 'noopener'; status.appendChild(link);
     }
   } catch (error) {
@@ -191,7 +201,7 @@ async function compare(entry, target) {
     var url = new URL('/public/sdocs-history-diff-worker.js', scriptURL); url.search = new URL(scriptURL).search;
     worker = new Worker(url.href); var activeWorker = worker;
     var summary = node('p', 'sdoc-history-message', 'Comparing versions...'); var output = node('div', 'sdoc-history-diff');
-    var more = node('button', 'export-option sdoc-share-action', 'Show more changes'); more.type = 'button'; more.hidden = true;
+    var more = action('Show more changes', 'more'); more.hidden = true;
     target.replaceChildren(summary, output, more);
     activeWorker.onmessage = function (event) {
       if (token !== diffGeneration || worker !== activeWorker || docId !== id) return;

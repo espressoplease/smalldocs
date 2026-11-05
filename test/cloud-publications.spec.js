@@ -29,9 +29,9 @@ async function expandShare(page,label){
 }
 async function publish(page){
   await page.getByRole('button',{name:'Publish publicly',exact:true}).click();
-  const row=page.getByRole('textbox',{name:'Public URL',exact:true});await expect(row).toBeVisible();
+  const row=page.getByRole('group', { name: 'Public URL', exact: true }).locator('.sdoc-panel-value-text');await expect(row).toBeVisible();
   await expect(page.getByRole('button',{name:'Public page up to date'})).toBeDisabled();
-  return row.inputValue();
+  return row.textContent();
 }
 async function update(markdown,key='edit-document'){
   const head=(await f.api('josh','/api/cloud/v1/documents/'+doc.id+'/head')).data.document.current_revision_id;
@@ -74,8 +74,8 @@ for(const width of [1440,390]) test('Share panel provides both link types and a 
   await expect(page.getByRole('link',{name:'Learn about private links',exact:true})).toHaveAttribute('href','/docs#sec=short-links');
   await expect(page.getByRole('link',{name:'Learn about public pages',exact:true})).toHaveAttribute('href','/docs#sec=public-pages');
   await page.getByRole('button',{name:'Create private link',exact:true}).click();
-  const privateRow=page.getByRole('textbox',{name:'Private URL',exact:true});await expect(privateRow).toBeVisible();
-  const privateUrl=await privateRow.inputValue();expect(privateUrl).toContain('#k=');
+  const privateRow=page.getByRole('group', { name: 'Private URL', exact: true }).locator('.sdoc-panel-value-text');await expect(privateRow).toBeVisible();
+  const privateUrl=await privateRow.textContent();expect(privateUrl).toContain('#k=');
   const privateCopy=page.getByRole('button',{name:'Copy private URL',exact:true});
   await expect(privateCopy.locator('svg rect')).toHaveCount(1);
   await privateCopy.click();expect(await page.evaluate(()=>navigator.clipboard.readText())).toBe(privateUrl);
@@ -110,12 +110,12 @@ test('Cloud edits update the action while the published page and URL stay unchan
   expect(await (await request.get(url)).text()).toContain('Keep writing');
   await page.getByRole('button',{name:'Update public page',exact:true}).click();
   await expect(page.getByRole('button',{name:'Public page up to date'})).toBeDisabled();
-  await expect(page.getByRole('textbox',{name:'Public URL',exact:true})).toHaveValue(url);
+  await expect(page.getByRole('group', { name: 'Public URL', exact: true }).locator('.sdoc-panel-value-text')).toHaveText(url);
   expect(await (await request.get(url)).text()).toContain('Keep exploring');
   await page.reload();
   const share=page.getByRole('button',{name:'Share document',exact:true});await expect(share).toBeVisible();
   if(await share.getAttribute('aria-pressed')!=='true')await share.click();
-  await expandShare(page,'Public page');await expect(page.getByRole('textbox',{name:'Public URL',exact:true})).toHaveValue(url);
+  await expandShare(page,'Public page');await expect(page.getByRole('group', { name: 'Public URL', exact: true }).locator('.sdoc-panel-value-text')).toHaveText(url);
   await expect(page.getByRole('button',{name:'Public page up to date'})).toBeDisabled();
 });
 test('private comment changes and a viewer theme do not require updating the public page',async({page})=>{
@@ -132,7 +132,7 @@ test('private comment changes and a viewer theme do not require updating the pub
 test('Unpublish removes the URL row and public body, republishing reuses the same URL',async({page,request})=>{
   await open(page);const url=await publish(page);
   await page.getByRole('button',{name:'Unpublish',exact:true}).click();
-  await expect(page.getByRole('textbox',{name:'Public URL',exact:true})).toHaveCount(0);
+  await expect(page.getByRole('group', { name: 'Public URL', exact: true }).locator('.sdoc-panel-value-text')).toHaveCount(0);
   const gone=await request.get(url);expect([404,410]).toContain(gone.status());expect(await gone.text()).not.toContain('A place to gather');
   await expect(page.getByRole('button',{name:'Publish publicly',exact:true})).toBeEnabled();
   expect(await publish(page)).toBe(url);
@@ -146,7 +146,7 @@ test('a lost publication response reports uncertainty and recovers the published
   await page.getByRole('button',{name:'Publish publicly',exact:true}).click();
   await expect(page.locator('.sdoc-share-error')).toContainText('Publishing could not be confirmed');
   await page.getByRole('button',{name:'Retry publishing details'}).click();
-  await expect(page.getByRole('textbox',{name:'Public URL',exact:true})).toBeVisible();
+  await expect(page.getByRole('group', { name: 'Public URL', exact: true }).locator('.sdoc-panel-value-text')).toBeVisible();
   await expect(page.getByRole('button',{name:'Public page up to date'})).toBeDisabled();
 });
 test('a blocked Cloud save cannot publish the older saved version',async({page,request})=>{
@@ -181,7 +181,7 @@ test('a delayed private-link upload does not advertise an old copy as the change
   await page.evaluate(()=>{SDocs.currentBody+='\n\nA later sentence.';SDocs.renderFileInfoCard();});
   release();
   await expect(page.getByRole('button',{name:'Create private link',exact:true})).toBeEnabled();
-  await expect(page.getByRole('textbox',{name:'Private URL',exact:true})).toHaveCount(0);
+  await expect(page.getByRole('group', { name: 'Private URL', exact: true }).locator('.sdoc-panel-value-text')).toHaveCount(0);
 });
 
 const fs=require('fs'),path=require('path');
@@ -269,7 +269,7 @@ test('anonymous rich pages render cells, math, charts and diagrams with inert ra
 test('public copies retain the private-link app shell and actions, with readable initial HTML',async({page,browser})=>{
   await open(page);
   await page.getByRole('button',{name:'Create private link',exact:true}).click();
-  const privateUrl=await page.getByRole('textbox',{name:'Private URL',exact:true}).inputValue();
+  const privateUrl=await page.getByRole('group', { name: 'Private URL', exact: true }).locator('.sdoc-panel-value-text').textContent();
   const publicUrl=await publish(page);
   const guest=await browser.newContext({permissions:['clipboard-read','clipboard-write']});
   try {
@@ -330,7 +330,7 @@ test('a public reader can copy its published URL without claiming the private so
     const page=await guest.newPage();await page.goto(url);
     await page.getByRole('button',{name:'Share document',exact:true}).click();
     await expandShare(page,'Public page');
-    await expect(page.getByRole('textbox',{name:'Public URL',exact:true})).toHaveValue(url);
+    await expect(page.getByRole('group', { name: 'Public URL', exact: true }).locator('.sdoc-panel-value-text')).toHaveText(url);
     await expect(page.getByText('This is the published copy.',{exact:true})).toBeVisible();
     await expect(page.getByRole('button',{name:'Publish publicly',exact:true})).toHaveCount(0);
     await expect(page.getByRole('button',{name:'Unpublish',exact:true})).toHaveCount(0);

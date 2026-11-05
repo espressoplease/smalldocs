@@ -123,21 +123,19 @@
     return '<a href="/docs#sec='+section+'" target="_blank" rel="noopener">'+text+'</a>';
   }
   function linkControls(label,url) {
-    return '<label class="sdoc-share-label">'+label+'<span class="sdoc-share-url">'
-      +'<input aria-label="'+label+'" readonly value="'+escape(url)+'">'
-      +'<button type="button" class="btn sdoc-share-copy" data-share-copy="'+escape(url)+'" aria-label="Copy '+label.charAt(0).toLowerCase()+label.slice(1)+'">'+(S.copyIcon || 'Copy')+'</button></span></label>';
+    return '<div class="sdoc-share-label"><span>'+label+'</span>'+S.panelValueHTML(label,url)+'</div>';
   }
   function actionContent(label,icon,description,id) {
     return icon+'<span class="export-option-text"><span class="export-option-title">'+label+'</span><span class="export-option-desc"'+(id?' id="'+id+'-summary"':'')+'>'+description+'</span></span>';
   }
   function button(label,attribute,disabled) {
-    var primary=attribute==='data-share-private'||attribute==='data-share-publish';
-    return '<button type="button" class="btn'+(primary?' sdoc-share-primary':'')+'" aria-label="'+label+'" '+attribute+(disabled?' disabled':'')+'>'+label+'</button>';
+    var icon=attribute==='data-share-private'?keyIcon:globeIcon;
+    return '<button type="button" class="btn sdoc-panel-action" aria-label="'+label+'" '+attribute+(disabled?' disabled':'')+'>'+icon+'<span>'+label+'</span></button>';
   }
-  function disclosure(kind,title,icon,description,content) {
+  function disclosure(kind,title,description,content) {
     var isOpen=expanded[kind], id='_sd_share-'+kind;
     return '<section class="panel-section"><button type="button" class="export-option panel-header sdoc-share-toggle'+(isOpen?' open':'')+'" data-share-toggle="'+kind+'" aria-label="'+title+'" aria-describedby="'+id+'-summary" aria-expanded="'+isOpen+'" aria-controls="'+id+'">'
-      +actionContent(title,icon,description,id)+'<span class="arrow" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span></button>'
+      +actionContent(title,'',description,id)+'<span class="arrow" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span></button>'
       +'<div id="'+id+'" class="sdoc-share-disclosure'+(isOpen?' open':'')+'" aria-hidden="'+!isOpen+'"'+(isOpen?'':' inert')+'><div><div class="sdoc-share-section">'+content+'</div></div></div></section>';
   }
   async function createPrivate() {
@@ -165,7 +163,7 @@
     if(S.cloudDocument){
       publicHtml+=button(state.busy&&!state.removing?'Publishing...':state.error&&!state.publication?'Retry publishing details':!active?'Publish publicly':dirty()?'Update public page':'Public page up to date','data-share-publish',state.loading||state.busy||(!state.canPublish&&!state.error)||(active&&!dirty()));
     }else if(active){
-      publicHtml+='<a class="export-option sdoc-share-action" aria-label="Open public page" href="'+escape(publication.url)+'" target="_blank" rel="noopener">'+actionContent('Open public page',globeIcon,'Read the published version')+'</a>';
+      publicHtml+='<a class="sdoc-panel-action" aria-label="Open public page" href="'+escape(publication.url)+'" target="_blank" rel="noopener">'+globeIcon+'<span>Open public page</span></a>';
     }
     if(active){
       publicHtml+=linkControls('Public URL',publication.url)
@@ -186,8 +184,8 @@
     }else if(!viewingPublic()){
       publicHtml+='<p>Save this document to Cloud to publish a public page.</p>';
     }
-    return disclosure('private','Private link',keyIcon,'An encrypted copy for people with the link',privateHtml)
-      +disclosure('public','Public page',globeIcon,'A web page anyone can read and search engines may find',publicHtml);
+    return disclosure('private','Private link','An encrypted copy for people with the link',privateHtml)
+      +disclosure('public','Public page','A web page anyone can read and search engines may find',publicHtml);
   }
   function wirePanel(body) {
     body.querySelectorAll('[data-share-toggle]').forEach(function(toggle){toggle.addEventListener('click',function(){
@@ -201,11 +199,7 @@
       if(state.error&&!state.publication){state.revision=null;refresh();}else publish();
     });
     var withdraw=body.querySelector('[data-publication-unpublish]');if(withdraw)withdraw.addEventListener('click',unpublish);
-    body.querySelectorAll('input[readonly]').forEach(function(input){input.addEventListener('click',function(){this.select();});});
-    body.querySelectorAll('[data-share-copy]').forEach(function(copy){copy.addEventListener('click',async function(){
-      try{await S.copyWithIconFeedback(copy.dataset.shareCopy,copy);notify('Link copied.');}
-      catch(_){notify('The link could not be copied. Select and copy it from the field.');}
-    });});
+    S.wirePanelValues(body,notify);
   }
   function update() {
     observe();
