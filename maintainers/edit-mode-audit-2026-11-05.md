@@ -11,7 +11,7 @@ Rich elements remain source fences while editing. Returning to reading must rend
 | Area | Failure demonstrated | Change |
 | --- | --- | --- |
 | Untouched Markdown | Every mode switch regenerated the whole document, changing delimiters, whitespace, numbering, and code fences. | Track top-level source blocks and reuse the original bytes for unchanged blocks. A no-op session returns the complete original source. Edited blocks are serialized to equivalent Markdown. |
-| Diagrams | Rendering Mermaid into the editable DOM destroyed the original source on save. | Leave rich fences as source in the editor. Invoke the existing read-mode renderers after leaving editing. |
+| Diagrams | Rendering Mermaid into the editable DOM destroyed the original source on save. | Preserve rich-fence source independently from generated DOM. The subsequent [rich editing implementation](rich-edit-mode-spec.md) reuses the existing renderers inside source-backed editor islands. |
 | Ordered lists | Lists starting above one, or at zero, restarted at one. | Preserve the ordered start and item values during serialization. |
 | Nested and loose lists | Paragraphs, quotations, code, and mixed nested lists were flattened, lost, or reordered. | Serialize item children in order and indent continuation blocks under their marker. Tab and Shift+Tab move complete list items, including their paragraphs and children. |
 | Tasks | Checkboxes were disabled; a nested task could make its parent a task too. | Enable editor checkboxes and read only the current item's checkbox. Preserve checked state across serialization and undo. |
@@ -68,7 +68,7 @@ SDOCS_TEST_BASE_URL=http://localhost:3196 npx playwright test --config=playwrigh
 ## Practical limits and further work
 
 - Edited blocks are serialized Markdown, so equivalent marker spelling or whitespace inside that block can change. Untouched source blocks remain byte-for-byte unchanged.
-- Complex fences remain source-based in editing; this is not a visual slide, diagram, chart, or spreadsheet editor.
+- The subsequent [rich editing implementation](rich-edit-mode-spec.md) keeps spreadsheets, slides and diagrams rendered. It adds cell editing, slide text and supported Mermaid labels while preserving structure. Other rich fences remain source-based in editing.
 - Undo is scoped to the active edit session and is reset when another document is loaded. Persisted Cloud revisions remain the recovery mechanism across sessions.
 - A save is durable after the server acknowledges it. These tests do not establish offline editing or recovery after abruptly closing the browser before a save finishes.
 - Composition behavior is covered with browser composition flags. A real IME and physical mobile keyboards still merit manual testing.

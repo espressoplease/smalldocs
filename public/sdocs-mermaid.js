@@ -67,6 +67,8 @@
 
   var mermaidReady = null;
   var diagramCounter = 0;
+  var renderIdPrefix = 'sdoc-mermaid-' + (window.crypto && window.crypto.randomUUID
+    ? window.crypto.randomUUID() : Math.random().toString(36).slice(2)) + '-';
 
   function cssVar(name) {
     var rendered = readerRoot();
@@ -660,6 +662,7 @@
   // render time, so swapping CSS variables alone leaves stale fills behind.
   function renderSourceIntoWrapper(mermaid, wrapper, stage, rawSrc, themeVars) {
     wrapper._sdMermaidSource = rawSrc;
+    wrapper._sdMermaidOwner = renderIdPrefix;
     var version = (wrapper._sdMermaidRenderVersion || 0) + 1;
     wrapper._sdMermaidRenderVersion = version;
 
@@ -670,7 +673,7 @@
 
     var src = stripDirectives(rawSrc);
     diagramCounter += 1;
-    var id = 'sdoc-mermaid-' + diagramCounter;
+    var id = renderIdPrefix + diagramCounter;
 
     var p;
     try { p = mermaid.render(id, src); }
@@ -781,7 +784,7 @@
       Array.prototype.push.apply(wrappers, inner);
     });
 
-    wrappers = wrappers.filter(function (w) { return w._sdMermaidSource; });
+    wrappers = wrappers.filter(function (w) { return w._sdMermaidSource && (!w._sdMermaidOwner || w._sdMermaidOwner === renderIdPrefix); });
     if (!wrappers.length) return Promise.resolve();
 
     return loadMermaid().then(function (mermaid) {

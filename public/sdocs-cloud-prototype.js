@@ -22,6 +22,7 @@ var cloudSaveTimer = null;
 var cloudSavePromise = null;
 var cloudSaveQueued = false;
 var cloudDraftMergeBase = null;
+var cloudDeferredRichUpdate = null;
 var cloudSaveBlocked = false;
 var cloudLastSavedMarkdown = null;
 var cloudTargetRevisionId = null;
@@ -118,16 +119,18 @@ async function saveCloudRevision() {
       var savedMarkdown = typeof data.document.markdown === 'string'
         ? data.document.markdown : markdown;
       S.cloudDocument = Object.assign({}, S.cloudDocument, data.document);
-      if (current === observedMarkdown) {
+      if (current === observedMarkdown && !(S.richWrite && S.richWrite.hasActiveField() && savedMarkdown !== current)) {
         applyCloudMarkdown(savedMarkdown, data.document.filename || currentFilename());
         cloudLastSavedMarkdown = currentMarkdown();
         cloudDraftMergeBase = null;
+        cloudDeferredRichUpdate = null;
       } else {
         // New typing is based on the submitted local draft. Rebase that delta
         // onto the acknowledged revision before the next request, using the
         // same merge implementation as the server.
         cloudLastSavedMarkdown = observedMarkdown;
         cloudDraftMergeBase = observedMarkdown;
+        cloudDeferredRichUpdate = savedMarkdown;
       }
       cloudTargetRevisionId = data.document.current_revision_id;
       cloudTargetMarkdown = savedMarkdown;
@@ -173,6 +176,7 @@ function queueCloudSave(source) {
 }
 
 async function flushCloudSave() {
+  if (S.richWrite) S.richWrite.commitCells();
   if (S.hasPendingWriteChanges && S.hasPendingWriteChanges()) S.flushWriteChanges();
   do {
     if (cloudSaveTimer) {
@@ -266,6 +270,7 @@ async function loadCloudDocument(id) {
     cloudRecoveryMarkdown = null;
     cloudSaveBlocked = false;
     cloudDraftMergeBase = null;
+    cloudDeferredRichUpdate = null;
     if (S.refreshCommentIdentity) S.refreshCommentIdentity();
     if (S.setMode) S.setMode(['read', 'comment', 'style', 'share', 'metadata', 'write', 'raw', 'export', 'info'].indexOf(requestedMode) >= 0 ? requestedMode : 'read', true);
     insertRow();
@@ -298,7 +303,13 @@ async function loadCloudDocument(id) {
 
 async function checkCloudDocument() {
   if (!S.cloudDocument || cloudSaveBlocked || cloudSavePromise || document.hidden) return null;
+  if (S.richWrite && S.richWrite.hasActiveField()) return null;
   if (S.hasPendingWriteChanges && S.hasPendingWriteChanges()) { S.flushWriteChanges(); return null; }
+  if (cloudDeferredRichUpdate && currentMarkdown() === cloudLastSavedMarkdown) {
+    var deferred = cloudDeferredRichUpdate; cloudDeferredRichUpdate = null;
+    applyCloudMarkdown(deferred, currentFilename());
+    cloudLastSavedMarkdown = currentMarkdown(); cloudTargetMarkdown = cloudLastSavedMarkdown; cloudDraftMergeBase = null;
+  }
   if (S.commentsUi && S.commentsUi.hasDraft && S.commentsUi.hasDraft()) return null;
   var documentId = S.cloudDocument.id;
   try {
@@ -564,6 +575,7 @@ async function beginAdd(event, accountId) {
     cloudRecoveryMarkdown = null;
     cloudSaveBlocked = false;
     cloudDraftMergeBase = null;
+    cloudDeferredRichUpdate = null;
     if (S.refreshCommentIdentity) S.refreshCommentIdentity();
     clearLocalDocumentContext();
     // Rebuild the base rows now that Cloud owns the document. This removes
@@ -647,6 +659,7 @@ async function removeCloudDocument(event) {
     cloudRecoveryMarkdown = null;
     cloudSaveBlocked = false;
     cloudDraftMergeBase = null;
+    cloudDeferredRichUpdate = null;
     cloudState.permission = null;
     if (S.refreshCommentIdentity) S.refreshCommentIdentity();
     closeCloudPanel();
@@ -1080,6 +1093,7 @@ function closeDialog() {
 function start() {
   installCloudSaveHook();
   S.checkCloudNow = checkCloudDocument;
+  window.addEventListener('sdocs-rich-write-finish', function () { checkCloudDocument(); });
   if (!cloudPollTimer) {
     cloudPollTimer = setInterval(checkCloudDocument, 10000);
     window.addEventListener('focus', checkCloudDocument);

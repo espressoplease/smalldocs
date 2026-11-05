@@ -310,7 +310,7 @@ function scaleOverrides(attrs) {
 function contentToMarkdownNode(content, attrs) {
   var host = document.createElement('div');
   host.className = 'shape-md';
-  if (content == null || content === '') return host;
+  if (content == null) return host;
   if (contentIsOnlyCodeBlock(content)) host.classList.add('shape-md-code-only');
   // Mark when the enclosing shape has an explicit fill so the shadow CSS
   // can decide whether nested code blocks should fill the shape or keep
@@ -755,7 +755,7 @@ function renderRect(s, grid) {
   el.dataset.refw = String(dims.w);
   el.dataset.refh = String(dims.h);
   applySizing(el, s.attrs);
-  if (s.content != null && s.content !== '') {
+  if (s.content != null) {
     // textBox=x,y,w,h on a rectangle inset / shifts the area that holds
     // the markdown content, leaving the rect's fill / stroke / dimensions
     // unchanged. Same coordinate convention as on polygons: x,y,w,h in
@@ -1493,7 +1493,7 @@ function renderTextOverlay(s, grid) {
   el.dataset.refw = String(dims.w);
   el.dataset.refh = String(dims.h);
   applySizing(el, s.attrs);
-  if (s.content != null && s.content !== '') {
+  if (s.content != null) {
     attachRotatedContent(el, s, grid, box.w, box.h);
   }
   if (s.id) el.dataset.id = s.id + '-text';
@@ -2119,6 +2119,7 @@ function renderShapesWithRuntime(dslText, wrap, options, runtime) {
   // eslint-disable-next-line no-unused-expressions
   stage.offsetHeight;
   applyAutoFit(stage, minFontPx, maxStageHPct);
+  result.refit = function () { if (!session.destroyed) applyAutoFit(stage, minFontPx, maxStageHPct); };
 
   // Move stage into the real wrap. Shadow roots travel with their hosts,
   // so content and styles are preserved - no re-parse, no DOM rebuild.

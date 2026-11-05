@@ -16,14 +16,10 @@ function editorSignature(nodes) {
   return Array.prototype.map.call(nodes, function (node) {
     if (node.nodeType === 3) return node.textContent.trim() ? node.textContent : '';
     if (node.nodeType !== 1) return '';
-    var copy = node.cloneNode(true);
-    var originals = [node].concat(Array.prototype.slice.call(node.querySelectorAll('*')));
-    var copies = [copy].concat(Array.prototype.slice.call(copy.querySelectorAll('*')));
-    originals.forEach(function (original, i) {
-      if (original.tagName === 'INPUT' && original.type === 'checkbox') {
-        if (original.checked) copies[i].setAttribute('checked', '');
-        else copies[i].removeAttribute('checked');
-      }
+    var copy = S.richWrite ? S.richWrite.cloneSource(node) : node.cloneNode(true);
+    var originals = Array.from(node.querySelectorAll('input[type="checkbox"]')).filter(function (input) { return !input.closest('.sdoc-write-rich'); });
+    Array.from(copy.querySelectorAll('input[type="checkbox"]')).forEach(function (input, i) {
+      if (originals[i]) input.toggleAttribute('checked', originals[i].checked);
     });
     [copy].concat(Array.prototype.slice.call(copy.querySelectorAll('[' + sourceBlockAttribute + '],[data-sdoc-write-caret]')))
       .forEach(function (el) { el.removeAttribute(sourceBlockAttribute); el.removeAttribute('data-sdoc-write-caret'); });
@@ -128,9 +124,9 @@ function serializeWriteSession() {
     if (unchanged) text = record.raw;
     else {
       var container = document.createElement('div');
-      group.nodes.forEach(function (node) { container.appendChild(node.cloneNode(true)); });
+      group.nodes.forEach(function (node) { container.appendChild(S.richWrite ? S.richWrite.cloneSource(node) : node.cloneNode(true)); });
       // cloneNode does not copy an input's live checked property.
-      var originals = group.nodes.flatMap(function (node) { return node.querySelectorAll ? Array.from(node.querySelectorAll('input[type="checkbox"]')) : []; });
+      var originals = group.nodes.flatMap(function (node) { return node.querySelectorAll ? Array.from(node.querySelectorAll('input[type="checkbox"]')).filter(function (input) { return !input.closest('.sdoc-write-rich'); }) : []; });
       Array.from(container.querySelectorAll('input[type="checkbox"]')).forEach(function (el, i) { el.checked = originals[i].checked; });
       text = htmlToMarkdown(container).replace(/\n$/, '');
       if (record) text += (record.raw.match(/\r?\n(?:\s*\r?\n)*$/) || [''])[0];
@@ -170,18 +166,20 @@ function enterWriteMode() {
   editSession = buildWriteSession(S.currentBody);
   copyStyleVars();
   if (S.processMath) S.processMath(writeEl);
-  // Rich fences stay as source while editing, matching charts and slides.
-  // Read-mode renderers may replace their DOM without becoming save input.
+  if (S.richWrite) S.richWrite.ready = S.richWrite.hydrate();
   setTimeout(updateToolbarState, 0);
 }
 
 function exitWriteMode() {
+  if (S.richWrite) S.richWrite.finish(false);
   flushWriteChanges();
   resetWriteSession();
+  writeEl.replaceChildren();
   S.render();
 }
 
 function resetWriteSession() {
+  if (S.richWrite) S.richWrite.destroy(false);
   clearTimeout(S._writeSyncTimer); S._writeSyncTimer = null;
   S._checkCodeBlockExit = null;
   editSession = null;
@@ -198,6 +196,7 @@ function copyStyleVars() {
       writeEl.style.setProperty(prop, style.getPropertyValue(prop));
     }
   }
+  if (S.richWrite) S.richWrite.retheme();
 }
 
 // ── HTML-to-Markdown conversion ──────────────────────
@@ -613,8 +612,8 @@ function restoreWriteSelection(saved) {
 }
 
 function historyHtml() {
-  var copy = writeEl.cloneNode(true);
-  var originals = writeEl.querySelectorAll('input[type="checkbox"]');
+  var copy = S.richWrite ? S.richWrite.cloneSource(writeEl) : writeEl.cloneNode(true);
+  var originals = Array.from(writeEl.querySelectorAll('input[type="checkbox"]')).filter(function (input) { return !input.closest('.sdoc-write-rich'); });
   copy.querySelectorAll('input[type="checkbox"]').forEach(function (input, i) { input.toggleAttribute('checked', originals[i].checked); });
   copy.querySelectorAll('.sdocs-math-display,.sdocs-math-inline').forEach(function (math) {
     math.innerHTML = '';
@@ -634,12 +633,12 @@ function htmlDelta(before, after) {
   return { at: at, before: before.slice(at, endBefore), after: after.slice(at, endAfter) };
 }
 
-function recordWriteHistory(inputType) {
+function recordWriteHistory(inputType, group) {
   if (!writeHistory || writeHistory.restoring) return;
   var html = historyHtml(), history = writeHistory, selection = captureWriteSelection();
   if (html === history.html) { beforeInputSelection = null; return; }
   var previous = history.undo[history.undo.length - 1], beforeSelection = beforeInputSelection || history.selection;
-  var combine = inputType === 'insertText' && previous && previous.type === inputType && Date.now() - previous.time < 1000
+  var combine = (inputType === 'insertText' || inputType === 'insertRichText' && group === previous?.group) && previous && previous.type === inputType && Date.now() - previous.time < 1000
     && JSON.stringify(previous.selection) === JSON.stringify(beforeSelection);
   var before = history.html;
   if (combine) {
@@ -648,7 +647,7 @@ function recordWriteHistory(inputType) {
     history.undo.pop();
   }
   var delta = htmlDelta(before, html);
-  delta.beforeSelection = beforeSelection; delta.selection = selection; delta.type = inputType; delta.time = Date.now();
+  delta.beforeSelection = beforeSelection; delta.selection = selection; delta.type = inputType; delta.group = group; delta.time = Date.now();
   history.undo.push(delta); history.redo = [];
   history.html = html; history.selection = selection; beforeInputSelection = null;
 }
@@ -663,6 +662,7 @@ function travelWriteHistory(redo) {
   var old = redo ? delta.before : delta.after, replacement = redo ? delta.after : delta.before;
   history.html = history.html.slice(0, delta.at) + replacement + history.html.slice(delta.at + old.length);
   writeEl.innerHTML = history.html;
+  if (S.richWrite) S.richWrite.ready = S.richWrite.hydrate();
   history.selection = redo ? delta.selection : delta.beforeSelection;
   restoreWriteSelection(history.selection);
   to.push(delta);
@@ -673,6 +673,7 @@ function travelWriteHistory(redo) {
 }
 
 writeEl.addEventListener('beforeinput', function (event) {
+  if (event.target.closest && event.target.closest('.sdoc-write-rich')) return;
   if (!writeHistory) return;
   if (event.inputType === 'historyUndo' || event.inputType === 'historyRedo') {
     event.preventDefault(); travelWriteHistory(event.inputType === 'historyRedo'); return;
@@ -684,8 +685,9 @@ writeEl.addEventListener('beforeinput', function (event) {
 
 writeEl.addEventListener('input', function(e) {
   if (!editSession || S.currentMode !== 'write') return;
+  if (e.target !== writeEl && e.target.closest && e.target.closest('.sdoc-write-rich')) return;
   if (e.inputType !== 'historyUndo' && e.inputType !== 'historyRedo') {
-    queueMicrotask(function () { if (editSession) recordWriteHistory(e.inputType); });
+    queueMicrotask(function () { if (editSession) recordWriteHistory(e.inputType, e._sdocRichGroup); });
   }
 
   // Debounce sync
@@ -772,7 +774,7 @@ function changeListIndent(item, outdent) {
 // ── Keyboard shortcuts ──────────────────────────────
 
 writeEl.addEventListener('keydown', function(e) {
-  if (e.isComposing || e.keyCode === 229) return;
+  if (e.isComposing || e.keyCode === 229 || e.target.closest && e.target.closest('.sdoc-write-rich')) return;
   var mod = e.ctrlKey || e.metaKey;
   if (mod && e.key.toLowerCase() === 'z') { e.preventDefault(); travelWriteHistory(e.shiftKey); return; }
   if (mod && e.key.toLowerCase() === 'y' && !e.shiftKey) { e.preventDefault(); travelWriteHistory(true); return; }
@@ -851,6 +853,7 @@ writeEl.addEventListener('keydown', function(e) {
 // ── Paste handler: strip formatting ──────────────────
 
 writeEl.addEventListener('paste', function(e) {
+  if (e.target.closest && e.target.closest('.sdoc-write-rich')) return;
   e.preventDefault();
   var text = (e.clipboardData || window.clipboardData).getData('text/plain');
   document.execCommand('insertText', false, text);
@@ -1113,6 +1116,7 @@ for (var t = 0; t < tipBtns.length; t++) {
 
 // ── Register on SDocs ──────────────────────────────
 
+S.serializeWriteFragment = htmlToMarkdown;
 S.enterWriteMode = enterWriteMode;
 S.exitWriteMode = exitWriteMode;
 S.updateToolbarState = updateToolbarState;

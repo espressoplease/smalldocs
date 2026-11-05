@@ -2,7 +2,7 @@ const { defineConfig } = require('@playwright/test');
 const baseURL = process.env.SDOCS_TEST_BASE_URL || 'http://localhost:3000';
 module.exports = defineConfig({
   testDir: './test',
-  testMatch: 'edit-mode-*.spec.js',
+  testMatch: ['edit-mode-*.spec.js', 'rich-edit-mode*.spec.js'],
   timeout: 30000,
   workers: 2,
   use: { baseURL, headless: true },

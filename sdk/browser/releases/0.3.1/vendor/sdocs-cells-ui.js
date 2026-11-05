@@ -1033,9 +1033,12 @@
       wrapper._cellsSizeScroller = sizeScroller;
       releaseBag.add(queueFrame(sizeScroller));
       if (typeof ResizeObserver !== 'undefined') {
+        var cancelSizeFrame = null;
         var sizeRO = new ResizeObserver(function () {
-          if (!releaseBag.isReleased()) sizeScroller();
+          if (releaseBag.isReleased() || cancelSizeFrame) return;
+          cancelSizeFrame = queueFrame(function () { cancelSizeFrame = null; if (!releaseBag.isReleased()) sizeScroller(); });
         });
+        releaseBag.add(function () { if (cancelSizeFrame) cancelSizeFrame(); });
         sizeRO.observe(grid);
         sizeObservers.push(sizeRO);
         releaseBag.add(function () {

@@ -174,3 +174,10 @@ body.write-mode #_sd_rendered {
 body.write-mode #_sd_raw {
   display: none;
 }
+
+/* Object text uses the existing renderers and cell editor, scoped to editing. */
+#_sd_write .sdoc-write-rich { cursor: default; }
+#_sd_write .sdoc-write-diagram-label { cursor: text; }
+#_sd_write .sdoc-write-diagram-label:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+#_sd_write .sdoc-write-diagram-label:hover { outline: 1px dashed var(--text-3); outline-offset: 3px; }
+.sdoc-write-label-editor { resize: vertical; white-space: pre-wrap; border-radius: 8px; padding: 8px 10px; color: var(--text); background: var(--bg); border: 1px solid var(--border); z-index: 10050; }

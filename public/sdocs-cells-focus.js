@@ -73,8 +73,17 @@
       });
   }
 
-  var state = { modal: null, lease: null, editApi: null, entries: null,
+  var state = { modal: null, lease: null, editApi: null, entries: null, valueInput: null, valueDirty: false, valueTarget: null,
                 activeIndex: -1, edited: null, activeWrap: null, closing: false };
+
+  function commitOpen(move) {
+    if (!state.editApi) return;
+    state.editApi.commitOpen();
+    if ((state.valueDirty || move === true) && state.valueInput) {
+      state.valueDirty = false;
+      state.editApi.setActiveRaw(state.valueInput.value, move === true, state.valueTarget);
+    }
+  }
 
   function findEntry(model) {
     if (!state.entries) return null;
@@ -101,6 +110,7 @@
     if (state.closing) return;
     state.closing = true;
     var commit = reason === 'user';
+    if (commit) commitOpen();
     if (state.editApi) { try { state.editApi.detach(commit); } catch (_) {} }
     if (state.activeWrap && state.activeWrap._cellsRelease) {
       try { state.activeWrap._cellsRelease(); } catch (_) {}
@@ -114,7 +124,7 @@
     document.body.classList.remove('sdoc-cells-focus-open');
     if (options.syncEmbedFocus) options.syncEmbedFocus();
     state.modal = null; state.lease = null; state.entries = null;
-    state.edited = null; state.activeIndex = -1; state.closing = false;
+    state.edited = null; state.activeIndex = -1; state.closing = false; state.valueInput = null; state.valueDirty = false; state.valueTarget = null;
   }
 
   function close(reason) {
@@ -243,6 +253,13 @@
     valueBox.spellcheck = false;
     valueBox.className = 'sdoc-cells-focus-value';
     valueBox.setAttribute('aria-label', 'Cell value / formula');
+    state.valueInput = valueBox;
+    valueBox.addEventListener('focus', function () {
+      var selection = activeWrap && activeWrap._cellsSelection;
+      state.valueTarget = selection && !selection.empty ? { r: selection.r0, c: selection.c0 } : null;
+    });
+    valueBox.addEventListener('input', function () { state.valueDirty = true; });
+    valueBox.addEventListener('blur', commitOpen);
     bar.appendChild(nameBox);
     bar.appendChild(stats);
     bar.appendChild(valueBox);
@@ -290,12 +307,15 @@
         ? formatStats(vm, d, activeWrap._cellsFxView) : '';
     }
     valueBox.addEventListener('keydown', function (e) {
+      if (e.isComposing || e.keyCode === 229) { e.stopPropagation(); return; }
       if (e.key === 'Enter') {
         e.preventDefault();
-        if (state.editApi) state.editApi.setActiveRaw(valueBox.value, true);
+        commitOpen(true);
         focusGrid();
+        syncSelection(activeWrap && activeWrap._cellsSelection, true);
       } else if (e.key === 'Escape') {
         e.preventDefault();
+        state.valueDirty = false;
         syncSelection(activeWrap && activeWrap._cellsSelection, true);
         focusGrid();
       }
@@ -308,6 +328,7 @@
     // (S.cellsWorkbookFx) when there is no precomputed slice.
     function mountSheet(index) {
       if (index < 0 || index >= entries.length) return;
+      commitOpen();
       if (state.editApi) { try { state.editApi.detach(true); } catch (_) {} state.editApi = null; }
       if (activeWrap && activeWrap._cellsRelease) { try { activeWrap._cellsRelease(); } catch (_) {} }
       var entry = entries[index];
@@ -381,6 +402,7 @@
           valueInput: valueBox,
           onChange: function () {
             if (state.edited.indexOf(m) === -1) state.edited.push(m);
+            if (options.onChange) options.onChange(m, gridWrap);
             syncFormulaActions();
             syncSelection(gridWrap._cellsSelection);
           },
@@ -453,6 +475,8 @@
   }
 
   return { open: open, close: close, destroy: destroy,
+    commitOpen: commitOpen,
+    isEditing: function () { return !!(state.editApi && state.editApi.isEditing() || state.valueInput && document.activeElement === state.valueInput); },
     refreshTheme: function () { if (state.modal) forwardVars(state.modal); } };
   }
 
