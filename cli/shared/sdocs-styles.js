@@ -155,10 +155,11 @@ var TEXT_COLOR_CONTROLS = {
 };
 
 /**
- * colorControlRole(ctrlId) -> 'text' | 'background'
- * Tells invertLightness whether a control's color is rendered as text.
+ * colorControlRole(ctrlId) -> 'text' | 'background' | 'border'
+ * Identifies the painted role so fills, text and borders adapt separately.
  */
 function colorControlRole(ctrlId) {
+  if (ctrlId === '_sd_ctrl-table-border' || ctrlId === '_sd_ctrl-bq-border-color') return 'border';
   return TEXT_COLOR_CONTROLS[ctrlId] ? 'text' : 'background';
 }
 
@@ -174,7 +175,9 @@ function colorControlRole(ctrlId) {
  *   - Mid-range (45-65): accent colors → moderate shift
  *
  * role: 'text' for colors painted as text (body, headings, links, code text),
- *       'background' (default) for fills. Text colors are never kept dark.
+ *       'background' (default) for fills, or 'border' for lines and outlines.
+ * Border lightness changes continuously so darker light-theme lines remain
+ * stronger than pale lines in dark mode. Text colors are never kept dark.
  */
 function invertLightness(hex, role) {
   var hsl = hexToHsl(hex);
@@ -182,7 +185,10 @@ function invertLightness(hex, role) {
   var h = hsl[0], s = hsl[1], l = hsl[2];
   var invL, invS;
 
-  if (l > 80) {
+  if (role === 'border') {
+    invL = 24 + (100 - l) * 0.6;
+    invS = s * 0.7;
+  } else if (l > 80) {
     // Very light background → very dark
     invL = 10 + (100 - l) * 0.3;  // L95→11, L85→14, L80→16
     invS = s * 0.7;

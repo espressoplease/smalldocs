@@ -73,7 +73,7 @@ const DARK_DEFAULTS = {
   bqBorderColor: '#60a5fa',
   bqBg:          '#252320',
   bqColor:       '#a8a29e',
-  tableBorder:      '#3d3935',
+  tableBorder:      SDocStyles.invertLightness(LIGHT_DEFAULTS.tableBorder, 'border'),
   tableHeaderBg:    '#2c2926',
   tableEvenBg:      '#242220',
   tableOddBg:       '#2c2a26',

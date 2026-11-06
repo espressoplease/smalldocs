@@ -31,6 +31,19 @@
   --sdocs-sidebar-footer-row-height: 24px;
 }
 
+/* Preserve the light theme's border hierarchy across dark surfaces. */
+html[data-theme="dark"] body {
+  --border-subtle: #5C564D;
+  --border: #615B53;
+  --border-strong: #6B645D;
+  --border-2: var(--border-subtle);
+  --md-h2-border: var(--border-subtle);
+  --md-toc-border: var(--border-subtle);
+  --md-pre-border: var(--border-subtle);
+  --md-hr-border: var(--border-subtle);
+  --md-copy-btn-border: var(--border);
+}
+
 .sdocs-sidebar-shell {
   width: var(--sdocs-sidebar-current-width);
   padding: 27px 14px 16px;
