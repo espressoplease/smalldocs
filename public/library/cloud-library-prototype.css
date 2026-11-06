@@ -281,12 +281,10 @@ body.cloud-library-loading .input-block,
 body.cloud-library-loading .results-meta,
 body.cloud-library-loading #results { display: none; }
 @media (max-width: 700px) {
-  .cloud-library-nav { justify-content: flex-end; }
+  .cloud-library-nav { justify-content: flex-start; }
   .cloud-library-nav > .library-scope { display: none; }
   body.cloud-library-onboarding .cloud-library-nav { display: none; }
-  .cloud-library-actions { width: 100%; justify-content: flex-end; }
-  .workspace-button { min-height: 42px; padding: 5px 10px 5px 5px; font-size: 14px; }
-  .workspace-mark { width: 30px; height: 30px; font-size: 13px; }
+  .cloud-library-actions { width: 100%; justify-content: flex-start; }
   .workspace-menu {
     position: fixed;
     top: 60px;

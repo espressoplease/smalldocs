@@ -29,7 +29,7 @@ for (const [saved, system] of [['dark', 'light'], ['light', 'dark']]) {
     try {
       await expect.poll(() => typeof resume).toBe('function');
       await expect(page.locator('html')).toHaveAttribute('data-theme', saved);
-      await expect(page.locator('body')).toHaveCSS('background-color', saved === 'dark' ? 'rgb(28, 26, 23)' : 'rgb(255, 255, 255)');
+      await expect(page.locator('body')).toHaveCSS('background-color', saved === 'dark' ? 'rgb(44, 42, 38)' : 'rgb(255, 255, 255)');
     } finally { if (resume) resume(); await navigation; }
     await expect(page.locator('#workspace-button')).toContainText("Joe's engineering");
     await expect(page.locator('#cloud-library-actions > :last-child')).toHaveClass(/library-theme-toggle/);
@@ -40,8 +40,10 @@ test('document and library choices persist, update open tabs and leave document 
   await openDocument(page);
   await page.locator('#_sd_btn-theme').click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  const documentBackground = await page.locator('#_sd_rendered').evaluate(el => getComputedStyle(el).backgroundColor);
   const library = await context.newPage(); await library.goto(libraryUrl());
   await expect(library.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await expect(library.locator('body')).toHaveCSS('background-color', documentBackground);
   const button = library.locator('.library-theme-toggle');
   await expect(button).toHaveAttribute('aria-label', 'Switch to light mode');
   await button.click();
