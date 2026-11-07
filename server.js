@@ -280,6 +280,17 @@ if (cloudKeyProvider) {
   });
 }
 
+const cloudFeedback = cloudStore ? new (require('./lib/cloud-feedback').FeedbackInbox)({
+  store: cloudStore, adminUserIds: process.env.CLOUD_FEEDBACK_ADMIN_USER_IDS,
+}) : null;
+
+function requireFeedbackIdentity(req, userId) {
+  const bearer = /^Bearer\s+(.+)$/i.exec(String(req.headers.authorization || ''));
+  const current = bearer ? cloudAuth.authenticateAccessToken(bearer[1]) : cloudAuthSession(req);
+  if (!current.ok || current.user.id !== userId) throw new (require('./lib/cloud-store').CloudError)('login_required');
+  if (!cloudTermsAccepted(current.user)) throw new (require('./lib/cloud-store').CloudError)('terms_acceptance_required');
+}
+
 const cloudPublications = cloudStore ? new (require('./lib/cloud-publications').CloudPublications)({
   store: cloudStore, origin: CLOUD_AUTH_PUBLIC_ORIGIN,
   renderPage: options => compilePublicPublication(options),
@@ -1753,6 +1764,26 @@ async function handleCloudApi(req, res, url) {
     const principal = cloudApiPrincipal(req, res);
     if (!principal || !cloudApiMutationAllowed(req, res)) return;
     const user = principal.user;
+    if (req.method === 'GET' && pathname === base + '/feedback/status') {
+      sendJson(res, 200, { ok: true, can_view_inbox: cloudFeedback.isAdmin(user.id) }); return;
+    }
+    if (req.method === 'POST' && pathname === base + '/feedback') {
+      const body = await cloudAuthHttp.readJson(req);
+      const receipt = await cloudFeedback.submit({ user, email: verifiedCloudEmail(user.id),
+        message: body.message, requestId: body.idempotency_key,
+        beforeCommit: () => requireFeedbackIdentity(req, user.id),
+        consumeRate: () => {
+          const rate = cloudAuth.consumeRateLimit({ action: 'private_feedback', key: user.id,
+            limit: 10, windowMs: 60 * 60 * 1000 });
+          if (!rate.allowed) throw Object.assign(new Error('rate_limited'), { code: 'rate_limited' });
+        } });
+      sendJson(res, 201, { ok: true, feedback: receipt }); return;
+    }
+    if (req.method === 'GET' && pathname === base + '/feedback/inbox') {
+      const inbox = await cloudFeedback.list({ userId: user.id, after: url.searchParams.get('after'),
+        beforeReturn: () => requireFeedbackIdentity(req, user.id) });
+      sendJson(res, 200, { ok: true, ...inbox }); return;
+    }
     if (cloudReferrals && req.method === 'GET' && pathname === base + '/referrals') {
       sendJson(res, 200, { ok: true, ...cloudReferrals.summary(user.id, url.searchParams.get('after')) });
       return;
@@ -4068,6 +4099,22 @@ const server = http.createServer((req, res) => {
     if (url.searchParams.get('token')) target.searchParams.set('token', url.searchParams.get('token'));
     res.writeHead(303, { Location: target.pathname + target.search, 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' });
     res.end(); return;
+  }
+
+  if (pathname === '/cloud/feedback' || pathname === '/public/cloud-feedback-admin.html') {
+    const authenticated = cloudAuthSession(req);
+    if (!authenticated.ok) {
+      res.writeHead(303, { Location: '/cloud/sign-in?return=%2Fcloud%2Ffeedback', 'Cache-Control': 'no-store' });
+      res.end(); return;
+    }
+    if (!cloudFeedback || !cloudFeedback.isAdmin(authenticated.user.id)) {
+      sendJson(res, 404, { ok: false, error: 'resource_unavailable' }); return;
+    }
+    if (redirectForCloudTerms(res, authenticated, '/cloud/feedback')) return;
+    serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'cloud-feedback-admin.html'), null, {
+      'Cache-Control': 'no-store', 'X-Frame-Options': 'DENY', 'Referrer-Policy': 'same-origin',
+      'Content-Security-Policy': "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
+    }); return;
   }
 
   if (pathname === '/cloud/trial-feedback') {

@@ -16,6 +16,7 @@
   icons.learn = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3Z"/></svg>';
   icons.githubLogo = '<svg viewBox="0 0 24 24" aria-hidden="true"><path transform="translate(0 1)" d="M9 19c-4.3 1.3-4.3-2.2-6-2.7m12 5v-3.9a3.4 3.4 0 0 0-.9-2.7c3-.3 6.2-1.5 6.2-6.8A5.3 5.3 0 0 0 19 4.2a4.9 4.9 0 0 0-.1-3.7s-1.1-.4-3.7 1.4a12.9 12.9 0 0 0-6.8 0C5.8.1 4.7.5 4.7.5a4.9 4.9 0 0 0-.1 3.7A5.3 5.3 0 0 0 3.2 8c0 5.3 3.2 6.5 6.2 6.8a3.4 3.4 0 0 0-.9 2.7v3.9"/></svg>';
   icons.x = '<svg class="sdocs-sidebar-brand-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.64 7.584H.474l8.6-9.835L0 1.154h7.594l5.243 6.932ZM17.61 20.644h2.039L6.486 3.24H4.298Z"/></svg>';
+  icons.feedback = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a4 4 0 0 1-4 4H7l-4 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/><path d="M8 9h8M8 13h5"/></svg>';
   var learnCopyPaths = '<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>';
   var learnTopics = [
     { id: 'start', label: 'Getting started', prompt: 'Give me a short tour of SmallDocs. Explain how asking for a document, SmallDoc or sdoc creates a Cloud document. Make a getting-started document and show me how to open it, find it in Library and use its tags.' },
@@ -86,6 +87,19 @@
         '<ul class="sdocs-referral-list" aria-label="People you referred"></ul>' +
         '<button class="sdocs-sidebar-cta" type="button" data-referral-more hidden>Show more</button></div></div></div>' +
         '<p class="sdocs-sidebar-explainer" data-referral-status role="status">Loading your referral link...</p></div>' }) : '';
+    var feedback = sectionHtml({ id: 'feedback', idPrefix: prefix, rowClass: options.rowClass,
+      label: 'Feedback', icon: icons.feedback,
+      content: options.authenticated
+        ? '<div class="sdocs-sidebar-preview" data-feedback-panel>' +
+          '<p class="sdocs-sidebar-explainer">Sent privately to SmallDocs with your account name and email.</p>' +
+          '<form class="sdocs-sidebar-feedback-form"><label for="' + prefix + '_feedback_message">Your feedback</label>' +
+          '<textarea id="' + prefix + '_feedback_message" name="message" rows="5" maxlength="4096" required></textarea>' +
+          '<button class="sdocs-sidebar-cta" type="submit">Send feedback</button>' +
+          '<p class="sdocs-sidebar-feedback-status" role="status" aria-live="polite"></p>' +
+          '<a data-feedback-sign-in href="/cloud/sign-in" target="_blank" rel="noopener" hidden>Sign in again</a></form>' +
+          '<a class="sdocs-sidebar-library-row" href="/cloud/feedback" data-feedback-inbox hidden><span>Feedback inbox</span></a></div>'
+        : '<div class="sdocs-sidebar-preview"><p class="sdocs-sidebar-explainer">Sign in to send feedback from your account.</p>' +
+          '<a class="sdocs-sidebar-cta" data-feedback-login href="/cloud/sign-in?return=' + encodeURIComponent(typeof location === 'undefined' ? '/docs' : location.pathname + location.search) + '">Sign in</a></div>' });
     return sectionHtml({ id: 'learn', idPrefix: prefix, rowClass: options.rowClass,
       label: 'Learn', icon: icons.learn,
       content: '<div class="sdocs-sidebar-preview" data-learn-panel>' +
@@ -102,7 +116,49 @@
         '<p class="sdocs-sidebar-explainer"><strong>When you use a document.</strong> SmallDocs manages the keys and decrypts authorised content on its servers to open, search and edit it.</p>' +
         '<p class="sdocs-sidebar-explainer"><strong>Server access.</strong> The application runs under a dedicated system account with restricted access to server files. Administrative access uses hardware-backed SSH keys that require approval on the administrator\'s device.</p>' +
         '<p class="sdocs-sidebar-explainer"><strong>Backups.</strong> Backups are encrypted and use separate access credentials.</p>' +
-        '<a class="sdocs-sidebar-library-row sdocs-sidebar-library-open" href="/privacy" target="_blank" rel="noopener"><span>Cloud storage details</span>' + icons.external + '</a></div>' }) + refer;
+        '<a class="sdocs-sidebar-library-row sdocs-sidebar-library-open" href="/privacy" target="_blank" rel="noopener"><span>Cloud storage details</span>' + icons.external + '</a></div>' }) + feedback + refer;
+  }
+
+  function bindFeedback(sidebar) {
+    var login = sidebar.querySelector('[data-feedback-login]');
+    if (login) login.addEventListener('click', function (event) {
+      if (window.SDocs && window.SDocs.signInFromDocument) window.SDocs.signInFromDocument(event);
+    });
+    var panel = sidebar.querySelector('[data-feedback-panel]');
+    if (!panel) return;
+    var form = panel.querySelector('form'), input = form.elements.message;
+    var status = panel.querySelector('[role="status"]'), button = form.querySelector('button');
+    var pending = null, sending = false;
+    sidebar.querySelector('[data-sidebar-section="feedback"] > button').addEventListener('click', async function () {
+      if (panel.closest('.sdocs-sidebar-section').classList.contains('is-expanded')) return;
+      try {
+        var response = await fetch('/api/cloud/v1/feedback/status', { credentials: 'same-origin' });
+        if (response.ok) panel.querySelector('[data-feedback-inbox]').hidden = !(await response.json()).can_view_inbox;
+      } catch (_) {}
+    });
+    form.addEventListener('submit', async function (event) {
+      event.preventDefault();
+      if (sending) return;
+      var message = input.value.trim();
+      if (!message) { status.textContent = 'Type your feedback first.'; return; }
+      if (new TextEncoder().encode(message).length > 4096) { status.textContent = 'Your feedback is too long. Shorten it and try again.'; return; }
+      if (!pending || pending.message !== message) pending = { message: message, idempotency_key: crypto.randomUUID() };
+      sending = true; button.disabled = true; status.textContent = 'Sending feedback...';
+      panel.querySelector('[data-feedback-sign-in]').hidden = true;
+      try {
+        var response = await fetch('/api/cloud/v1/feedback', { method: 'POST', credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(pending) });
+        if (response.status === 401) {
+          status.textContent = 'Sign in again, then retry. Your message is still here.';
+          panel.querySelector('[data-feedback-sign-in]').hidden = false; return;
+        }
+        if (response.status === 429) { status.textContent = 'Too many submissions. Try again later.'; return; }
+        if (!response.ok) throw new Error('send_failed');
+        if (input.value.trim() === message) input.value = '';
+        pending = null; status.textContent = 'Feedback sent.';
+      } catch (_) { status.textContent = 'Could not send your feedback. Your message is still here. Try again.'; }
+      finally { sending = false; button.disabled = false; }
+    });
   }
 
   function bindReferrals(sidebar) {
@@ -461,6 +517,11 @@
     element.setAttribute('data-sdocs-sidebar-renderer', 'shared');
     bindReferrals(element);
     bindLearn(element);
+    bindFeedback(element);
+    if (options.active === 'feedback') {
+      var feedbackRow = element.querySelector('[data-sidebar-section="feedback"] > .sdocs-sidebar-top-row');
+      if (feedbackRow) { feedbackRow.classList.add('is-active'); feedbackRow.setAttribute('aria-current', 'page'); }
+    }
     if (options.active === 'settings') {
       var accountSettings = element.querySelector('a[href="/cloud/admin"]');
       if (accountSettings) {
@@ -521,7 +582,7 @@
 
     function focusables() {
       return Array.from(sidebar.querySelectorAll(
-        'a[href], button:not([disabled]), summary, [tabindex]:not([tabindex="-1"])'
+        'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), summary, [tabindex]:not([tabindex="-1"])'
       )).filter(function (element) {
         return !element.hidden && element.getClientRects().length > 0;
       });

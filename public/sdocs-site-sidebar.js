@@ -6,7 +6,7 @@
 
   var page = body.getAttribute('data-sdocs-site-page');
   var params = new URLSearchParams(location.search);
-  var active = page === 'settings' ? 'settings'
+  var active = page === 'feedback' ? 'feedback' : page === 'settings' ? 'settings'
     : page === 'cloud' || (page === 'library' && params.get('scope') === 'cloud')
       ? 'cloud' : 'local';
   var authenticated = body.getAttribute('data-cloud-authenticated') === 'true';

@@ -40,7 +40,9 @@ async function startFixture(options = {}) {
   const compiler={close:()=>new Promise(resolve=>{compilerThread.once('exit',resolve);compilerThread.postMessage('close');})};
   const serverOptions = { cwd: options.sourceRoot || path.join(__dirname, '..'), env: {
     ...process.env, CLOUD_SINGLE_PLAN_ENABLED: options.singlePlan ? '1' : '', NODE_ENV: 'test', HOST: '127.0.0.1', PORT: String(port), CLOUD_MODE: 'off', CLOUD_PUBLIC_MODE: 'enabled',
-    CLOUD_AUTH_PUBLIC_ORIGIN: origin, CLOUD_AUTH_PEPPER: pepper, CLOUD_AUTH_DB: authPath, CLOUD_OAUTH_DB: authPath,
+    CLOUD_AUTH_PUBLIC_ORIGIN: origin, CLOUD_AUTH_PEPPER: pepper,
+    CLOUD_FEEDBACK_ADMIN_USER_IDS: options.feedbackAdminUser ? users[options.feedbackAdminUser].id : '',
+    FEEDBACK_DB: path.join(dir, 'public-feedback.db'), CLOUD_AUTH_DB: authPath, CLOUD_OAUTH_DB: authPath,
     CLOUD_DB: storePath, CLOUD_MASTER_KEY: masterKey, CLOUD_BILLING_DB: billingPath,
     NOTIFY_SMTP_HOST: options.smtpPort ? '127.0.0.1' : '', NOTIFY_SMTP_PORT: String(options.smtpPort || 1025),
     NOTIFY_SMTP_SECURITY: options.smtpPort ? 'none' : '', NOTIFY_SMTP_USER: '',

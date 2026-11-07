@@ -772,3 +772,30 @@ body[data-legacy-library="false"] .library-scope, [data-legacy-library="false"] 
 @media (prefers-reduced-motion: reduce) {
   .sdoc-tooltip { transition: none; }
 }
+
+.sdocs-sidebar-feedback-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 5px 10px 10px;
+}
+.sdocs-sidebar-feedback-form textarea {
+  width: 100%;
+  min-height: 112px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius, 6px);
+  background: var(--bg-input, var(--surface, #fff));
+  color: var(--text);
+  font: inherit;
+  line-height: 1.45;
+  resize: vertical;
+}
+.sdocs-sidebar-feedback-form textarea:focus-visible { outline: 2px solid var(--accent, var(--blue)); outline-offset: 2px; }
+.sdocs-sidebar-feedback-form .sdocs-sidebar-cta { margin: 0; align-self: flex-start; }
+.sdocs-sidebar-feedback-status { margin: 0; font-size: 12px; overflow-wrap: anywhere; }
+.sdocs-sidebar-shell [data-feedback-inbox][hidden],
+.sdocs-sidebar-shell [data-feedback-sign-in][hidden] { display: none; }
+@media (max-width: 768px) {
+  .sdocs-sidebar-feedback-form textarea { font-size: 16px; }
+}
