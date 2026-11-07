@@ -33,6 +33,10 @@ unit_source="$release_dir/ops/systemd/smalldocs.service"
 unit_target="/etc/systemd/system/smalldocs.service"
 unit_backup="/etc/systemd/system/smalldocs.service.smalldocs-deploy-backup"
 unit_changed=0
+compiler_unit="/etc/systemd/system/smalldocs-compiler.service"
+compiler_backup="$compiler_unit.smalldocs-deploy-backup"
+compiler_existed=0
+compiler_changed=0
 
 cleanup_remote_archive() {
   sudo rm -f -- "$remote_archive"
@@ -47,17 +51,52 @@ rollback_release() {
     sudo cp "$unit_backup" "$unit_target"
     sudo systemctl daemon-reload
   fi
+  if [ "$compiler_changed" -eq 1 ]; then
+    if [ "$compiler_existed" -eq 1 ]; then
+      sudo cp "$compiler_backup" "$compiler_unit"
+    else
+      sudo systemctl disable --now smalldocs-compiler || true
+      sudo rm -f "$compiler_unit"
+    fi
+    sudo systemctl daemon-reload
+  fi
+  if [ -f "$previous_release/ops/publication-compiler-worker.js" ]; then
+    sudo systemctl restart smalldocs-compiler || true
+  else
+    sudo systemctl stop smalldocs-compiler || true
+  fi
   sudo systemctl restart smalldocs || true
 }
 
-sudo mkdir -p "$release_dir"
-sudo tar -xzf "$remote_archive" -C "$release_dir"
+# Staging may already have built this immutable release on the shared host.
+if ! sudo test -e "$release_dir"; then
+  sudo mkdir -p "$release_dir"
+  sudo tar -xzf "$remote_archive" -C "$release_dir"
+  sudo mkdir -p "$release_dir/.git"
+  printf '%s\n' "$release_commit" | sudo tee "$release_dir/.git/HEAD" >/dev/null
+  sudo env PATH=/usr/local/bin:/usr/bin:/bin npm --prefix "$release_dir" ci --omit=dev
+  sudo chown -R root:root "$release_dir"
+  sudo chmod -R go-w "$release_dir"
+else
+  existing_commit=$(sudo cat "$release_dir/.git/HEAD")
+  if [ "$existing_commit" != "$release_commit" ]; then
+    echo "Existing release does not match the requested commit." >&2
+    exit 1
+  fi
+fi
 sudo rm -f -- "$remote_archive"
-sudo mkdir -p "$release_dir/.git"
-printf '%s\n' "$release_commit" | sudo tee "$release_dir/.git/HEAD" >/dev/null
-sudo env PATH=/usr/local/bin:/usr/bin:/bin npm --prefix "$release_dir" ci --omit=dev
-sudo chown -R root:root "$release_dir"
-sudo chmod -R go-w "$release_dir"
+sudo sh "$release_dir/ops/install-publication-browser.sh"
+if ! id smalldocs-compiler >/dev/null 2>&1; then
+  sudo useradd --system --gid smalldocs --home-dir /var/cache/smalldocs-compiler --shell /usr/sbin/nologin smalldocs-compiler
+fi
+sudo systemd-analyze verify "$release_dir/ops/systemd/smalldocs-compiler.service"
+if sudo test -f "$compiler_unit"; then
+  compiler_existed=1
+  sudo cp "$compiler_unit" "$compiler_backup"
+fi
+sudo install -o root -g root -m 0644 "$release_dir/ops/systemd/smalldocs-compiler.service" "$compiler_unit"
+compiler_changed=1
+sudo systemctl daemon-reload
 sudo systemd-analyze verify "$unit_source"
 if ! sudo cmp -s "$unit_source" "$unit_target"; then
   sudo cp "$unit_target" "$unit_backup"
@@ -67,6 +106,14 @@ if ! sudo cmp -s "$unit_source" "$unit_target"; then
 fi
 sudo ln -sfn "$release_dir" /opt/smalldocs/current
 
+sudo systemctl enable smalldocs-compiler >/dev/null
+if ! sudo systemctl restart smalldocs-compiler; then rollback_release; exit 1; fi
+compiler_attempt=0
+while ! sudo test -S /run/smalldocs-compiler/worker.sock; do
+  compiler_attempt=$((compiler_attempt + 1))
+  if [ "$compiler_attempt" -ge 20 ]; then rollback_release; exit 1; fi
+  sleep 1
+done
 if ! sudo systemctl restart smalldocs; then
   rollback_release
   exit 1

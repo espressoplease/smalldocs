@@ -794,7 +794,25 @@ async function drawSlide(ctx) {
 
   var st = createStage(grid.w, grid.h, ctx.root);
   try {
-    SDocShapeRender.renderShapes(dsl, st.stage);
+    var rendered = SDocShapeRender.renderShapes(dsl, st.stage);
+    rendered = SDocShapeRender.resolvePaints(rendered, st.stage);
+    grid = rendered.grid;
+    shapes = rendered.shapes;
+    // Use the same painted canvas and inherited text colours as the reader.
+    // Native PowerPoint objects otherwise default to white backgrounds and
+    // dark text even when their slide is displayed with a dark palette.
+    var canvas = st.stage.querySelector('.sd-shape-stage');
+    var canvasColor = canvas && toHex6(getComputedStyle(canvas).backgroundColor);
+    if (canvasColor) slide.background = { color: canvasColor };
+    shapes.forEach(function (shape, index) {
+      var boxes = st.stage.querySelectorAll('[data-shape-idx="' + index + '"]');
+      for (var b = 0; b < boxes.length; b++) {
+        var host = boxes[b].querySelector('.shape-md');
+        var text = host && host.shadowRoot && (host.shadowRoot.querySelector('h1,h2,h3,h4,h5,h6,p,li') || host.shadowRoot.querySelector('.inner'));
+        var textColor = text && toHex6(getComputedStyle(text).color);
+        if (textColor) { shape.attrs.color = '#' + textColor; break; }
+      }
+    });
     // eslint-disable-next-line no-unused-expressions
     st.stage.offsetHeight; // flush pending layout
 
@@ -849,6 +867,7 @@ async function drawSlide(ctx) {
     var stageRect = st.stage.getBoundingClientRect();
     await drawRichBlocks(slide, st.stage, stageRect, slideW, slideH);
   } finally {
+    SDocShapeRender.destroyWithin(st.stage);
     if (st.wrap.parentNode) st.wrap.parentNode.removeChild(st.wrap);
     ACTIVE = null;
   }

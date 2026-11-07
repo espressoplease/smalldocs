@@ -16,7 +16,7 @@ const SDocStyles = require('../shared/sdocs-styles.js');
 const { slugify } = require('../shared/sdocs-slugify.js');
 
 const { toBase64Url } = require('./url');
-const { DEFAULT_URL } = require('./constants');
+const { resolveBaseUrl } = require('./constants');
 
 const PLACEMENT_RE = /^[A-Za-z0-9][A-Za-z0-9_-]{3,31}$/;
 const PLACEMENT_SOURCES = new Set(['x', 'yt', 'youtube']);
@@ -104,17 +104,20 @@ async function buildShortUrl(content, opts) {
   opts = opts || {};
   const attributionQuery = buildAttributionQuery(opts.source, opts.placement);
 
-  // Mirror the hash-build's default-stripping so the encrypted payload is
-  // identical to what the browser would encode.
+  // Strip default styles and library-only tags before encrypting the copy.
   const parsed = SDocYaml.parseFrontMatter(content);
+  const hadTags = Object.prototype.hasOwnProperty.call(parsed.meta, 'tags');
+  delete parsed.meta.tags;
   if (parsed.meta && parsed.meta.styles) {
     const stripped = SDocStyles.stripStyleDefaults(parsed.meta.styles);
     if (Object.keys(stripped).length > 0) parsed.meta.styles = stripped;
     else delete parsed.meta.styles;
     content = SDocYaml.serializeFrontMatter(parsed.meta) + '\n' + parsed.body;
+  } else if (hadTags) {
+    content = SDocYaml.serializeFrontMatter(parsed.meta) + '\n' + parsed.body;
   }
 
-  const baseUrl = opts.url || process.env.SDOCS_URL || DEFAULT_URL;
+  const baseUrl = resolveBaseUrl(opts.url);
   const { keyBytes, cipherB64url } = compressAndEncrypt(content);
   const id = await uploadShortLink(cipherB64url, baseUrl);
   const keyB64 = toBase64Url(keyBytes);

@@ -499,7 +499,7 @@
       allBtn.title = allLabel;
       allBtn.setAttribute('aria-label', allLabel);
       if (!rawBtn) return;
-      if (hasFormulas && !rawBtn.parentNode) box.insertBefore(rawBtn, xlsxBtn);
+      if (hasFormulas && !rawBtn.parentNode) box.insertBefore(rawBtn, xlsxBtn || box.querySelector('.sdoc-cells-comment-add'));
       else if (!hasFormulas && rawBtn.parentNode) rawBtn.parentNode.removeChild(rawBtn);
     }
     setHasFormulas(opts.hasFormulas != null ? opts.hasFormulas : !!opts.rawButton);
@@ -512,6 +512,10 @@
     }
     src.addEventListener('cells-selection', onCopySelectionChange);
     addCleanup(function () { src.removeEventListener('cells-selection', onCopySelectionChange); });
+    if (typeof options.bindCommentControls === 'function') {
+      var releaseComments = options.bindCommentControls(src, model, box);
+      if (typeof releaseComments === 'function') addCleanup(releaseComments);
+    }
     addCleanup(function () {
       [selBtn, allBtn, rawBtn, xlsxBtn].forEach(function (button) {
         if (button && button._tickTimer) {
@@ -640,7 +644,7 @@
       }
       expandBtn.addEventListener('click', onExpandClick);
       addCleanup(function () { expandBtn.removeEventListener('click', onExpandClick); });
-      controls.box.appendChild(expandBtn);
+      controls.box.insertBefore(expandBtn, controls.box.querySelector('.sdoc-cells-comment-add'));
     }
 
     bar.appendChild(controls.box);
@@ -930,6 +934,7 @@
           grid.appendChild(el);
         }
       }
+      if (typeof options.onGridPaint === 'function') options.onGridPaint(wrapper, model);
     }
     paint();
 
@@ -1028,9 +1033,12 @@
       wrapper._cellsSizeScroller = sizeScroller;
       releaseBag.add(queueFrame(sizeScroller));
       if (typeof ResizeObserver !== 'undefined') {
+        var cancelSizeFrame = null;
         var sizeRO = new ResizeObserver(function () {
-          if (!releaseBag.isReleased()) sizeScroller();
+          if (releaseBag.isReleased() || cancelSizeFrame) return;
+          cancelSizeFrame = queueFrame(function () { cancelSizeFrame = null; if (!releaseBag.isReleased()) sizeScroller(); });
         });
+        releaseBag.add(function () { if (cancelSizeFrame) cancelSizeFrame(); });
         sizeRO.observe(grid);
         sizeObservers.push(sizeRO);
         releaseBag.add(function () {
@@ -1078,6 +1086,7 @@
         ' of ' + model.rows + ' × ' + model.cols + ' cells';
       wrapper.appendChild(note);
     }
+    if (typeof options.onGridBuilt === 'function') options.onGridBuilt(wrapper, model);
     return wrapper;
   }
 
@@ -1259,6 +1268,7 @@
       wrap.dataset.cellsSrc = s.rawSrc;
       if (s.name) wrap.dataset.cellsName = s.name;
       wrap.style.display = i === 0 ? '' : 'none';
+      wrap._cellsReveal = function () { show(i); };
       body.appendChild(wrap);
       wrappers.push(wrap);
       s.wrapper = wrap;
@@ -1390,6 +1400,18 @@
       formula: root.SDocCellsFormula,
       controller: root.SDocCellsController,
       installMarkedExtension: true,
+      bindCommentControls: function (wrapper, model, actions) {
+        var comments = root.SDocs.cellsComments;
+        return comments && comments.bindControls ? comments.bindControls(wrapper, model, actions) : null;
+      },
+      onGridBuilt: function (wrapper, model) {
+        var comments = root.SDocs.cellsComments;
+        if (comments && comments.bindGrid) comments.bindGrid(wrapper, model);
+      },
+      onGridPaint: function (wrapper, model) {
+        var comments = root.SDocs.cellsComments;
+        if (comments && comments.paintGrid) comments.paintGrid(wrapper, model);
+      },
     });
     root.SDocs.__cellsUiInstance = instance;
     return instance;

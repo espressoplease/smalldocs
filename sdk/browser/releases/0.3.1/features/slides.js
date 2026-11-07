@@ -1,4 +1,4 @@
-import { loadScript, loadStyle, sdkAsset, vendorAsset } from '../assets.js';
+import { loadScript, loadStyle, sdkAsset, vendorAsset, watchTheme } from '../assets.js';
 import { downloadBlob, safeFilename } from '../download.js';
 import { parseMarkdown, sanitizeHTML, setKnownHTML } from '../runtime.js';
 
@@ -51,6 +51,7 @@ async function mountNested(feature, root, context, signal, featureOptions) {
 }
 
 async function ensureSlides(context) {
+  await loadScript(vendorAsset('sdocs-contrast.js'), () => window.SDocContrast);
   const [shapes, stdlib, resolve, renderer, reader, presentation, mobileBundle] = await Promise.all([
     loadScript(vendorAsset('sdocs-shapes.js'), () => window.SDocShapes),
     loadScript(vendorAsset('sdocs-slide-stdlib.js'), () => window.SDocSlideStdlib),
@@ -251,6 +252,7 @@ export async function mount(context) {
     if (presenter) presenter.close();
     controller.destroy();
   };
+  context.cleanups.push(watchTheme(context.root, () => { if (presenter) presenter.refreshTheme(); }));
   if (!slides.length || !context.options.controls.download) return cleanup;
   const downloads = document.createElement('div');
   downloads.className = 'smalldocs-slide-downloads';

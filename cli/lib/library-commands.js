@@ -10,7 +10,7 @@ const libServer  = require('./library-server');
 const autostart  = require('./library-autostart');
 const helpText   = require('./help-text');
 const { openBrowser } = require('./io');
-const { DEFAULT_URL } = require('./constants');
+const { resolveBaseUrl } = require('./constants');
 const http       = require('http');
 
 function libraryEnable() {
@@ -182,7 +182,7 @@ function ensureAutostart() {
 
 async function libraryOpen() {
   const state = store.loadState();
-  const siteUrl = process.env.SDOCS_URL || DEFAULT_URL;
+  const siteUrl = resolveBaseUrl();
   const idx = store.loadIndex();
 
   // If an agent is already listening on the canonical port (likely

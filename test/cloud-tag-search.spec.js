@@ -25,7 +25,12 @@ async function openCloudLibrary(page) {
       case '/api/cloud/v1/documents':
         data = { documents: [{ id: 'doc-1', title: 'Fridge notes', filename: 'fridge.md',
           tags: ['fridge'], updated_at: '2026-10-10T12:00:00Z' }] }; break;
-      case '/api/cloud/v1/search': data = { documents: [] }; break;
+      case '/api/cloud/v1/search': {
+        const request = route.request().postDataJSON();
+        const documents = request.query ? [] : [{ id: 'doc-1', title: 'Fridge notes', filename: 'fridge.md',
+          tags: ['fridge'], updated_at: '2026-10-10T12:00:00Z', starred: false }];
+        data = { documents, total_count: documents.length }; break;
+      }
       default: data = {};
     }
     return route.fulfill({ json: { ok: true, ...data } });

@@ -1,0 +1,18 @@
+.onboarding-shell { max-width: none; }
+.onboarding-shell > .auth-card { width: min(640px, 100%); }
+.onboarding-choices { display: grid; gap: 12px; }
+.onboarding-choices .prototype-status { margin: 0 0 8px; }
+.onboarding-shell h2 { font-size: 16px; margin: 20px 0 12px; }
+.onboarding-shell textarea { font: inherit; resize: vertical; }
+.onboarding-shell .provider-button { width: 100%; margin: 8px 0; }
+.onboarding-shell .terms-choice { align-items: flex-start; margin: 16px 0; }
+.onboarding-shell p, .onboarding-shell input { overflow-wrap: anywhere; }
+.onboarding-shell #library-choices { display: grid; gap: 8px; margin-bottom: 20px; }
+
+.onboarding-shell .auth-card > form > p,
+.onboarding-shell .auth-card > div > p,
+.onboarding-shell #request-pending > p { margin: 12px 0; color: var(--text-2); font-size: 12.5px; line-height: 1.6; }
+.onboarding-shell .prototype-status { font-size: 12px; line-height: 1.6; text-align: left; }
+.onboarding-shell .text-input { margin-bottom: 12px; }
+#review-form .text-input { margin-bottom: 0; }
+#review-form .primary-button, #review-result .provider-button { margin-top: 16px; }

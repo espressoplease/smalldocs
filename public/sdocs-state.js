@@ -13,6 +13,14 @@ window.SDocs = {
   // Stripped from the URL on load so it isn't in anything the user copies/shares.
   localMeta: {},
 
+  fileInfoPaths: function () {
+    if (this.cloudDocument && this.cloudDocument.id) {
+      var source = this.cloudDocument.source_file;
+      return source ? { path: source.relative_path || '', fullPath: source.absolute_path || '', creatorOnly: true } : {};
+    }
+    return this.localMeta || {};
+  },
+
   // Per-doc overrides for the file-info card. Set from `styles.fileinfo` in
   // YAML front matter; emitted back via collectStyles so they round-trip.
   fileinfoStyles: {},
@@ -56,6 +64,18 @@ Object.defineProperty(SDocs, 'overriddenColors', {
 });
 
 SDocs.contentAreaEl = document.getElementById('_sd_content-area');
+
+SDocs.setDocumentLoadState = function (state) {
+  var loading = state === 'loading';
+  document.documentElement.classList.toggle('sdocs-cloud-document-loading', loading);
+  document.documentElement.classList.toggle('sdocs-cloud-document-error', state === 'error');
+  SDocs.contentAreaEl.dataset.documentState = state;
+  SDocs.contentAreaEl.setAttribute('aria-busy', String(loading));
+  SDocs.contentAreaEl.inert = loading;
+};
+if (document.documentElement.classList.contains('sdocs-cloud-document-loading')) {
+  SDocs.setDocumentLoadState('loading');
+}
 
 SDocs.setStyleVar = function(cssVar, value) {
   SDocs.renderedEl.style.setProperty(cssVar, value);

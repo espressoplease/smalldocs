@@ -1,0 +1,28 @@
+.sdoc-diagram-comments:empty { display: none; }
+.sdoc-diagram-comments { margin: 8px 0 16px; }
+.sdoc-diagram-card { display: block; margin: 8px 0; }
+.sdoc-diagram-node-commentable { cursor: pointer; outline: none; }
+.sdoc-diagram-node-commentable:hover > rect,
+.sdoc-diagram-node-commentable:focus > rect,
+.sdoc-diagram-node-commented > rect,
+.sdoc-diagram-node-commented > polygon,
+.sdoc-diagram-node-commented > circle {
+  stroke: var(--sdoc-anchor-color, #ffbb00) !important;
+  stroke-width: 3px !important;
+}
+.sdoc-diagram-message-hit { fill: transparent; stroke: transparent; stroke-width: 2px; rx: 4px; }
+.sdoc-diagram-message:is(:hover, :focus, .sdoc-diagram-node-commented) > .sdoc-diagram-message-hit {
+  stroke: var(--sdoc-anchor-color, #ffbb00) !important;
+  stroke-width: 2px !important;
+}
+.sdoc-diagram-node-commentable:is(:hover, :focus, .sdoc-diagram-node-commented) > :is(circle, line, path) {
+  stroke: var(--sdoc-anchor-color, #ffbb00) !important;
+}
+.sdoc-diagram-focus-comments {
+  max-height: 34vh; overflow: auto; padding: 0 16px;
+  background: var(--sdoc-focus-bg); border-top: 1px solid var(--border);
+}
+.sdoc-diagram-focus-comments:empty, .sdoc-diagram-focus-comments[hidden] { display: none; }
+.sdoc-mermaid-focus:has(> .sdoc-diagram-focus-comments:not(:empty):not([hidden])) {
+  grid-template-rows: 40px minmax(0, 1fr) auto;
+}

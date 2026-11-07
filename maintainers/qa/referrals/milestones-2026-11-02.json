@@ -1,0 +1,50 @@
+{
+  "date": "2026-11-02",
+  "program": "one activation month plus two payment months; one extra friend trial month",
+  "automated": {
+    "node": {
+      "passed": 2208,
+      "failed": 0,
+      "log": "/tmp/sdocs-referral-milestones-full-final.log"
+    },
+    "browser": {
+      "passed": 20,
+      "failed": 0,
+      "log": "/tmp/sdocs-referral-milestones-browser-final.log"
+    },
+    "finalCopyChecks": {
+      "passed": 2,
+      "failed": 0,
+      "log": "/tmp/sdocs-referral-milestones-browser-copy.log"
+    }
+  },
+  "coverage": [
+    "email and Google signup",
+    "delayed onboarding and once-only signup bonus",
+    "active trial, warning and paywall restoration",
+    "personal and team libraries",
+    "paid solo and team payers",
+    "paid sponsored referrer keeps own credits",
+    "team owner access does not extend members",
+    "tagged and untagged documents, both create APIs and tag update",
+    "permission isolation and shared document exclusion",
+    "payment before activation",
+    "duplicate saves, connections and webhooks",
+    "zero-value, proration, unrelated-price and incomplete invoices",
+    "lost billing response and durable document evidence",
+    "UTC month-end clamping and leap year",
+    "legacy reserved reward migration",
+    "concurrent credit reservations and unused credit carry-forward"
+  ],
+  "localSkill": {
+    "version": 46,
+    "validator": "passed",
+    "canonicalMatchesInstalled": true
+  },
+  "stripe": {
+    "isolatedSignedWebhookFixture": "passed",
+    "liveCredentialChanges": false,
+    "knownStagingFollowUp": "Restricted application key needs price/invoice reads and coupon/draft-invoice writes before paid rewards can be checked end to end on staging."
+  },
+  "productionChanged": false
+}

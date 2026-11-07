@@ -1,5 +1,6 @@
 (function (exports) {
   var PRICES = {
+    standard: { GBP: '£4', USD: '$5', EUR: '€5' },
     personal: { GBP: '£4', USD: '$5', EUR: '€5' },
     team: { GBP: '£7', USD: '$9', EUR: '€8' },
   };

@@ -1,11 +1,11 @@
 // sdocs-cells-edit.js - in-cell editing for the fullscreen cells view.
 //
-// Client-only, ephemeral editing. Attached from the fullscreen focus view to
-// its grid; the inline grid stays read-only. Edits mutate the grid's source
+// Instance-owned cell editing, attached to an inline or fullscreen grid.
+// Edits mutate the grid's source
 // model (wrapper._cellsSource) and trigger its repaint (wrapper._cellsRepaint),
 // which re-derives the sort + formula recalc, so typing a value or a =formula
-// updates the sheet live. Nothing is persisted to the document here - the
-// focus view repaints the inline grid (shared model object) on close.
+// updates the sheet live. The owning application decides whether to persist
+// changes through onChange. Reader-only exploration remains ephemeral.
 // Undo/redo, range-clear, and TSV/CSV paste are included.
 //
 // Coordinates: the selection reports DISPLAY rows/cols (the painted grid, which
@@ -342,6 +342,7 @@
     }
 
     function onEditorKey(e) {
+      if (e.isComposing || e.keyCode === 229) { e.stopPropagation(); return; }
       // Formula point mode gets first look at every key: arrows in a ref slot
       // write cell references instead of moving the caret.
       if (editorPointer && editorPointer.handleKey(e)) return;
@@ -423,7 +424,7 @@
     }
 
     function onGridKey(e) {
-      if (editing) return;
+      if (editing || e.isComposing || e.keyCode === 229) return;
       var mod = e.metaKey || e.ctrlKey;
       var rect = grid._selectionRect && grid._selectionRect();
       var ext = extent();
@@ -764,6 +765,7 @@
     var api = {
       begin: function () { var a = active(); begin(a.r, a.c); },
       commitOpen: function () { if (editing) commit(true, false); },
+      isEditing: function () { return !!editing; },
       undo: doUndo, redo: doRedo,
       canUndo: function () { return undo.length > 0; },
       detach: function (commitOpen) {
@@ -793,8 +795,10 @@
         if (wrapper._cellsEditApi === api) delete wrapper._cellsEditApi;
       },
       // Commit a value to the active cell from the external formula bar.
-      setActiveRaw: function (raw, move) {
-        var a = active();
+      setActiveRaw: function (raw, move, target) {
+        // A formula-bar blur may follow a pointer selection of another cell.
+        // Commit to the cell where typing began without replacing that selection.
+        var a = target || active();
         var mr = dispToModelRow(a.r);
         var ext = extent();
         if (raw === rawAt(model, mr, a.c)) {
@@ -804,7 +808,7 @@
         pushUndo();
         setRaw(model, mr, a.c, raw);
         repaint(); changed();
-        if (move) reselect(Math.min(a.r + 1, ext.rows - 1), a.c); else reselect(a.r, a.c);
+        if (move) reselect(Math.min(a.r + 1, ext.rows - 1), a.c); else if (!target) reselect(a.r, a.c);
       },
     };
     wrapper._cellsEditApi = api;

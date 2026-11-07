@@ -53,8 +53,8 @@ function validateSuite(suite) {
   if (!suite || suite.schema_version !== 1 || !Array.isArray(suite.scenarios)) {
     throw new Error('SmallDocs skill eval suite must use schema_version 1');
   }
-  if (suite.scenarios.length !== 24) {
-    throw new Error(`SmallDocs skill eval suite must contain 24 scenarios, found ${suite.scenarios.length}`);
+  if (suite.scenarios.length !== 28) {
+    throw new Error(`SmallDocs skill eval suite must contain 28 scenarios, found ${suite.scenarios.length}`);
   }
   const ids = new Set();
   for (const scenario of suite.scenarios) {

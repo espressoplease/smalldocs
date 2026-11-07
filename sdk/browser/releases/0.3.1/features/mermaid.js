@@ -1,4 +1,4 @@
-import { loadStyle, sdkAsset, vendorAsset } from '../assets.js';
+import { loadScript, loadStyle, sdkAsset, vendorAsset, watchTheme } from '../assets.js';
 import { openOverlayLease } from '../overlay.js';
 import { parseKnownHTML, setKnownHTML } from '../runtime.js';
 
@@ -12,6 +12,7 @@ function restoreGlobal(name, previous) {
 async function ensureCanonical() {
   if (canonicalPromise) return canonicalPromise;
   canonicalPromise = (async () => {
+    await loadScript(vendorAsset('sdocs-contrast.js'), () => window.SDocContrast);
     const previousZoom = window.SDocZoomMath;
     await import('../vendor/sdocs-zoom-math.js');
     const zoomMath = window.SDocZoomMath;
@@ -134,7 +135,9 @@ export async function mount(context) {
   await loadStyle(vendorAsset('sdocs-mermaid-reader.css'), 'smalldocs-sdk-mermaid-reader-styles');
   if (context.signal.aborted) return;
 
-  const worker = createWorker();
+  let worker = null;
+  let pendingRenders = 0;
+  function releaseWorker() { if (worker) worker.destroy(); worker = null; }
   let mermaidConfig = null;
   const focus = canonical.focusCore.create({
     window,
@@ -154,7 +157,14 @@ export async function mount(context) {
   const sdocs = { SDocMermaidFocus: focus };
   const mermaidProxy = {
     initialize(config) { mermaidConfig = config; },
-    render(diagramId, source) { return worker.render(source, diagramId, mermaidConfig); },
+    render(diagramId, source) {
+      if (!worker) worker = createWorker();
+      pendingRenders += 1;
+      return worker.render(source, diagramId, mermaidConfig).finally(() => {
+        pendingRenders -= 1;
+        if (!pendingRenders) releaseWorker();
+      });
+    },
   };
   const renderer = canonical.mermaidCore.create({
     window,
@@ -169,14 +179,14 @@ export async function mount(context) {
     isNodeActive: (node) => context.allowDetached === true || node.isConnected,
   });
 
-  try {
-    await renderer.processMermaid(context.root);
-  } finally {
-    worker.destroy();
-  }
+  try { await renderer.processMermaid(context.root); }
+  catch (error) { renderer.destroy(); focus.destroy(); releaseWorker(); throw error; }
+  context.cleanups.push(watchTheme(context.root, () => {
+    if (!context.signal.aborted) renderer.rethemeMermaid().catch(() => {});
+  }));
   return () => {
     renderer.destroy();
     focus.destroy();
-    worker.destroy();
+    releaseWorker();
   };
 }

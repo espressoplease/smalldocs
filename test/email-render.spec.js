@@ -30,6 +30,12 @@ const messages = [
     billingUrl: 'https://cloud-staging.smalldocs.org/cloud/admin?panel=billing' })],
 ];
 
+for (const type of ['subscription_started', 'payment_failed', 'payment_recovered', 'payment_read_only', 'cancellation_scheduled']) {
+  messages.push(['retained documents ' + type, () => templates.billingState({ type, retainDocuments: true,
+    accountName: 'your SmallDocs subscription', accessEndsAt: '28 October 2026',
+    billingUrl: 'https://cloud-staging.smalldocs.org/cloud/admin?panel=billing' })]);
+}
+
 for (const [name, render] of messages) {
   test(name + ' email renders without horizontal overflow', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 700 });

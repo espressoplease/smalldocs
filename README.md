@@ -2,7 +2,7 @@
 
 **Read, style, and share markdown files - privately.**
 
-SmallDocs (formerly SDocs) is a lightweight, stateless markdown editor with live styling. Your document lives in the URL hash fragment - browsers never send it to the server.
+SmallDocs renders Markdown documents with live styling. SmallDocs Cloud adds a tagged library, search, shared access and revision history. URL-only documents carry their content in the browser's hash fragment.
 
 **[smalldocs.org](https://smalldocs.org)** &nbsp;|&nbsp; **[npm](https://www.npmjs.com/package/sdocs-dev)** &nbsp;|&nbsp; **[Elastic License 2.0](LICENSE)** &nbsp;|&nbsp; **[Discord](https://discord.gg/8n6DR4v46f)**
 
@@ -17,7 +17,7 @@ SmallDocs (formerly SDocs) is a lightweight, stateless markdown editor with live
 - **Render more than text** - charts, Mermaid diagrams, slide decks, and live-formula spreadsheets from fenced code blocks
 - **Bridge** - `sdoc bridge file.md` ties the open browser page to the file on disk: browser edits autosave to the file, file edits push to the page
 
-Everything that touches document content runs client-side. The server serves static files, stores ciphertext for short links, and counts anonymous visits (no IPs, no tracking IDs - see [smalldocs.org/analytics](https://smalldocs.org/analytics)). The `/trust` page explains how to verify the served code matches this repository.
+URL-only document rendering runs in the browser. Snapshot short links store ciphertext with the decryption key in the URL fragment. Cloud documents use server-managed encryption at rest; authorized server operations decrypt content to read, search and edit it. Cloud permissions apply to browser and CLI access.
 
 ## CLI
 
@@ -44,7 +44,28 @@ cat notes.md | sdoc                     # pipe markdown to browser
 
 ## How it works
 
-Documents are compressed with [Brotli](https://en.wikipedia.org/wiki/Brotli) and encoded as [base64url](https://en.wikipedia.org/wiki/Base64#URL_applications) in the URL hash fragment. The hash fragment is never sent to the server by the browser - it stays entirely client-side.
+### Cloud documents and reviewer feedback
+
+After connecting Cloud, run `sdoc setup --cloud --yes` to install the Cloud-first agent skill. Save documents with tags and use the returned Cloud URL in chat:
+
+```sh
+sdoc report.md --cloud --json +research +project
+sdoc cloud search 'project report' --json
+sdoc cloud read DOCUMENT_ID --section Summary --json
+sdoc cloud edit DOCUMENT_ID --section Summary --old 'Draft' --new 'Reviewed' --base-revision READ_REVISION_ID --json
+sdoc cloud comments DOCUMENT_ID --json
+sdoc cloud comments DOCUMENT_ID --id c7 --reply 'Updated and checked.' --json
+sdoc cloud comments DOCUMENT_ID --id c7 --resolve --json
+sdoc cloud comments DOCUMENT_ID --id c7 --delete --json
+```
+
+Comment JSON includes replies, status, anchor diagnostics, source excerpts and Cloud links. Resolve keeps the discussion in the document. Delete removes the thread and its replies from the current document; earlier revisions follow the 90-day retention policy. Document text and other comments stay unchanged.
+
+Direct edits and full-file pull/edit/push both save revisions at the same Cloud URL. The open browser checks for revisions and renders saved changes. Read the [Cloud editing and feedback guide](public/cloud-updates.md), or run `sdoc cloud edit --help` and `sdoc cloud comments --help` for targeting, pagination, concurrent changes and retry behavior.
+
+### URL-only documents
+
+URL-only documents are compressed with [Brotli](https://en.wikipedia.org/wiki/Brotli) and encoded as [base64url](https://en.wikipedia.org/wiki/Base64#URL_applications) in the URL hash fragment. The browser does not send that fragment to the server.
 
 ```
 https://smalldocs.org/#md={brotli compressed + base64url encoded .md}
@@ -59,7 +80,7 @@ The repo holds two programs:
 - **Server** (root `package.json`, private): `server.js` is a pure Node `http` server; the frontend is plain HTML, CSS, and JS under `public/` - no build step, no framework.
 - **CLI** (`cli/package.json`, published to npm as `sdocs-dev`): `cli/bin/sdocs-dev.js` plus modules under `cli/lib/`. Zero runtime dependencies - plain Node standard library, so installing it pulls nothing and compiles nothing.
 
-Three small modules are shared between Node and the browser via a UMD pattern; they live in `cli/shared/` with symlinks under `public/`.
+Shared modules use a UMD pattern; they live in `cli/shared/` with symlinks under `public/`.
 
 ## Contributing
 

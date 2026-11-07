@@ -1,14 +1,16 @@
 #!/bin/sh
 set -eu
 
-if [ "$#" -ne 1 ]; then
-  echo "Usage: ops/deploy-staging.sh SSH_TARGET" >&2
+if [ "$#" -lt 1 ] || [ "$#" -gt 2 ]; then
+  echo "Usage: ops/deploy-staging.sh SSH_TARGET [PUBLISHED_BRANCH]" >&2
   exit 2
 fi
 
 deploy_target=$1
 release_commit=$(git rev-parse HEAD)
-remote_commit=$(git ls-remote --heads origin refs/heads/main | cut -f1)
+release_ref=refs/heads/${2:-main}
+git check-ref-format "$release_ref"
+remote_commit=$(git ls-remote --heads origin "$release_ref" | cut -f1)
 release_tmp=$(mktemp -d)
 release_archive="$release_tmp/smalldocs-$release_commit.tar.gz"
 remote_archive="/tmp/smalldocs-$release_commit.tar.gz"
@@ -20,7 +22,7 @@ if ! git diff --quiet || ! git diff --cached --quiet; then
   exit 1
 fi
 if [ -z "$remote_commit" ] || [ "$remote_commit" != "$release_commit" ]; then
-  echo "Refusing to deploy a commit that is not the published main tip." >&2
+  echo "Refusing to deploy a commit that is not the published branch tip: $release_ref" >&2
   exit 1
 fi
 
@@ -56,6 +58,11 @@ rollback_staging() {
     sudo systemctl daemon-reload
   fi
   sudo systemctl restart smalldocs-staging || true
+  if [ -f "$previous_release/ops/publication-compiler-worker.js" ]; then
+    sudo systemctl restart smalldocs-staging-compiler || true
+  else
+    sudo systemctl stop smalldocs-staging-compiler || true
+  fi
 }
 
 if sudo test -e "$release_dir"; then
@@ -68,8 +75,16 @@ sudo rm -f -- "$remote_archive"
 sudo mkdir -p "$release_dir/.git"
 printf '%s\n' "$release_commit" | sudo tee "$release_dir/.git/HEAD" >/dev/null
 sudo env PATH=/usr/local/bin:/usr/bin:/bin npm --prefix "$release_dir" ci --omit=dev
+sudo node "$release_dir/scripts/package-staging-cli.js" "$release_dir/cli-artifacts/sdocs-dev.tgz"
 sudo chown -R root:root "$release_dir"
 sudo chmod -R go-w "$release_dir"
+sudo sh "$release_dir/ops/install-publication-browser.sh"
+if ! id smalldocs-staging-compiler >/dev/null 2>&1; then
+  sudo useradd --system --gid smalldocs-staging --home-dir /var/cache/smalldocs-staging-compiler --shell /usr/sbin/nologin smalldocs-staging-compiler
+fi
+sudo systemd-analyze verify "$release_dir/ops/systemd/smalldocs-staging-compiler.service"
+sudo install -o root -g root -m 0644 "$release_dir/ops/systemd/smalldocs-staging-compiler.service" /etc/systemd/system/smalldocs-staging-compiler.service
+sudo systemctl daemon-reload
 sudo systemd-analyze verify "$unit_source"
 if ! sudo cmp -s "$unit_source" "$unit_target"; then
   sudo cp "$unit_target" "$unit_backup"
@@ -78,6 +93,14 @@ if ! sudo cmp -s "$unit_source" "$unit_target"; then
   unit_changed=1
 fi
 sudo ln -sfn "$release_dir" /opt/smalldocs/staging-current
+sudo systemctl enable smalldocs-staging-compiler >/dev/null
+if ! sudo systemctl restart smalldocs-staging-compiler; then rollback_staging; exit 1; fi
+compiler_attempt=0
+while ! sudo test -S /run/smalldocs-staging-compiler/worker.sock; do
+  compiler_attempt=$((compiler_attempt + 1))
+  if [ "$compiler_attempt" -ge 20 ]; then rollback_staging; exit 1; fi
+  sleep 1
+done
 
 if ! sudo systemctl restart smalldocs-staging; then
   rollback_staging

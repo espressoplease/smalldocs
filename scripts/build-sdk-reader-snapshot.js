@@ -14,6 +14,7 @@ if (!/^\d+\.\d+\.\d+$/.test(sdkVersion)) {
 const output = path.join(repo, 'sdk', 'browser', 'releases', sdkVersion, 'vendor');
 const documentScope = '.smalldocs-sdk-view[data-smalldocs-sdk-version="' + sdkVersion + '"]';
 const files = [
+  ['cli/shared/sdocs-contrast.js', 'sdocs-contrast.js'],
   ['public/sdocs-marked-del-core.js', 'sdocs-marked-del-core.js'],
   ['public/sdocs-prose-reader.js', 'sdocs-prose-reader.js'],
   ['public/css/prose-reader.css', 'sdocs-prose-reader.css', 'sdk-layered-css'],

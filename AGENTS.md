@@ -100,6 +100,12 @@ When you catch yourself writing a sentence that tries to *make the reader feel g
 
 ## Product design reuse
 
+### Develop the interface as it will appear in production
+
+Local development and test flows must show the interface that production users will see. Do not add preview banners, demo badges, testing notes, environment disclaimers, or artificial labels such as "Local Fish CLI preview" to application pages, connected-machine names, or other user-visible records. Use realistic names and production copy. The user already knows which environment they are using and needs to evaluate the actual product experience.
+
+Keep scenario controls and testing explanations in terminal output, test documentation, or a separate test launcher. Do not inject them into the application interface. If a preview needs different authentication or disposable data, implement that behind the scenes without adding explanatory UI.
+
 Reuse existing SmallDocs interface patterns before creating a new component, token set, layout rule, or interaction. If two surfaces perform the same job, they should use the same dimensions, colours, typography, spacing, states, and responsive behaviour. Reposition an existing pattern when the information architecture requires it, such as moving a side panel from right to left, without redesigning the pattern itself.
 
 Create a new pattern only when the user need or interaction is materially different. Before doing that, identify the existing pattern that comes closest and state why extending or reusing it would not serve the new requirement.

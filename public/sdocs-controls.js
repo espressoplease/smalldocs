@@ -82,7 +82,7 @@ function setColorValue(ctrlId, value, userAction) {
     }
   }
   // Refresh charts when block/chart colors change
-  if (S.refreshChartColors && (ctrlId === '_sd_ctrl-chart-bg' || ctrlId === '_sd_ctrl-chart-text' ||
+  if (!S._syncing && S.refreshChartColors && (ctrlId === '_sd_ctrl-chart-bg' || ctrlId === '_sd_ctrl-chart-text' ||
       ctrlId === '_sd_ctrl-block-bg' || ctrlId === '_sd_ctrl-block-text')) {
     S.refreshChartColors();
   }

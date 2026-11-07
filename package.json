@@ -11,6 +11,7 @@
     "test": "node test/run.js",
     "parity": "node scripts/sdocs-parity.js",
     "test:cloud-e2e": "playwright test --config=playwright.cloud.config.js",
+    "test:onboarding": "playwright test --config=playwright.onboarding.config.js",
     "email:preview": "node scripts/email-preview.js",
     "email:preview:stop": "docker compose -p smalldocs-email-preview -f test/mailpit.compose.yml down",
     "eval:skill": "node scripts/smalldocs-skill-eval.js",
@@ -35,7 +36,8 @@
     "brotli": "^1.3.3",
     "brotli-dec-wasm": "^2.3.2",
     "brotli-wasm": "^3.0.1",
-    "marked": "^11.0.0"
+    "marked": "^11.0.0",
+    "playwright-core": "1.59.1"
   },
   "devDependencies": {
     "@playwright/test": "^1.59.1",

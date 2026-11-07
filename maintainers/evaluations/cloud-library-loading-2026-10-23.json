@@ -1,0 +1,302 @@
+{
+  "date": "2026-10-23",
+  "baseline_commit": "2e1ba643f7ec5961d081ffe159e5dac881474606",
+  "checks": {
+    "node": 1829,
+    "browser_scenarios": 29,
+    "oracle_cases": 138,
+    "oracle_pages": 623,
+    "oracle_failures": [],
+    "security": [
+      {
+        "id": "blind-index-at-rest",
+        "pass": true
+      },
+      {
+        "id": "hidden-data-influence",
+        "pass": true
+      },
+      {
+        "id": "revoke-between-pages",
+        "pass": true
+      },
+      {
+        "id": "revoke-during-decryption",
+        "pass": true
+      },
+      {
+        "id": "revoke-through-second-connection",
+        "pass": true
+      },
+      {
+        "id": "key-failure-is-atomic",
+        "pass": true
+      },
+      {
+        "id": "current-revision-lifecycle",
+        "pass": true
+      },
+      {
+        "id": "membership-revocation",
+        "pass": true
+      },
+      {
+        "id": "legacy-index-rebuild",
+        "pass": true
+      }
+    ]
+  },
+  "measurement": "Shared development machine, with other test processes active. Existing 100,000-document encrypted fixture, small repeated tag vocabulary, one SQLite connection and asynchronous local key provider. No HTTP or managed KMS. No latency improvement or deployment capacity claim.",
+  "resources": {
+    "runtime": "v22.18.0",
+    "fixture": "/var/folders/ss/3bt2brn15cl26qzh2vmtk30r0000gn/T/sdocs-search-eval-ZWVz5r",
+    "results": [
+      {
+        "kind": "browse",
+        "concurrency": 1,
+        "rounds": 1,
+        "memory_samples": [
+          {
+            "rss": 102088704,
+            "heapTotal": 10780672,
+            "heapUsed": 6229952,
+            "external": 1902778,
+            "arrayBuffers": 54944
+          }
+        ],
+        "peak_active_requests": 1,
+        "document_count": 100000,
+        "expected_matches_per_request": 100000,
+        "decryption_count": 0,
+        "metadata_decryption_count": 60,
+        "elapsed_ms": 3047,
+        "samples": 1,
+        "minimum_ms": 3047.23,
+        "median_ms": 3047.23,
+        "p95_ms": 3047.23,
+        "maximum_ms": 3047.23,
+        "before": {
+          "rss": 68943872,
+          "heapTotal": 7634944,
+          "heapUsed": 5334264,
+          "external": 1866469,
+          "arrayBuffers": 18675
+        },
+        "after": {
+          "rss": 102105088,
+          "heapTotal": 10780672,
+          "heapUsed": 6239480,
+          "external": 1902778,
+          "arrayBuffers": 54944
+        },
+        "peak_rss_bytes": 102105088,
+        "scope": "One process and SQLite connection; all fixture documents authorized; asynchronous local key provider; no corpus in JS"
+      },
+      {
+        "kind": "browse",
+        "concurrency": 4,
+        "rounds": 1,
+        "memory_samples": [
+          {
+            "rss": 119373824,
+            "heapTotal": 7897088,
+            "heapUsed": 6428296,
+            "external": 1877545,
+            "arrayBuffers": 29711
+          }
+        ],
+        "peak_active_requests": 4,
+        "document_count": 100000,
+        "expected_matches_per_request": 100000,
+        "decryption_count": 0,
+        "metadata_decryption_count": 240,
+        "elapsed_ms": 12319,
+        "samples": 4,
+        "minimum_ms": 5907.69,
+        "median_ms": 6689.17,
+        "p95_ms": 9866.07,
+        "maximum_ms": 9866.07,
+        "before": {
+          "rss": 67911680,
+          "heapTotal": 7634944,
+          "heapUsed": 5369560,
+          "external": 1866469,
+          "arrayBuffers": 18675
+        },
+        "after": {
+          "rss": 119422976,
+          "heapTotal": 7897088,
+          "heapUsed": 6440232,
+          "external": 1877545,
+          "arrayBuffers": 29711
+        },
+        "peak_rss_bytes": 119422976,
+        "scope": "One process and SQLite connection; all fixture documents authorized; asynchronous local key provider; no corpus in JS"
+      },
+      {
+        "kind": "browse",
+        "concurrency": 8,
+        "rounds": 1,
+        "memory_samples": [
+          {
+            "rss": 117719040,
+            "heapTotal": 8421376,
+            "heapUsed": 6827040,
+            "external": 1876117,
+            "arrayBuffers": 28283
+          }
+        ],
+        "peak_active_requests": 8,
+        "document_count": 100000,
+        "expected_matches_per_request": 100000,
+        "decryption_count": 0,
+        "metadata_decryption_count": 480,
+        "elapsed_ms": 19309,
+        "samples": 8,
+        "minimum_ms": 8718.17,
+        "median_ms": 11002.18,
+        "p95_ms": 13581.7,
+        "maximum_ms": 13581.7,
+        "before": {
+          "rss": 69156864,
+          "heapTotal": 7897088,
+          "heapUsed": 5356584,
+          "external": 1866469,
+          "arrayBuffers": 18675
+        },
+        "after": {
+          "rss": 117768192,
+          "heapTotal": 8421376,
+          "heapUsed": 6839616,
+          "external": 1876117,
+          "arrayBuffers": 28283
+        },
+        "peak_rss_bytes": 117768192,
+        "scope": "One process and SQLite connection; all fixture documents authorized; asynchronous local key provider; no corpus in JS"
+      },
+      {
+        "kind": "browse-with-tags",
+        "concurrency": 1,
+        "rounds": 1,
+        "memory_samples": [
+          {
+            "rss": 131039232,
+            "heapTotal": 10780672,
+            "heapUsed": 7305928,
+            "external": 1945302,
+            "arrayBuffers": 97468
+          }
+        ],
+        "peak_active_requests": 1,
+        "document_count": 100000,
+        "expected_matches_per_request": 100000,
+        "decryption_count": 0,
+        "metadata_decryption_count": 60,
+        "elapsed_ms": 4761,
+        "samples": 1,
+        "minimum_ms": 4760.35,
+        "median_ms": 4760.35,
+        "p95_ms": 4760.35,
+        "maximum_ms": 4760.35,
+        "before": {
+          "rss": 67076096,
+          "heapTotal": 7634944,
+          "heapUsed": 5371144,
+          "external": 1866469,
+          "arrayBuffers": 18675
+        },
+        "after": {
+          "rss": 131039232,
+          "heapTotal": 10780672,
+          "heapUsed": 7315456,
+          "external": 1945302,
+          "arrayBuffers": 97468
+        },
+        "peak_rss_bytes": 131039232,
+        "scope": "One process and SQLite connection; all fixture documents authorized; asynchronous local key provider; no corpus in JS"
+      },
+      {
+        "kind": "browse-with-tags",
+        "concurrency": 4,
+        "rounds": 1,
+        "memory_samples": [
+          {
+            "rss": 146898944,
+            "heapTotal": 8683520,
+            "heapUsed": 6126064,
+            "external": 1894525,
+            "arrayBuffers": 46691
+          }
+        ],
+        "peak_active_requests": 4,
+        "document_count": 100000,
+        "expected_matches_per_request": 100000,
+        "decryption_count": 0,
+        "metadata_decryption_count": 240,
+        "elapsed_ms": 25069,
+        "samples": 4,
+        "minimum_ms": 16356.58,
+        "median_ms": 17931.7,
+        "p95_ms": 22678.32,
+        "maximum_ms": 22678.32,
+        "before": {
+          "rss": 67731456,
+          "heapTotal": 7634944,
+          "heapUsed": 5337464,
+          "external": 1866469,
+          "arrayBuffers": 18675
+        },
+        "after": {
+          "rss": 146898944,
+          "heapTotal": 8683520,
+          "heapUsed": 6138376,
+          "external": 1894525,
+          "arrayBuffers": 46691
+        },
+        "peak_rss_bytes": 146898944,
+        "scope": "One process and SQLite connection; all fixture documents authorized; asynchronous local key provider; no corpus in JS"
+      },
+      {
+        "kind": "browse-with-tags",
+        "concurrency": 8,
+        "rounds": 1,
+        "memory_samples": [
+          {
+            "rss": 156401664,
+            "heapTotal": 9207808,
+            "heapUsed": 7418952,
+            "external": 1922277,
+            "arrayBuffers": 74443
+          }
+        ],
+        "peak_active_requests": 8,
+        "document_count": 100000,
+        "expected_matches_per_request": 100000,
+        "decryption_count": 0,
+        "metadata_decryption_count": 480,
+        "elapsed_ms": 49754,
+        "samples": 8,
+        "minimum_ms": 28162.48,
+        "median_ms": 36168.77,
+        "p95_ms": 43350.66,
+        "maximum_ms": 43350.66,
+        "before": {
+          "rss": 67993600,
+          "heapTotal": 7634944,
+          "heapUsed": 5359896,
+          "external": 1866469,
+          "arrayBuffers": 18675
+        },
+        "after": {
+          "rss": 156401664,
+          "heapTotal": 9207808,
+          "heapUsed": 7431848,
+          "external": 1922277,
+          "arrayBuffers": 74443
+        },
+        "peak_rss_bytes": 156401664,
+        "scope": "One process and SQLite connection; all fixture documents authorized; asynchronous local key provider; no corpus in JS"
+      }
+    ]
+  }
+}

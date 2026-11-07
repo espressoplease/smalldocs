@@ -165,6 +165,18 @@ module.exports = function(harness) {
       assert.deepStrictEqual(logs, []);
     });
 
+    await testAsync('wipes AWS plaintext responses even when response metadata is invalid', async () => {
+      const sdk = fakeSdk();
+      const adapter = createAwsKmsClient(Object.assign({ region: 'eu-central-1' }, sdk));
+      const plaintext = new Uint8Array(32).fill(7);
+      try {
+        sdk.KMSClient.instance.responses.push({ Plaintext: plaintext, KeyId: '' });
+        await assert.rejects(adapter.decrypt({ keyId: 'alias/key', ciphertext: Buffer.from([1]),
+          encryptionContext: { purpose: 'test' } }), error => error.code === 'aws_kms_invalid_response');
+        assert.ok(plaintext.every(byte => byte === 0));
+      } finally { adapter.destroy(); }
+    });
+
     await testAsync('aborts a KMS operation at the configured total deadline', async () => {
       const sdk = fakeSdk();
       sdk.KMSClient.prototype.send = function(command, options) {

@@ -64,7 +64,7 @@ var CSS = [
   /* the wrapping element, which typically owns the click handler (open */
   /* presentation mode, navigate to a slide). Text selection inside a slide */
   /* is a rare ask; if we need it later, scope this to inline contexts only. */
-  '.sd-shape-stage { position: absolute; top: 0; left: 0; transform-origin: top left; overflow: hidden; }',
+  '.sd-shape-stage { position: absolute; top: 0; left: 0; transform-origin: top left; overflow: hidden; background: var(--md-bg, #ffffff); }',
   /* Each slide has three stacked sublayers: bottom / mid / top. DOM order */
   /* (last-appended paints above) gives us the stacking; no z-index needed. */
   /* Within each sublayer, the SVG holds vector primitives and the sublayer */
@@ -310,7 +310,7 @@ function scaleOverrides(attrs) {
 function contentToMarkdownNode(content, attrs) {
   var host = document.createElement('div');
   host.className = 'shape-md';
-  if (content == null || content === '') return host;
+  if (content == null) return host;
   if (contentIsOnlyCodeBlock(content)) host.classList.add('shape-md-code-only');
   // Mark when the enclosing shape has an explicit fill so the shadow CSS
   // can decide whether nested code blocks should fill the shape or keep
@@ -494,6 +494,9 @@ function syncShapeCopyButtonContrast(stage) {
   for (var i = 0; i < buttons.length; i++) {
     var button = buttons[i];
     var parentBackground = getComputedStyle(button.parentElement).backgroundColor;
+    var textHost = button.parentElement.querySelector('.shape-md');
+    var shapeSurface = textHost && getComputedStyle(textHost).getPropertyValue('--sdoc-shape-surface').trim();
+    if (shapeSurface) parentBackground = shapeSurface;
     var parentLum = parentBackground === 'transparent' || /rgba\([^)]*,\s*0(?:\.0+)?\s*\)$/.test(parentBackground)
       ? null
       : colorLuminance(parentBackground);
@@ -752,7 +755,7 @@ function renderRect(s, grid) {
   el.dataset.refw = String(dims.w);
   el.dataset.refh = String(dims.h);
   applySizing(el, s.attrs);
-  if (s.content != null && s.content !== '') {
+  if (s.content != null) {
     // textBox=x,y,w,h on a rectangle inset / shifts the area that holds
     // the markdown content, leaving the rect's fill / stroke / dimensions
     // unchanged. Same coordinate convention as on polygons: x,y,w,h in
@@ -1490,7 +1493,7 @@ function renderTextOverlay(s, grid) {
   el.dataset.refw = String(dims.w);
   el.dataset.refh = String(dims.h);
   applySizing(el, s.attrs);
-  if (s.content != null && s.content !== '') {
+  if (s.content != null) {
     attachRotatedContent(el, s, grid, box.w, box.h);
   }
   if (s.id) el.dataset.id = s.id + '-text';
@@ -1780,6 +1783,148 @@ function cornerBackgroundLuminance(shapes, grid) {
   return fill ? colorLuminance(fill) : null;
 }
 
+// A slide may deliberately keep a light canvas or pastel card in a dark
+// document. Inherited foregrounds must be checked against that painted
+// surface, including rectangles underneath transparent text shapes.
+function bindSlideTheme(stage, wrap, result, session) {
+  var corrections = [], frame = 0, observer = null;
+  var canvas = document.createElement('canvas');
+  canvas.width = canvas.height = 1;
+  var context = canvas.getContext('2d', { willReadFrequently: true });
+  function refresh() {
+    if (session.destroyed || !wrap.isConnected || !window.SDocContrast) return;
+    corrections.forEach(function (entry) {
+      if (entry[1]) entry[0].style.setProperty('color', entry[1], entry[2]);
+      else entry[0].style.removeProperty('color');
+    });
+    corrections = [];
+    var colors = Object.create(null);
+    function rgba(value) {
+      if (!value || value === 'none') return [0, 0, 0, 0];
+      if (colors[value]) return colors[value];
+      context.clearRect(0, 0, 1, 1);
+      context.fillStyle = 'transparent'; context.fillStyle = value;
+      context.fillRect(0, 0, 1, 1);
+      var pixel = context.getImageData(0, 0, 1, 1).data;
+      return colors[value] = [pixel[0], pixel[1], pixel[2], pixel[3] / 255];
+    }
+    function over(fg, bg) {
+      return [0, 1, 2].map(function (i) { return fg[i] * fg[3] + bg[i] * (1 - fg[3]); }).concat(1);
+    }
+    function hex(c) {
+      return '#' + c.slice(0, 3).map(function (v) { return Math.round(v).toString(16).padStart(2, '0'); }).join('');
+    }
+    var style = getComputedStyle(stage);
+    var page = over(rgba(style.getPropertyValue('--md-bg').trim() || '#ffffff'), [255, 255, 255, 1]);
+    var background = over(rgba(style.backgroundColor), page);
+    var shapes = result.shapes, rank = { bottom: 0, mid: 1, top: 2 };
+    function layer(s) { return rank[s.attrs.layer] == null ? 1 : rank[s.attrs.layer]; }
+    var order = shapes.map(function (_, i) { return i; }).sort(function (a, b) { return layer(shapes[a]) - layer(shapes[b]) || a - b; });
+    var probe = document.createElement('span');
+    probe.hidden = true; stage.appendChild(probe);
+    function paint(value) {
+      probe.style.backgroundColor = ''; probe.style.backgroundColor = value || 'transparent';
+      return rgba(getComputedStyle(probe).backgroundColor);
+    }
+    var corner = background;
+    order.forEach(function (index) {
+      var s = shapes[index], x = result.grid.w * 0.98, y = result.grid.h * 0.02;
+      if (s.kind === 'r' && !s.attrs.image && s.x <= x && s.y <= y && s.x + s.w >= x && s.y + s.h >= y) corner = over(paint(s.attrs.fill), corner);
+    });
+    var wrapper = wrap.closest('.sdoc-slide');
+    if (wrapper) {
+      var uiClass = colorLuminance(hex(corner)) < 0.5 ? 'sdoc-slide-dark-ui' : 'sdoc-slide-light-ui';
+      if (!wrapper.classList.contains(uiClass)) {
+        wrapper.classList.remove('sdoc-slide-dark-ui', 'sdoc-slide-light-ui'); wrapper.classList.add(uiClass);
+      }
+    }
+    stage.querySelectorAll('.shape-md').forEach(function (host) {
+      if (!host.shadowRoot) return;
+      var box = host.closest('[data-shape-idx]');
+      var index = box ? Number(box.dataset.shapeIdx) : -1, shape = shapes[index];
+      if (!shape) return;
+      var x = shape.x + (shape.w || 0) / 2, y = shape.y + (shape.h || 0) / 2;
+      var surface = background;
+      for (var n = 0; n < order.length; n++) {
+        var at = order[n], under = shapes[at];
+        if (at === index) break;
+        if (under.kind === 'r' && !under.attrs.image && under.x <= x && under.y <= y && under.x + under.w >= x && under.y + under.h >= y) {
+          surface = over(paint(under.attrs.fill), surface);
+        }
+      }
+      if (!shape.attrs.image) surface = over(paint(shape.attrs.fill), surface);
+      host.style.setProperty('--sdoc-shape-surface', hex(surface));
+      var authoredText = shape.attrs.color && !/^var\(/.test(shape.attrs.color)
+        ? hex(paint(shape.attrs.color)) : null;
+      function visit(node, bg) {
+        var cs = getComputedStyle(node);
+        bg = over(rgba(cs.backgroundColor), bg);
+        var hasText = Array.prototype.some.call(node.childNodes, function (child) { return child.nodeType === 3 && child.textContent.trim(); });
+        if (hasText || node.tagName === 'LI') {
+          var foreground = rgba(cs.color), preferred = hex(over(foreground, bg));
+          var readable = window.SDocContrast.readableColor(preferred, hex(bg));
+          if (readable !== preferred && preferred !== authoredText) {
+            corrections.push([node, node.style.getPropertyValue('color'), node.style.getPropertyPriority('color')]);
+            node.style.color = readable;
+          }
+        }
+        Array.prototype.forEach.call(node.children, function (child) {
+          if (child.tagName !== 'STYLE' && child.tagName !== 'SVG') visit(child, bg);
+        });
+      }
+      var inner = host.shadowRoot.querySelector('.inner');
+      if (inner) visit(inner, surface);
+    });
+    probe.remove();
+    // Copy affordances also follow resolved CSS references, not their old
+    // light/dark class from the first render.
+    stage.querySelectorAll('.sd-shape-copy-btn').forEach(function (button) { button.classList.remove('is-dark', 'is-light'); });
+    syncShapeCopyButtonContrast(stage);
+  }
+  function schedule() {
+    if (frame || session.destroyed) return;
+    frame = requestAnimationFrame(function () {
+      frame = 0; refresh();
+      if (!observer && wrap.isConnected && !session.destroyed) {
+        observer = new MutationObserver(schedule);
+        var parent = wrap;
+        while (parent) {
+          observer.observe(parent, { attributes: true, attributeFilter: ['style', 'class', 'data-theme', 'data-sdocs-theme'] });
+          parent = parent.parentElement || (parent.getRootNode && parent.getRootNode().host);
+        }
+      }
+    });
+  }
+  stage.__sdRefreshTheme = refresh;
+  refresh(); schedule();
+  session.addCleanup(function () { if (frame) cancelAnimationFrame(frame); if (observer) observer.disconnect(); stage.__sdRefreshTheme = null; });
+  return refresh;
+}
+
+function refreshThemes(root) {
+  (root || document).querySelectorAll('.sd-shape-stage').forEach(function (stage) {
+    if (stage.__sdRefreshTheme) stage.__sdRefreshTheme();
+  });
+}
+
+// Native exporters consume the parsed geometry, but CSS references and named
+// colours need the same live style context as their on-screen counterparts.
+function resolvePaints(result, stage) {
+  function clone(item) { return Object.assign({}, item, { attrs: Object.assign({}, item.attrs) }); }
+  result = { grid: clone(result.grid), shapes: result.shapes.map(clone) };
+  var probe = document.createElement('span'); probe.hidden = true; stage.appendChild(probe);
+  [result.grid].concat(result.shapes).forEach(function (item) {
+    ['bg', 'fill', 'stroke', 'color'].forEach(function (key) {
+      var value = item.attrs && item.attrs[key];
+      if (typeof value !== 'string' || !value || value === 'none' || value === 'transparent' || value.charAt(0) === '#') return;
+      probe.style.color = ''; probe.style.color = value;
+      if (probe.style.color) item.attrs[key] = getComputedStyle(probe).color;
+    });
+  });
+  probe.remove();
+  return result;
+}
+
 function renderShapes(dslText, wrap, options) {
   options = options || {};
   var previousRuntime = ACTIVE_RUNTIME;
@@ -1974,12 +2119,14 @@ function renderShapesWithRuntime(dslText, wrap, options, runtime) {
   // eslint-disable-next-line no-unused-expressions
   stage.offsetHeight;
   applyAutoFit(stage, minFontPx, maxStageHPct);
+  result.refit = function () { if (!session.destroyed) applyAutoFit(stage, minFontPx, maxStageHPct); };
 
   // Move stage into the real wrap. Shadow roots travel with their hosts,
   // so content and styles are preserved - no re-parse, no DOM rebuild.
   wrap.appendChild(stage);
   if (off.parentNode) off.parentNode.removeChild(off);
   syncShapeCopyButtonContrast(stage);
+  var refreshTheme = bindSlideTheme(stage, wrap, result, session);
 
   session.addCleanup(attachScaler(wrap, stage, rW));
 
@@ -1996,7 +2143,7 @@ function renderShapesWithRuntime(dslText, wrap, options, runtime) {
     signal: session.signal,
     session: session,
   }).map(function (task) { return session.track(task); }));
-  result.ready = result.pending.then(function () { return result; });
+  result.ready = result.pending.then(function () { refreshTheme(); return result; });
   result.pending = result.ready;
   result.destroy = session.destroy;
 
@@ -2202,6 +2349,12 @@ function kickShadowMermaid(shadow) {
 // thumbnail dimensions, where Chart.js's internal measurement collapses
 // and fixed-px fonts render at chart-dominating sizes. Substituting the
 // pre-rendered PNG sidesteps the whole re-render path.
+function themeSignature(stage) {
+  var css = getComputedStyle(stage);
+  return ['--md-bg', '--md-color', '--md-chart-bg', '--md-chart-text', '--md-chart-accent']
+    .map(function (key) { return css.getPropertyValue(key); }).join('|');
+}
+
 function snapshotChartsForReuse(stage, wrap) {
   var canvases = [];
   var hosts = stage.querySelectorAll('.shape-md');
@@ -2220,13 +2373,16 @@ function snapshotChartsForReuse(stage, wrap) {
   function tick() {
     if (stopped) return;
     attempts++;
-    var allReady = canvases.every(function (c) {
-      return c.width > 0 && c.height > 0;
+    var Chart = window.Chart;
+    var allReady = Chart && canvases.every(function (c) {
+      var chart = Chart.getChart ? Chart.getChart(c) : null;
+      return chart && c.width > 0 && c.height > 0;
     });
     if (allReady) {
       wrap.__chartImages = canvases.map(function (c) {
         try { return c.toDataURL('image/png'); } catch (_) { return null; }
       });
+      wrap.__chartTheme = themeSignature(stage);
       return;
     }
     if (attempts < 40) schedule();
@@ -2402,6 +2558,9 @@ window.SDocShapeRender = {
   collectSlideText: collectSlideText,
   readShapeText: readShapeText,
   destroyWithin: destroyWithin,
+  refreshThemes: refreshThemes,
+  themeSignature: themeSignature,
+  resolvePaints: resolvePaints,
 };
 
 })();

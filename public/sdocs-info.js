@@ -239,7 +239,79 @@ function wireFeedback() {
 S.refreshInfoDot = refreshDot;
 S.markInfoSeen = markSeen;
 
+function wireSitePanel() {
+  if (!document.body.hasAttribute('data-sdocs-site-page')) return;
+  var button = document.getElementById('_sd_btn-info');
+  var panel = document.getElementById('_sd_info-panel');
+  var close = document.getElementById('_sd_info-panel-close');
+  if (!button || !panel || !close) return;
+  var backgrounds = [];
+
+  function focusPanel() {
+    if (document.body.classList.contains('info-mode') && !panel.contains(document.activeElement)) {
+      close.focus({ preventScroll: true });
+    }
+  }
+
+  function setOpen(open) {
+    backgrounds.forEach(function (entry) { entry.element.inert = entry.inert; });
+    backgrounds = [];
+    var mobile = window.matchMedia('(max-width: 768px)').matches;
+    document.body.classList.toggle('info-mode', open);
+    button.classList.toggle('active', open);
+    button.setAttribute('aria-pressed', String(open));
+    panel.inert = !open;
+    panel.setAttribute('aria-hidden', String(!open));
+    panel.setAttribute('role', mobile ? 'dialog' : 'complementary');
+    panel.setAttribute('aria-label', 'Information');
+    if (open && mobile) {
+      panel.setAttribute('aria-modal', 'true');
+      Array.from(document.body.children).forEach(function (element) {
+        if (element === panel || /^(SCRIPT|STYLE|LINK)$/.test(element.tagName)) return;
+        backgrounds.push({ element: element, inert: element.inert });
+        element.inert = true;
+      });
+    } else panel.removeAttribute('aria-modal');
+    if (open) {
+      markSeen();
+      window.requestAnimationFrame(focusPanel);
+    } else {
+      var target = mobile ? document.querySelector('.sdocs-site-mobilebar-menu') : button;
+      if (target) target.focus({ preventScroll: true });
+    }
+  }
+  panel.inert = true;
+  panel.setAttribute('aria-hidden', 'true');
+  panel.addEventListener('transitionend', function (event) {
+    if (event.target === panel && /^(width|max-height)$/.test(event.propertyName)) focusPanel();
+  });
+  button.addEventListener('click', function () {
+    setOpen(!document.body.classList.contains('info-mode'));
+  });
+  close.addEventListener('click', function () { setOpen(false); });
+  document.addEventListener('keydown', function (event) {
+    if (!document.body.classList.contains('info-mode')) return;
+    if (event.key === 'Escape') { setOpen(false); return; }
+    if (event.key !== 'Tab' || !panel.hasAttribute('aria-modal')) return;
+    var available = Array.from(panel.querySelectorAll('a[href], button, textarea'))
+      .filter(function (element) { return !element.disabled && element.getClientRects().length; });
+    var first = available[0], last = available[available.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault(); last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault(); first.focus();
+    }
+  });
+  document.body.addEventListener('click', function (event) {
+    if (event.target === document.body && panel.hasAttribute('aria-modal')) setOpen(false);
+  });
+  window.addEventListener('resize', function () {
+    if (document.body.classList.contains('info-mode')) setOpen(true);
+  });
+}
+
 function init() {
+  wireSitePanel();
   wireNotifyToggle();
   wireFeedback();
   loadFeed();

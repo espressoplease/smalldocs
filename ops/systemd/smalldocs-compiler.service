@@ -1,0 +1,46 @@
+[Unit]
+Description=SmallDocs public document compiler
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=smalldocs-compiler
+Group=smalldocs
+WorkingDirectory=/opt/smalldocs/current
+RuntimeDirectory=smalldocs-compiler
+RuntimeDirectoryMode=0750
+CacheDirectory=smalldocs-compiler
+CacheDirectoryMode=0700
+Environment=HOME=/var/cache/smalldocs-compiler
+Environment=SDOCS_PUBLICATION_COMPILER_SOCKET=/run/smalldocs-compiler/worker.sock
+Environment=SDOCS_PUBLICATION_COMPILER_ORIGIN=http://127.0.0.1:3003
+Environment=SDOCS_PUBLICATION_BROWSER_EXECUTABLE=/opt/smalldocs-publication-browser/chromium
+ExecStart=/usr/local/bin/node /opt/smalldocs/current/ops/publication-compiler-worker.js
+Restart=on-failure
+RestartSec=5s
+TimeoutStopSec=60s
+UMask=0007
+LimitCORE=0
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+ProtectProc=invisible
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+InaccessiblePaths=-/etc/smalldocs -/etc/smalldocs-staging -/var/lib/smalldocs -/var/lib/smalldocs-staging -/run/credentials
+
+[Install]
+WantedBy=multi-user.target

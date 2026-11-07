@@ -96,17 +96,18 @@ function makeRow() {
   row.setAttribute('data-prototype-account', state.account);
   row.setAttribute('data-prototype-saved', String(state.saved));
   if (!state.saved) {
-    row.innerHTML = '<span class="fic-label">Cloud</span>'
-      + '<button class="sdoc-cloud-lab-add-link" type="button">Add to Cloud</button>'
+    row.innerHTML = '<span class="fic-label">Library</span>'
+      + '<div class="sdoc-cloud-lab-row-main sdoc-cloud-lab-intro">'
+      + '<button class="sdoc-cloud-lab-add-link" type="button">Add to your library</button></div>'
       + '<button class="sdoc-cloud-lab-state-icon sdoc-cloud-lab-upload" type="button"'
-      + ' aria-label="Upload to Cloud" title="Add to Cloud">' + CLOUD_UPLOAD_SVG + '</button>';
+      + ' aria-label="Upload to Cloud" title="Add to your library">' + CLOUD_UPLOAD_SVG + '</button>';
     row.querySelectorAll('.sdoc-cloud-lab-add-link, .sdoc-cloud-lab-upload').forEach(function (button) {
       button.addEventListener('click', addToCloud);
     });
     return row;
   }
   var tags = state.tags.map(makeCloudTag).join('');
-  row.innerHTML = '<span class="fic-label">Cloud</span>'
+  row.innerHTML = '<span class="fic-label">Library</span>'
     + '<div class="sdoc-cloud-lab-row-main">'
     + '<div class="sdoc-cloud-lab-pills">'
     + '<button class="sdoc-cloud-lab-access" type="button" data-cloud-lab-open="access"'
@@ -162,10 +163,7 @@ function insertRow() {
   if (existing && existing.classList.contains('fic-row-cloud-lab')) return;
   if (existing) existing.remove();
   var row = makeRow();
-  var filename = rows.querySelector('[data-key="file"]');
-  if (filename && filename.nextSibling) rows.insertBefore(row, filename.nextSibling);
-  else if (filename) rows.appendChild(row);
-  else rows.insertBefore(row, rows.firstChild);
+  rows.insertBefore(row, rows.firstChild);
   rows.hidden = false;
   card.hidden = false;
 }

@@ -15,8 +15,9 @@ const https = require('https');
 const readline = require('readline');
 const { execSync, spawnSync } = require('child_process');
 
-const { UPDATE_CACHE, VERSION, ONE_DAY, GITHUB_REPO_URL, INSTALL_SH_URL } = require('./constants');
+const { UPDATE_CACHE, VERSION, ONE_DAY, GITHUB_REPO_URL, INSTALL_SH_URL, INSTALLATION_CHANNEL } = require('./constants');
 const { readSetupState } = require('./agent-block');
+const { manualUpdateInstructions } = require('./install-channel');
 
 // Install-method detection. The URL installer (install.sh) drops the CLI into
 // $SDOCS_HOME/cli (default ~/.sdocs/cli); a global npm install lives under
@@ -40,6 +41,7 @@ function isUrlInstall(moduleDir) {
 
 // The command that upgrades sdoc in place, given how it was installed.
 function upgradeCommand() {
+  if (INSTALLATION_CHANNEL) return null;
   return isUrlInstall()
     ? `curl -fsSL ${INSTALL_SH_URL} | sh`
     : 'npm i -g sdocs-dev@latest';
@@ -64,6 +66,7 @@ function readCachedLatest() {
 // re-execs into the new binary. On any failure, falls through (so the user's
 // actual command still runs).
 function autoInstallAndReexec(latest) {
+  if (INSTALLATION_CHANNEL) return false;
   console.log(`\nUpdating sdoc ${VERSION} → ${latest}...`);
   const cmd = upgradeCommand();
   try {
@@ -80,6 +83,7 @@ function autoInstallAndReexec(latest) {
 }
 
 async function maybeUpdateBinary() {
+  if (INSTALLATION_CHANNEL) return;
   if (process.env.NO_UPDATE_NOTIFIER || process.env.CI) return;
   const latest = readCachedLatest();
   if (!latest || !isNewer(latest, VERSION)) return;
@@ -119,6 +123,11 @@ async function maybeUpdateBinary() {
 // `sdoc upgrade` — force an upgrade to the latest version right now,
 // regardless of the daily update cache. Branches on install method.
 function runUpgrade() {
+  if (INSTALLATION_CHANNEL) {
+    console.error(manualUpdateInstructions(INSTALLATION_CHANNEL));
+    process.exit(1);
+    return;
+  }
   const cmd = upgradeCommand();
   console.log(`Upgrading sdoc (currently ${VERSION})...`);
   try {
@@ -133,6 +142,7 @@ function runUpgrade() {
 // Daily refresh of the cached `latest` version from npm. Not gated on TTY:
 // agents populate the cache too, so the update hint reaches them on next run.
 function refreshUpdateCache() {
+  if (INSTALLATION_CHANNEL) return;
   if (process.env.NO_UPDATE_NOTIFIER || process.env.CI) return;
   try {
     if (Date.now() - fs.statSync(UPDATE_CACHE).mtimeMs < ONE_DAY) return;

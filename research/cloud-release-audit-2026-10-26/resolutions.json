@@ -1,0 +1,69 @@
+{
+  "date": "2026-10-26",
+  "branch": "codex/homepage-next-review",
+  "audited_baseline": "19da48521599730292f2cde9aca389a540b633e0",
+  "application_deployed": false,
+  "npm_published": false,
+  "fixed_locally": [
+    "F01",
+    "F02",
+    "F03",
+    "F04",
+    "F05",
+    "F06",
+    "F07",
+    "F10",
+    "F11",
+    "F12",
+    "F13"
+  ],
+  "partly_prepared": [
+    "F08"
+  ],
+  "still_open": [
+    "F09",
+    "F14"
+  ],
+  "live_acceptance_pending": [
+    "R01",
+    "R02",
+    "R03",
+    "R04"
+  ],
+  "node_suite": {
+    "command": "node test/run.js",
+    "passed": 1956,
+    "failed": 0
+  },
+  "browser_suite": {
+    "files": [
+      "test/cloud-release-recovery.spec.js",
+      "test/cloud-account-linking.spec.js",
+      "test/cloud-admin.spec.js",
+      "test/email-render.spec.js",
+      "test/sidebar-subscription.spec.js",
+      "test/cloud-email-onboarding.spec.js"
+    ],
+    "passed": 51,
+    "failed": 0,
+    "headless": true
+  },
+  "concurrency": {
+    "independent_refresh_processes": 6,
+    "observed_refreshes": 1,
+    "binding_writer_processes": 8,
+    "bindings_retained": 120,
+    "pending_records_retained": 240
+  },
+  "checkout_member_change": {
+    "sponsored_people": 2,
+    "provider_quantity": 2,
+    "local_quantity": 2
+  },
+  "cli_package": {
+    "version": "1.20.0-rc.11",
+    "file_lock_included": true,
+    "runtime_dependencies": {}
+  },
+  "report_url": "https://cloud-staging.smalldocs.org/docs?cloud-document=52acdfc1-6722-4548-affc-b1115c5def98"
+}

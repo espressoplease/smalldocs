@@ -35,11 +35,30 @@ module.exports = function(harness) {
     assert.strictEqual(selection.storedId(store), 'one');
   });
 
-  test('uses the person name for an individual account and the account name otherwise', () => {
+  test('labels Personal distinctly from named team libraries and shares library icons', () => {
     const user = { first_name: 'Ada', last_name: 'Lovelace' };
-    assert.strictEqual(selection.label({ kind: 'personal', name: 'Personal' }, user), 'Ada Lovelace');
+    assert.strictEqual(selection.label({ kind: 'personal', name: 'Ada Lovelace' }, user), 'Personal');
     assert.strictEqual(selection.label({ kind: 'team', name: 'Analytical Engines' }, user),
       'Analytical Engines');
     assert.strictEqual(selection.initials('Ada Lovelace'), 'AL');
+    assert.ok(selection.icon('personal').includes('data-library-kind="personal"'));
+    assert.ok(selection.icon('team').includes('data-library-kind="team"'));
+    const libraries = [{ id: 'team', kind: 'team' }, { id: 'personal', kind: 'personal' }];
+    assert.deepStrictEqual(selection.orderedLibraries(libraries).map(library => library.id), ['personal', 'team']);
+    assert.strictEqual(libraries[0].id, 'team');
+  });
+
+  test('people colours depend only on identity and keep the current person neutral', () => {
+    const ids = ['a', 'g', 'm', 's', 'y', 'A', 'G', 'M'];
+    assert.notStrictEqual(selection.color('a'), selection.color('g'));
+    assert.strictEqual(new Set(ids.map(id => selection.color(id))).size, ids.length);
+    assert.strictEqual(selection.color('library-one'), selection.color('library-one'));
+    const colors = ids.map(id => selection.personColor(id, false));
+    assert.strictEqual(new Set(colors).size, ids.length);
+    for (const id of ids) {
+      assert.strictEqual(selection.personColor(id), selection.personColor(id, false));
+      assert.strictEqual(selection.personColor(id, true), null);
+    }
+    assert.strictEqual(selection.personColor(null), null);
   });
 };

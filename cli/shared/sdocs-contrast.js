@@ -36,6 +36,8 @@
   // ── WCAG maths ────────────────────────────────────────
   function hexToRgb(hex) {
     if (typeof hex !== 'string') return null;
+    var rgb = hex.trim().match(/^rgb\(\s*(\d+(?:\.\d+)?)\s*[, ]\s*(\d+(?:\.\d+)?)\s*[, ]\s*(\d+(?:\.\d+)?)\s*\)$/i);
+    if (rgb) return { r: Math.min(255, +rgb[1]), g: Math.min(255, +rgb[2]), b: Math.min(255, +rgb[3]) };
     var h = hex.trim().replace(/^#/, '');
     if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
     if (!/^[0-9a-fA-F]{6}$/.test(h)) return null;
@@ -59,6 +61,16 @@
     if (la == null || lb == null) return null;
     var hi = Math.max(la, lb), lo = Math.min(la, lb);
     return (hi + 0.05) / (lo + 0.05);
+  }
+
+  // Keep a preferred foreground when it is readable on this surface. This
+  // is also used by the browser for inherited text on fixed slide fills.
+  function readableColor(preferred, background) {
+    if (contrastRatio(preferred, background) >= 4.5) return preferred;
+    var dark = '#1c1917', light = '#f5f5f4';
+    var best = contrastRatio(dark, background) >= contrastRatio(light, background) ? dark : light;
+    if (contrastRatio(best, background) >= 4.5) return best;
+    return contrastRatio('#000000', background) >= contrastRatio('#ffffff', background) ? '#000000' : '#ffffff';
   }
 
   // Fail line. Calibrated against human review rather than the strict
@@ -186,6 +198,7 @@
   exports.hexToRgb = hexToRgb;
   exports.relativeLuminance = relativeLuminance;
   exports.contrastRatio = contrastRatio;
+  exports.readableColor = readableColor;
   exports.grade = grade;
   exports.MIN_CONTRAST = MIN_CONTRAST;
   exports.resolvePairs = resolvePairs;

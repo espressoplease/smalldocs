@@ -25,8 +25,7 @@
   --shadow: 0 2px 6px rgba(28,25,23,.08), 0 1px 2px rgba(28,25,23,.04);
   --font-ui: 'Inter', system-ui, -apple-system, sans-serif;
 }
-@media (prefers-color-scheme: dark) {
-  :root {
+html[data-theme="dark"] {
     --bg: #1C1A17; --bg-surface: #252320; --bg-panel: #211F1D;
     --bg-panel-deep: #1A1816; --bg-input: #2C2926; --bg-hover: #32302C;
     --bg-active: #3A3733; --border: #3D3935; --border-subtle: #332F2B;
@@ -34,7 +33,6 @@
     --text-3: #6B6560; --text-inv: #1C1917; --accent: #3B82F6;
     --accent-light: #1E293B; --accent-text: #60A5FA;
     --shadow-sm: 0 1px 2px rgba(0,0,0,.20);
-  }
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body {
@@ -45,6 +43,9 @@ body {
   -webkit-font-smoothing: antialiased;
   display: flex;
   flex-direction: column;
+}
+body[data-sdocs-site-page="library"] {
+  --bg: var(--sdocs-document-bg);
 }
 .topbar {
   display: flex; align-items: center; gap: 12px;
@@ -644,9 +645,7 @@ mark {
   color: #2E7D32;
   opacity: 1;
 }
-@media (prefers-color-scheme: dark) {
-  .agent-banner-copy.copied { color: #6FCF7A; }
-}
+html[data-theme="dark"] .agent-banner-copy.copied { color: #6FCF7A; }
 .agent-banner-dismiss {
   margin-left: 8px;
   background: none;
@@ -714,13 +713,10 @@ mark {
     gap: 10px;
     padding: 14px 12px;
   }
-  .res-title { margin-bottom: 5px; font-size: 16px; line-height: 1.35; }
-  .res-meta { gap: 6px 8px; font-size: 13px; line-height: 1.4; }
-  .res-meta code { font-size: 12.5px; }
-  .res-meta .path { max-width: 100%; font-size: 12px; }
-  .res-meta .tag { font-size: 12px; }
+  .res-title { margin-bottom: 5px; line-height: 1.35; }
+  .res-meta { gap: 6px 8px; line-height: 1.4; }
+  .res-meta .path { max-width: 100%; }
   .res-side { align-self: start; gap: 3px; }
-  .res-when { font-size: 12px; }
   .res-star {
     width: 36px;
     height: 36px;
@@ -730,7 +726,7 @@ mark {
     opacity: .55;
   }
   .res-star.on { opacity: 1; }
-  .res-snippet { margin-top: 7px; font-size: 14px; line-height: 1.5; }
+  .res-snippet { margin-top: 7px; line-height: 1.5; }
   .empty { padding: 42px 20px; font-size: 15px; line-height: 1.5; }
   .empty .tip { font-size: 13px; }
   .agent-banner { padding: 12px 14px; font-size: 14px; line-height: 1.45; }

@@ -1,0 +1,124 @@
+{
+  "date": "2026-11-03",
+  "scope": "Project-key rotation, encrypted document recovery and verified storage-security copy",
+  "automated_validation": {
+    "full_suite_passed": 2278,
+    "rotation_and_recovery_cases_passed": 11,
+    "sdk_manifests": "passed",
+    "service_worker_refresh": {
+      "ok": true,
+      "serviceWorkerControlled": true,
+      "newSharePanel": true,
+      "newMetadataPanel": true,
+      "newSecurityCopy": true,
+      "errors": []
+    }
+  },
+  "real_kms_synthetic_drill": {
+    "ok": true,
+    "synthetic_only": true,
+    "fresh_kms_cache": "passed",
+    "project_key_rotation": "passed",
+    "snapshots": [
+      {
+        "key_version": 1,
+        "current_revision": "passed",
+        "historical_revision": "passed",
+        "encrypted_receipts": "passed",
+        "revision_count": 2
+      },
+      {
+        "key_version": 2,
+        "current_revision": "passed",
+        "historical_revision": "passed",
+        "encrypted_receipts": "passed",
+        "revision_count": 3
+      }
+    ]
+  },
+  "offsite_restore": {
+    "ok": true,
+    "synthetic_only": true,
+    "offsite_s3_restore": "passed",
+    "separate_recovery_identity": "passed",
+    "fresh_kms_caches": "passed",
+    "snapshots": [
+      {
+        "file": "before.db",
+        "key_version": 1,
+        "ok": true,
+        "integrity": "passed",
+        "workspaces": 1,
+        "projects": 1,
+        "revisions": 2,
+        "source_files": 0,
+        "receipts": 2,
+        "search_values": 18
+      },
+      {
+        "file": "after.db",
+        "key_version": 2,
+        "ok": true,
+        "integrity": "passed",
+        "workspaces": 1,
+        "projects": 1,
+        "revisions": 3,
+        "source_files": 0,
+        "receipts": 3,
+        "search_values": 24
+      }
+    ]
+  },
+  "scale_fixture": {
+    "ok": true,
+    "documents": 2000,
+    "bytes_per_body": 3600,
+    "elapsed_ms": 7966,
+    "rss_before_bytes": 105824256,
+    "rss_after_bytes": 130678784,
+    "process_peak_rss_kib": 127760,
+    "heap_before_bytes": 6397888,
+    "heap_after_bytes": 15216096,
+    "rotation": {
+      "previous_version": 1,
+      "active_version": 2,
+      "revisions": 2000,
+      "source_files": 0,
+      "receipts": 2000,
+      "indexed_documents": 2000
+    },
+    "search_total": 2000
+  },
+  "verified_production_controls": {
+    "application_account": "dedicated system account",
+    "filesystem": "ProtectSystem=strict with limited state write paths",
+    "privilege_elevation": "NoNewPrivileges=yes",
+    "ssh": "key authentication, no password or root login",
+    "firewall": "inbound 22/80/443 only",
+    "os_security_updates": "active",
+    "application_kms_policy": "Encrypt and Decrypt on document key only, production application context, no groups or attached policies",
+    "backup_writer": "PutObject daily prefix and GenerateDataKey via S3 only",
+    "backup_bucket": "SSE-KMS, full public access block, 30-day Object Lock governance"
+  },
+  "approved_aws_change": {
+    "user_explicitly_authorized": true,
+    "document_key_automatic_rotation": {
+      "enabled": true,
+      "period_days": 365
+    },
+    "backup_key_automatic_rotation": {
+      "enabled": true,
+      "period_days": 365
+    },
+    "next_rotation_date_utc": "2027-11-03",
+    "on_demand_rotation_performed": false
+  },
+  "limits": [
+    "The production application and customer documents were not changed.",
+    "The real KMS and off-site restore drill used synthetic documents only, not a complete production service restore.",
+    "Project rotation is atomic maintenance work and holds the SQLite writer lock; it is not a zero-downtime scheduled job.",
+    "The 2000-document run used small 3600-byte bodies and is not a throughput guarantee for 100000 documents.",
+    "Workspace-value keys and replacement of a KMS root ARN are separate migrations.",
+    "References to AWS mechanisms are not certification or an independent audit."
+  ]
+}

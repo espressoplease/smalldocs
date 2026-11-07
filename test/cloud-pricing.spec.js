@@ -29,15 +29,8 @@ test.describe('US Cloud pricing', () => {
     await page.goto('/public/library/library.html?scope=cloud');
     await expectPlan(page, 'personal', '$5', '£4 GBP or €5 EUR');
 
-    await page.route('**/api/cloud/v1/workspaces', route => route.fulfill({ json: {
-      ok: true,
-      workspaces: [],
-      user: { id: 'user-1', first_name: 'Test', last_name: 'User' },
-    } }));
-    await page.goto('/public/cloud-checkout.html');
-    await expectPlan(page, 'personal', '$5');
-    await page.getByRole('button', { name: /Just me/ }).click();
-    await expect(page.locator('#checkout-plan-note')).toContainText('$5 each month.');
+    await page.goto('/public/cloud-subscribe.html');
+    await expectPlan(page, 'standard', '$5');
   });
 });
 

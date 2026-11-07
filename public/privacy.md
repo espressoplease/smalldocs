@@ -5,7 +5,7 @@ description: What SmallDocs receives, why it is processed, where it is stored, a
 
 # Privacy Notice
 
-**Last updated: 24 August 2026**
+**Last updated: 3 November 2026**
 
 This notice explains how **Odd Solutions Ltd**, company number 16186575, handles personal data when it operates SmallDocs. Odd Solutions Ltd is the controller for account, service, support, security, and billing records. For document content uploaded by a Team customer, the customer may be the controller and Odd Solutions Ltd may act as its processor.
 
@@ -13,13 +13,13 @@ Contact: [hi@smalldocs.org](mailto:hi@smalldocs.org).
 
 Registered office: 98 Downhills Park Road, London, United Kingdom, N17 6PA.
 
-## The three document modes
+## Document modes
 
 SmallDocs handles documents differently depending on the feature you choose.
 
 ### Local documents
 
-When you run `sdoc file.md`, the command line tool reads the file, compresses it, and puts it after the `#` in a SmallDocs URL. Browsers do not send that URL fragment to the web server. Rendering happens in the browser. We receive the normal request for the application files, but not the document content in the fragment.
+In local mode, when you run `sdoc file.md`, the command line tool reads the file, compresses it, and puts it after the `#` in a SmallDocs URL. Browsers do not send that URL fragment to the web server. Rendering happens in the browser. We receive the normal request for the application files, but not the document content in the fragment.
 
 Bridge mode connects the browser to a process bound to your computer's loopback address. The bridge can access only the files explicitly opened for that session. The SmallDocs page is trusted by the bridge, so a compromise of the served application could affect an open Bridge file.
 
@@ -31,7 +31,13 @@ An encrypted short link uploads encrypted document bytes to SmallDocs. The serve
 
 Cloud stores selected documents for access across authorised people and connected machines. Document bodies, titles, filenames, tags, and revision metadata are encrypted at rest. SmallDocs manages the encryption keys and can decrypt an authorised document in application memory to render, search, edit, merge, export, and notify about it. Cloud is not end-to-end encrypted or zero knowledge.
 
-Access checks run before a Cloud document is decrypted. Search decrypts authorised current documents in memory for that request. We do not keep a plaintext keyword index. Search text, document text, and result snippets are excluded from application logs.
+Access checks run before a Cloud document is decrypted. Search uses a permission-filtered index of keyed terms and positions. The database does not store plaintext search terms. Document metadata is decrypted in application memory when needed to display or filter results. Matching content may be decrypted to check matches and produce snippets. The index reveals term equality, frequency, word order, and some character relationships within a project. Access is checked again before results are returned. Search text, document text, and result snippets are excluded from application logs.
+
+### Public pages
+
+Publishing a Cloud document creates a separate public copy. Anyone can read it without signing in, and search engines can index it. The public copy includes the document text, selected styling, public title and description, and the publisher's display name. Private comments, tags, source file paths and revision history are excluded.
+
+Private Cloud edits do not change the public copy until the creator updates the publication. Unpublishing or deleting the source removes public access through SmallDocs. Search engines and readers may retain copies. Public pages do not expire with the source revision's 90-day history window.
 
 ## Personal data we process
 
@@ -42,7 +48,7 @@ Access checks run before a Cloud document is decrypted. Search decrypts authoris
 | Account name, membership, roles, invitation address, approved email domains, permission groups, and audit events | Provide Team access controls and show administrative history | Contract and legitimate interests in account security and dispute handling |
 | Encrypted document data and operational metadata such as identifiers, sizes, revision times, and access events | Store, retrieve, search, edit, merge, back up, and recover Cloud documents | Contract. For Team content, the customer may determine the lawful basis |
 | Billing contact, Stripe customer and subscription identifiers, plan, seat quantity, invoice and payment status, tax state, and retention dates | Take payment, calculate entitlement, manage cancellation, and keep accounting records | Contract and legal obligation |
-| Recipient address, notification choice, subject, delivery state, and optional note | Send sign-in, invitation, sharing, billing, and deletion messages | Contract and legitimate interests in delivering and securing the service |
+| Recipient address, notification choice, subject, delivery state, and optional note | Send sign-in, invitation, sharing, and billing messages | Contract and legitimate interests in delivering and securing the service |
 | Support requests, business enquiries, and correspondence | Respond to a request and keep a record of the response | Contract or steps requested before a contract, and legitimate interests in support |
 | Coarse visit information described below | Understand whether the public reader is used and detect a stale application version | Legitimate interests in operating and improving the service |
 | Security and operational events, provider request identifiers, counts, latency, disk use, job age, and failure codes | Detect abuse, diagnose incidents, reconcile providers, and recover the service | Legitimate interests in security and reliability |
@@ -57,6 +63,12 @@ The public reader stores the cohort value and application preferences in browser
 
 You can opt out of cohort attribution on the analytics page or clear site data in your browser. Necessary authentication storage cannot be disabled while remaining signed in.
 
+## Referral links
+
+If you sign up through someone's referral link, SmallDocs records that introduction with your signup. We retain signup, agent-connection, first tagged document and reward progress to award each benefit once and reconcile its use. A keyed hash of your verified email address prevents repeat referral rewards for that address.
+
+The referrer can see your name, whether you have signed up and connected your agent, and when your first tagged document and first monthly payment earn a reward. They do not receive your email address, payment details, document content, tags or library access. The referred homepage explains this before signup. Referral attribution uses the email verification or Google sign-in transaction; it does not add a persistent referral tracking cookie.
+
 ## Who receives data
 
 We use Hetzner for the production server, AWS KMS for document-key protection, Amazon S3 for encrypted backups, Stripe for billing and tax, and Resend for transactional email. Their purposes, locations, and the data involved are listed on the [Service Providers and Subprocessors](/subprocessors) page.
@@ -70,9 +82,9 @@ Some providers operate internationally. Where UK personal data is transferred ou
 - Sign-in codes are valid for 10 minutes and allow no more than 5 attempts. Only a keyed hash of a code is stored.
 - Browser sessions expire after 30 days unless revoked earlier. Command line access tokens expire after 15 minutes; the longer-lived connected-machine credential remains until revoked or the account is deleted.
 - Active Cloud account and membership records are kept while needed to provide the account. A verified identity can remain after the last subscription ends so the person can sign in, export retained data, recover a subscription, or exercise data rights.
-- Cloud keeps the current revision and up to 3 previous revisions. Previous revisions are retained for no more than 90 days.
+- Cloud keeps the current revision and all previous revisions from the last 90 days. The current revision remains available after that period.
 - A deleted Cloud document can normally be restored for 30 days before permanent deletion from the active database.
-- After cancellation, Cloud data is scheduled for deletion 30 days after the paid period ends. After a failed payment, it is scheduled for deletion 60 days after the failed payment.
+- Trial expiry, cancellation, and failed payment do not automatically delete Cloud documents. A future change to this retention policy will be communicated before it takes effect.
 - Team administrative events are kept with the account and removed when the account is permanently purged, unless a record must be retained for a legal claim or security investigation.
 - Encrypted production backups are created nightly. Local archives are kept for 7 days. Off-site archives are protected from early deletion for 30 days by S3 Object Lock, then removed through an asynchronous lifecycle process. An archive can remain for slightly longer than 31 days. Deleted ciphertext can remain until the applicable backup archive expires.
 - Encrypted short links expire after 365 days without a successful access.
@@ -90,9 +102,35 @@ A reorganisation, sale, administration, or transfer of the service may involve p
 
 ## Security
 
-Cloud database values and backups are encrypted at rest. Document encryption keys are protected by AWS KMS and are not stored in plaintext beside document data. Connections use TLS. Production workload, backup, and provider credentials have separate permissions. Connected machines can be viewed and revoked.
+Cloud document content and protected metadata are encrypted before database storage. Backups are also encrypted. On the production service, document encryption keys are protected by AWS KMS and are not stored in plaintext beside document data. Connections use TLS. Production workload, backup, and provider credentials have separate permissions. Connected machines can be viewed and revoked.
 
-Encryption at rest protects a copied database or backup from being useful on its own. It does not protect against a compromise of the running application, its KMS permissions, an authorised user session, or a sufficiently privileged operator.
+### How document keys are protected
+
+Each project within a library has a separate, randomly generated AES-256 key. That key encrypts document content and protected metadata using AES-256-GCM. On the production service, AWS KMS encrypts the project key before it is stored in the database. This arrangement is called envelope encryption.
+
+Encrypted content is bound to its environment, library, project, document, revision and purpose. The KMS-wrapped project key is bound to its environment, project, purpose and key version. Changing these identifiers causes authentication to fail.
+
+SmallDocs checks document permissions before returning content. Library members do not receive the project key. The application can decrypt authorised content in server memory.
+
+### Production server access
+
+The application runs under a dedicated system account with restricted filesystem access. Its service is configured to prevent new processes from gaining additional privileges. A firewall limits incoming connections. Server administration uses hardware-backed SSH keys that require approval on the administrator's device. Password and direct root SSH logins are disabled. Automatic operating system security updates are enabled.
+
+Application credentials can use the document KMS key for encryption and decryption. Key administration and backup access use separate credentials.
+
+### Recovering encrypted documents
+
+Restoring a Cloud backup requires the encrypted database, its wrapped project keys, the matching application configuration and permission to use the referenced KMS keys. A database integrity check alone does not establish that documents can be decrypted. Recovery checks also need to open current and historical revisions.
+
+The production document and backup KMS keys are configured for automatic annual rotation. AWS preserves access to older encrypted keys. Replacing a project key also requires re-encrypting the data it protects. Keys needed by retained backups must remain available until those backups expire.
+
+### Design references
+
+The key-protection design uses [envelope encryption](https://docs.aws.amazon.com/kms/latest/developerguide/kms-cryptography.html), [authenticated encryption context](https://docs.aws.amazon.com/kms/latest/developerguide/encrypt_context.html) and [least-privilege KMS permissions](https://docs.aws.amazon.com/kms/latest/developerguide/least-privilege.html), as described in AWS guidance. AWS also explains [how KMS key rotation preserves access to older ciphertext](https://docs.aws.amazon.com/kms/latest/developerguide/rotate-keys.html).
+
+### What encryption at rest protects
+
+A copied database or backup does not by itself provide the keys needed to read encrypted document content. Encryption at rest does not protect against a compromise of the running application, its KMS permissions, an authorised user session, or a sufficiently privileged operator.
 
 The source code and a per-deploy file manifest are public. Verification steps are at [smalldocs.org/trust](/trust).
 

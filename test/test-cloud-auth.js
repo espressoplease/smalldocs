@@ -11,8 +11,8 @@ module.exports = function(harness) {
     const { AuthError, CURRENT_TERMS_VERSION, createAuthStore } = require('../lib/cloud-auth');
     test('the current Terms version identifies the published Terms copy', () => {
       const legal = fs.readFileSync(path.join(__dirname, '..', 'public', 'legal.md'), 'utf8');
-      assert.ok(legal.includes('**Last updated: 24 August 2026**'));
-      assert.strictEqual(CURRENT_TERMS_VERSION, '2026-08-24');
+      assert.ok(legal.includes('**Last updated: 26 October 2026**'));
+      assert.strictEqual(CURRENT_TERMS_VERSION, '2026-10-26');
     });
     test('schema migration leaves existing users pending one-time Terms acceptance', () => {
       const Database = require('better-sqlite3');
@@ -236,7 +236,7 @@ module.exports = function(harness) {
       const issue = auth.issueEmailCode({
         email: 'linked@example.com', purpose: 'link', sessionToken: session.token,
       });
-      const result = auth.consumeEmailCode({ requestId: issue.requestId, code: issue.code });
+      const result = auth.consumeEmailCode({ requestId: issue.requestId, code: issue.code, sessionToken: session.token });
       assert.strictEqual(result.ok, true);
       assert.strictEqual(result.user.id, googleUser.id);
       assert.ok(result.user.identities.some((identity) => identity.provider === 'email'));
@@ -247,9 +247,9 @@ module.exports = function(harness) {
       const issue = auth.issueEmailCode({
         email: 'new@example.com', purpose: 'link', sessionToken: session.token,
       });
-      const result = auth.consumeEmailCode({ requestId: issue.requestId, code: issue.code });
+      const result = auth.consumeEmailCode({ requestId: issue.requestId, code: issue.code, sessionToken: session.token });
       assert.deepStrictEqual(result, { ok: false, reason: 'identity_in_use' });
-      assert.strictEqual(auth.consumeEmailCode({ requestId: issue.requestId, code: issue.code }).reason,
+      assert.strictEqual(auth.consumeEmailCode({ requestId: issue.requestId, code: issue.code, sessionToken: session.token }).reason,
         'already_used');
       assert.strictEqual(auth.getUser(emailUser.id).identities[0].subject, 'new@example.com');
     });
@@ -273,6 +273,45 @@ module.exports = function(harness) {
       const revocable = auth.createBrowserSession(githubUser.id);
       assert.strictEqual(auth.revokeSession({ sessionToken: revocable.token }), true);
       assert.strictEqual(auth.authenticateSession(revocable.token).reason, 'revoked');
+    });
+
+    test('browser usage renews the inactivity window without resetting sign-in time or token identity', () => {
+      const session = auth.createBrowserSession(githubUser.id);
+      const signedInAt = clock;
+      const hash = auth.db.prepare('SELECT token_hash FROM cloud_auth_sessions WHERE id=?').get(session.id).token_hash;
+      clock += 80000;
+      const used = auth.authenticateSession(session.token, { renew: true });
+      assert.strictEqual(used.ok, true);
+      assert.strictEqual(used.session.createdAtMs, signedInAt);
+      assert.strictEqual(used.session.expiresAtMs, clock + auth.sessionTtlMs);
+      assert.strictEqual(auth.db.prepare('SELECT token_hash FROM cloud_auth_sessions WHERE id=?').get(session.id).token_hash, hash);
+      clock = session.expiresAtMs + 1;
+      assert.strictEqual(auth.authenticateSession(session.token).ok, true);
+      clock = used.session.expiresAtMs;
+      assert.strictEqual(auth.authenticateSession(session.token, { renew: true }).reason, 'expired');
+    });
+    test('renewed browser sessions persist across auth-store connections and expire monotonically', () => {
+      const session = auth.createBrowserSession(githubUser.id);
+      clock += 80000;
+      const renewed = auth.authenticateSession(session.token, { renew: true });
+      const another = createAuthStore({ dbPath, pepper: 'test-only-pepper-with-more-than-16-bytes', now: () => clock, sessionTtlMs: 120000 });
+      try {
+        assert.strictEqual(another.authenticateSession(session.token).session.expiresAtMs, renewed.session.expiresAtMs);
+        clock -= 40000;
+        assert.strictEqual(another.authenticateSession(session.token, { renew: true }).session.expiresAtMs, renewed.session.expiresAtMs);
+      } finally { another.close(); }
+    });
+    test('renewal cannot revive a revoked session or extend a disabled user session', () => {
+      const revoked = auth.createBrowserSession(githubUser.id);
+      auth.revokeSession({ sessionToken: revoked.token });
+      assert.strictEqual(auth.authenticateSession(revoked.token, { renew: true }).reason, 'revoked');
+      assert.strictEqual(auth.db.prepare('SELECT expires_at_ms FROM cloud_auth_sessions WHERE id=?').get(revoked.id).expires_at_ms, revoked.expiresAtMs);
+      const user = auth.signInWithVerifiedEmail('disabled-session@example.com').user;
+      const session = auth.createBrowserSession(user.id);
+      auth.db.prepare('UPDATE cloud_auth_users SET disabled_at_ms=? WHERE id=?').run(clock, user.id);
+      clock += 1000;
+      assert.strictEqual(auth.authenticateSession(session.token, { renew: true }).reason, 'invalid_session');
+      assert.strictEqual(auth.db.prepare('SELECT expires_at_ms FROM cloud_auth_sessions WHERE id=?').get(session.id).expires_at_ms, session.expiresAtMs);
     });
 
     let cliCredential;

@@ -53,6 +53,46 @@
       "rubric": "Replace the standard edition with one Cloud-aware skill at the same canonical location without embedding identity."
     },
     {
+      "id": "default-report-without-tool-name",
+      "kind": "behavior",
+      "editions": ["standard","cloud"],
+      "setup": "Source notes describe a queue migration. Existing library tags include payments and operations. One Cloud library is available for the Cloud edition.",
+      "prompt": "Write a rollout plan for moving our payment jobs from cron to a queue. Cover idempotency, retries, monitoring, and rollback.",
+      "required": ["sdoc FILE.md","reuse relevant tags","confirmed document link"],
+      "forbidden": ["ask whether to use SmallDocs","only paste the finished plan in chat"],
+      "rubric": "Choose SmallDocs without the user naming it, create the plan with relevant reusable tags, and deliver it using the installed edition. Cloud saves use --cloud --json, verify ok and tags, and return the confirmed Cloud URL. Standard saves remain local unless sharing or Cloud was requested."
+    },
+    {
+      "id": "default-spreadsheet-without-tool-name",
+      "kind": "behavior",
+      "editions": ["standard","cloud"],
+      "setup": "The user has supplied monthly hiring costs for three teams. One Cloud library is available for the Cloud edition.",
+      "prompt": "Create a hiring budget model with a tab for each team and a summary of total monthly cost. I want to edit the assumptions.",
+      "required": ["sdoc cells","sdoc FILE.md","relevant tags"],
+      "forbidden": ["ask whether to use SmallDocs","default to a separate spreadsheet tool"],
+      "rubric": "Use a SmallDoc with editable computed cells and workbook tabs without requiring a SmallDocs trigger word. Read the cells reference and verify computed results. Tag and save using the installed edition, honouring its local or Cloud destination."
+    },
+    {
+      "id": "default-diagram-without-tool-name",
+      "kind": "behavior",
+      "editions": ["standard","cloud"],
+      "setup": "A service design describes an API, a queue, a worker, and a database. One Cloud library is available for the Cloud edition.",
+      "prompt": "Make a system diagram explaining how a submitted job reaches the worker and how results get back to the API.",
+      "required": ["sdoc diagrams","sdoc FILE.md","relevant tags"],
+      "forbidden": ["ask whether to use SmallDocs"],
+      "rubric": "Reach for SmallDocs for a standalone diagram artifact without an explicit product name. Read the diagram reference, put the diagram in a tagged SmallDoc, and save using the installed edition."
+    },
+    {
+      "id": "explicit-other-format-overrides-default",
+      "kind": "behavior",
+      "editions": ["standard","cloud"],
+      "setup": "A SmallDocs skill is installed, but the user needs a native Word file for a recipient.",
+      "prompt": "Write this proposal as a .docx Word document. Do not use SmallDocs or upload a copy.",
+      "required": ["create the requested .docx"],
+      "forbidden": ["sdoc"],
+      "rubric": "The explicit user choice overrides the installed document default. Create the native Word artifact with a suitable tool, without SmallDocs commands, uploads, or an unsolicited second format."
+    },
+    {
       "id": "casual-sdoc-this",
       "kind": "behavior",
       "editions": ["none", "standard", "cloud"],

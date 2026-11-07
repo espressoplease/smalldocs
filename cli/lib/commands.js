@@ -9,7 +9,7 @@ const { execSync } = require('child_process');
 
 const SDocYaml = require('../shared/sdocs-yaml.js');
 
-const { DEFAULT_URL } = require('./constants');
+const { resolveBaseUrl } = require('./constants');
 const { readContent, readCodewalkContent, openBrowser } = require('./io');
 const { loadDefaultStyles, applyDefaultStyles, showDefaults, resetDefaults } = require('./styles');
 const { buildUrl } = require('./url');
@@ -262,7 +262,7 @@ async function colorAnalysisCommand(opts) {
 }
 
 function newCommand(opts) {
-  const baseUrl = opts.url || process.env.SDOCS_URL || DEFAULT_URL;
+  const baseUrl = resolveBaseUrl(opts.url);
   const url = baseUrl + '/new';
   openBrowser(url);
   console.log(`SDocs → ${url}`);

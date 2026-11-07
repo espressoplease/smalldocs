@@ -112,11 +112,16 @@ The existing implementation has a bounded least-recently-used cache:
 ```text
 default lifetime:       5 minutes
 default maximum:        256 entries
+expiry behavior:        one background timer wipes expired keys without a new request
 eviction behavior:      overwrite the Buffer with zeroes, then remove it
 process shutdown:       clear the cache
 ```
 
 This reduces KMS latency and request volume. It also means a process-memory capture may contain recently used plaintext data keys. The cache limits that exposure but does not eliminate it.
+
+Expiration uses a monotonic clock and does not extend when a key is read. A single unreferenced timer targets the next expiry; it neither adds KMS calls nor keeps the process alive during shutdown. Expiry runs when the Node event loop can execute the timer, so it is not a hard real-time memory erasure guarantee.
+
+Concurrent requests share the KMS operation but receive independent working key buffers. Cache entries and temporary delivery buffers are separate, so clearing or evicting a cached key cannot overwrite another request's working key. Temporary delivery keys and workspace plaintext buffers are cleared after use, including error paths. Cache and caller key copies use dedicated buffers outside Node's shared small-buffer pool. JavaScript strings and internal runtime copies remain outside this best-effort clearing guarantee.
 
 Cache lifetime and size will be explicit production settings. Changes should be driven by measured KMS latency, request volume, and memory exposure rather than by convenience.
 
@@ -172,7 +177,18 @@ Cached keys may allow a recently accessed project to continue briefly during a K
 
 ## Rotation and deletion
 
-Enable automatic rotation on each AWS-managed symmetric KMS key. AWS retains the older key material behind the same key ARN, so existing ciphertext remains decryptable without an application rewrap.
+Enable automatic rotation on each customer-managed symmetric KMS key. AWS retains the older key material behind the same key ARN, so existing ciphertext remains decryptable without an application rewrap.
+
+On 3 November 2026, annual automatic rotation was enabled and verified for both
+production document and backup keys with the user's explicit approval. The
+application's IAM identity remains limited to Encrypt and Decrypt on its document
+key with the production SmallDocs encryption context.
+
+Version-aware project-key rotation, an operator backup verifier and a cold-cache
+KMS recovery drill are implemented separately. See
+[Cloud key rotation and recovery](../maintainers/cloud-key-rotation-and-recovery.md)
+for the transaction, maintenance-window requirement, rollback compatibility and
+the recovery procedure.
 
 [AWS automatic key rotation](https://docs.aws.amazon.com/kms/latest/developerguide/rotating-keys-enable.html)
 

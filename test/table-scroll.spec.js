@@ -6,7 +6,7 @@
 // only scrolls once it can't shrink past its columns' min-content.
 const { test, expect } = require('@playwright/test');
 
-const BASE = 'http://localhost:3000';
+const BASE = process.env.SDOCS_TEST_BASE_URL || 'http://localhost:3000';
 
 test.use({ viewport: { width: 360, height: 760 } });
 

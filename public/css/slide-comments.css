@@ -73,35 +73,16 @@
   box-shadow: 0 1px 2px rgba(0,0,0,.25);
 }
 
-/* ── Whole-slide comment button (top-left) ────────────────────────────── */
-/* Mirrors .sdoc-slide-present (top-right) but on the opposite corner so the
-   two never collide. */
+/* Whole-slide feedback follows the present action at the right edge. */
+.sdoc-slide:has(.sdoc-slide-comment-btn) > .sdoc-slide-present { right: 38px; }
+.sdoc-slide-dark-ui button.sdoc-rich-comment-btn { color: #e7e5e2; border-color: rgba(255,255,255,0.22); }
+.sdoc-slide-light-ui button.sdoc-rich-comment-btn { color: #1c1917; border-color: rgba(0,0,0,0.18); }
 .sdoc-slide-comment-btn {
   position: absolute;
   top: 6px;
-  left: 6px;
+  right: 6px;
   z-index: 6;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  background: var(--md-bg, #fff);
-  color: var(--md-color, #1c1917);
-  border: 1px solid var(--md-copy-btn-border, rgba(0,0,0,0.12));
-  border-radius: 4px;
-  padding: 0;
-  cursor: pointer;
-  opacity: 0.7;
-  transition: opacity .15s, background .12s, border-color .12s;
 }
-.sdoc-slide-comment-btn:hover,
-.sdoc-slide-comment-btn:focus-visible {
-  opacity: 1;
-  outline: none;
-  background: var(--md-copy-btn-hover, rgba(0,0,0,0.05));
-}
-.sdoc-slide-comment-btn svg { display: block; }
 /* When the slide already carries a whole-slide note, the button fills with
    the comment colour so it reads as an indicator. */
 .sdoc-slide-comment-btn.has-comment {
@@ -211,7 +192,7 @@
 }
 @media (max-width: 720px) {
   .sdoc-present-comment-panel { width: 100%; top: auto; height: 48%; border-left: none; border-top: 1px solid #2a2724; }
-  .sdoc-present.sdoc-present-commenting .sdoc-present-stage-wrap { padding-right: 16px; padding-bottom: 50%; }
+  .sdoc-present.sdoc-present-commenting .sdoc-present-stage-wrap { padding-right: 16px; padding-bottom: calc(48vh + 16px); }
 }
 
 /* The present comment toggle in the topbar reuses .sdoc-present-btn; the

@@ -48,7 +48,6 @@ var proseReaderControls = window.SDocProseReader && window.SDocProseReader.creat
 
 // ── SVG icons ──────────────────────────────────
 
-var LINK_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>';
 var COPY_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
 var WRAP_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M3 12h15a3 3 0 1 1 0 6h-4"/><path d="m16 16-2 2 2 2"/><path d="M3 18h7"/></svg>';
 var CHECK_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
@@ -69,7 +68,7 @@ function codeCommentCountFor(blockId) {
   var n = 0;
   for (var i = 0; i < list.length; i++) {
     var c = list[i];
-    if (c && c.block === blockId && (c.kind === 'line' || c.kind === 'method' || c.kind === 'token')) n++;
+    if (c && codeCommentBlockFor(c) === blockId && (c.kind === 'line' || c.kind === 'method' || c.kind === 'token')) n++;
   }
   return n;
 }
@@ -79,9 +78,18 @@ function codeCommentColorFor(blockId) {
   if (!Array.isArray(list)) return '';
   for (var i = 0; i < list.length; i++) {
     var c = list[i];
-    if (c && c.block === blockId && (c.kind === 'line' || c.kind === 'method' || c.kind === 'token')) return c.color || '';
+    if (c && codeCommentBlockFor(c) === blockId && (c.kind === 'line' || c.kind === 'method' || c.kind === 'token')) return c.color || '';
   }
   return '';
+}
+
+function codeCommentBlockFor(c) {
+  if (S.commentsUi && S.commentsUi._resolveCodeBlock &&
+      (c.kind === 'line' || c.kind === 'method' || c.kind === 'token')) {
+    var target = S.commentsUi._resolveCodeBlock(c);
+    if (target.index >= 0) return 'pre:' + target.index;
+  }
+  return c.block;
 }
 // Count valid agent annotations (read-only notes in front matter, line-numbered,
 // not block-tagged). Mirrors the validation in the viewer's getAnnotations.
@@ -427,7 +435,9 @@ var htmlComponents = window.SDocHtmlComponents && window.SDocHtmlComponents.crea
 
 // ── Render (orchestrator) ──────────────────────────────────
 
+var renderVersion = 0;
 function render() {
+  var thisRender = ++renderVersion;
   S.destroyCharts();
   // Before stomping innerHTML, remember which collapsible sections the
   // user had expanded so we can re-open them after rebuild. Keyed by the
@@ -459,9 +469,9 @@ function render() {
   rememberRich(S.processCharts(S.renderedEl));
   if (S.processMath) rememberRich(S.processMath(S.renderedEl));
   if (S.processMermaid) rememberRich(S.processMermaid(S.renderedEl));
-  if (S.processVideo) S.processVideo(S.renderedEl);
-  if (window.SDocSlides) window.SDocSlides.processSlides(S.renderedEl);
-  if (htmlComponents) htmlComponents.process(S.renderedEl);
+  if (S.processVideo && !S.publicationCompile) S.processVideo(S.renderedEl);
+  if (window.SDocSlides) { window.SDocSlides.processSlides(S.renderedEl); rememberRich(window.SDocSlides.ready()); }
+  if (htmlComponents && !S.publicationCompile) htmlComponents.process(S.renderedEl);
   if (S.renderForms) S.renderForms(S.renderedEl);
   if (S.processCells) S.processCells(S.renderedEl);
   // Last: highlight the plain code blocks that no other processor claimed.
@@ -470,15 +480,19 @@ function render() {
   // comments once it settles so highlighted code keeps its anchors.
   if (S.processHighlight) {
     var hlPromise = S.processHighlight(S.renderedEl);
+    rememberRich(hlPromise);
     if (hlPromise && hlPromise.then) {
       hlPromise.then(function () {
-        renderAnnotationSurfaces();
+        if (thisRender === renderVersion) renderAnnotationSurfaces();
       });
     }
   }
   if (richReady.length) {
-    Promise.allSettled(richReady).then(function () { renderAnnotationSurfaces(); });
+    Promise.allSettled(richReady).then(function () {
+      if (thisRender === renderVersion) renderAnnotationSurfaces();
+    });
   }
+  S.publicationRenderReady = Promise.allSettled(richReady);
   renderFileInfoCard();
   updateDocumentTitle();
   if (S.sidebarRefresh) S.sidebarRefresh();
@@ -513,7 +527,7 @@ function updateDocumentTitle() {
 
 // ── File-info card ─────────────────────────────────────────
 
-var SHORT_LINKS_LEARN_URL = 'https://smalldocs.org/#sec=short-links';
+var SHORT_LINKS_LEARN_URL = '/docs#sec=short-links';
 
 function shortenErrorMessage(code) {
   return code === 'rate_limited' ? 'Too many requests, try again later.'
@@ -525,41 +539,14 @@ function shortenErrorMessage(code) {
 // staleness check uses. The reusable core behind both the prose file-info card's
 // Generate button and the code viewer's. Returns { url, id }.
 async function generateShortLink() {
-  var result = await shortenCurrentDocument();
+  var snapshot = serializeCurrentDocument();
+  var result = await shortenCurrentDocument(snapshot);
+  if (serializeCurrentDocument() !== snapshot) return result;
   S.shortUrl = result.url;
   S.shortLinkId = result.id;
-  S.shortLinkSnapshot = serializeCurrentDocument();
+  S.shortLinkSnapshot = snapshot;
+  reconcileShortLink();
   return result;
-}
-
-async function runShortenFlow(btn, errEl) {
-  btn.disabled = true;
-  btn.classList.add('fic-shorten-loading');
-  var originalLabel = btn.textContent;
-  btn.textContent = 'Shortening…';
-  if (errEl) errEl.hidden = true;
-  try {
-    await generateShortLink();
-    renderFileInfoCard();
-    // Fade in the new short URL row.
-    var newRow = document.querySelector('.fic-row-short');
-    if (newRow) {
-      newRow.classList.add('fic-row-short-enter');
-      requestAnimationFrame(function() {
-        requestAnimationFrame(function() { newRow.classList.remove('fic-row-short-enter'); });
-      });
-    }
-    return true;
-  } catch (err) {
-    btn.disabled = false;
-    btn.classList.remove('fic-shorten-loading');
-    btn.textContent = originalLabel;
-    if (errEl) {
-      errEl.textContent = shortenErrorMessage(err && err.message);
-      errEl.hidden = false;
-    }
-    return false;
-  }
 }
 
 function bridgeStateLabel(state) {
@@ -586,29 +573,6 @@ function bridgeShouldRender(currentMode) {
   return currentMode === 'write' || currentMode === 'raw' || currentMode === 'comment';
 }
 
-// "Actively connected" = the bridge is currently mirroring this document to
-// disk. We don't include 'connecting' (still establishing) or the lost /
-// submitted states. Used to gate the small "live" chip next to the filename.
-function bridgeIsLive(status) {
-  return status === 'connected' || status === 'saving' || status === 'saved';
-}
-
-// Compact pill rendered next to the filename in non-editing modes. The
-// screen-share glyph + the words "local sync" tells the reader this file
-// is paired with disk, without nagging them when it isn't.
-var BRIDGE_LIVE_CHIP_HTML = ''
-  + '<span class="fic-live-chip" data-tip="Connected to the file on your machine. Edits flow both ways.">'
-  +   '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"'
-  +     ' stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
-  +     '<path d="M13 3H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-3"/>'
-  +     '<path d="M8 21h8"/>'
-  +     '<path d="M12 17v4"/>'
-  +     '<path d="m17 8 5-5"/>'
-  +     '<path d="M17 3h5v5"/>'
-  +   '</svg>'
-  +   '<span>local sync</span>'
-  + '</span>';
-
 // Lucide icons (https://lucide.dev). Inlined so the bundle stays free of
 // icon-library deps. Stroke is currentColor — colour comes from CSS.
 var BRIDGE_SCREEN_SHARE_SVG = ''
@@ -631,23 +595,27 @@ var BRIDGE_SCREEN_SHARE_OFF_SVG = ''
   +   '<path d="m17 3 5 5"/>'
   + '</svg>';
 
-function dataRowHtml(key, label, value, isLocal, isShort, extraHtml) {
-  var pill = isLocal ? '<span class="fic-local-tag" title="Only visible on this device, not included in shared sdocs">Local only</span>' : '';
-  var cls = 'fic-row' + (isShort ? ' fic-row-short' : '');
-  return '<div class="' + cls + '" data-key="' + key + '">'
+function dataRowHtml(key, label, value, copyLabel, localOnly, extraHtml) {
+  return '<div class="fic-row" data-key="' + key + '">'
     + '<span class="fic-label">' + label + '</span>'
     + '<span class="fic-value">' + escapeHtml(value) + '</span>'
     + (extraHtml || '')
-    + pill
-    + '<button class="fic-copy" title="Copy ' + label.toLowerCase() + '">' + COPY_SVG + '</button>'
-    + '</div>';
+    + (localOnly ? '<span class="fic-local-tag" title="Only visible on this device, not included in shared sdocs">Local only</span>' : '')
+    + '<button class="fic-copy" type="button" aria-label="Copy ' + copyLabel + '" title="Copy ' + copyLabel + '">' + COPY_SVG + '</button></div>';
 }
 
 function renderFileInfoCard() {
+  if (S.cloudHistory) S.cloudHistory.observe(S.cloudDocument);
+  if (S.publications) S.publications.update();
   var card = document.getElementById('_sd_sdocs-file-info');
   if (!card) return;
+  if (S.publicationSource && S.publicationSource.isViewing()) {
+    card.hidden = true;
+    card.querySelector('.fic-rows').replaceChildren();
+    return;
+  }
   var meta = S.currentMeta || {};
-  var local = S.localMeta || {};
+  var local = S.fileInfoPaths();
   var rowsEl = card.querySelector('.fic-rows');
 
   // The "Edits" row only renders when a bridge session is *or has been*
@@ -656,13 +624,12 @@ function renderFileInfoCard() {
   // around in the "Connection lost" state so the user knows their typing
   // isn't reaching disk any more.
   var bridge = S.bridge || null;
-  var bridgeFile = bridge && bridge.cfg && bridge.cfg.file ? bridge.cfg.file : null;
 
   var hasDoc = !!(meta.file || S.currentBody || (S.currentMeta && Object.keys(S.currentMeta).length));
   // Edits is a local-only row, but it only renders in editing modes — so
   // only count it toward the privacy-note flag when it'll actually appear.
   var bridgeRowWillRender = !!bridge && bridgeShouldRender(S.currentMode);
-  var hasLocalRow = !!(local.path || local.fullPath || bridgeRowWillRender);
+  var hasLocalRow = bridgeRowWillRender || (!local.creatorOnly && !!(local.path || local.fullPath));
 
   if (!hasDoc && !meta.file && !hasLocalRow && !bridge) {
     card.hidden = true;
@@ -674,43 +641,24 @@ function renderFileInfoCard() {
   card.hidden = false;
   var note = card.querySelector('.fic-privacy-note');
   if (note) note.hidden = !hasLocalRow;
+  var copyStatus = card.querySelector('.fic-copy-status');
+  if (copyStatus) { copyStatus.hidden = true; copyStatus.textContent = ''; }
 
-  // Build the row slots in display order. The short-URL slot always sits
-  // right after Filename, so the row doesn't jump around as the user moves
-  // between the intro / shorten / shortened states.
+  // Cloud controls are inserted first; copyable file details follow them.
   var slots = [];
-  if (meta.file || bridgeFile) {
-    // When the bridge is live and the Edits row isn't showing (read /
-    // style / export / info), drop a small "live" chip next to the
-    // filename so the reader still knows the file is connected. We never
-    // surface a *negative* hint here — disconnect doesn't add a chip.
-    var liveChip = (bridge && bridgeIsLive(bridge.status) && !bridgeShouldRender(S.currentMode))
-      ? BRIDGE_LIVE_CHIP_HTML
-      : '';
-    slots.push({ type: 'data', html: dataRowHtml('file', 'Filename', meta.file || bridgeFile, false, false, liveChip) });
+  var heading = S.renderedEl && S.renderedEl.querySelector('h1');
+  if (heading) {
+    heading = heading.cloneNode(true);
+    heading.querySelectorAll('button, .heading-anchor, .heading-copy').forEach(function (node) { node.remove(); });
   }
-
-  // Blog pages already live at a stable, shareable URL, so surface that as the
-  // Short URL instead of the encrypt-and-upload Generate flow (which the
-  // default-state guard below suppresses for these pages anyway). The link
-  // points at the canonical production URL so it's shareable from anywhere.
-  var blogMatch = /^\/blogs\/[A-Za-z0-9_-]+$/.test(location.pathname || '');
-  if (blogMatch) {
-    slots.push({ type: 'data', html: dataRowHtml('shortUrl', 'Short URL', 'https://smalldocs.org' + location.pathname, false, true) });
-  }
-
-  // Don't offer a short URL for the built-in default document (bare / or
-  // /legal landing pages). Shortening marketing copy isn't useful and
-  // clutters the info card. The flag flips false as soon as the user drops
-  // a file, opens a shared link, or edits anything.
-  if (hasDoc && !S._isDefaultState) {
-    slots.push(S.shortUrl
-      ? { type: 'data', html: dataRowHtml('shortUrl', 'Short URL', S.shortUrl, false, true) }
-      : { type: 'intro' });
-  }
-
-  if (local.path)     slots.push({ type: 'data', html: dataRowHtml('path', 'Rel. Path', local.path, true, false) });
-  if (local.fullPath) slots.push({ type: 'data', html: dataRowHtml('fullPath', 'Abs. Path', local.fullPath, true, false) });
+  var title = heading ? heading.textContent.replace(/\s+/g, ' ').trim() : String(meta.title || '');
+  var filename = local.fullPath || local.path ? '' : String(meta.file || (bridge && bridge.cfg && bridge.cfg.file) || '');
+  var liveChip = bridge && ['connected', 'saving', 'saved'].indexOf(bridge.status) >= 0 && !bridgeRowWillRender
+    ? '<span class="fic-live-chip" data-tip="Connected to the file on your machine. Edits flow both ways.">' + BRIDGE_SCREEN_SHARE_SVG + '<span>local sync</span></span>' : '';
+  if (title) slots.push({ type: 'data', html: dataRowHtml('title', 'Title', title, 'document title', false, liveChip) });
+  if (filename) slots.push({ type: 'data', html: dataRowHtml('file', 'Filename', filename, 'filename', false, title ? '' : liveChip) });
+  if (local.fullPath) slots.push({ type: 'data', html: dataRowHtml('fullPath', 'Abs. Path', local.fullPath, 'absolute path', !local.creatorOnly) });
+  if (local.path && local.path !== local.fullPath) slots.push({ type: 'data', html: dataRowHtml('path', 'Rel. Path', local.path, 'relative path', !local.creatorOnly) });
 
   // Tags row: YAML front-matter tags only. Editing is gated to "the
   // Bridge is connected and can save" - the Bridge is the single write
@@ -752,8 +700,7 @@ function renderFileInfoCard() {
     slots.push({ type: 'bridge', state: bridge.status || 'connecting', label: bridge.statusLabel || bridgeStateLabel(bridge.status) });
   }
 
-  // Render in order. Data rows go in as HTML; action rows are DOM nodes so we
-  // can attach handlers to specific elements.
+  // Keep data, local-session actions and tags in their document position.
   rowsEl.innerHTML = '';
   rowsEl.hidden = slots.length === 0;
   slots.forEach(function(slot) {
@@ -811,45 +758,21 @@ function renderFileInfoCard() {
         + addCtl;
       if (slot.canEdit) attachTagRowHandlers(tagRow, slot.filePath, slot.tags);
       rowsEl.appendChild(tagRow);
-    } else if (slot.type === 'intro') {
-      var introRow = document.createElement('div');
-      introRow.className = 'fic-row fic-row-short-intro';
-      introRow.innerHTML = ''
-        + '<span class="fic-label">Short URL</span>'
-        + '<button class="fic-shorten-button" title="Generate a short link for this document">Generate</button>'
-        + '<span class="fic-short-intro-text">'
-        +   'Encrypted document on our server, but decryption key stays with you '
-        +   '(<a class="fic-short-intro-learn" href="' + SHORT_LINKS_LEARN_URL + '" target="_blank" rel="noopener">learn more</a>)'
-        + '</span>'
-        + '<span class="fic-shorten-error" hidden></span>'
-        + '<button class="fic-copy fic-generate-icon" title="Generate a short link">' + LINK_SVG + '</button>';
-      rowsEl.appendChild(introRow);
-      var genBtn = introRow.querySelector('.fic-shorten-button');
-      var genIcon = introRow.querySelector('.fic-generate-icon');
-      var genErr = introRow.querySelector('.fic-shorten-error');
-      function triggerGenerate(e) {
-        e.stopPropagation();
-        runShortenFlow(genBtn, genErr);
-      }
-      genBtn.addEventListener('click', triggerGenerate);
-      genIcon.addEventListener('click', triggerGenerate);
     }
   });
-
-  // Click-to-copy for plain data rows only. Walk up to the containing button
-  // so clicks on the <svg> or <path> inside a .fic-copy still register.
-  rowsEl.querySelectorAll('.fic-row[data-key]').forEach(function(row) {
-    row.addEventListener('click', function(e) {
-      var btnEl = e.target.closest('button');
-      if (btnEl && !btnEl.classList.contains('fic-copy')) return;
-      var val = row.querySelector('.fic-value').textContent;
-      var btn = row.querySelector('.fic-copy');
-      copyWithIconFeedback(val, btn);
+  rowsEl.querySelectorAll('.fic-row[data-key]').forEach(function (row) {
+    row.addEventListener('click', function (event) {
+      var control = event.target.closest('button');
+      if (control && !control.classList.contains('fic-copy')) return;
+      if (!control && window.getSelection().toString()) return;
+      var value = row.querySelector('.fic-value').textContent;
+      copyWithIconFeedback(value, row.querySelector('.fic-copy')).then(function () {
+        if (copyStatus) { copyStatus.hidden = true; copyStatus.textContent = ''; }
+      }).catch(function () {
+        if (copyStatus) { copyStatus.textContent = 'Could not copy. Select the text to copy it.'; copyStatus.hidden = false; }
+      });
     });
   });
-
-  // Wire any [data-tip] elements in this freshly re-rendered card (the live
-  // chip, primarily) into the shared toolbar-tooltip styling.
   if (typeof S.attachTooltips === 'function') S.attachTooltips(rowsEl);
 }
 
@@ -873,10 +796,46 @@ function flashCopyIcon(btn) {
 // Swap the button's <svg> to a check, restore after COPY_FEEDBACK_MS.
 // Works for both icon-only and icon+label buttons.
 function copyWithIconFeedback(text, btn) {
-  navigator.clipboard.writeText(text).then(function() {
+  return navigator.clipboard.writeText(text).then(function() {
     flashCopyIcon(btn);
   });
 }
+
+S.copyIcon = COPY_SVG;
+S.copyWithIconFeedback = copyWithIconFeedback;
+
+// Share links show selectable values with a separate copy control.
+S.panelValueHTML = function (label, value, id) {
+  var group = document.createElement('div');
+  group.className = 'sdoc-panel-value';
+  group.setAttribute('role', 'group');
+  group.setAttribute('aria-label', label);
+  var text = document.createElement('span');
+  text.className = 'sdoc-panel-value-text';
+  text.textContent = value;
+  if (id) text.id = id;
+  var copy = document.createElement('button');
+  copy.type = 'button';
+  copy.className = 'btn sdoc-panel-copy';
+  copy.dataset.panelCopy = value;
+  copy.dataset.panelLabel = label;
+  copy.setAttribute('aria-label', 'Copy ' + label.charAt(0).toLowerCase() + label.slice(1));
+  copy.title = copy.getAttribute('aria-label');
+  if (id) copy.setAttribute('aria-describedby', id);
+  copy.innerHTML = COPY_SVG;
+  group.append(text, copy);
+  return group.outerHTML;
+};
+S.wirePanelValues = function (root, report) {
+  root.querySelectorAll('[data-panel-copy]').forEach(function (copy) {
+    copy.addEventListener('click', async function () {
+      try {
+        await S.copyWithIconFeedback(copy.dataset.panelCopy, copy);
+        report(copy.dataset.panelLabel + ' copied.');
+      } catch (_) { report('Could not copy. Select the text to copy it.'); }
+    });
+  });
+};
 
 document.addEventListener('DOMContentLoaded', function() {
   var copyFile = document.getElementById('_sd_btn-copy-file');
@@ -901,6 +860,11 @@ function setStatus(msg) {
 // ── Load content ──────────────────────────────────
 
 function loadText(text, filename) {
+  S.documentGeneration = (S.documentGeneration || 0) + 1;
+  if (S.resetWriteSession) S.resetWriteSession();
+  // A Cloud refresh can replace both source and comments while the viewer is
+  // open. Dismiss its old working set before any action can edit the new doc.
+  if (S.codeFocus && S.codeFocus.close) S.codeFocus.close();
   var parsed = SDocYaml.parseFrontMatter(text);
   S.currentMeta = parsed.meta;
   S.currentBody = parsed.body;
@@ -914,7 +878,7 @@ function loadText(text, filename) {
     var fn = window.SDocComments.parseFootnotes
       ? window.SDocComments.parseFootnotes(S.currentBody)
       : { comments: [], body: S.currentBody };
-    var existing = (S.currentMeta.comments || []).filter(function (c) {
+    var existing = (Array.isArray(S.currentMeta.comments) ? S.currentMeta.comments : []).filter(function (c) {
       return !fn.comments.some(function (n) { return n.id === c.id; });
     });
     // The store holds BOTH prose kinds (inline/block/slide) and code kinds
@@ -961,8 +925,9 @@ function loadText(text, filename) {
   });
   S.currentMeta = Object.assign({}, S.currentMeta, { styles: S.collectStyles() });
   S.rawEl.value = SDocYaml.serializeFrontMatter(S.currentMeta) + '\n' + S.currentBody;
-  setStatus(filename ? 'Loaded: ' + filename : '');
+  setStatus('');
   syncAll('load');
+  if (S.currentMode === 'write' && S.enterWriteMode) S.enterWriteMode();
 }
 
 // ── Compression helpers (brotli + base64url) ──
@@ -1100,10 +1065,8 @@ async function unsealDocument(cipherB64, keyBytes) {
   return decompressText(compressedB64);
 }
 
-// Canonical serialization of the live document - the exact bytes a short link
-// (and the URL hash) encode. Used both to seal a short link and to detect
-// whether the live document has since diverged from one a short link points at,
-// so the two can never disagree about what "the same document" means.
+// Canonical source serialization for URL hashes and short-link staleness.
+// Sharing omits library tags from the copy without changing the source state.
 function serializeCurrentDocument() {
   var styles = SDocStyles.stripStyleDefaults(S.collectStyles());
   var meta = Object.assign({}, S.currentMeta);
@@ -1112,10 +1075,17 @@ function serializeCurrentDocument() {
   return SDocYaml.serializeFrontMatter(meta) + '\n' + S.currentBody;
 }
 
+function withoutLibraryTags(text) {
+  var parsed = SDocYaml.parseFrontMatter(text);
+  if (!Object.prototype.hasOwnProperty.call(parsed.meta, 'tags')) return text;
+  delete parsed.meta.tags;
+  return SDocYaml.serializeFrontMatter(parsed.meta) + '\n' + parsed.body;
+}
+
 // Compress current document, encrypt with a fresh key, upload ciphertext.
 // Returns { url, id } on success; throws on failure.
-async function shortenCurrentDocument() {
-  var full = serializeCurrentDocument();
+async function shortenCurrentDocument(snapshot) {
+  var full = withoutLibraryTags(typeof snapshot === 'string' ? snapshot : serializeCurrentDocument());
 
   var keyBytes = await generateShortLinkKey();
   var cipherB64 = await sealDocument(full, keyBytes);
@@ -1161,7 +1131,7 @@ function normalizedBasePath() {
   if (S.cloudDocument && S.cloudDocument.id) {
     return '/docs?cloud-document=' + encodeURIComponent(S.cloudDocument.id);
   }
-  if (p === '/new' || SHORT_LINK_PATH_RE.test(p)) return '/docs';
+  if (p === '/new' || SHORT_LINK_PATH_RE.test(p) || /^\/p\//.test(p)) return '/docs';
   return p;
 }
 
@@ -1182,6 +1152,14 @@ async function writeCurrentLocation(version) {
   var writePreserved = function (params) {
     for (var name in preserved) params.set(name, preserved[name]);
   };
+  if (S.publicationSource && S.publicationSource.unchanged() && /^\/p\//.test(location.pathname)) {
+    var publishedParams = new URLSearchParams();
+    if (S.currentMode !== 'read') publishedParams.set('mode',S.currentMode);
+    if (existing.has('sec')) publishedParams.set('sec',existing.get('sec'));
+    writePreserved(publishedParams);
+    history.replaceState(null,'',location.pathname + (publishedParams.toString() ? '#' + publishedParams : ''));
+    return;
+  }
   if (S._isDefaultState && S.currentMode === 'read') {
     if (version !== locationWriteVersion) return;
     if (Object.keys(preserved).length === 0) {
@@ -1289,8 +1267,10 @@ function syncAll(source) {
     // Now that this source's edit has been applied to the live document,
     // decide whether a loaded/minted short link still matches it.
     reconcileShortLink(source);
+    if (S.publicationSource) S.publicationSource.reconcile(source);
   } finally {
     S._syncing = false;
+    if (S.publications && S.cloudDocument && !S._loadingDocument) renderFileInfoCard();
     if (S.applyChromeTint) S.applyChromeTint();
     if (S.refreshCommentDot) S.refreshCommentDot();
   }
@@ -1336,9 +1316,30 @@ function setToolbarOverflowOpen(open) {
   button.dataset.tip = open ? 'Less' : 'More';
 }
 
+function captureReadingPosition() {
+  var mobile = window.matchMedia('(max-width: 768px)').matches;
+  if (!(mobile ? window.scrollY : contentArea.scrollTop)) return null;
+  var tools = document.getElementById(mobile ? '_sd_mobile-header' : '_sd_document-tools');
+  if (!tools) return null;
+  var top = tools.getBoundingClientRect().bottom;
+  var bottom = mobile ? window.innerHeight : contentArea.getBoundingClientRect().bottom;
+  var blocks = S.renderedEl.querySelectorAll('h1, h2, h3, h4, h5, h6, p, pre, li, blockquote, table');
+  for (var i = 0; i < blocks.length; i++) {
+    var box = blocks[i].getBoundingClientRect();
+    if (box.height && box.bottom > top && box.top < bottom) {
+      return { element: blocks[i], top: box.top, mobile: mobile };
+    }
+  }
+  return null;
+}
+
 function setMode(mode, skipHash) {
+  if (mode === 'history' && (!S.cloudDocument || !S.cloudHistory)) mode = 'read';
   var prev = S.currentMode;
+  var readingPosition = ((prev === 'read' && mode === 'comment') || (prev === 'comment' && mode === 'read'))
+    ? captureReadingPosition() : null;
   S.currentMode = mode;
+  if (S.cloudHistory) S.cloudHistory.modeChanged(prev, mode);
 
   // Exit write mode — extract markdown back
   if (prev === 'write' && mode !== 'write') {
@@ -1348,9 +1349,10 @@ function setMode(mode, skipHash) {
   S.renderedEl.style.display = (mode === 'raw' || mode === 'write') ? 'none' : '';
   S.rawEl.style.display      = mode === 'raw' ? 'block' : 'none';
 
-  ['read', 'style', 'write', 'raw', 'export', 'info', 'comment'].forEach(function (buttonMode) {
+  ['read', 'style', 'share', 'history', 'write', 'raw', 'export', 'info', 'comment'].forEach(function (buttonMode) {
     var button = document.getElementById('_sd_btn-' + buttonMode);
     var selected = mode === buttonMode;
+    if (!button) return;
     button.classList.toggle('active', selected);
     button.setAttribute('aria-pressed', selected ? 'true' : 'false');
   });
@@ -1364,6 +1366,23 @@ function setMode(mode, skipHash) {
   }
 
   document.body.classList.toggle('style-mode',   mode === 'style');
+  document.body.classList.toggle('share-mode', mode === 'share');
+  var sharing = mode === 'share';
+  var historyMode = mode === 'history';
+  document.body.classList.toggle('history-mode', historyMode);
+  if ((sharing || historyMode) && S.closeCloudPanel) S.closeCloudPanel();
+  var sharePanel = document.getElementById('_sd_share-panel');
+  if (sharePanel) sharePanel.hidden = !sharing;
+  var historyPanel = document.getElementById('_sd_history-panel');
+  if (historyPanel) historyPanel.hidden = !historyMode;
+  var historyButton = document.getElementById('_sd_btn-history');
+  if (historyButton) historyButton.setAttribute('aria-expanded', String(historyMode));
+  var panelTitle = document.querySelector('#_sd_right-header .sdocs-sheet-title');
+  if (panelTitle) panelTitle.textContent = sharing ? 'Share document' : historyMode ? 'Document history' : 'Format document';
+  document.getElementById('_sd_right-close').setAttribute('aria-label', sharing ? 'Close sharing panel' : historyMode ? 'Close history panel' : 'Close formatting panel');
+  var shareButton = document.getElementById('_sd_btn-share');
+  if (shareButton) shareButton.setAttribute('aria-expanded', String(sharing));
+  if (S.publications) S.publications.update();
   document.body.classList.toggle('read-mode',    mode === 'read');
   document.body.classList.toggle('write-mode',   mode === 'write');
   document.body.classList.toggle('raw-mode',     mode === 'raw');
@@ -1385,8 +1404,10 @@ function setMode(mode, skipHash) {
     var hasSlides = !!document.querySelector('.sdoc-slide');
     var slidesOpt = document.getElementById('_sd_exp-slides-pdf');
     if (slidesOpt) slidesOpt.style.display = hasSlides ? '' : 'none';
+    if (slidesOpt && slidesOpt.closest('.sdoc-export-choice')) slidesOpt.closest('.sdoc-export-choice').hidden = !hasSlides;
     var pptxOpt = document.getElementById('_sd_exp-slides-pptx');
     if (pptxOpt) pptxOpt.style.display = hasSlides ? '' : 'none';
+    if (pptxOpt && pptxOpt.closest('.sdoc-export-choice')) pptxOpt.closest('.sdoc-export-choice').hidden = !hasSlides;
   }
 
   // Enter write mode — populate contentEditable
@@ -1395,7 +1416,7 @@ function setMode(mode, skipHash) {
   }
 
   if (mode === 'read' && !document.documentElement.classList.contains('sdocs-embed')) {
-    document.getElementById('_sd_content-area').focus();
+    document.getElementById('_sd_content-area').focus({ preventScroll: true });
   }
 
   // The Edits row in the file-info card only shows in editing modes, so a
@@ -1403,7 +1424,20 @@ function setMode(mode, skipHash) {
   // call — there's no row whose visibility depends on this.
   if (S.bridge) renderFileInfoCard();
 
-  if (!skipHash) updateHash();
+  // Comment hosts change block margins. Keep the passage in view while the
+  // context pills animate, rather than retaining an unrelated pixel offset.
+  if (readingPosition && readingPosition.element.isConnected) {
+    var shift = readingPosition.element.getBoundingClientRect().top - readingPosition.top;
+    if (readingPosition.mobile) window.scrollBy(0, shift);
+    else contentArea.scrollTop += shift;
+  }
+
+  if (!skipHash && S.cloudDocument) {
+    // Persist deliberate Cloud mode changes before an immediate reload, while
+    // keeping document/style updates debounced during a render.
+    clearTimeout(S._hashTimer);
+    writeCurrentLocation(++locationWriteVersion);
+  } else if (!skipHash) updateHash();
 }
 
 document.getElementById('_sd_btn-theme').addEventListener('click', function() { S.toggleTheme(); });
@@ -1452,6 +1486,7 @@ function syncFoldButton() {
   btn.setAttribute('data-tip', label);
 }
 S.syncFoldButton = syncFoldButton;
+S.setAllSectionsOpen = setAllSectionsOpen;
 document.getElementById('_sd_btn-style').addEventListener('click',  function() { toggleMode('style'); });
 document.getElementById('_sd_btn-write').addEventListener('click',  function() { toggleMode('write'); });
 document.getElementById('_sd_btn-raw').addEventListener('click',    function() { toggleMode('raw'); });
@@ -1476,94 +1511,9 @@ document.getElementById('_sd_btn-new').addEventListener('click', function() {
   });
 })();
 
-// Toolbar tooltip: one shared #_sd_tooltip in <body>, positioned below
-// the hovered button via fixed coords. Skipped on touch / no-hover devices.
-//
-// Exposes SDocs.attachTooltips(root) so any module that injects new
-// [data-tip] elements (e.g. the file-info card re-rendering the live
-// chip) can wire them up after innerHTML writes wipe prior listeners.
-(function () {
-  var tip = document.getElementById('_sd_tooltip');
-  if (!tip) return;
-  // Hover-capable, fine pointer = real mouse. Touch + stylus get nothing.
-  if (!matchMedia('(hover: hover) and (pointer: fine)').matches) return;
-
-  var DELAY = 300;
-  var timer = null;
-  var current = null;
-  var attached = typeof WeakSet === 'function' ? new WeakSet() : null;
-
-  function position(target) {
-    var r = target.getBoundingClientRect();
-    var ttRect = tip.getBoundingClientRect();
-    // Centred under the button, with an 8px gap for the caret.
-    var left = r.left + r.width / 2 - ttRect.width / 2;
-    var top = r.bottom + 8;
-    // Clamp to viewport so tooltips near the right edge stay visible.
-    var pad = 6;
-    if (left < pad) left = pad;
-    if (left + ttRect.width > window.innerWidth - pad) {
-      left = window.innerWidth - pad - ttRect.width;
-    }
-    tip.style.left = left + 'px';
-    tip.style.top = top + 'px';
-  }
-
-  function show(target) {
-    var text = target.dataset.tip;
-    if (!text) return;
-    current = target;
-    tip.textContent = text;
-    tip.setAttribute('aria-hidden', 'false');
-    // Position once before the show class so transform-origin is right;
-    // a second pass after the layout settles (next frame) re-centres
-    // because the tooltip may have grown to fit longer text.
-    position(target);
-    requestAnimationFrame(function () {
-      if (current === target) {
-        position(target);
-        tip.classList.add('show');
-      }
-    });
-  }
-
-  function hide() {
-    if (timer) { clearTimeout(timer); timer = null; }
-    current = null;
-    tip.classList.remove('show');
-    tip.setAttribute('aria-hidden', 'true');
-  }
-
-  function attach(btn) {
-    if (!btn || !btn.dataset || !btn.dataset.tip) return;
-    if (attached && attached.has(btn)) return;
-    if (attached) attached.add(btn);
-    btn.addEventListener('mouseenter', function () {
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(function () { show(btn); }, DELAY);
-    });
-    btn.addEventListener('mouseleave', hide);
-    // Dismiss instantly on click — the resulting state change is
-    // the user's feedback, the tooltip would just linger.
-    btn.addEventListener('click', hide);
-    // If the button scrolls offscreen / is hidden mid-hover, drop the tip.
-    btn.addEventListener('blur', hide);
-  }
-
-  function attachAll(root) {
-    var scope = root || document;
-    scope.querySelectorAll('[data-tip]').forEach(attach);
-  }
-
-  S.attachTooltips = attachAll;
-
-  attachAll(document);
-
-  // Hide on scroll/resize because the cached position becomes stale.
-  window.addEventListener('scroll', hide, { passive: true });
-  window.addEventListener('resize', hide);
-})();
-
+// The shared sidebar module also supplies tooltips for document actions.
+S.attachTooltips = window.SDocsSidebarShared ? window.SDocsSidebarShared.attachTooltips : function () {};
+S.attachTooltips(document);
 
 ['_sd_right-close', '_sd_export-panel-close', '_sd_info-panel-close'].forEach(function(id) {
   document.getElementById(id).addEventListener('click', function() {
@@ -1605,17 +1555,32 @@ function restoreDocumentAfterSignIn() {
 
 restoreDocumentAfterSignIn();
 
+async function documentReturnPath() {
+  if (S.hasPendingWriteChanges && S.hasPendingWriteChanges()) S.flushWriteChanges();
+  if (S.updateDocumentLocationNow) await S.updateDocumentLocationNow();
+  var returnTo = window.location.pathname + window.location.search + window.location.hash;
+  try {
+    window.sessionStorage.setItem(CLOUD_SIGN_IN_RETURN_KEY, returnTo);
+    return /^\/p\//.test(location.pathname) ? location.pathname + '?sdocs_resume=1' : '/docs?sdocs_resume=1';
+  } catch (_) {
+    return '/docs';
+  }
+}
+
+async function signInFromDocument(event) {
+  if (event) event.preventDefault();
+  try {
+    window.location.href = '/cloud/sign-in?return=' + encodeURIComponent(await documentReturnPath());
+  } catch (_) {
+    S.setStatus('Could not keep this document for sign-in. Download a copy before continuing.', 'error');
+  }
+}
+S.documentReturnPath = documentReturnPath;
+S.signInFromDocument = signInFromDocument;
+
 function wireDocumentSiteNavigation() {
-  var signIn = document.querySelector('[data-sdocs-sign-in-return]');
-  if (signIn) signIn.addEventListener('click', function (event) {
-    event.preventDefault();
-    var returnTo = window.location.pathname + window.location.search + window.location.hash;
-    try {
-      window.sessionStorage.setItem(CLOUD_SIGN_IN_RETURN_KEY, returnTo);
-      window.location.href = '/cloud/sign-in?return=' + encodeURIComponent('/docs?sdocs_resume=1');
-    } catch (_) {
-      window.location.href = '/cloud/sign-in?return=%2Fdocs';
-    }
+  document.querySelectorAll('[data-sdocs-sign-in-return]').forEach(function (signIn) {
+    signIn.addEventListener('click', signInFromDocument);
   });
   var menu = document.getElementById('doc-site-menu');
   if (!menu) return;
@@ -1664,7 +1629,9 @@ var _defaultMdPath = _defaultMetaEl && _defaultMetaEl.content;
 // Guard against the server-side template placeholder leaking through
 // (e.g. a stale service-worker cache serving an older index.html).
 if (!_defaultMdPath || _defaultMdPath.charAt(0) !== '/') _defaultMdPath = '/public/sdoc.md';
-var _defaultReady = fetch(_defaultMdPath).then(function(r) { return r.text(); }).then(function(t) { DEFAULT_MD = t; });
+var _defaultReady = document.getElementById('sdocs-publication-data') || new URLSearchParams(window.location.search).has('cloud-document')
+  ? Promise.resolve()
+  : fetch(_defaultMdPath).then(function(r) { return r.text(); }).then(function(t) { DEFAULT_MD = t; });
 
 // ── Register on SDocs for cross-module access ──────────
 
@@ -1708,6 +1675,7 @@ S.loadText = loadText;
 S.shortenCurrentDocument = shortenCurrentDocument;
 S.shortenErrorMessage = shortenErrorMessage;
 S.generateShortLink = generateShortLink;
+S.serializeCurrentDocument = serializeCurrentDocument;
 S.SHORT_LINKS_LEARN_URL = SHORT_LINKS_LEARN_URL;
 // Exposed seam: the bridge Source decodes its embedded `md=` snapshot through
 // the same brotli/deflate decode the fragment Source uses, so there's one decode
@@ -1761,6 +1729,10 @@ S.updateThemeTabs(S.activeTheme);
 var _lastLoadedHash = null;
 
 async function loadFromHash() {
+  if (S.publicationSource && /^\/p\//.test(location.pathname)) {
+    if (S.publicationSource.rootLoaded()) S.publicationSource.viewState();
+    return;
+  }
   var hash = window.location.hash.slice(1);
   if (hash === _lastLoadedHash) return;
   _lastLoadedHash = hash;
@@ -1857,11 +1829,8 @@ async function loadFromHash() {
   }
 
   if (themeParam === 'light' || themeParam === 'dark') {
-    var savedPref = localStorage.getItem('sdocs-theme');
-    S.switchThemeAndUpdate(themeParam);
-    // Restore localStorage — URL theme is view-only, not persistent
-    if (savedPref) localStorage.setItem('sdocs-theme', savedPref);
-    else localStorage.removeItem('sdocs-theme');
+    // A link's explicit theme applies to this view without changing the preference.
+    S.switchThemeAndUpdate(themeParam, false);
   } else {
     // Restore user's actual preferred theme (previous hash may have overridden it)
     var preferred = S.getPreferredTheme();
@@ -1870,7 +1839,7 @@ async function loadFromHash() {
     }
   }
 
-  if (modeParam && ['read', 'style', 'write', 'raw', 'export', 'info', 'comment'].includes(modeParam)) {
+  if (modeParam && ['read', 'style', 'share', 'history', 'write', 'raw', 'export', 'info', 'comment'].includes(modeParam)) {
     setMode(modeParam, true);
   } else {
     setMode('read', true);
@@ -1946,13 +1915,15 @@ async function initShortLink(id) {
     S._isDefaultState = false;
     S._loadingDocument = true;
     S.resetAllStyles();
-    loadText(text);
+    // Older immutable copies may contain tags. Keep library organisation out
+    // of the shared reader as well as newly encrypted copies.
+    loadText(withoutLibraryTags(text));
     // loadText -> syncAll('load') -> updateHash queues a URL rewrite. Cancel
     // it so the short link stays visible in the address bar. On the first
     // real edit, updateHash runs again and normalizes the URL to / + #md=.
     clearTimeout(S._hashTimer);
     var modeParam = params.get('mode');
-    if (modeParam && ['read', 'style', 'write', 'raw', 'export', 'info', 'comment'].indexOf(modeParam) >= 0) {
+    if (modeParam && ['read', 'style', 'share', 'history', 'write', 'raw', 'export', 'info', 'comment'].indexOf(modeParam) >= 0) {
       setMode(modeParam, true);
     } else {
       setMode('read', true);
@@ -2022,6 +1993,9 @@ S.Sources.register({
 });
 
 (async function () {
+  if (document.readyState === 'loading') {
+    await new Promise(function (resolve) { document.addEventListener('DOMContentLoaded', resolve, { once: true }); });
+  }
   await _defaultReady;
   if (!document.documentElement.classList.contains('sdocs-embed')) {
     var source = S.Sources.select();
