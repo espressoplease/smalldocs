@@ -8,6 +8,12 @@
   if (!snapshot || typeof snapshot.url!=='string') return;
   S.publicationCompile = snapshot.compile === true;
   S.publicationSnapshot = snapshot;
+  if (!S.publicationCompile) {
+    // The compiled HTML opens every section for readers without JavaScript.
+    // Reset that snapshot state before the reader remembers it as a user choice.
+    var initialRoot=document.getElementById('_sd_rendered');
+    if(initialRoot)initialRoot.querySelectorAll('.md-section-body.open,.section-toggle.open').forEach(function(node){node.classList.remove('open');});
+  }
   var baseline=null;
   function legacyStyles(parsed) {
     var css=Array.prototype.map.call(parsed.querySelectorAll('style'),function(style){return style.textContent;}).join('\n');

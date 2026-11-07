@@ -1487,6 +1487,9 @@ function syncFoldButton() {
 }
 S.syncFoldButton = syncFoldButton;
 S.setAllSectionsOpen = setAllSectionsOpen;
+S.openSectionAncestors = function(target) {
+  if (proseReaderControls) proseReaderControls.openHeading(target);
+};
 document.getElementById('_sd_btn-style').addEventListener('click',  function() { toggleMode('style'); });
 document.getElementById('_sd_btn-write').addEventListener('click',  function() { toggleMode('write'); });
 document.getElementById('_sd_btn-raw').addEventListener('click',    function() { toggleMode('raw'); });
