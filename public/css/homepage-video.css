@@ -47,6 +47,7 @@
   bottom: 14px;
   display: flex;
   gap: 8px;
+  transition: opacity .3s cubic-bezier(.4,0,.2,1);
 }
 .vid-btn[hidden] { display: none; }
 .vid-btn {
@@ -253,66 +254,27 @@
   outline-offset: -4px;
 }
 .videocard.video-error .spinner { display: none; }
-.videocard.video-error .vid-loading { z-index: 3; bottom: auto; top: 14px; }
-.homepage-video-dialog {
-  box-sizing: border-box;
-  width: min(1280px, calc(100vw - 64px), calc((100dvh - 128px) * 16 / 9));
-  max-width: none;
-  max-height: none;
-  padding: 48px 0 0;
-  margin: auto;
-  border: 0;
-  background: transparent;
-  color: #fff;
-  overflow: visible;
-  opacity: 0;
-  transform: scale(.98);
-  transition: opacity .3s cubic-bezier(.4,0,.2,1), transform .3s cubic-bezier(.4,0,.2,1);
-}
-.homepage-video-dialog[open] { opacity: 1; transform: none; }
-.homepage-video-dialog::backdrop {
-  background: rgba(0,0,0,.84);
-  opacity: 1;
-  transition: opacity .3s cubic-bezier(.4,0,.2,1);
-}
-.homepage-video-dialog.is-closing, .homepage-video-dialog.is-closing::backdrop { opacity: 0; }
-.homepage-video-dialog.is-closing { transform: scale(.98); pointer-events: none; }
-.homepage-video-dialog .vid-close {
+.videocard.video-error .vid-loading { z-index: 3; bottom: auto; top: 14px; max-width: calc(100% - 72px); }
+.vid-collapse {
   position: absolute;
-  top: 0;
-  right: 0;
-  width: 40px;
-  height: 40px;
+  top: 12px;
+  right: 12px;
+  width: 36px;
+  height: 36px;
   padding: 0;
   justify-content: center;
   border-radius: 50%;
+  z-index: 3;
 }
-.homepage-video-dialog .vid { object-fit: contain; }
-@starting-style {
-  .homepage-video-dialog[open] { opacity: 0; transform: scale(.98); }
-  .homepage-video-dialog[open]::backdrop { opacity: 0; }
-}
-@media (max-width: 620px), (max-height: 500px) and (pointer: coarse) {
-  .homepage-video-dialog {
-    width: 100%;
-    height: 100dvh;
-    padding: max(56px, calc(env(safe-area-inset-top) + 48px)) 0 env(safe-area-inset-bottom);
-    background: #000;
-    transform: none;
-    overflow: hidden;
-  }
-  .homepage-video-dialog .videocard { height: 100%; border: 0; border-radius: 0; }
-  .homepage-video-dialog .vid { height: 100%; aspect-ratio: auto; }
-  .homepage-video-dialog .vid-close { top: max(8px, env(safe-area-inset-top)); right: 8px; width: 44px; height: 44px; }
-  .homepage-video-dialog .vid-controls { left: 8px; right: 8px; bottom: 12px; justify-content: center; gap: 6px; }
-  .homepage-video-dialog .vid-btn .lbl { display: none; }
-  .homepage-video-dialog .vid-btn { min-width: 36px; min-height: 44px; justify-content: center; padding: 8px 9px; }
-  .homepage-video-dialog .vid-caption { font-size: 14px; max-width: 92%; bottom: 72px; }
-  .homepage-video-dialog .vid-chapmenu { top: auto; max-height: calc(100% - 84px); }
+@media (max-width: 560px) {
+  .homepage-small-video .vid-controls { left: 8px; right: 8px; bottom: 8px; gap: 4px; justify-content: flex-end; }
+  .homepage-small-video .vid-btn { padding: 8px 9px; min-height: 40px; }
+  .homepage-small-video .vid-collapse { width: 40px; height: 40px; padding: 0; }
+  .homepage-small-video .vid-caption { width: max-content; max-width: calc(100% - 24px); font-size: 12px; bottom: 58px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .videocard.teaser .vid-teaser { visibility: hidden; }
-  .vid-teaser, .vid-loading, .vid-play span, .homepage-video-dialog, .homepage-video-dialog::backdrop { transition: none; }
+  .vid-teaser, .vid-loading, .vid-play span, .vid-controls, .home-next .homepage-small-video { transition: none; }
   .spinner { animation: none; }
 }
 

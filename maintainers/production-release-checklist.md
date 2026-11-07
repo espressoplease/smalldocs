@@ -77,12 +77,13 @@ The checks below authorize no production deployment or npm publication.
 - [ ] Replace the temporary 30-second clip, poster, preview and captions with the
   new recording. Add chapter times if the recording has multiple sections.
 - The old and new homepages now share their player controls, captions and
-  fullscreen code. The new homepage keeps a compact muted preview, expands into
-  a large desktop player or full-viewport mobile player, and returns to the same
-  page position when closed. Validation is in `test/homepage-video.spec.js`.
-  The player, existing homepage, routing and signup checks passed 55 Chromium
-  tests. The player also passed 24 Firefox and WebKit checks, including blocked
-  autoplay, captions, retrying a failed load, keyboard navigation and replay.
+  fullscreen code. The new homepage keeps a compact muted preview and expands
+  in place to the text column width, keeping its top-left corner fixed. It
+  returns to the compact preview when collapsed.
+  `test/homepage-video.spec.js` passed 36 Chromium, Firefox and WebKit checks,
+  including geometry throughout the animation, blocked autoplay, captions,
+  retrying a failed load, keyboard navigation and replay.
+  Another 43 Chromium checks cover the homepage, signup and routing.
 
 ## Launch actions still pending
 

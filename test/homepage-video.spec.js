@@ -2,7 +2,7 @@ const { test, expect } = require('@playwright/test');
 test.use({ serviceWorkers: 'block' });
 
 for (const width of [320, 390, 768, 1440]) {
-  test('small preview expands for playback and returns without moving the page at ' + width, async ({ page }) => {
+  test('playback grows from the same top-left corner to the text column width at ' + width, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     await page.goto('/home-next');
     const preview = page.locator('.homepage-small-video');
@@ -11,28 +11,38 @@ for (const width of [320, 390, 768, 1440]) {
     const headingTop = await page.locator('h1').evaluate(el => el.getBoundingClientRect().top);
     expect(before.width).toBeLessThanOrEqual(360);
     expect(await page.locator('#heroTeaser').evaluate(video => video.muted)).toBe(true);
-    // Some browser policies forbid even muted autoplay. Keep the poster usable there.
     await expect.poll(() => page.locator('#heroTeaser').evaluate(video =>
       video.currentTime > 0 || (video.paused && video.dataset.previewBlocked === 'true'))).toBe(true);
     await play.click();
-    const dialog = page.getByRole('dialog', { name: 'SmallDocs demo' });
-    await expect(dialog).toBeVisible();
-    await dialog.evaluate(element => Promise.all(element.getAnimations().map(animation => animation.finished)));
-    const expanded = await dialog.locator('.videocard').boundingBox();
-    if (width > 620) expect(expanded.width).toBeGreaterThan(before.width * (width > 1000 ? 2.5 : 1.5));
-    else {
-      const box = await dialog.boundingBox();
-      expect(box.width).toBeCloseTo(width, 0); expect(box.height).toBeCloseTo(900, 0);
+    await expect(preview).toHaveClass(/is-expanded/);
+    const frames = await preview.evaluate(async element => {
+      const positions = [];
+      for (let i = 0; i < 24; i++) {
+        await new Promise(requestAnimationFrame);
+        const r = element.getBoundingClientRect(); positions.push({ x: r.x, y: r.y, width: r.width });
+      }
+      return positions;
+    });
+    for (const frame of frames) {
+      expect(frame.x).toBeCloseTo(before.x, 0); expect(frame.y).toBeCloseTo(before.y, 0);
     }
+    await preview.evaluate(element => Promise.all(element.getAnimations().map(animation => animation.finished)));
+    const expanded = await preview.boundingBox();
+    const heading = await page.locator('h1').boundingBox();
+    expect(expanded.x).toBeCloseTo(heading.x, 0);
+    expect(expanded.width).toBeCloseTo(heading.width, 0);
+    expect(heading.y - headingTop).toBeCloseTo(expanded.height - before.height, 0);
+    await expect(page.getByRole('dialog')).toHaveCount(0);
     await expect.poll(() => page.locator('#intro-video').evaluate(video => !video.paused && video.currentTime > 0)).toBe(true);
     expect(await page.locator('#intro-video').evaluate(video => video.muted)).toBe(false);
     expect(await page.locator('#heroTeaser').evaluate(video => video.paused)).toBe(true);
-    for (const button of await dialog.locator('.vid-controls button:visible').all()) {
+    for (const button of await preview.locator('.vid-controls button:visible').all()) {
       const box = await button.boundingBox();
-      expect(box.x).toBeGreaterThanOrEqual(0); expect(box.x + box.width).toBeLessThanOrEqual(width);
+      expect(box.x).toBeGreaterThanOrEqual(expanded.x); expect(box.x + box.width).toBeLessThanOrEqual(expanded.x + expanded.width);
     }
-    await dialog.getByRole('button', { name: 'Close video', exact: true }).click();
-    await expect(dialog).not.toBeVisible();
+    await page.getByRole('button', { name: 'Collapse video', exact: true }).click();
+    await expect(preview).not.toHaveClass(/is-expanded/);
+    await preview.evaluate(element => Promise.all(element.getAnimations().map(animation => animation.finished)));
     expect(await preview.boundingBox()).toEqual(before);
     expect(await page.locator('h1').evaluate(el => el.getBoundingClientRect().top)).toBe(headingTop);
     expect(await page.locator('#intro-video').evaluate(video => video.paused)).toBe(true);
@@ -62,29 +72,30 @@ test('expanded player retains captions, mute, pause and bounded seeking', async 
   await page.getByRole('button', { name: 'Forward 10 seconds', exact: true }).click();
   expect(await video.evaluate(video => video.currentTime)).toBeGreaterThanOrEqual(10);
   await expect(page.locator('#chapBtn')).toBeHidden();
-  await page.getByRole('button', { name: 'Close video', exact: true }).click();
+  await page.getByRole('button', { name: 'Collapse video', exact: true }).click();
   expect(errors).toEqual([]);
 });
 
-test('keyboard focus stays inside the expanded player and Escape restores the preview', async ({ page }) => {
+test('inline playback keeps the homepage available and Escape restores the preview', async ({ page }) => {
   await page.goto('/home-next');
   const play = page.getByRole('button', { name: 'Play 30-second preview', exact: true });
   await play.focus(); await page.keyboard.press('Enter');
-  const dialog = page.getByRole('dialog'); await expect(dialog).toBeVisible();
-  for (let index = 0; index < 10; index++) {
-    await page.keyboard.press('Tab');
-    expect(await page.evaluate(() => document.activeElement.closest('dialog') !== null)).toBe(true);
-  }
-  await page.keyboard.press('Escape'); await expect(dialog).not.toBeVisible(); await expect(play).toBeFocused();
+  await expect(page.locator('.homepage-small-video')).toHaveClass(/is-expanded/);
+  const signup = page.getByRole('link', { name: 'Continue with Google', exact: true }).first();
+  await signup.focus(); await expect(signup).toBeFocused();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.homepage-small-video')).not.toHaveClass(/is-expanded/); await expect(play).toBeFocused();
 });
 
 test('reduced motion keeps the preview still while allowing deliberate playback', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/home-next');
   expect(await page.locator('#heroTeaser').evaluate(video => video.paused)).toBe(true);
+  expect(await page.locator('.homepage-small-video').evaluate(element => getComputedStyle(element).transitionDuration)).toBe('0s');
   await page.getByRole('button', { name: 'Play 30-second preview', exact: true }).click();
   await expect.poll(() => page.locator('#intro-video').evaluate(video => !video.paused)).toBe(true);
-  await page.keyboard.press('Escape'); await expect(page.getByRole('dialog')).not.toBeVisible();
+  await page.keyboard.press('Escape'); await expect(page.locator('.homepage-small-video')).not.toHaveClass(/is-expanded/);
   expect(await page.locator('#heroTeaser').evaluate(video => video.paused)).toBe(true);
 });
 
@@ -109,13 +120,13 @@ test('a missing teaser leaves a deliberate play action rather than starting audi
   const play = page.getByRole('button', { name: 'Play 30-second preview', exact: true });
   await expect(play).toBeVisible();
   expect(await page.locator('#intro-video').evaluate(video => video.paused)).toBe(true);
-  await play.click(); await expect(page.getByRole('dialog')).toBeVisible();
+  await play.click(); await expect(page.locator('.homepage-small-video')).toHaveClass(/is-expanded/);
   await expect(page.locator('[data-video-status]')).toContainText('could not be loaded');
   await page.unroute('**/home-next-demo.mp4*');
   await play.click();
   await expect.poll(() => page.locator('#intro-video').evaluate(video => !video.paused && video.currentTime > 0)).toBe(true);
-  await page.getByRole('button', { name: 'Close video', exact: true }).click();
-  await expect(page.getByRole('dialog')).not.toBeVisible();
+  await page.getByRole('button', { name: 'Collapse video', exact: true }).click();
+  await expect(page.locator('.homepage-small-video')).not.toHaveClass(/is-expanded/);
 });
 
 test('blocked playback and fullscreen can be retried without losing the close action', async ({ page }) => {
@@ -133,8 +144,8 @@ test('blocked playback and fullscreen can be retried without losing the close ac
   await page.evaluate(() => { window.allowDemoPlayback = true; }); await play.click();
   await expect.poll(() => page.locator('#intro-video').evaluate(video => !video.paused)).toBe(true);
   await page.getByRole('button', { name: 'Full screen', exact: true }).click();
-  await page.getByRole('button', { name: 'Close video', exact: true }).click();
-  await expect(page.getByRole('dialog')).not.toBeVisible(); expect(errors).toEqual([]);
+  await page.getByRole('button', { name: 'Collapse video', exact: true }).click();
+  await expect(page.locator('.homepage-small-video')).not.toHaveClass(/is-expanded/); expect(errors).toEqual([]);
 });
 
 test('finishing the demo returns to the compact preview and allows another viewing', async ({ page }) => {
@@ -142,7 +153,7 @@ test('finishing the demo returns to the compact preview and allows another viewi
   await play.click();
   await expect.poll(() => page.locator('#intro-video').evaluate(video => Number.isFinite(video.duration))).toBe(true);
   await page.locator('#intro-video').evaluate(video => { video.currentTime = video.duration - 0.1; });
-  await expect(page.getByRole('dialog')).not.toBeVisible(); await expect(play).toBeVisible();
+  await expect(page.locator('.homepage-small-video')).not.toHaveClass(/is-expanded/); await expect(play).toBeVisible();
   await play.click(); await expect.poll(() => page.locator('#intro-video').evaluate(video => !video.paused)).toBe(true);
   expect(await page.locator('#intro-video').evaluate(video => video.currentTime)).toBeLessThan(3);
 });

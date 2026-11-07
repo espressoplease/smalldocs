@@ -57,15 +57,22 @@
   const chapterButton = document.getElementById('chapBtn');
   const menu = document.getElementById('chapMenu');
   const previewHome = card.parentElement;
-  let previewLoops = 0, dialog = null, closing = false, closeTimer = null;
-  let previousOverflow = '', returnFocus = null;
+  let previewLoops = 0, expanded = false;
+  const collapse = document.createElement('button');
+  collapse.type = 'button'; collapse.className = 'vid-btn vid-collapse';
+  collapse.title = 'Collapse video'; collapse.setAttribute('aria-label', 'Collapse video');
+  collapse.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7"/></svg>';
+  collapse.hidden = true; card.appendChild(collapse);
+  collapse.addEventListener('click', () => closeExpanded());
   controls.querySelectorAll('button').forEach(button => {
     if (button.title) button.setAttribute('aria-label', button.title);
     button.querySelectorAll('svg').forEach(icon => icon.setAttribute('aria-hidden', 'true'));
   });
 
   play.setAttribute('aria-expanded', 'false');
-  play.setAttribute('aria-haspopup', card.hasAttribute('data-expand-on-play') ? 'dialog' : 'false');
+  play.removeAttribute('aria-haspopup');
+  if (!previewHome.id) previewHome.id = 'homepage-video';
+  play.setAttribute('aria-controls', previewHome.id);
   controls.inert = true;
   menu.inert = true;
   ['prevChapBtn', 'chapBtn', 'nextChapBtn'].forEach(id => {
@@ -124,49 +131,32 @@
     pause.querySelector('.lbl').textContent = label; pause.title = label;
     pause.setAttribute('aria-label', label);
   }
-  function closeExpanded(immediate) {
-    if (!dialog || !dialog.open || closing) return;
-    closing = true; video.pause(); closeMenu();
-    const finish = () => {
-      clearTimeout(closeTimer); closeTimer = null;
-      previewHome.appendChild(card);
-      dialog.close(); dialog.classList.remove('is-closing');
-      document.documentElement.style.overflow = previousOverflow;
-      card.classList.add('teaser'); card.classList.remove('needs-play'); controls.inert = true;
-      play.setAttribute('aria-expanded', 'false'); closing = false;
-      if (!immediate && returnFocus) returnFocus.focus({ preventScroll: true });
-      if (!immediate) resumePreview();
-    };
-    if (immediate || reducedMotion.matches) finish();
-    else { dialog.classList.add('is-closing'); closeTimer = setTimeout(finish, 300); }
+  function closeExpanded(quiet) {
+    if (!expanded) return;
+    video.pause();
+    if (!quiet) {
+      let exit;
+      try {
+        if (document.fullscreenElement === card || document.webkitFullscreenElement === card)
+          exit = (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+        else if (video.webkitDisplayingFullscreen && video.webkitExitFullscreen) video.webkitExitFullscreen();
+      } catch (_) {}
+      if (exit && exit.then) { exit.then(() => compact(), () => compact()); return; }
+    }
+    compact(quiet);
+  }
+  function compact(quiet) {
+    expanded = false; video.pause(); closeMenu();
+    previewHome.classList.remove('is-expanded');
+    card.classList.add('teaser'); card.classList.remove('needs-play');
+    controls.inert = true; collapse.hidden = true;
+    play.setAttribute('aria-expanded', 'false');
+    if (!quiet) { play.focus({ preventScroll: true }); resumePreview(); }
   }
   function expand() {
-    if (!card.hasAttribute('data-expand-on-play')) return;
-    if (!dialog) {
-      dialog = document.createElement('dialog');
-      dialog.className = 'homepage-video-dialog'; dialog.setAttribute('aria-label', 'SmallDocs demo');
-      dialog.innerHTML = '<button class="vid-btn vid-close" type="button" aria-label="Close video" title="Close video" autofocus><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="m6 6 12 12M18 6 6 18"/></svg></button>';
-      document.body.appendChild(dialog);
-      dialog.querySelector('.vid-close').addEventListener('click', () => closeExpanded());
-      dialog.addEventListener('cancel', event => {
-        event.preventDefault();
-        if (card.classList.contains('chapters-open')) { closeMenu(); chapterButton.focus(); }
-        else closeExpanded();
-      });
-      dialog.addEventListener('click', event => { if (event.target === dialog) closeExpanded(); });
-      dialog.addEventListener('keydown', event => {
-        if (event.key !== 'Tab') return;
-        const buttons = Array.from(dialog.querySelectorAll('button')).filter(button =>
-          !button.disabled && !button.closest('[inert]') && button.getClientRects().length);
-        const index = buttons.indexOf(document.activeElement);
-        const next = (index + (event.shiftKey ? -1 : 1) + buttons.length) % buttons.length;
-        if (buttons[next]) { event.preventDefault(); buttons[next].focus(); }
-      });
-    }
-    if (dialog.open) return;
-    returnFocus = play; previousOverflow = document.documentElement.style.overflow;
-    document.documentElement.style.overflow = 'hidden';
-    dialog.appendChild(card); dialog.showModal(); play.setAttribute('aria-expanded', 'true');
+    if (!card.hasAttribute('data-expand-on-play') || expanded) return;
+    expanded = true; previewHome.classList.add('is-expanded');
+    collapse.hidden = false; play.setAttribute('aria-expanded', 'true');
   }
   function startDemo() {
     expand();
@@ -195,7 +185,7 @@
   video.addEventListener('error', showLoadError);
   video.addEventListener('ended', () => {
     video.currentTime = 0;
-    if (dialog && dialog.open) closeExpanded();
+    if (expanded) closeExpanded();
     else {
       card.classList.add('teaser'); controls.inert = true; previewLoops = 0;
       if (teaser) { teaser.currentTime = 0; resumePreview(); }
@@ -253,7 +243,9 @@
     if (!menu.contains(event.target) && !chapterButton.contains(event.target)) closeMenu();
   });
   document.addEventListener('keydown', event => {
-    if (event.key === 'Escape' && !(dialog && dialog.open)) closeMenu();
+    if (event.key !== 'Escape' || document.fullscreenElement || document.webkitFullscreenElement || video.webkitDisplayingFullscreen) return;
+    if (card.classList.contains('chapters-open')) { closeMenu(); chapterButton.focus(); }
+    else if (expanded) closeExpanded();
   });
   document.getElementById('back10Btn').addEventListener('click', () => seek(video.currentTime - 10));
   document.getElementById('fwd10Btn').addEventListener('click', () => seek(video.currentTime + 10));
@@ -293,7 +285,6 @@
   video.addEventListener('webkitendfullscreen', () => { if (video.textTracks[0]) video.textTracks[0].mode = 'hidden'; syncFullscreen(); });
   window.addEventListener('pagehide', () => {
     video.pause(); if (teaser) { teaser.autoplay = false; teaser.pause(); }
-    if (closeTimer) { clearTimeout(closeTimer); closing = false; }
     closeExpanded(true);
   });
   window.addEventListener('pageshow', () => { if (card.classList.contains('teaser')) resumePreview(); });

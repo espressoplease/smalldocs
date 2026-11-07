@@ -12,7 +12,9 @@
 @media (prefers-reduced-motion: reduce) {
   .homepage-login { transition: none; }
 }
-.homepage-small-video { max-width: 360px; aspect-ratio: 16 / 9; margin: 0 0 19px; }
+.home-next { overflow-anchor: none; }
+.homepage-small-video { width: 100%; max-width: 360px; aspect-ratio: 16 / 9; margin: 0 0 19px; transition: max-width .3s cubic-bezier(.4,0,.2,1); }
+.homepage-small-video.is-expanded { max-width: 100%; }
 .homepage-small-video .vid-play { border: 0; width: 100%; font-family: var(--font); }
 .homepage-small-video .vid-play em { font-size: var(--t-sm); }
 .homepage-small-video .intro-play[hidden] { display: none; }
