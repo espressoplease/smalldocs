@@ -1,6 +1,7 @@
 # Cloud-first production release
 
-Checked 3 November 2026. Evidence: [release receipt](qa/release/2026-11-03.json).
+Migration and billing checked 3 November 2026. Evidence: [release receipt](qa/release/2026-11-03.json).
+Homepage player and npm access checked 7 November 2026.
 Production application code, environment and service configuration remain unchanged.
 Live Stripe catalogue and webhook preparation was authorized and completed separately.
 The checks below authorize no production deployment or npm publication.
@@ -73,10 +74,15 @@ The checks below authorize no production deployment or npm publication.
 ## Homepage preparation
 
 - [ ] Joshua: record a new homepage video for the Cloud-first experience.
-- [ ] Update and test the homepage video player with the new recording. Check
-  playback, expansion/fullscreen and returning to the page on desktop and mobile.
-  Consider a video preview using the current production [/home](https://smalldocs.org/home)
-  experience as a reference.
+- [ ] Replace the temporary 30-second clip, poster, preview and captions with the
+  new recording. Add chapter times if the recording has multiple sections.
+- The old and new homepages now share their player controls, captions and
+  fullscreen code. The new homepage keeps a compact muted preview, expands into
+  a large desktop player or full-viewport mobile player, and returns to the same
+  page position when closed. Validation is in `test/homepage-video.spec.js`.
+  The player, existing homepage, routing and signup checks passed 55 Chromium
+  tests. The player also passed 24 Firefox and WebKit checks, including blocked
+  autoplay, captions, retrying a failed load, keyboard navigation and replay.
 
 ## Launch actions still pending
 
@@ -86,6 +92,9 @@ The checks below authorize no production deployment or npm publication.
    Preserve auth, cursor and idempotency secrets, database paths and KMS context.
    The live application key's required billing operations have been verified.
    Repeat that check if its credential or permissions change before launch.
+   Configure CLOUD_FEEDBACK_ADMIN_USER_IDS using the intended verified
+   production account ID. Resolve it in the production authentication database;
+   do not copy a staging ID. An unset value leaves the private inbox inaccessible.
 3. Recheck live webhook delivery after cutover. The required event selection is
    already installed; preserve the signing secret and working portal configuration.
 4. Deploy the approved server release with ops/deploy-production.sh. This now
@@ -94,13 +103,22 @@ The checks below authorize no production deployment or npm publication.
 5. Authenticate npm and publish the reviewed CLI package, then tag its matching
    source version. Deploy the matching backend before distributing the CLI.
    Production /install currently resolves npm latest, which remains 1.19.2.
+   On 7 November, `npm whoami` returned 401. An npm login or authorized publish
+   credential is still needed. No package has been published by this check.
 6. Run a short check on the production origin: Google and email sign-in, return
    to the last library, CLI authorization, tagged save/read/edit, member access,
    Checkout and billing portal links, public publish/update/withdraw, and logout.
    Verify production public pages are indexable and staging remains noindex.
+   Include the new feedback form and administrator inbox in the access checks.
 7. Check the production monitor, backup and compiler services, Stripe delivery
    failures, and any queued/dead jobs. A successful root-page request alone does
    not prove publishing or billing works.
+8. Resolve the existing SDK reader-snapshot drift check before the final release
+   test run. `test/test-files.js` flags `sdocs-styles.js`: the canonical border
+   conversion changed on 6 November, while the published 0.3.1 adapter's recorded
+   source hash still identifies its earlier source. The homepage player does not
+   change that adapter. Review the next SDK version and its drift-test baseline
+   together, preserving the already published version.
 
 Refunds and disputes currently need manual referral-credit reconciliation.
 Review the referral ledger and applied discount before making an adjustment.

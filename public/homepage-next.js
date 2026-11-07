@@ -40,18 +40,6 @@
       button.disabled = false;
     }
   }));
-  const video = document.getElementById('intro-video');
-  const play = document.querySelector('.intro-play');
-  play.addEventListener('click', async () => {
-    if (video.currentTime >= 29.8) video.currentTime = 0;
-    video.controls = true;
-    try { await video.play(); play.hidden = true; }
-    catch (_) { video.controls = true; }
-  });
-  video.addEventListener('ended', () => { play.hidden = false; });
-  video.addEventListener('timeupdate', () => {
-    if (video.currentTime >= 30) { video.pause(); play.hidden = false; }
-  });
 })();
 
 /* Teams interest form: the same-origin endpoint validates and relays the

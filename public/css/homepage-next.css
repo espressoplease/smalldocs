@@ -12,7 +12,7 @@
 @media (prefers-reduced-motion: reduce) {
   .homepage-login { transition: none; }
 }
-.homepage-small-video { max-width: 360px; margin: 0 0 19px; }
+.homepage-small-video { max-width: 360px; aspect-ratio: 16 / 9; margin: 0 0 19px; }
 .homepage-small-video .vid-play { border: 0; width: 100%; font-family: var(--font); }
 .homepage-small-video .vid-play em { font-size: var(--t-sm); }
 .homepage-small-video .intro-play[hidden] { display: none; }
