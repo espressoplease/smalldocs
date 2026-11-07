@@ -36,10 +36,17 @@ for (const width of [320, 390, 768, 1440]) {
     await expect.poll(() => page.locator('#intro-video').evaluate(video => !video.paused && video.currentTime > 0)).toBe(true);
     expect(await page.locator('#intro-video').evaluate(video => video.muted)).toBe(false);
     expect(await page.locator('#heroTeaser').evaluate(video => video.paused)).toBe(true);
+    const screen = await preview.locator('.vid-screen').boundingBox();
+    const buttons = [];
     for (const button of await preview.locator('.vid-controls button:visible').all()) {
       const box = await button.boundingBox();
       expect(box.x).toBeGreaterThanOrEqual(expanded.x); expect(box.x + box.width).toBeLessThanOrEqual(expanded.x + expanded.width);
+      expect(box.y).toBeGreaterThanOrEqual(screen.y + screen.height + 9);
+      buttons.push(box);
     }
+    expect(Math.max(...buttons.map(box => box.x + box.width))).toBeCloseTo(screen.x + screen.width, 0);
+    expect(Math.max(...buttons.map(box => box.height)) - Math.min(...buttons.map(box => box.height))).toBeLessThan(0.5);
+    expect(Math.max(...buttons.map(box => box.y)) - Math.min(...buttons.map(box => box.y))).toBeLessThan(0.5);
     await page.getByRole('button', { name: 'Collapse video', exact: true }).click();
     await expect(preview).not.toHaveClass(/is-expanded/);
     await preview.evaluate(element => Promise.all(element.getAnimations().map(animation => animation.finished)));

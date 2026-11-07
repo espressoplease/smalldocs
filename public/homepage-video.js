@@ -17,7 +17,7 @@
           </button>
           <button class="vid-btn" id="ccBtn" type="button" aria-pressed="true" title="Subtitles">
             <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><rect x="1.3" y="3" width="13.4" height="10" rx="2.4" stroke="currentColor" stroke-width="1.4"/><path d="M6.5 6.7a1.7 1.7 0 1 0 0 2.6M11.3 6.7a1.7 1.7 0 1 0 0 2.6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
-            CC
+            <span class="lbl">CC</span>
           </button>
           <button class="vid-btn seek" id="back10Btn" type="button" title="Back 10 seconds">
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/><text x="12.5" y="15.6" font-size="8.5" fill="currentColor" text-anchor="middle">10</text></svg>
@@ -57,12 +57,19 @@
   const chapterButton = document.getElementById('chapBtn');
   const menu = document.getElementById('chapMenu');
   const previewHome = card.parentElement;
+  const screen = document.createElement('div'); screen.className = 'vid-screen';
+  Array.from(card.children).forEach(element => {
+    if (element !== controls && element !== menu) screen.appendChild(element);
+  });
+  const toolbar = document.createElement('div'); toolbar.className = 'vid-toolbar';
+  const toolbarClip = document.createElement('div'); toolbarClip.className = 'vid-toolbar-clip';
+  toolbarClip.appendChild(controls); toolbar.append(toolbarClip, menu); card.append(screen, toolbar);
   let previewLoops = 0, expanded = false;
   const collapse = document.createElement('button');
   collapse.type = 'button'; collapse.className = 'vid-btn vid-collapse';
   collapse.title = 'Collapse video'; collapse.setAttribute('aria-label', 'Collapse video');
   collapse.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7"/></svg>';
-  collapse.hidden = true; card.appendChild(collapse);
+  collapse.hidden = true; controls.appendChild(collapse);
   collapse.addEventListener('click', () => closeExpanded());
   controls.querySelectorAll('button').forEach(button => {
     if (button.title) button.setAttribute('aria-label', button.title);

@@ -79,7 +79,8 @@ The checks below authorize no production deployment or npm publication.
 - The old and new homepages now share their player controls, captions and
   fullscreen code. The new homepage keeps a compact muted preview and expands
   in place to the text column width, keeping its top-left corner fixed. It
-  returns to the compact preview when collapsed.
+  returns to the compact preview when collapsed. Playback controls sit in a
+  right-aligned row below the video frame, including in fullscreen playback.
   `test/homepage-video.spec.js` passed 36 Chromium, Firefox and WebKit checks,
   including geometry throughout the animation, blocked autoplay, captions,
   retrying a failed load, keyboard navigation and replay.

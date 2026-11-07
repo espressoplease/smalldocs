@@ -13,7 +13,7 @@
   .homepage-login { transition: none; }
 }
 .home-next { overflow-anchor: none; }
-.homepage-small-video { width: 100%; max-width: 360px; aspect-ratio: 16 / 9; margin: 0 0 19px; transition: max-width .3s cubic-bezier(.4,0,.2,1); }
+.homepage-small-video { width: 100%; max-width: 360px; margin: 0 0 19px; transition: max-width .3s cubic-bezier(.4,0,.2,1); }
 .homepage-small-video.is-expanded { max-width: 100%; }
 .homepage-small-video .vid-play { border: 0; width: 100%; font-family: var(--font); }
 .homepage-small-video .vid-play em { font-size: var(--t-sm); }
