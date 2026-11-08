@@ -248,8 +248,8 @@ module.exports = function (harness) {
       assert.ok(skill.includes('<!-- sdocs-skill-edition: cloud -->'));
       assert.ok(skill.includes('Cloud-first mode'));
       assert.ok(skill.includes('sdoc FILE.md --cloud --json'));
-      assert.ok(skill.includes('always use the returned Cloud url'));
-      assert.ok(skill.includes('never the underlying local file path'));
+      assert.ok(skill.includes('Always use the returned Cloud `url`'));
+      assert.ok(skill.includes('Never link to the underlying local Markdown file'));
       const state = fx.readSetupState();
       assert.strictEqual(state.skillEdition, 'cloud');
       assert.strictEqual(state.cloudAccountId, 'workspace-humanlayer');

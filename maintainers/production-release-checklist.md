@@ -236,12 +236,14 @@ Evidence: [package and configuration receipt](qa/release/2026-11-08-package-read
   merge their values into the existing live environment, preserving every other
   setting. A rollback must restore the coordinated environment as well as code;
   ops/deploy-production.sh only rolls back code and service-unit changes.
-- The exact production Cloud skill v50 is available for the explicit copy
+- The exact production Cloud skill v54 is available for the explicit copy
   approval required by AGENTS.md. The review document is
   https://cloud-staging.smalldocs.org/docs?cloud-document=e216454f-0d2e-4dc0-88ab-1ac20c89558a.
   Its source SHA-256 is
-  3fad31745df104732210daab319bb0f75a75ef0efa2ccbb082a2987fef5eedb6.
-  Approval is pending. No new notification copy is included in this release.
+  046f9323b45663f425960bd304dc38543f5b99163a77e18398560e504e3a9d80.
+  The v54 wording supersedes the earlier v53 review. All 96 targeted skill and
+  installation checks pass. Approval is pending. No new notification copy is
+  included in this release.
 
 ## Homepage preparation
 

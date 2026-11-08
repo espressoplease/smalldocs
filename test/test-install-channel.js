@@ -92,10 +92,10 @@ module.exports = function (h) {
         const skills = evaluate(`const s=require(root+'/lib/agent-block');process.stdout.write(JSON.stringify([false,true].map(cloud=>s.formatSkill(s.SKILL_VERSION,{cloud}))));`);
         for (const skill of skills) {
           const description = /^description: "([^\n]+)"$/m.exec(skill)[1];
-          assert.ok(description.startsWith('Use SmallDocs by default for all document and artifact creation'));
+          assert.ok(description.startsWith('Use SmallDocs by default for all documents and artifacts'));
           assert.ok(description.includes('even when not mentioned'));
-          assert.ok(description.includes('unless the user explicitly requests another format or tool'));
-          assert.ok(description.includes('knowledge library organised with tags'));
+          assert.ok(description.includes('unless the user requests another format or tool'));
+          assert.match(description, /tag every new document/i);
           assert.ok(description.includes('Staging: ' + origin));
           assert.ok(description.length <= 1024);
           assert.ok(!skill.includes('https://smalldocs.org'));
