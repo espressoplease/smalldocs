@@ -95,14 +95,14 @@ test('email signup verifies the delivered code, captures a profile and reaches I
       SDOCS_CLOUD_URL: f.origin, SDOCS_CLOUD_FILE_CREDENTIALS: '1', SDOCS_NO_SETUP: '1', SDOCS_NO_REFRESH: '1', SDOCS_NO_UPDATE_CHECK: '1' } })).stdout);
   expect(defaultLibrary.ok).toBe(true);
   expect(defaultLibrary.workspace_id).toBe(data.workspaces[0].id);
-  const save = async () => JSON.parse((await execFile(process.execPath, [path.join(__dirname, '../cli/bin/sdocs-dev.js'), markdown,
-    '--cloud', '--url', f.origin, '--no-open', '--json'], { env: { ...process.env, SDOCS_HOME: state,
+  const save = async reason => JSON.parse((await execFile(process.execPath, [path.join(__dirname, '../cli/bin/sdocs-dev.js'), markdown,
+    '--cloud', '--url', f.origin, '--no-open', '--json', ...(reason ? ['--reason', reason] : [])], { env: { ...process.env, SDOCS_HOME: state,
       SDOCS_CLOUD_URL: f.origin, SDOCS_CLOUD_FILE_CREDENTIALS: '1' } })).stdout);
   const first = await save();
   expect(first.ok).toBe(true);
   expect(first.url).toBe(f.origin + '/docs?cloud-document=' + first.document_id);
   fs.appendFileSync(markdown, '\n\nA second revision.');
-  const second = await save();
+  const second = await save('Add the follow-up note after signup');
   expect(second.url).toBe(first.url);
   expect(second.revision_id).not.toBe(first.revision_id);
   await page.goto(second.url);

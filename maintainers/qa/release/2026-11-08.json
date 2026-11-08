@@ -1,0 +1,120 @@
+{
+  "date": "2026-11-08",
+  "production_release": "e5c705b24e8537dd5b2041fc3eb11801928af375",
+  "staging_runtime_release": "de7bf67de7654662d480725bfa6c975b0e8de607",
+  "production_changed": false,
+  "customer_charges": false,
+  "customer_emails_sent": false,
+  "tests": {
+    "node": {
+      "passed": 2320,
+      "failed": 1,
+      "failure": "versioned SDK reader snapshot matches canonical production sources",
+      "detail": "sdocs-styles.js canonical transform source has drifted"
+    },
+    "sdk_check": "failed: reader-manifest.json is stale",
+    "browser": {
+      "passed": 27,
+      "failed": 0,
+      "files": [
+        "cloud-email-onboarding.spec.js",
+        "cloud-single-plan.spec.js",
+        "cloud-referrals.spec.js",
+        "cloud-release-recovery.spec.js"
+      ],
+      "environment": "isolated fixtures with Chromium, desktop and mobile viewports",
+      "stale_expectations_corrected": [
+        "Feedback appears between Security and Refer",
+        "updating an existing document includes an edit reason"
+      ]
+    }
+  },
+  "npm": {
+    "authenticated": false,
+    "whoami_status": 401,
+    "latest": "1.19.2",
+    "candidate": "1.20.0",
+    "published": false
+  },
+  "production_configuration": {
+    "single_plan_enabled": false,
+    "standard_price_configured": false,
+    "feedback_admin_configured": false,
+    "google_client_configured": false,
+    "google_secret_configured": false,
+    "google_start_http_status": 503,
+    "google_start_error": "provider_not_configured",
+    "staging_google_start_http_status": 303,
+    "staging_google_redirect_host": "accounts.google.com"
+  },
+  "stripe_read_only": {
+    "actual_application_credential_price_read": true,
+    "price": {
+      "id": "price_1UXlb30bIITqEUvtb3MW00ii",
+      "livemode": true,
+      "active": true,
+      "interval": "month",
+      "gbp": { "unit_amount": 400, "tax_behavior": "inclusive" },
+      "eur": { "unit_amount": 500, "tax_behavior": "inclusive" },
+      "usd": { "unit_amount": 500, "tax_behavior": "exclusive" }
+    },
+    "webhook": {
+      "status": "enabled",
+      "url": "https://smalldocs.org/api/cloud/billing/stripe/webhook",
+      "api_version": "2026-07-29.dahlia",
+      "events": [
+        "customer.subscription.created",
+        "customer.subscription.updated",
+        "customer.subscription.deleted",
+        "invoice.created",
+        "invoice.paid",
+        "invoice.voided",
+        "invoice.deleted",
+        "checkout.session.expired"
+      ]
+    },
+    "portal": {
+      "active": true,
+      "cancellation": "at_period_end",
+      "payment_method_update": true,
+      "invoice_history": true
+    },
+    "active_subscriptions": 0,
+    "active_subscriptions_has_more": false,
+    "user_cli_context_changed": false,
+    "hosted_card_checkout_verified_in_this_audit": false
+  },
+  "operations": {
+    "backup": {
+      "started_at": "2026-11-08T03:22:48Z",
+      "result": "success",
+      "exit_status": 0
+    },
+    "monitor": {
+      "started_at": "2026-11-08T19:17:01Z",
+      "result": "success",
+      "exit_status": 0
+    },
+    "failed_units": 0,
+    "jobs": {
+      "complete": 333,
+      "queued": 128,
+      "overdue": 0,
+      "dead": 0,
+      "queued_types": {
+        "billing_retention_expire": 1,
+        "billing_state_email": 1,
+        "revision_prune": 126
+      }
+    }
+  },
+  "remaining": [
+    "Configure and verify production Google OAuth",
+    "Resolve SDK snapshot drift without rewriting a published SDK release",
+    "Authenticate npm, deploy the matching backend, publish CLI 1.20.0 and tag its source",
+    "Enable production single-plan pricing and the feedback administrator allowlist at approved cutover",
+    "Complete hosted sandbox Checkout and verify real webhook delivery and paid access",
+    "Take the cutover backup and run final production-origin journeys and operations checks",
+    "Keep manual reconciliation for referral credits on refunds and disputes"
+  ]
+}

@@ -1,7 +1,7 @@
 # Cloud-first production release
 
 Migration and billing checked 3 November 2026. Evidence: [release receipt](qa/release/2026-11-03.json).
-Homepage player and npm access checked 7 November 2026.
+Release readiness, npm access and live configuration checked 8 November 2026.
 Production application code, environment and service configuration remain unchanged.
 Live Stripe catalogue and webhook preparation was authorized and completed separately.
 The checks below authorize no production deployment or npm publication.
@@ -71,6 +71,39 @@ The checks below authorize no production deployment or npm publication.
   succeeded. The later sidebar change passed 12 headless browser checks and a
   production-mode service-worker refresh check.
 
+## Latest release audit, 8 November 2026
+
+Evidence: [release audit](qa/release/2026-11-08.json).
+
+- Production remains on e5c705b24e8537dd5b2041fc3eb11801928af375;
+  staging serves de7bf67de7654662d480725bfa6c975b0e8de607.
+- The complete Node test run passed 2,320 checks and failed one: the known
+  SDK reader snapshot source-hash mismatch. `npm run sdk:check` also fails.
+- The selected browser journeys passed all 27 checks after updating two stale
+  test expectations: the Feedback sidebar entry and a reason on the second
+  Cloud save. These cover email signup and CLI authorization, referral signup
+  through Google and email, trial/subscription pages, and recovery paths. The
+  OAuth provider and email delivery are isolated fixtures in these tests.
+- Production Google sign-in is not configured. Its OAuth start endpoint returns
+  503 provider_not_configured, and the running process has neither Google
+  credential. Staging redirects successfully to accounts.google.com.
+- npm authentication returns 401. The public latest CLI remains 1.19.2;
+  the candidate package is 1.20.0. No package was published.
+- A read with the actual production Stripe application credential confirmed
+  the standard monthly price is live and active, with the expected currencies.
+  Separate read-only live CLI checks confirmed the webhook is enabled with the
+  required events, the billing portal permits end-of-period cancellation,
+  payment-method changes and invoice history, and there are zero active Stripe
+  subscriptions. The user's Stripe CLI context was not changed.
+- Today's production backup and the latest monitor run both succeeded. There
+  are no failed systemd units, overdue jobs or dead jobs. The 128 queued jobs
+  are scheduled for future dates. Production's single-plan flag, standard price
+  and feedback administrator allowlist are not configured yet.
+- No production application/configuration changes, charges or customer emails
+  were made by this audit. A completed hosted-card Checkout followed by real
+  webhook delivery and paid access remains a final provider-flow check; the
+  earlier API and fixture checks are not a substitute for that browser journey.
+
 ## Homepage preparation
 
 - [ ] Joshua: record a new homepage video for the Cloud-first experience.
@@ -89,7 +122,11 @@ The checks below authorize no production deployment or npm publication.
 ## Launch actions still pending
 
 1. Obtain release approval. Current production remains on e5c705b24e8537dd5b2041fc3eb11801928af375.
-2. At the approved cutover, set CLOUD_SINGLE_PLAN_ENABLED=1 and
+2. Configure production Google OAuth credentials and the production callback
+   https://smalldocs.org/api/cloud/auth/oauth/google/callback. Verify an actual
+   sign-in on the production origin, including the existing account-linking flow.
+   Staging OAuth configuration alone does not enable production sign-in.
+3. At the approved cutover, set CLOUD_SINGLE_PLAN_ENABLED=1 and
    STRIPE_STANDARD_PRICE_ID=price_1UXlb30bIITqEUvtb3MW00ii for production.
    Preserve auth, cursor and idempotency secrets, database paths and KMS context.
    The live application key's required billing operations have been verified.
@@ -97,25 +134,27 @@ The checks below authorize no production deployment or npm publication.
    Configure CLOUD_FEEDBACK_ADMIN_USER_IDS using the intended verified
    production account ID. Resolve it in the production authentication database;
    do not copy a staging ID. An unset value leaves the private inbox inaccessible.
-3. Recheck live webhook delivery after cutover. The required event selection is
+4. Recheck live webhook delivery after cutover. The required event selection is
    already installed; preserve the signing secret and working portal configuration.
-4. Deploy the approved server release with ops/deploy-production.sh. This now
+5. Deploy the approved server release with ops/deploy-production.sh. This now
    provisions the production compiler, reuses an already-built immutable staged
    release and rolls back an unsuccessful application or compiler start.
-5. Authenticate npm and publish the reviewed CLI package, then tag its matching
+6. Authenticate npm and publish the reviewed CLI package, then tag its matching
    source version. Deploy the matching backend before distributing the CLI.
    Production /install currently resolves npm latest, which remains 1.19.2.
-   On 7 November, `npm whoami` returned 401. An npm login or authorized publish
+   On 8 November, `npm whoami` returned 401. An npm login or authorized publish
    credential is still needed. No package has been published by this check.
-6. Run a short check on the production origin: Google and email sign-in, return
+7. Complete one hosted sandbox Checkout through its browser UI and verify the
+   resulting webhook grants paid access. Then run a short check on the
+   production origin: Google and email sign-in, return
    to the last library, CLI authorization, tagged save/read/edit, member access,
    Checkout and billing portal links, public publish/update/withdraw, and logout.
    Verify production public pages are indexable and staging remains noindex.
    Include the new feedback form and administrator inbox in the access checks.
-7. Check the production monitor, backup and compiler services, Stripe delivery
+8. Check the production monitor, backup and compiler services, Stripe delivery
    failures, and any queued/dead jobs. A successful root-page request alone does
    not prove publishing or billing works.
-8. Resolve the existing SDK reader-snapshot drift check before the final release
+9. Resolve the existing SDK reader-snapshot drift check before the final release
    test run. `test/test-files.js` flags `sdocs-styles.js`: the canonical border
    conversion changed on 6 November, while the published 0.3.1 adapter's recorded
    source hash still identifies its earlier source. The homepage player does not
