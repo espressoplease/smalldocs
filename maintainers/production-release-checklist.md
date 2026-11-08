@@ -176,6 +176,40 @@ Evidence: [staging and OAuth receipt](qa/release/2026-11-08-staging-oauth.json).
 References: [Google production OAuth policies](https://developers.google.com/identity/protocols/oauth2/production-readiness/policy-compliance)
 and [Web-server OAuth setup](https://developers.google.com/identity/protocols/oauth2/web-server).
 
+## Hosted Stripe checkout and npm access, 8 November 2026
+
+Evidence: [hosted Checkout receipt](qa/release/2026-11-08-hosted-checkout.json).
+
+- Created two disposable staging identities, with a referral attributed through
+  the application's referral model. Onboarding, CLI authorization and tagged
+  document creation used the running staging application's normal API routes.
+  This provider check does not claim to test email or Google identity proof.
+- The referred account had trial access and received its extra referral month.
+  Connecting the CLI and saving a tagged document awarded the referrer one
+  person-month before payment.
+- Completed the hosted Stripe sandbox Checkout in Chrome using Stripe's
+  published UK Visa test card and disposable billing details. The existing
+  standard price charged GBP 4.00 in test mode. No real funds moved.
+- The registered Stripe webhook activated the referred account's paid access,
+  cleared its pending-payment state and awarded two additional referral months,
+  for three total. The referral ledger's paid invoice matched the actual paid
+  invoice. Authenticated document reads and a new tagged save then succeeded.
+- The browser's return page used a different existing staging login. This check
+  verifies the fixture's paid account through its API, not the signed-in return
+  page. Include the same-account browser return in the production smoke check.
+- Created the billing portal link, canceled the disposable subscription and
+  verified that the real cancellation webhook updated the application. Removed
+  the test Stripe customer, soft-deleted its documents, revoked fixture sessions
+  and CLI access, and disabled both fixture identities. Customer deletion used
+  an isolated sandbox administration CLI context; the application's restricted
+  credential was not broadened. The user's Stripe CLI context is unchanged.
+- Joshua completed npm web authentication. `npm whoami` now returns sdocs-dev,
+  the existing package maintainer. The registry still serves 1.19.2; nothing has
+  been published. Actual releases use .github/workflows/publish-npm.yml with
+  GitHub trusted-publisher OIDC and provenance, not a local npm token. The login
+  verifies administration access but is not required for that OIDC publishing
+  path. A workflow dry run is the next package-release check.
+
 ## Homepage preparation
 
 - [ ] Joshua: record a new homepage video for the Cloud-first experience.
@@ -212,13 +246,13 @@ and [Web-server OAuth setup](https://developers.google.com/identity/protocols/oa
 5. Deploy the approved server release with ops/deploy-production.sh. This now
    provisions the production compiler, reuses an already-built immutable staged
    release and rolls back an unsuccessful application or compiler start.
-6. Authenticate npm and publish the reviewed CLI package, then tag its matching
-   source version. Deploy the matching backend before distributing the CLI.
-   Production /install currently resolves npm latest, which remains 1.19.2.
-   On 8 November, `npm whoami` returned 401. An npm login or authorized publish
-   credential is still needed. No package has been published by this check.
-7. Complete one hosted sandbox Checkout through its browser UI and verify the
-   resulting webhook grants paid access. Then run a short check on the
+6. Publish the reviewed CLI package through the GitHub trusted-publisher workflow
+   with provenance and its matching source tag. Deploy the matching backend
+   before distributing the CLI. Production /install currently resolves npm
+   latest, which remains 1.19.2. npm administration login is verified; it is not
+   the credential used by the OIDC workflow. No package has been published.
+7. The hosted sandbox Checkout and real payment/referral webhooks are verified
+   above. Run a short check on the
    production origin: Google and email sign-in, return
    to the last library, CLI authorization, tagged save/read/edit, member access,
    Checkout and billing portal links, public publish/update/withdraw, and logout.
