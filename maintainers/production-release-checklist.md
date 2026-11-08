@@ -2,7 +2,8 @@
 
 Migration and billing checked 3 November 2026. Evidence: [release receipt](qa/release/2026-11-03.json).
 Release readiness, npm access and live configuration checked 8 November 2026.
-Production application code, environment and service configuration remain unchanged.
+Production application code, active environment and service configuration remain unchanged.
+An inactive, root-only Google OAuth configuration was prepared separately on 8 November.
 Live Stripe catalogue and webhook preparation was authorized and completed separately.
 The checks below authorize no production deployment or npm publication.
 
@@ -121,8 +122,59 @@ their existing /developers/authoring URLs.
   an existing document and working copy controls. Retired SDK routes return
   404; the canonical Cloud skill and authoring references remain available.
 - Copy review found no remaining SDK integration promises in the edited public
-  copy or retained examples. Production and staging have not been deployed
-  with the retirement yet. SDK consistency is no longer a launch task.
+  copy or retained examples. Staging now serves retirement commit
+  c81f0f2836128a74a74548012a22c98e47ea1357. Production remains unchanged.
+  SDK consistency is no longer a launch task.
+- External staging checks confirm the SDK and developer portal return 404,
+  authoring references return 200, and Google sign-in still redirects to Google.
+  Headless browser checks confirm the authoring reader and an existing public
+  page render with working document actions, four slides, no page errors and no
+  SDK requests. Application and staging compiler services are active.
+
+## Production Google OAuth preparation, 8 November 2026
+
+Evidence: [staging and OAuth receipt](qa/release/2026-11-08-staging-oauth.json).
+
+- Created the separate Google project smalldocs-production-2026. The existing
+  smalldocs-auth-2026 project and staging client are unchanged. Google recommends
+  separate projects for testing and production; the existing staging client also
+  contains localhost and production callbacks and is not used for this cutover.
+- Created Web application client "SmallDocs production web":
+  578646928115-p0b7sevfohv2u2ogemrs7qe5r3emrad6.apps.googleusercontent.com.
+  Its only redirect URI is
+  https://smalldocs.org/api/cloud/auth/oauth/google/callback.
+  No JavaScript origins are configured because the application uses server-side
+  authorization-code exchange with PKCE.
+- Joshua approved accepting the Google API Services User Data Policy and
+  creating the production client. The OAuth audience is External and its
+  publishing status is In production. This publishes the Google configuration,
+  not the SmallDocs application release.
+- Configured only openid, userinfo.email and userinfo.profile. Google states
+  that data-access verification is not required for these non-sensitive scopes.
+  No Gmail, Drive or Calendar access is requested.
+- Saved the SmallDocs app name, support/developer contact, smalldocs.org domain,
+  https://smalldocs.org/home, /privacy and /legal links. All three public pages
+  return 200. Google currently displays smalldocs.org in its account chooser;
+  custom branding is not verified or shown. No logo was uploaded.
+- A browser request with the production client, exact callback and actual
+  application scope set reached Google's normal account chooser, with the
+  correct privacy and terms links. It did not complete account consent or
+  exchange a code, create a SmallDocs session or modify a production identity.
+- Downloaded the new credential, validated its project/client/callback and
+  stored its two environment values at
+  /etc/smalldocs/google-oauth.prepared.env on the VM, owned by root with mode
+  0600. Removed the downloaded local JSON. No secret is in source control or
+  this receipt. The running production service does not load the prepared file.
+- At the approved cutover, merge the prepared values into the root-only live
+  /etc/smalldocs/smalldocs.env without replacing other settings. Then deploy and
+  restart the approved release. The coordinated backup includes the live env;
+  the separate prepared file is not included until its values are activated.
+  Verify the real Google callback and existing-email account-linking journey,
+  then remove the redundant prepared file. The production OAuth start endpoint
+  intentionally still returns provider_not_configured before activation.
+
+References: [Google production OAuth policies](https://developers.google.com/identity/protocols/oauth2/production-readiness/policy-compliance)
+and [Web-server OAuth setup](https://developers.google.com/identity/protocols/oauth2/web-server).
 
 ## Homepage preparation
 
@@ -142,10 +194,11 @@ their existing /developers/authoring URLs.
 ## Launch actions still pending
 
 1. Obtain release approval. Current production remains on e5c705b24e8537dd5b2041fc3eb11801928af375.
-2. Configure production Google OAuth credentials and the production callback
-   https://smalldocs.org/api/cloud/auth/oauth/google/callback. Verify an actual
-   sign-in on the production origin, including the existing account-linking flow.
-   Staging OAuth configuration alone does not enable production sign-in.
+2. Activate the prepared production Google OAuth values at cutover, as described
+   above. Verify an actual sign-in on the production origin, including the
+   existing account-linking flow. The production-only client is created and
+   published in Google; its credential is deliberately not loaded by the
+   currently running production application.
 3. At the approved cutover, set CLOUD_SINGLE_PLAN_ENABLED=1 and
    STRIPE_STANDARD_PRICE_ID=price_1UXlb30bIITqEUvtb3MW00ii for production.
    Preserve auth, cursor and idempotency secrets, database paths and KMS context.
