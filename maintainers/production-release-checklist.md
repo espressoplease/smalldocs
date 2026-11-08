@@ -3,7 +3,8 @@
 Migration and billing checked 3 November 2026. Evidence: [release receipt](qa/release/2026-11-03.json).
 Release readiness, npm access and live configuration checked 8 November 2026.
 Production application code, active environment and service configuration remain unchanged.
-An inactive, root-only Google OAuth configuration was prepared separately on 8 November.
+Inactive, root-only Google OAuth and Cloud-first configurations were prepared
+separately on 8 November.
 Live Stripe catalogue and webhook preparation was authorized and completed separately.
 The checks below authorize no production deployment or npm publication.
 
@@ -208,7 +209,39 @@ Evidence: [hosted Checkout receipt](qa/release/2026-11-08-hosted-checkout.json).
   been published. Actual releases use .github/workflows/publish-npm.yml with
   GitHub trusted-publisher OIDC and provenance, not a local npm token. The login
   verifies administration access but is not required for that OIDC publishing
-  path. A workflow dry run is the next package-release check.
+  path. The workflow dry run below has now passed.
+
+## Package workflow and inactive cutover configuration, 8 November 2026
+
+Evidence: [package and configuration receipt](qa/release/2026-11-08-package-readiness.json).
+
+- GitHub Actions run [42531293225](https://github.com/espressoplease/smalldocs/actions/runs/42531293225)
+  completed successfully at commit 14a5043fd1316917adebd16e0a431f155b7f2507.
+  Node 24, npm 11 and all 2,280 reported Linux Node checks passed. The earlier
+  macOS SDK-retirement run reported 2,290 checks. These are separate run totals.
+- The workflow ran npm publish with --provenance --access public --dry-run.
+  Its 1.20.0 tarball contains 60 files, 284.0 kB packed and 948.1 kB unpacked,
+  with SHA-1 454ff0ee57c077094d55ad2437825a1a9e65ce99. A dry run verifies
+  tests and packaging, but does not prove the registry will accept a real OIDC
+  publication or issue its provenance attestation. Verify both after release.
+  npm latest remains 1.19.2; no package or release tag has been published.
+- Prepared /etc/smalldocs/cloud-first.prepared.env on the VM, owned by root
+  with mode 0600. It enables the single plan, selects the verified live standard
+  price and allowlists the verified production owner for the feedback inbox.
+  The production user ID was resolved from the production authentication
+  database, not copied from staging. This file is not loaded by the running
+  service. The active environment and production release remain unchanged.
+- Both prepared files have been checked for ownership, permissions, required
+  fields and non-empty values without printing their secrets. At cutover,
+  merge their values into the existing live environment, preserving every other
+  setting. A rollback must restore the coordinated environment as well as code;
+  ops/deploy-production.sh only rolls back code and service-unit changes.
+- The exact production Cloud skill v50 is available for the explicit copy
+  approval required by AGENTS.md. The review document is
+  https://cloud-staging.smalldocs.org/docs?cloud-document=e216454f-0d2e-4dc0-88ab-1ac20c89558a.
+  Its source SHA-256 is
+  3fad31745df104732210daab319bb0f75a75ef0efa2ccbb082a2987fef5eedb6.
+  Approval is pending. No new notification copy is included in this release.
 
 ## Homepage preparation
 
@@ -233,14 +266,14 @@ Evidence: [hosted Checkout receipt](qa/release/2026-11-08-hosted-checkout.json).
    existing account-linking flow. The production-only client is created and
    published in Google; its credential is deliberately not loaded by the
    currently running production application.
-3. At the approved cutover, set CLOUD_SINGLE_PLAN_ENABLED=1 and
+3. At the approved cutover, merge the inactive Cloud-first configuration above.
+   It sets CLOUD_SINGLE_PLAN_ENABLED=1 and
    STRIPE_STANDARD_PRICE_ID=price_1UXlb30bIITqEUvtb3MW00ii for production.
    Preserve auth, cursor and idempotency secrets, database paths and KMS context.
    The live application key's required billing operations have been verified.
    Repeat that check if its credential or permissions change before launch.
-   Configure CLOUD_FEEDBACK_ADMIN_USER_IDS using the intended verified
-   production account ID. Resolve it in the production authentication database;
-   do not copy a staging ID. An unset value leaves the private inbox inaccessible.
+   CLOUD_FEEDBACK_ADMIN_USER_IDS is prepared using the verified production
+   owner ID. An unset value leaves the private inbox inaccessible.
 4. Recheck live webhook delivery after cutover. The required event selection is
    already installed; preserve the signing secret and working portal configuration.
 5. Deploy the approved server release with ops/deploy-production.sh. This now
