@@ -1,6 +1,6 @@
 # SmallDocs
 
-SmallDocs is a Markdown reader and editor, a command line tool for opening local files and creating share links, a hosted workspace for documents you choose to store in SmallDocs Cloud, and an SDK for rendering SmallDocs documents in web applications.
+SmallDocs is a Markdown reader and editor, a command line tool for opening local files and creating share links, and a hosted workspace for documents you choose to store in SmallDocs Cloud.
 
 ## Use SmallDocs locally
 
@@ -15,9 +15,17 @@ SmallDocs is a Markdown reader and editor, a command line tool for opening local
 - [Cloud-aware SmallDocs agent skill](https://smalldocs.org/agent-skills/cloud/.well-known/agent-skills/smalldocs/SKILL.md)
 - [Cloud skill catalog](https://smalldocs.org/agent-skills/cloud/.well-known/agent-skills/index.json)
 
-## Build with the SDK
+## Document formats
 
-- [Developer documentation index](https://smalldocs.org/developers/llms.txt)
-- [SDK integration guide](https://smalldocs.org/developers/integration.md)
-- [Renderer integration skill](https://smalldocs.org/.well-known/agent-skills/smalldocs-renderer/SKILL.md)
-- [Agent skill catalog](https://smalldocs.org/.well-known/agent-skills/index.json)
+- [Markdown](https://smalldocs.org/developers/authoring/markdown.md)
+- [Code](https://smalldocs.org/developers/authoring/code.md)
+- [Math](https://smalldocs.org/developers/authoring/math.md)
+- [Diagrams](https://smalldocs.org/developers/authoring/diagrams.md)
+- [Charts](https://smalldocs.org/developers/authoring/charts.md)
+- [Spreadsheets](https://smalldocs.org/developers/authoring/cells.md)
+- [Slides](https://smalldocs.org/developers/authoring/slides.md)
+- [Custom slide shapes](https://smalldocs.org/developers/authoring/slide-shapes.md)
+- [Interactive tools](https://smalldocs.org/developers/authoring/apps.md)
+- [Walkthroughs](https://smalldocs.org/developers/authoring/walkthroughs.md)
+- [Video](https://smalldocs.org/developers/authoring/video.md)
+- [Styles](https://smalldocs.org/developers/authoring/styles.md)

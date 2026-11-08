@@ -1,4 +1,4 @@
-/* Canonical inline slide surface shared by the SmallDocs app and renderer SDK. */
+/* Canonical inline slide surface for the SmallDocs reader. */
 .sdoc-slide {
   display: block;
   margin: 1.2em 0;

@@ -1,4 +1,4 @@
-/* Canonical inline code surface shared by the SmallDocs app and renderer SDK. */
+/* Canonical inline code surface for the SmallDocs reader. */
 :is(#_sd_rendered, #_sd_write, .sdoc-reader) code {
   background: var(--md-code-bg, var(--sdocs-code-background, #F4F1ED));
   color: var(--md-code-color, var(--sdocs-muted-color, #6B6560));

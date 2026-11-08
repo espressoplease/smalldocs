@@ -1187,7 +1187,6 @@ async function writeCurrentLocation(version) {
 }
 
 function updateHash() {
-  if (document.documentElement.classList.contains('sdocs-embed')) return;
   clearTimeout(S._hashTimer);
   var version = ++locationWriteVersion;
   S._hashTimer = setTimeout(function() {
@@ -1415,7 +1414,7 @@ function setMode(mode, skipHash) {
     S.enterWriteMode();
   }
 
-  if (mode === 'read' && !document.documentElement.classList.contains('sdocs-embed')) {
+  if (mode === 'read') {
     document.getElementById('_sd_content-area').focus({ preventScroll: true });
   }
 
@@ -2000,11 +1999,9 @@ S.Sources.register({
     await new Promise(function (resolve) { document.addEventListener('DOMContentLoaded', resolve, { once: true }); });
   }
   await _defaultReady;
-  if (!document.documentElement.classList.contains('sdocs-embed')) {
-    var source = S.Sources.select();
-    if (source) {
-      await source.load();
-    }
+  var source = S.Sources.select();
+  if (source) {
+    await source.load();
   }
   S._appReady = true;
   document.dispatchEvent(new CustomEvent('sdocs-app-ready'));

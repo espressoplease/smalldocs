@@ -77,8 +77,9 @@ Evidence: [release audit](qa/release/2026-11-08.json).
 
 - Production remains on e5c705b24e8537dd5b2041fc3eb11801928af375;
   staging serves de7bf67de7654662d480725bfa6c975b0e8de607.
-- The complete Node test run passed 2,320 checks and failed one: the known
-  SDK reader snapshot source-hash mismatch. `npm run sdk:check` also fails.
+- The initial Node test run passed 2,320 checks and failed one: the SDK reader
+  snapshot source-hash mismatch. That SDK product has since been retired at
+  Joshua's request; the follow-up checks below pass.
 - The selected browser journeys passed all 27 checks after updating two stale
   test expectations: the Feedback sidebar entry and a reason on the second
   Cloud save. These cover email signup and CLI authorization, referral signup
@@ -103,6 +104,25 @@ Evidence: [release audit](qa/release/2026-11-08.json).
   were made by this audit. A completed hosted-card Checkout followed by real
   webhook delivery and paid access remains a final provider-flow check; the
   earlier API and fixture checks are not a substitute for that browser journey.
+
+## SDK retirement, 8 November 2026
+
+Joshua chose to retire the unused external Renderer SDK. Its versioned assets,
+integration demos, iframe embed endpoint, dedicated integration skills, snapshot
+builders and SDK comparison tests are removed. The application's renderer,
+Cloud-first CLI skill and rich document features remain. The 12 authoring
+references now live in public/authoring and use the normal document reader at
+their existing /developers/authoring URLs.
+
+- The complete Node suite passes all 2,290 checks.
+- All 35 selected browser checks pass, covering authoring pages, rich public
+  rendering, public link lifecycle, compiler isolation and theme behaviour.
+- A production-mode service-worker upgrade from the previous commit preserves
+  an existing document and working copy controls. Retired SDK routes return
+  404; the canonical Cloud skill and authoring references remain available.
+- Copy review found no remaining SDK integration promises in the edited public
+  copy or retained examples. Production and staging have not been deployed
+  with the retirement yet. SDK consistency is no longer a launch task.
 
 ## Homepage preparation
 
@@ -154,12 +174,6 @@ Evidence: [release audit](qa/release/2026-11-08.json).
 8. Check the production monitor, backup and compiler services, Stripe delivery
    failures, and any queued/dead jobs. A successful root-page request alone does
    not prove publishing or billing works.
-9. Resolve the existing SDK reader-snapshot drift check before the final release
-   test run. `test/test-files.js` flags `sdocs-styles.js`: the canonical border
-   conversion changed on 6 November, while the published 0.3.1 adapter's recorded
-   source hash still identifies its earlier source. The homepage player does not
-   change that adapter. Review the next SDK version and its drift-test baseline
-   together, preserving the already published version.
 
 Refunds and disputes currently need manual referral-credit reconciliation.
 Review the referral ledger and applied discount before making an adjustment.

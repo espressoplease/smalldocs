@@ -1,4 +1,4 @@
-/* Canonical math surface shared by the SmallDocs app and renderer SDK. */
+/* Canonical math surface for the SmallDocs reader. */
 :is(#_sd_rendered, #_sd_write, .sdoc-reader) .sdocs-math-display {
   overflow-x: auto;
   overflow-y: hidden;

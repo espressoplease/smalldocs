@@ -1,4 +1,4 @@
-/* Canonical video surface shared by the SmallDocs app and renderer SDK. */
+/* Canonical video surface for the SmallDocs reader. */
 .sdoc-video {
   margin: 1.4em 0;
   max-width: 100%;

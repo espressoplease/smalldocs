@@ -1162,7 +1162,7 @@ function documentNavigation(req) {
   };
 }
 
-function documentCsp(nonce, frameAncestors) {
+function documentCsp(nonce) {
   const policy = [
     "default-src 'self'",
     "script-src 'self' 'nonce-" + nonce + "' 'wasm-unsafe-eval' https://cdn.jsdelivr.net",
@@ -1170,12 +1170,10 @@ function documentCsp(nonce, frameAncestors) {
     "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net",
     "img-src 'self' data: https:",
     // These loopback origins support the local Bridge and Library agents.
-    // Their session and connection checks remain active in the embedded shell.
     "connect-src 'self' https://cdn.jsdelivr.net https://raw.githubusercontent.com ws://127.0.0.1:* ws://localhost:* http://127.0.0.1:* http://localhost:*",
     "frame-src 'self' https://www.youtube-nocookie.com",
     "object-src 'none'",
   ];
-  if (frameAncestors) policy.push('frame-ancestors ' + frameAncestors);
   return policy.join('; ');
 }
 
@@ -1188,7 +1186,6 @@ function documentShellSubstitutions(req, nonce, defaultMdPath, compile = false) 
     '__CLOUD_UI_SCRIPT__': CLOUD_DEPLOYMENT.publicEnabled && !compile
       ? '<script src="/public/sdocs-cloud-account-selection.js"></script><script src="/public/sdocs-text-diff.js"></script><script src="/public/sdocs-merge.js"></script><script src="/public/sdocs-cloud-prototype.js"></script><script src="/public/sdocs-history.js"></script>' +
         (CLOUD_UI_LAB_ENABLED ? '<script src="/public/sdocs-cloud-ui-lab.js"></script>' : '') : '',
-    '__EMBED_STYLES__':'', '__EMBED_SCRIPT__':'',
     ...(compile ? {} : documentNavigation(req).substitutions)
   };
 }
@@ -1202,18 +1199,6 @@ function compilePublicPublication(snapshot) {
       substitutions:documentShellSubstitutions(null,crypto.randomBytes(16).toString('base64'),'/public/sdoc.md',true)}))
   });
   return publicPublicationCompiler.compile(snapshot);
-}
-
-function parseEmbedParentOrigin(value) {
-  if (!value) return null;
-  try {
-    const parsed = new URL(value);
-    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null;
-    if (parsed.username || parsed.password || parsed.pathname !== '/' || parsed.search || parsed.hash) return null;
-    return parsed.origin;
-  } catch (_) {
-    return null;
-  }
 }
 
 function cloudApiError(res, error) {
@@ -4479,160 +4464,19 @@ const server = http.createServer((req, res) => {
     '/subprocessors': '/public/subprocessors.md',
   };
 
-  const developerDocs = {
-    overview: path.join(__dirname, 'public', 'developers', 'overview.md'),
-    quickstart: path.join(__dirname, 'public', 'developers', 'quickstart.md'),
-    content: path.join(__dirname, 'public', 'developers', 'content.md'),
-    lifecycle: path.join(__dirname, 'public', 'developers', 'lifecycle.md'),
-    security: path.join(__dirname, 'public', 'developers', 'security.md'),
-    loading: path.join(__dirname, 'public', 'developers', 'loading.md'),
-    agents: path.join(__dirname, 'public', 'developers', 'agents.md'),
-    api: path.join(__dirname, 'public', 'developers', 'api.md'),
-    'authoring/markdown': path.join(__dirname, '.agents', 'skills', 'smalldocs-author', 'references', 'markdown.md'),
-    'authoring/code': path.join(__dirname, '.agents', 'skills', 'smalldocs-author', 'references', 'code.md'),
-    'authoring/math': path.join(__dirname, '.agents', 'skills', 'smalldocs-author', 'references', 'math.md'),
-    'authoring/diagrams': path.join(__dirname, '.agents', 'skills', 'smalldocs-author', 'references', 'diagrams.md'),
-    'authoring/charts': path.join(__dirname, '.agents', 'skills', 'smalldocs-author', 'references', 'charts.md'),
-    'authoring/cells': path.join(__dirname, '.agents', 'skills', 'smalldocs-author', 'references', 'cells.md'),
-    'authoring/slides': path.join(__dirname, '.agents', 'skills', 'smalldocs-author', 'references', 'slides.md'),
-    'authoring/slide-shapes': path.join(__dirname, '.agents', 'skills', 'smalldocs-author', 'references', 'slide-shapes.md'),
-    'authoring/apps': path.join(__dirname, '.agents', 'skills', 'smalldocs-author', 'references', 'apps.md'),
-    'authoring/walkthroughs': path.join(__dirname, '.agents', 'skills', 'smalldocs-author', 'references', 'walkthroughs.md'),
-    'authoring/video': path.join(__dirname, '.agents', 'skills', 'smalldocs-author', 'references', 'video.md'),
-    'authoring/styles': path.join(__dirname, '.agents', 'skills', 'smalldocs-author', 'references', 'styles.md'),
-  };
-  const developerPageMatch = /^\/developers\/((?:authoring\/)?[a-z-]+)\/?$/.exec(pathname);
-  const developerPageSlug = pathname === '/developers' || pathname === '/developers/'
-    ? 'overview'
-    : developerPageMatch && developerDocs[developerPageMatch[1]]
-      ? developerPageMatch[1]
-      : null;
-
-  if (pathname === '/developers/example/non-collapsible' || pathname === '/developers/example/non-collapsible/') {
-    serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'developers-style-demo.html'), null, {
-      'Cache-Control': 'no-cache',
-      'Content-Security-Policy': "default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; font-src https://cdn.jsdelivr.net; frame-src 'self' https://www.youtube-nocookie.com; img-src 'self' data: blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
-      'X-Content-Type-Options': 'nosniff',
-      'X-Frame-Options': 'DENY',
-    });
-    return;
-  }
-
-  if (pathname === '/developers/examples' || pathname === '/developers/examples/') {
-    serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'developers-showcase.html'), null, {
-      'Cache-Control': 'no-cache',
-      'Content-Security-Policy': "default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; font-src https://cdn.jsdelivr.net; frame-src 'self' https://www.youtube-nocookie.com; img-src 'self' data: blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
-      'X-Content-Type-Options': 'nosniff',
-      'X-Frame-Options': 'DENY',
-    });
-    return;
-  }
-
-  if (pathname === '/developers/example' || pathname === '/developers/example/') {
-    serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'developers-example.html'), null, {
-      'Cache-Control': 'no-cache',
-      'Content-Security-Policy': "default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; font-src https://cdn.jsdelivr.net; frame-src 'self' https://www.youtube-nocookie.com; img-src 'self' data: blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
-      'X-Content-Type-Options': 'nosniff',
-      'X-Frame-Options': 'DENY',
-    });
-    return;
-  }
-
-  if (developerPageSlug) {
-    serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'developers.html'), null, {
-      'Cache-Control': 'no-cache',
-      'Content-Security-Policy': "default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; font-src https://cdn.jsdelivr.net; frame-src 'self' https://www.youtube-nocookie.com; img-src 'self' data: blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
-      'X-Content-Type-Options': 'nosniff',
-      'X-Frame-Options': 'DENY',
-    });
-    return;
-  }
-
-  const developerMarkdownMatch = /^\/developers\/((?:authoring\/)?[a-z-]+)\.md$/.exec(pathname);
-  if (developerMarkdownMatch && developerDocs[developerMarkdownMatch[1]]) {
-    serveFile(req, res, developerDocs[developerMarkdownMatch[1]], {
+  const authoringMatch = /^\/developers\/authoring\/([a-z-]+)(\.md)?\/?$/.exec(pathname);
+  const authoringNames = new Set([
+    'markdown', 'code', 'math', 'diagrams', 'charts', 'cells',
+    'slides', 'slide-shapes', 'apps', 'walkthroughs', 'video', 'styles',
+  ]);
+  const authoringSlug = authoringMatch && authoringNames.has(authoringMatch[1]) ? authoringMatch[1] : null;
+  if (authoringSlug && authoringMatch[2]) {
+    serveFile(req, res, path.join(__dirname, 'public', 'authoring', authoringSlug + '.md'), {
       'Cache-Control': 'public, max-age=3600',
       'Access-Control-Allow-Origin': '*',
       'Content-Type': 'text/plain; charset=utf-8',
       'X-Content-Type-Options': 'nosniff',
     });
-    return;
-  }
-
-  if (pathname === '/developers/llms.txt') {
-    serveFile(req, res, path.join(__dirname, 'public', 'developers', 'llms.txt'), {
-      'Cache-Control': 'public, max-age=3600',
-      'Access-Control-Allow-Origin': '*',
-      'X-Content-Type-Options': 'nosniff',
-    });
-    return;
-  }
-
-  if (pathname === '/developers/integration.md') {
-    serveFile(req, res, path.join(__dirname, 'public', 'developers', 'integration.md'), {
-      'Cache-Control': 'public, max-age=3600',
-      'Access-Control-Allow-Origin': '*',
-      'Content-Type': 'text/plain; charset=utf-8',
-      'X-Content-Type-Options': 'nosniff',
-    });
-    return;
-  }
-
-  if (pathname === '/developers/llms-full.txt') {
-    const fullReferencePaths = [
-      path.join(__dirname, 'public', 'developers', 'integration.md'),
-      ...Object.keys(developerDocs)
-        .filter(slug => slug.startsWith('authoring/'))
-        .map(slug => developerDocs[slug]),
-    ];
-    const fullReference = fullReferencePaths
-      .map(filename => fs.readFileSync(filename, 'utf8').trim())
-      .join('\n\n---\n\n') + '\n';
-    res.writeHead(200, {
-      'Content-Type': 'text/plain; charset=utf-8',
-      'Cache-Control': 'public, max-age=3600',
-      'Access-Control-Allow-Origin': '*',
-      'X-Content-Type-Options': 'nosniff',
-    });
-    res.end(fullReference);
-    return;
-  }
-
-  const skillCatalogPath = pathname === '/.well-known/agent-skills/index.json'
-    || pathname === '/.well-known/skills/index.json';
-  if (skillCatalogPath) {
-    res.writeHead(200, {
-      'Content-Type': 'application/json; charset=utf-8',
-      'Cache-Control': 'public, max-age=3600',
-      'Access-Control-Allow-Origin': '*',
-      'X-Content-Type-Options': 'nosniff',
-    });
-    res.end(JSON.stringify({ skills: [
-      {
-        name: 'smalldocs-renderer',
-        description: 'Integrate the SmallDocs browser renderer into a web application. Use when an application needs to display agent-authored Markdown or SmallDocs rich document features, when adding render, update, and destroy lifecycle wiring, or when debugging a SmallDocs renderer integration.',
-        files: ['SKILL.md', 'references/api.md'],
-      },
-      {
-        name: 'smalldocs-author',
-        description: 'Create finished SmallDocs Markdown for an application using the SmallDocs renderer. Use when an agent must produce a readable report or rich document containing diagrams, charts, computed cells, slides, runnable HTML, walkthroughs, math, code, video, navigation, or document styling. Do not use for integrating the renderer SDK itself.',
-        files: [
-          'SKILL.md',
-          'references/markdown.md',
-          'references/code.md',
-          'references/math.md',
-          'references/diagrams.md',
-          'references/charts.md',
-          'references/cells.md',
-          'references/slides.md',
-          'references/slide-shapes.md',
-          'references/apps.md',
-          'references/walkthroughs.md',
-          'references/video.md',
-          'references/styles.md',
-        ],
-      },
-    ] }));
     return;
   }
 
@@ -4668,136 +4512,6 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  const skillFileMatch = /^\/\.well-known\/(?:agent-skills|skills)\/(smalldocs-renderer|smalldocs-author)\/(SKILL\.md|references\/[a-z-]+\.md)$/.exec(pathname);
-  if (skillFileMatch) {
-    const skillName = skillFileMatch[1];
-    const skillRelativePath = skillFileMatch[2];
-    const allowedSkillFiles = skillName === 'smalldocs-renderer'
-      ? new Set(['SKILL.md', 'references/api.md'])
-      : new Set([
-        'SKILL.md', 'references/markdown.md', 'references/code.md', 'references/math.md',
-        'references/diagrams.md', 'references/charts.md', 'references/cells.md',
-        'references/slides.md', 'references/slide-shapes.md', 'references/apps.md',
-        'references/walkthroughs.md', 'references/video.md',
-        'references/styles.md',
-      ]);
-    if (!allowedSkillFiles.has(skillRelativePath)) {
-      res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
-      res.end('Not Found');
-      return;
-    }
-    serveFile(req, res, path.join(__dirname, '.agents', 'skills', skillName, skillRelativePath), {
-      'Cache-Control': 'public, max-age=3600',
-      'Access-Control-Allow-Origin': '*',
-      'Content-Type': 'text/plain; charset=utf-8',
-      'X-Content-Type-Options': 'nosniff',
-    });
-    return;
-  }
-
-  if (pathname === '/sdk/0.1.0/smalldocs.js' || pathname === '/sdk/0.1.1/smalldocs.js') {
-    serveFile(req, res, path.join(__dirname, 'sdk', 'browser', 'smalldocs-0.1.1.js'), {
-      'Cache-Control': 'public, max-age=31536000, immutable',
-      'Access-Control-Allow-Origin': '*',
-      'Cross-Origin-Resource-Policy': 'cross-origin',
-      'X-Content-Type-Options': 'nosniff',
-    });
-    return;
-  }
-
-  if (pathname === '/sdk/0.1.2/smalldocs.js') {
-    serveFile(req, res, path.join(__dirname, 'sdk', 'browser', 'smalldocs-0.1.2.js'), {
-      'Cache-Control': 'public, max-age=31536000, immutable',
-      'Access-Control-Allow-Origin': '*',
-      'Cross-Origin-Resource-Policy': 'cross-origin',
-      'X-Content-Type-Options': 'nosniff',
-    });
-    return;
-  }
-
-  if (pathname === '/sdk/0.1.3/smalldocs.js') {
-    serveFile(req, res, path.join(__dirname, 'sdk', 'browser', 'smalldocs.js'), {
-      'Cache-Control': 'public, max-age=31536000, immutable',
-      'Access-Control-Allow-Origin': '*',
-      'Cross-Origin-Resource-Policy': 'cross-origin',
-      'X-Content-Type-Options': 'nosniff',
-    });
-    return;
-  }
-
-  const sdkMermaidFrameMatch = /^\/sdk\/(0\.2\.0|0\.3\.0|0\.3\.1)\/mermaid-renderer\.html$/.exec(pathname);
-  if (sdkMermaidFrameMatch) {
-    serveHtmlWithRewrite(res, path.join(__dirname, 'sdk', 'browser', 'releases',
-      sdkMermaidFrameMatch[1], 'mermaid-renderer.html'), null, {
-      'Cache-Control': 'public, max-age=31536000, immutable',
-      'Cross-Origin-Resource-Policy': 'cross-origin',
-      'Content-Security-Policy': "default-src 'none'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src https: data: blob:; font-src 'self' https://cdn.jsdelivr.net; connect-src 'none'; object-src 'none'; base-uri 'none'; frame-ancestors *",
-      'X-Content-Type-Options': 'nosniff',
-    });
-    return;
-  }
-
-  const sdkAppFrameMatch = /^\/sdk\/(0\.3\.0|0\.3\.1)\/vendor\/sdocs-app-runner\.html$/.exec(pathname);
-  if (sdkAppFrameMatch) {
-    serveHtmlWithRewrite(res, path.join(__dirname, 'sdk', 'browser', 'releases',
-      sdkAppFrameMatch[1], 'vendor', 'sdocs-app-runner.html'), null, {
-      'Cache-Control': 'public, max-age=31536000, immutable',
-      'Cross-Origin-Resource-Policy': 'cross-origin',
-      'X-Content-Type-Options': 'nosniff',
-    });
-    return;
-  }
-
-  const nativeSdkMatch = /^\/sdk\/(0\.2\.0|0\.3\.0|0\.3\.1)\/(release-manifest\.json|smalldocs\.js|smalldocs\.css|prose-reader\.css|code-reader\.css|slide-reader\.css|core\.js|assets\.js|runtime\.js|version\.js|overlay\.js|download\.js|mermaid-renderer\.js|features\/(?:code|math|video|charts|mermaid|cells|slides|apps|walkthrough|highlight)\.js|vendor\/(?:marked\.esm\.js|purify\.es\.mjs|fonts\/inter-(?:400|500|600)\.woff2|sdocs-(?:prose-reader|code-reader|slide-reader|video-reader|math-reader|mermaid-reader|mermaid-worker|chart-reader|cells|html-component-reader|walkthrough|docwalk)\.css|sdocs-code-lang\/[\w-]+\.js|sdocs-(?:yaml|styles|slugify|contrast|marked-del-core|math-core|highlight-core|prose-reader|code-reader|code-focus|slide-reader|present|present-mobile|zoom-math|mermaid|mermaid-focus|charts|cells|cells-formula|cells-xlsx|cells-controller|cells-select|cells-edit|cells-focus|cells-ui|shapes|slide-stdlib|slide-resolve|shape-render|slide-pdf|slide-pptx|video|icons-data|html-components|app-runner|docwalk)\.js))$/.exec(pathname);
-  if (nativeSdkMatch) {
-    serveFile(req, res, path.join(__dirname, 'sdk', 'browser', 'releases',
-      nativeSdkMatch[1], nativeSdkMatch[2]), {
-      'Cache-Control': 'public, max-age=31536000, immutable',
-      'Access-Control-Allow-Origin': '*',
-      'Cross-Origin-Resource-Policy': 'cross-origin',
-      'X-Content-Type-Options': 'nosniff',
-    });
-    return;
-  }
-
-  if (pathname === '/embed') {
-    const parentOrigin = parseEmbedParentOrigin(url.searchParams.get('parentOrigin'));
-    const channel = url.searchParams.get('channel');
-    if (!parentOrigin || !channel || channel.length > 128) {
-      res.writeHead(400, {
-        'Content-Type': 'text/plain; charset=utf-8',
-        'Cache-Control': 'no-store',
-        'X-Content-Type-Options': 'nosniff',
-      });
-      res.end('Invalid SmallDocs embed request');
-      return;
-    }
-
-    const nonce = crypto.randomBytes(16).toString('base64');
-    serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'index.html'), {
-      '__APP_VERSION__': APP_VERSION,
-      '__SDOCS_DEV__': DEV_MODE ? '1' : '0',
-      '__DEFAULT_MD_PATH__': '/public/sdoc.md',
-      '__CSP_NONCE__': nonce,
-      '__CLOUD_UI_STYLES__': '',
-      '__CLOUD_UI_SCRIPT__': '',
-      '__EMBED_STYLES__': '<link rel="stylesheet" href="/public/css/embed.css">',
-      '__EMBED_SCRIPT__': '<script src="/public/sdocs-embed.js"></script>',
-      '__DOCUMENT_LIBRARY_HREF__': '/library',
-      '__DOCUMENT_CLOUD_AUTHENTICATED__': 'false',
-      '__DOCUMENT_CLOUD_TERMS_ACCEPTED__': 'false',
-      '__DOCUMENT_NAV_MENU_HIDDEN__': 'hidden',
-      '<!--__DOCUMENT_NAV_MENU_BEFORE__-->': '',
-      '<!--__DOCUMENT_NAV_MENU_AFTER__-->': '',
-    }, {
-      'Cache-Control': 'no-cache',
-      'Content-Security-Policy': documentCsp(nonce, parentOrigin),
-      'Cross-Origin-Resource-Policy': 'cross-origin',
-      'X-Content-Type-Options': 'nosniff',
-    });
-    return;
-  }
-
   if (pathname === '/sdoc-app-runner/runner.html') {
     serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'sdocs-app-runner.html'), null, {
       'Cache-Control': 'no-cache',
@@ -4827,7 +4541,7 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  if (pathname === '/docs' || pathname === '/new' || pathname === '/learn' || policyDocuments[pathname] || pathname === '/agent-changes' || pathname === '/cloud-search' || pathname === '/cloud-updates' || pathname === '/advanced-spreadsheets' || pathname === '/runnable-html' || pathname === '/upgrade' || blogSlug || /^\/s\/[A-Za-z0-9_-]{1,32}$/.test(pathname)) {
+  if (pathname === '/docs' || pathname === '/new' || pathname === '/learn' || authoringSlug || policyDocuments[pathname] || pathname === '/agent-changes' || pathname === '/cloud-search' || pathname === '/cloud-updates' || pathname === '/advanced-spreadsheets' || pathname === '/runnable-html' || pathname === '/upgrade' || blogSlug || /^\/s\/[A-Za-z0-9_-]{1,32}$/.test(pathname)) {
     if (pathname === '/docs' && url.searchParams.has('cloud-document')) {
       const authenticated = cloudAuthSession(req);
       if (redirectForCloudTerms(res, authenticated, pathname + url.search)) return;
@@ -4836,7 +4550,7 @@ const server = http.createServer((req, res) => {
     }
     const documentNav = documentNavigation(req);
     const nonce = crypto.randomBytes(16).toString('base64');
-    const defaultMdPath = pathname === '/learn' ? '/public/learn.md' : policyDocuments[pathname]
+    const defaultMdPath = authoringSlug ? '/public/authoring/' + authoringSlug + '.md' : pathname === '/learn' ? '/public/learn.md' : policyDocuments[pathname]
       ? policyDocuments[pathname]
       : pathname === '/cloud-search'
           ? '/public/cloud-search.md'

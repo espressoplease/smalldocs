@@ -249,52 +249,6 @@ test('comment text and its anchor survive theme changes in read and comment mode
   expect(await page.evaluate(() => ({ body: SDocs.currentBody, comments: SDocs.currentMeta.comments }))).toEqual(original);
 });
 
-test('SDK slides react to host palette changes without changing another instance', async ({ page }) => {
-  await load(page, '# Host\n\nText.');
-  await page.evaluate(async markdown => {
-    const { render } = await import('/sdk/0.3.1/smalldocs.js');
-    for (const id of ['theme-one', 'theme-two']) {
-      const target = document.createElement('div'); target.id = id; document.body.appendChild(target);
-      target.style.setProperty('--sdocs-background', '#ffffff'); target.style.setProperty('--sdocs-text-color', '#1c1917');
-      window[id] = await render(target, markdown);
-    }
-  }, '# SDK\n\n' + deck);
-  await page.locator('#theme-one').evaluate(el => { el.style.setProperty('--sdocs-background', '#111827'); el.style.setProperty('--sdocs-text-color', '#f5f5f4'); });
-  await expect.poll(() => page.locator('#theme-one .sd-shape-stage').first().evaluate(el => getComputedStyle(el).backgroundColor)).toBe('rgb(17, 24, 39)');
-  expect(await page.locator('#theme-two .sd-shape-stage').first().evaluate(el => getComputedStyle(el).backgroundColor)).toBe('rgb(255, 255, 255)');
-  const pairs = await textPairs(page, '#theme-one .sdoc-slide:nth-of-type(2) .sd-shape-stage');
-  expect(pairs.filter(p => ratio(p.fg, p.bg) < 4.5)).toEqual([]);
-  await page.evaluate(() => { window['theme-one'].destroy(); window['theme-two'].destroy(); });
-});
-
-test('a clean SDK customer page updates open slide and spreadsheet viewers from host CSS', async ({ page }) => {
-  await page.route('**/theme-audit-customer', route => route.fulfill({ contentType: 'text/html', body: '<!doctype html><html><body><div id="customer"></div></body></html>' }));
-  await page.goto('/theme-audit-customer');
-  await page.evaluate(async markdown => {
-    const { render } = await import('/sdk/0.3.1/smalldocs.js');
-    const target = document.getElementById('customer');
-    target.style.setProperty('--sdocs-background', '#ffffff'); target.style.setProperty('--sdocs-text-color', '#1c1917');
-    window.themeCustomerView = await render(target, markdown);
-  }, '# SDK\n\n' + deck + '\n\n```cells\nItem,Amount\nHosting,100\n```\n\n```mermaid\nflowchart LR\nA[Draft] --> B[Review]\n```');
-  expect(await page.evaluate(() => typeof window.SDocs)).toBe('undefined');
-  await page.locator('.sdoc-slide-present').first().click();
-  await page.locator('#customer').evaluate(el => { el.style.setProperty('--sdocs-background', '#111827'); el.style.setProperty('--sdocs-text-color', '#f5f5f4'); });
-  await expect.poll(() => page.locator('.sdoc-present-stage .sd-shape-stage').evaluate(el => getComputedStyle(el).backgroundColor)).toBe('rgb(17, 24, 39)');
-  await page.locator('.sdoc-present-close').click();
-  await page.getByRole('button', { name: 'Open fullscreen', exact: true }).click();
-  await page.locator('#customer').evaluate(el => { el.style.setProperty('--sdocs-background', '#ffffff'); el.style.setProperty('--sdocs-text-color', '#1c1917'); });
-  await expect.poll(() => page.locator('.sdoc-cells-focus').evaluate(el => getComputedStyle(el).getPropertyValue('--sdoc-focus-bg').trim())).toBe('#ffffff');
-  await page.locator('.sdoc-cells-focus-close').click();
-  await page.getByRole('button', { name: 'Open diagram in fullscreen', exact: true }).click();
-  await page.locator('#customer').evaluate(el => {
-    el.style.setProperty('--sdocs-background', '#111827'); el.style.setProperty('--sdocs-text-color', '#f5f5f4');
-    el.style.setProperty('--sdocs-code-background', '#1a1816');
-  });
-  await expect.poll(() => page.locator('.sdoc-mermaid-focus').evaluate(el => getComputedStyle(el).getPropertyValue('--sdoc-focus-fg').trim())).toBe('#f5f5f4');
-  await page.evaluate(() => window.themeCustomerView.destroy());
-  await expect(page.locator('.sdoc-cells-focus, .sdoc-present, .sdoc-mermaid-focus')).toHaveCount(0);
-});
-
 test('PowerPoint exports pair native text with the same themed canvas as the reader', async ({ page }) => {
   test.setTimeout(60000);
   await load(page, '# Export\n\n~~~slide\ngrid 100 56.25\nr 10 10 80 30 | Inherited canvas\n~~~\n\n~~~slide\ngrid 100 56.25 bg=#ffffff\nr 10 10 80 30 | Fixed canvas\n~~~');

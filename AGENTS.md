@@ -13,6 +13,11 @@ The repo holds two programs:
 
 The two never share a `package.json` again. See "Published npm tarball" below for why this matters.
 
+The external Renderer SDK and its integration demos have been retired. The
+application renderer remains under `public/`, with browser/CLI shared modules
+under `cli/shared/`. Authoring references live in `public/authoring/`; their
+`/developers/authoring/<topic>` pages use the normal application reader.
+
 - **Server**: `server.js` - pure Node `http` module, small
 - **CLI**: lives entirely under `cli/`:
   - `cli/bin/sdocs-dev.js` - the `sdoc` command (UMD-shared modules under `cli/shared/`)
