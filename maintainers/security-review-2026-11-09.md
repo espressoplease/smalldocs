@@ -2,9 +2,10 @@
 
 Three reviewers inspected authentication/access, rendering, and billing/platform
 behavior. Findings were reproduced in disposable local fixtures. Compatibility
-checks use synthetic accounts and documents; production reads are limited to
-configuration, health and an isolated backup rehearsal. No live adversarial
-traffic, real payment or customer notification was used.
+checks use synthetic accounts and documents. Production checks cover configuration,
+health, an isolated backup rehearsal, normal reader behavior and a read-only Stripe
+subscription retrieval. No live adversarial traffic, real payment or customer
+notification was used.
 
 ## Findings and changes
 

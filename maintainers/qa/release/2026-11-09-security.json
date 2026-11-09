@@ -1,7 +1,7 @@
 {
   "date": "2026-11-09",
   "scope": "Three defensive source reviews and disposable local regression fixtures",
-  "status": "validated locally, migration and deployment pending",
+  "status": "complete: deployed to staging and production, CLI 1.20.1 published and verified",
   "baseline_application_commit": "c6eaac514b70ebacb069c788f6a2998a70dd7996",
   "cli_version": "1.20.1",
   "tests": {
@@ -41,7 +41,8 @@
   "production_configuration_read": {
     "trust_proxy": true,
     "loopback_binding": true,
-    "no_credentials_in_report": true
+    "no_credentials_in_report": true,
+    "live_stripe_application_key_subscription_read": true
   },
   "coordinated_backup": {
     "archive": "smalldocs-20261109T202136Z-c6eaac514b70ebacb069c788f6a2998a70dd7996.tar.gz",
@@ -51,7 +52,8 @@
     "version": "1.20.1",
     "channel": "staging",
     "origin": "https://cloud-staging.smalldocs.org",
-    "existing_authentication_and_skill_preserved": true
+    "existing_authentication_and_skill_preserved": true,
+    "source_sha256": "6cc42f5128ca3b7b4cb112d5da93593b0829bdf8cf0ffaeab44212541b6bf80d"
   },
   "residuals": [
     "Storage billing counts revision payloads rather than total physical SQLite and index bytes.",
@@ -62,5 +64,94 @@
     "This is not a penetration-test certification or a 100,000-document capacity certification."
   ],
   "live_adversarial_probes": false,
-  "real_payments_or_customer_notifications": false
+  "real_payments_or_customer_notifications": false,
+  "source_commit": "8767bc7f5a9de8790b623db0f64268601bd1750b",
+  "migration": {
+    "source": "coordinated production backup",
+    "server_started": false,
+    "payment_or_email_requests": false,
+    "archive_databases_verified": 11,
+    "permission_pairs_checked": 1528,
+    "permissions_preserved": true,
+    "encrypted_data": {
+      "ok": true,
+      "integrity": "passed",
+      "workspaces": 5,
+      "projects": 5,
+      "revisions": 303,
+      "source_files": 2,
+      "receipts": 322,
+      "search_values": 37087
+    },
+    "subscription_conflicts": 0,
+    "billing_accounts_resolved": 1,
+    "records": {
+      "cloud_auth_users": 8,
+      "cloud_auth_identities": 9,
+      "cloud_auth_sessions": 7,
+      "cloud_workspaces": 5,
+      "cloud_workspace_memberships": 6,
+      "cloud_projects": 5,
+      "cloud_documents": 191,
+      "cloud_document_revisions": 303,
+      "cloud_billing_subscriptions": 2,
+      "cloud_billing_personal_trials": 2
+    },
+    "existing_records_preserved": true,
+    "document_digest_preserved": true,
+    "trial_deadlines_preserved": true,
+    "previous_reader_after_migration": true,
+    "backup_restore_previous_reader": true,
+    "ok": true
+  },
+  "deployment": {
+    "staging_commit": "8767bc7f5a9de8790b623db0f64268601bd1750b",
+    "production_commit": "8767bc7f5a9de8790b623db0f64268601bd1750b",
+    "public_asset_commit_verified": true,
+    "applications_and_compilers_active": true,
+    "production_monitor_result": "success",
+    "failed_systemd_units": 0,
+    "staging_cli": {
+      "libraries_ok": true,
+      "library_count": 4,
+      "scoped_search_ok": true,
+      "returned": 3,
+      "total_count": 20
+    },
+    "staging_public_reader": {
+      "http_status": 200,
+      "slides": 4,
+      "toolbar": true,
+      "theme_toggle": true,
+      "page_errors": 0
+    },
+    "production_reader": {
+      "http_status": 200,
+      "rendered_from_memory_without_saving": true,
+      "slides": 1,
+      "mermaid": 1,
+      "tables": 1,
+      "list_items": 2,
+      "write_read_round_trip": true,
+      "theme_toggle": true,
+      "page_errors": 0
+    }
+  },
+  "npm": {
+    "version": "1.20.1",
+    "source_tag": "v1.20.1",
+    "workflow": "https://github.com/espressoplease/smalldocs/actions/runs/42693510475",
+    "workflow_result": "success",
+    "provenance_commit": "8767bc7f5a9de8790b623db0f64268601bd1750b",
+    "attestations": "https://registry.npmjs.org/-/npm/v1/attestations/sdocs-dev@1.20.1",
+    "published_files": 60,
+    "all_files_match_source": true,
+    "unpacked_version_and_cloud_pull_help_passed": true
+  },
+  "cleanup": {
+    "production_rehearsal_copies_removed": true,
+    "temporary_registry_package_removed": true,
+    "stopped_test_fixtures_removed": true,
+    "user_staging_cli_connection_preserved": true
+  }
 }
