@@ -58,5 +58,20 @@
       "tax": "inclusive"
     },
     "homepage": "Existing locale-dependent pricing matches the configured currency options; no price or homepage copy change."
+  },
+  "deployment": {
+    "production_commit": "c6eaac514b70ebacb069c788f6a2998a70dd7996",
+    "staging_commit": "c6eaac514b70ebacb069c788f6a2998a70dd7996",
+    "production_public_asset_commit_verified": true,
+    "production_application_and_compiler_active": true,
+    "production_monitor": "success",
+    "failed_systemd_units": 0,
+    "predeployment_coordinated_backup": true,
+    "isolated_copies_and_session_removed": true,
+    "staging_cli_search": {
+      "ok": true,
+      "page_documents": 60,
+      "total_documents": 98
+    }
   }
 }
