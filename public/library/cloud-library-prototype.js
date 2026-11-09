@@ -10,6 +10,7 @@
   const cloudLink = document.getElementById('cloud-scope-link');
   var header;
   var selectionEpoch = 0;
+  var singlePlan = false;
   const onboarding = document.getElementById('cloud-onboarding');
 
   window.SDocsCloudLibrary = window.SDocsCloudLibrary || {};
@@ -51,6 +52,14 @@
     document.getElementById('personal-library-note').hidden = workspace.kind !== 'personal';
     header.render(workspace);
     var epoch = ++selectionEpoch;
+    // The Cloud-first page and each data endpoint already enforce subscription
+    // access. Start documents and filters together without another account
+    // round trip. Keep the account gate for the older plan-specific page.
+    if (singlePlan) {
+      showLibrary();
+      window.dispatchEvent(new CustomEvent('sdocs-cloud-workspace-change'));
+      return;
+    }
     const accountResponse = await fetch('/api/cloud/v1/account?account_id=' +
       encodeURIComponent(workspace.id), { credentials: 'same-origin' });
     if (epoch !== selectionEpoch) return;
@@ -85,6 +94,7 @@
     if (responses.some(function (response) { return !response.ok; })) throw new Error('Cloud unavailable');
     const workspaces = (await responses[0].json()).workspaces || [];
     const account = await responses[1].json();
+    singlePlan = account.single_plan === true;
     const me = account.user || {};
     window.SDocsCloudLibrary.workspaces = workspaces;
     window.SDocsCloudLibrary.user = me;

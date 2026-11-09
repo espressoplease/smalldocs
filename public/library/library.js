@@ -1051,11 +1051,12 @@ async function loadCloudData(query, page) {
   STATE.cloudLoading = true; STATE.cloudError = false;
   hideBanner();
   renderResults();
-  loadCloudFilters(workspaceId);
   function current() { return version === cloudRequestVersion && key === cloudFilterKey(); }
   try {
-    const data = await getCloudJson('/api/cloud/v1/search', Object.assign({}, options,
+    const pageRequest = getCloudJson('/api/cloud/v1/search', Object.assign({}, options,
       { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(request) }));
+    loadCloudFilters(workspaceId);
+    const data = await pageRequest;
     if (!current()) { scheduleCloudRefresh(); return; }
     const documents = data.documents || [];
     // A deletion or revocation can empty a later page. Return to the first page

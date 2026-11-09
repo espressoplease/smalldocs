@@ -308,6 +308,24 @@ module.exports = function(harness) {
         for (let i = 0; i < 105; i++) await create('# Backfill\nbackfillword', 'backfill-' + i + '.md');
         store.db.prepare('DELETE FROM cloud_search_documents').run();
         assert.strictEqual(store.searchIndexStatus().ready, false);
+        const originalBody = store._decryptRevision;
+        const originalRebuild = store.searchIndex.rebuild;
+        store._decryptRevision = async () => { throw new Error('Browsing opened a document body'); };
+        store.searchIndex.rebuild = async () => { throw new Error('Browsing rebuilt the text index'); };
+        try {
+          const first = await search({ limit: 3, sort: 'updated_desc', facets: ['authors', 'libraries'] });
+          assert.ok(first.total_count >= 105);
+          assert.strictEqual(first.documents.length, 3);
+          assert.strictEqual(first.has_more, true);
+          const next = await search({ limit: 3, sort: 'updated_desc', after: first.nextPosition });
+          assert.strictEqual(next.documents.length, 3);
+          assert.strictEqual(next.total_count, first.total_count);
+          assert.ok(next.documents.every(document => !first.documents.some(value => value.id === document.id)));
+          assert.strictEqual(store.searchIndexStatus().ready, false);
+        } finally {
+          store._decryptRevision = originalBody;
+          store.searchIndex.rebuild = originalRebuild;
+        }
         await assert.rejects(search({ expression: term('backfillword') }), (error) => error.code === 'search_index_building');
         let result;
         do { result = await store.rebuildSearchIndex({ limit: 7 }); } while (!result.ready);
