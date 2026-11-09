@@ -246,7 +246,12 @@ module.exports = function (h) {
         let decryptions = 0;
         f.store._decryptRevision = async function (...args) {
           const value = await original.apply(this, args);
-          if (++decryptions === 2) await this.actOnComment(input('A concurrent reply.'));
+          // Use the fixture's independent server connection as the competing
+          // writer, rather than recursively nesting a mutation in this store.
+          if (++decryptions === 2) {
+            const concurrent = await action(doc, { action: 'reply', comment_id: 'c1', text: 'A concurrent reply.' });
+            assert.strictEqual(concurrent.status, 201, JSON.stringify(concurrent.data));
+          }
           return value;
         };
         try { await f.store.actOnComment(input('The original reply.')); }

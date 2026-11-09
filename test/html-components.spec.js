@@ -3,7 +3,7 @@ const { test, expect } = require('@playwright/test');
 
 async function loadDoc(page, markdown) {
   await page.goto('/new');
-  await page.waitForFunction(() => window.SDocs && typeof window.SDocs.loadText === 'function');
+  await page.waitForFunction(() => window.SDocs && window.SDocs._appReady && typeof window.SDocs.loadText === 'function');
   await page.evaluate((source) => {
     window.SDocs.setMode('read', true);
     window.SDocs.loadText(source, 'html-components.md');

@@ -10,16 +10,17 @@
 //   4. Mermaid itself is loaded lazily from jsDelivr on first use.
 //
 // Security:
-//   - mermaid.initialize: securityLevel: 'strict', htmlLabels: false on
-//     flowchart and sequence (so labels don't emit <foreignObject>).
+//   - mermaid.initialize: securityLevel: 'strict', htmlLabels: true on
+//     flowchart and sequence, with foreignObject labels sanitised below.
 //   - %%{init: ...}%% directives are stripped from source before render -
 //     they can otherwise flip securityLevel back to 'loose' at parse time.
 //   - Per-diagram source-size cap (64 KB) and per-document block cap (50).
-//   - Per-render timeout (5s); Mermaid's layout can hang on adversarial input.
+//   - Per-render timeout (5s) reports asynchronous failures. It cannot
+//     interrupt synchronous layout work on the browser's main thread.
 //   - Mermaid's SVG output is inserted via innerHTML, which routes around
 //     the main DOMPurify pass. We run a tight SVG-profile sanitize on the
-//     SVG string before insertion. Forbids foreignObject / script / use /
-//     iframe / set / animate. Mirrors the KaTeX render-after-sanitize order
+//     SVG string before insertion. Keeps foreignObject labels and forbids
+//     script / use / iframe / set / animate. Mirrors the render order
 //     in sdocs-math.js but with explicit post-sanitize because Mermaid SVG
 //     has a wider attack surface than KaTeX's MathML/HTML.
 (function (exports) {
@@ -54,7 +55,7 @@
     return scopeSource || document;
   }
 
-  var MERMAID_VERSION = '10.9.1';
+  var MERMAID_VERSION = '10.9.8';
   var MERMAID_JS = 'https://cdn.jsdelivr.net/npm/mermaid@' + MERMAID_VERSION + '/dist/mermaid.min.js';
 
   var SOURCE_BYTE_CAP = 64 * 1024;
@@ -205,10 +206,9 @@
         // emits <foreignObject> elements containing HTML; the post-sanitize
         // (sanitizeSvg) allows the foreignObject element but strips dangerous
         // children (script/iframe/style/form/object/embed) and dangerous
-        // attributes (on*/srcdoc/formaction/javascript:). Combined with
-        // securityLevel:'strict' and the %%{init}%% directive strip, the
-        // bounded XSS surface inside SDocs (no cookies / sessions / accounts)
-        // makes this an acceptable trade for the agent-default ergonomics.
+        // attributes (on*/srcdoc/formaction/javascript:). This supplements
+        // Mermaid's patched renderer, securityLevel:'strict', and the
+        // %%{init}%% directive strip.
         htmlLabels: true,
         nodeSpacing: 60,
         rankSpacing: 70,
@@ -337,9 +337,9 @@
     var root = doc.documentElement;
     if (!root || root.tagName.toLowerCase() !== 'svg') return '';
 
-    // Walk every descendant. Iterate in reverse so removals don't shift
-    // unvisited indices.
-    var all = Array.prototype.slice.call(root.querySelectorAll('*'));
+    // Apply the same policy to the root and every descendant. Iterate in
+    // reverse so removals don't shift unvisited indices.
+    var all = [root].concat(Array.prototype.slice.call(root.querySelectorAll('*')));
     for (var i = all.length - 1; i >= 0; i--) {
       var el = all[i];
       var tag = (el.tagName || '').toLowerCase();

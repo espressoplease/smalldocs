@@ -22,6 +22,16 @@ module.exports = function (h) {
       filename: 'policy.md', markdown, idempotencyKey: 'create-' + ++sequence });
     const save = (document, markdown) => store.saveRevision({ userId: 'owner', documentId: document.id,
       expectedHeadRevisionId: document.current_revision_id, markdown, idempotencyKey: 'save-' + ++sequence });
+    const independentStore = () => createCloudStore({ dbPath: path.join(dir, 'store.db'),
+      keyProvider: createLocalKeyProvider({ masterKey: Buffer.alloc(32, 9), environment: 'test' }),
+      idempotencySecret: 'update-preview-test-idempotency-secret' });
+    async function concurrentSave(document, markdown) {
+      const other = independentStore();
+      try {
+        return await other.saveRevision({ userId: 'owner', documentId: document.id,
+          expectedHeadRevisionId: document.current_revision_id, markdown, idempotencyKey: 'save-' + ++sequence });
+      } finally { other.close(); }
+    }
     const request = (document, markdown, extra = {}) => ({ userId: 'owner', documentId: document.id,
       targetRevisionId: document.current_revision_id, markdown, ...extra });
     function snapshot() {
@@ -317,7 +327,7 @@ module.exports = function (h) {
         let concurrent;
         await assert.rejects(pauseMethod('_prepareRevision', () => store.saveTargetRevision(request(base, '# Review\nCap: 20\n', {
           expectedCurrentRevisionId: base.current_revision_id, idempotencyKey: 'race-review' })), async () => {
-          concurrent = await save(base, '# Review\nCap: 99\n');
+          concurrent = await concurrentSave(base, '# Review\nCap: 99\n');
         }), error => error.code === 'revision_conflict' && error.currentRevisionId === concurrent.current_revision_id);
         assert.strictEqual((await store.getDocument({ userId: 'owner', documentId: base.id })).markdown, '# Review\nCap: 99\n');
         assert.strictEqual(store.listRevisions({ userId: 'owner', documentId: base.id }).length, 2);
@@ -327,7 +337,7 @@ module.exports = function (h) {
         let concurrent;
         await assert.rejects(pauseMethod('_prepareRevision', () => store.saveTargetRevision(request(base, '# Race\nCap: 20\n', {
           rejectConflicts: true, idempotencyKey: 'race-overlap' })), async () => {
-          concurrent = await save(base, '# Race\nCap: 99\n');
+          concurrent = await concurrentSave(base, '# Race\nCap: 99\n');
         }), error => error.code === 'revision_conflict' && error.reason === 'overlapping_edits' &&
           error.currentRevisionId === concurrent.current_revision_id && error.conflicts[0].current === 'Cap: 99\n');
         assert.strictEqual(store.listRevisions({ userId: 'owner', documentId: base.id }).length, 2);
@@ -495,10 +505,13 @@ module.exports = function (h) {
         const base = await create('# Replay race\n');
         store.setDocumentPermission({ userId: 'owner', documentId: base.id, mode: 'custom', memberUserIds: ['editor'] });
         const input = request(base, '# Replay race\nSaved.\n', { userId: 'editor', idempotencyKey: 'concurrent-replay' });
-        await assert.rejects(pauseMethod('_prepareRevision', () => store.saveTargetRevision(input), async () => {
-          await store.saveTargetRevision(input);
-          store.setDocumentPermission({ userId: 'owner', documentId: base.id, mode: 'custom', memberUserIds: [] });
-        }), error => error.code === 'resource_unavailable');
+        const concurrent = independentStore();
+        try {
+          await assert.rejects(pauseMethod('_prepareRevision', () => store.saveTargetRevision(input), async () => {
+            await concurrent.saveTargetRevision(input);
+            store.setDocumentPermission({ userId: 'owner', documentId: base.id, mode: 'custom', memberUserIds: [] });
+          }), error => error.code === 'resource_unavailable');
+        } finally { concurrent.close(); }
         assert.strictEqual(store.listRevisions({ userId: 'owner', documentId: base.id }).length, 2);
       });
       await testAsync('preview rechecks entitlements and a denial leaves every table unchanged', async () => {

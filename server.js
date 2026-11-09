@@ -336,6 +336,9 @@ const cloudReferrals = cloudSinglePlan && cloudAuth
 const cloudReferralBilling = cloudReferrals && cloudStripe && process.env.STRIPE_STANDARD_PRICE_ID
   ? new (require('./lib/cloud-referral-billing').ReferralBilling)({ referrals: cloudReferrals,
     single: cloudSinglePlan, stripe: cloudStripe, priceId: process.env.STRIPE_STANDARD_PRICE_ID }) : null;
+const stripeSubscriptionReconciler = cloudStripe && cloudBilling
+  ? require('./lib/cloud-stripe-reconciliation').createSubscriptionReconciler({
+    stripe: cloudStripe, billing: cloudBilling }) : null;
 
 let cloudJobs = null;
 const CLOUD_JOB_WORKER_ID = 'cloud-server-' + process.pid;
@@ -1805,6 +1808,12 @@ async function handleCloudApi(req, res, url) {
       return;
     }
     if (req.method === 'POST' && pathname === base + '/cli/device-authorizations/approve') {
+      // Installation approval belongs to the signed-in browser. A short-lived
+      // installation token must not mint an independent persistent credential.
+      if (principal.credential || !principal.session) {
+        throw Object.assign(new Error('permission_denied'), { code: 'permission_denied' });
+      }
+      if (!cloudAuthPostAllowed(req, res)) return;
       const body = await cloudAuthHttp.readJson(req);
       if (SINGLE_PLAN_ENABLED) {
         const authorization = cloudAuth.getDeviceAuthorization(body.user_code);
@@ -3449,12 +3458,13 @@ function readRawBody(req, limit) {
   });
 }
 
-function stripeSubscriptionInput(subscription, eventCreatedMs, existing) {
+function stripeSubscriptionInput(subscription, eventCreatedMs, existing, lifecycleAtMs) {
   const update = cloudBillingLifecycle.buildStripeSubscriptionUpdate({
     subscription,
     existing,
     eventCreatedMs,
-    now: Number.isSafeInteger(eventCreatedMs) ? eventCreatedMs : Date.now(),
+    now: Number.isSafeInteger(lifecycleAtMs) ? lifecycleAtMs
+      : Number.isSafeInteger(eventCreatedMs) ? eventCreatedMs : Date.now(),
     policy: CLOUD_BILLING_POLICY,
   });
   if (cloudSinglePlan) update.retentionEndsAtMs = null;
@@ -3468,73 +3478,75 @@ async function handleStripeWebhook(req, res) {
   try {
     const rawBody = await readRawBody(req);
     const event = cloudStripe.verifyWebhook(rawBody, String(req.headers['stripe-signature'] || ''));
-    if (cloudReferralBilling) await cloudReferralBilling.event(event);
-    // Reconcile an interrupted upgrade and use the current provider state for its webhooks.
-    // Older personal-plan events must not reverse a completed team upgrade.
-    if (event.type.startsWith('customer.subscription.')) {
-      const metadata = event.data.object.metadata || {};
-      const hasUpgrades = cloudBilling.db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'cloud_library_upgrades'").get();
-      const operation = hasUpgrades && metadata.workspace_id && cloudBilling.db.prepare('SELECT * FROM cloud_library_upgrades WHERE workspace_id = ?').get(metadata.workspace_id);
-      if (operation && ['processing', 'completed'].includes(operation.state)) {
-        const data = JSON.parse(operation.data);
-        if (data.subscription_id === event.data.object.id) {
-          const remote = await cloudStripe.retrieveSubscription({ subscriptionId: data.subscription_id });
-          if (remote.metadata.upgrade_operation_id === operation.id && operation.state === 'processing') {
-            await require('./lib/cloud-library-upgrade').confirm({ billing: cloudBilling, store: cloudStore,
-              stripe: cloudStripe, userId: operation.user_id, workspaceId: operation.workspace_id, operationId: operation.id });
-          }
-          event.data.object = remote;
-          event.upgradeRefreshAtMs = Date.now();
-        }
-      }
-    }
-    const changedSponsors = [];
-    cloudBilling.processWebhookEvent({ provider: 'stripe', eventId: event.id,
-      eventType: event.type, payload: rawBody }, (store) => {
+    await stripeSubscriptionReconciler.run(event, async (event) => {
+      if (cloudReferralBilling) await cloudReferralBilling.event(event);
+      // Reconcile an interrupted upgrade and use the current provider state for its webhooks.
+      // Older personal-plan events must not reverse a completed team upgrade.
       if (event.type.startsWith('customer.subscription.')) {
         const metadata = event.data.object.metadata || {};
-        const existing = metadata.workspace_id
-          ? store.getSubscription(metadata.workspace_id) : null;
-        const input = stripeSubscriptionInput(event.data.object,
-          Number.isSafeInteger(event.upgradeRefreshAtMs) ? event.upgradeRefreshAtMs
-            : Number.isSafeInteger(event.created) ? event.created * 1000 : null, existing);
-        if (input.workspaceId && input.plan) {
-          const after = store.upsertSubscription(input);
-          if (cloudSinglePlan && event.data.object.metadata.single_plan === 'true' && after.providerSubscriptionId === event.data.object.id && after.status === 'active' && ['active', 'trialing'].includes(event.data.object.status)) {
-            const owner = cloudSinglePlan.db.prepare('SELECT owner_user_id FROM cloud_single_accounts WHERE id=?').get(after.workspaceId);
-            if (owner) {
-              cloudSinglePlan.db.prepare('UPDATE cloud_single_accounts SET standard_subscription_id=? WHERE id=?').run(after.providerSubscriptionId, after.workspaceId);
-              cloudSinglePlan.db.prepare('DELETE FROM cloud_single_checkouts WHERE account_id=? AND operation_id=?').run(after.workspaceId, event.data.object.metadata.single_checkout_operation_id || '');
-              changedSponsors.push(after.workspaceId);
-              const previousSponsor = cloudSinglePlan.coverage(owner.owner_user_id);
-              if (previousSponsor && previousSponsor.account_id !== after.workspaceId) changedSponsors.push(previousSponsor.account_id);
-              cloudSinglePlan.db.prepare('INSERT INTO cloud_single_sponsors VALUES (?, ?, ?) ON CONFLICT(user_id) DO UPDATE SET account_id=excluded.account_id, source_workspace_id=excluded.source_workspace_id').run(owner.owner_user_id, after.workspaceId, after.workspaceId);
+        const hasUpgrades = cloudBilling.db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'cloud_library_upgrades'").get();
+        const operation = hasUpgrades && metadata.workspace_id && cloudBilling.db.prepare('SELECT * FROM cloud_library_upgrades WHERE workspace_id = ?').get(metadata.workspace_id);
+        if (operation && ['processing', 'completed'].includes(operation.state)) {
+          const data = JSON.parse(operation.data);
+          if (data.subscription_id === event.data.object.id) {
+            const remote = event.data.object;
+            if (remote.metadata.upgrade_operation_id === operation.id && operation.state === 'processing') {
+              await require('./lib/cloud-library-upgrade').confirm({ billing: cloudBilling, store: cloudStore,
+                stripe: cloudStripe, userId: operation.user_id, workspaceId: operation.workspace_id, operationId: operation.id });
             }
+            event.data.object = remote;
           }
-          if (cloudSinglePlan && metadata.single_plan === 'true' && after.providerSubscriptionId === event.data.object.id && after.initialPaymentPending && after.status === 'canceled') {
-            cloudSinglePlan.db.prepare('DELETE FROM cloud_single_checkouts WHERE account_id=? AND operation_id=?')
-              .run(after.workspaceId, metadata.single_checkout_operation_id || '');
-          }
-          const change = { before: existing, after };
-          scheduleBillingLifecycleJobs(change);
-          return change;
         }
       }
-      return null;
+      const changedSponsors = [];
+      cloudBilling.processWebhookEvent({ provider: 'stripe', eventId: event.id,
+        eventType: event.type, payload: rawBody }, (store) => {
+        if (event.type.startsWith('customer.subscription.')) {
+          const metadata = event.data.object.metadata || {};
+          const existing = metadata.workspace_id
+            ? store.getSubscription(metadata.workspace_id) : null;
+          const input = stripeSubscriptionInput(event.data.object,
+            event.reconciledAtMs, existing, event.lifecycleAtMs);
+          if (input.workspaceId && input.plan) {
+            const after = store.upsertSubscription(input);
+            if (cloudSinglePlan && event.data.object.metadata.single_plan === 'true' && after.providerSubscriptionId === event.data.object.id && after.status === 'active' && ['active', 'trialing'].includes(event.data.object.status)) {
+              const owner = cloudSinglePlan.db.prepare('SELECT owner_user_id FROM cloud_single_accounts WHERE id=?').get(after.workspaceId);
+              if (owner) {
+                cloudSinglePlan.db.prepare('UPDATE cloud_single_accounts SET standard_subscription_id=? WHERE id=?').run(after.providerSubscriptionId, after.workspaceId);
+                cloudSinglePlan.db.prepare('DELETE FROM cloud_single_checkouts WHERE account_id=? AND operation_id=?').run(after.workspaceId, event.data.object.metadata.single_checkout_operation_id || '');
+                changedSponsors.push(after.workspaceId);
+                const previousSponsor = cloudSinglePlan.coverage(owner.owner_user_id);
+                if (previousSponsor && previousSponsor.account_id !== after.workspaceId) changedSponsors.push(previousSponsor.account_id);
+                cloudSinglePlan.db.prepare('INSERT INTO cloud_single_sponsors VALUES (?, ?, ?) ON CONFLICT(user_id) DO UPDATE SET account_id=excluded.account_id, source_workspace_id=excluded.source_workspace_id').run(owner.owner_user_id, after.workspaceId, after.workspaceId);
+              }
+            }
+            if (cloudSinglePlan && metadata.single_plan === 'true' && after.providerSubscriptionId === event.data.object.id && after.initialPaymentPending && after.status === 'canceled') {
+              cloudSinglePlan.db.prepare('DELETE FROM cloud_single_checkouts WHERE account_id=? AND operation_id=?')
+                .run(after.workspaceId, metadata.single_checkout_operation_id || '');
+            }
+            const change = { before: existing, after };
+            scheduleBillingLifecycleJobs(change);
+            return change;
+          }
+        }
+        return null;
+      });
+      if (cloudSinglePlan && event.type.startsWith('customer.subscription.')) {
+        const metadata = event.data.object.metadata || {};
+        const current = metadata.workspace_id && cloudBilling.getSubscription(metadata.workspace_id);
+        if (metadata.single_plan === 'true' && current && current.providerSubscriptionId === event.data.object.id && current.status === 'active') changedSponsors.push(current.workspaceId);
+      }
+      for (const accountId of new Set(changedSponsors)) {
+        // Enqueue before the provider call so an interrupted response can be retried.
+        scheduleTeamSeatSync(accountId, event.id);
+        try { await syncTeamSeatQuantity(accountId, event.id); } catch (_) {}
+      }
     });
-    if (cloudSinglePlan && event.type.startsWith('customer.subscription.')) {
-      const metadata = event.data.object.metadata || {};
-      const current = metadata.workspace_id && cloudBilling.getSubscription(metadata.workspace_id);
-      if (metadata.single_plan === 'true' && current && current.providerSubscriptionId === event.data.object.id && current.status === 'active') changedSponsors.push(current.workspaceId);
-    }
-    for (const accountId of new Set(changedSponsors)) {
-      // Enqueue before the provider call so an interrupted response can be retried.
-      scheduleTeamSeatSync(accountId, event.id);
-      try { await syncTeamSeatQuantity(accountId, event.id); } catch (_) {}
-    }
     sendJson(res, 200, { received: true });
   } catch (error) {
-    sendJson(res, error.code === 'payload_too_large' ? 413 : 400,
+    const retryable = error.code === 'temporary_service_failure' ||
+      ['stripe_network_error', 'stripe_timeout', 'invalid_stripe_response', 'stripe_api_error'].includes(error.code);
+    sendJson(res, error.code === 'payload_too_large' ? 413 : retryable ? 503 : 400,
       { ok: false, error: error.code || 'invalid_webhook' });
   }
 }
@@ -3584,7 +3596,15 @@ function servePublicPublication(req, res, slug) {
 
 const server = http.createServer((req, res) => {
   req.cloudAuthResponse = res;
-  const url = new URL(req.url, `http://localhost:${PORT}`);
+  let url;
+  try {
+    url = new URL(req.url, `http://localhost:${PORT}`);
+  } catch (_) {
+    res.writeHead(400, { 'Content-Type': 'text/plain; charset=utf-8',
+      'Cache-Control': 'no-store', 'Connection': 'close' });
+    res.end('Bad Request');
+    return;
+  }
   const pathname = url.pathname;
 
   if ((req.method === 'GET' || req.method === 'HEAD') && pathname.startsWith('/p/')) {

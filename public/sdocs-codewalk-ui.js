@@ -10,8 +10,8 @@
 // default code renderer keeps only the first word ("python") for the highlight
 // class and drops the filename. So we override the code renderer to emit
 // `<pre data-file="app.py">` for walkthrough docs, falling back to the default
-// renderer everywhere else (return false). DOMPurify keeps data-* attributes
-// (only `style` is forbidden in renderMarkdownSafe), so the attribute survives.
+// renderer everywhere else (return false). The Markdown sanitizer keeps
+// data-* attributes, so the filename attribute survives.
 (function () {
   'use strict';
 

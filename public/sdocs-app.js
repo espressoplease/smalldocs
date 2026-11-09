@@ -1637,13 +1637,17 @@ var _defaultReady = document.getElementById('sdocs-publication-data') || new URL
 
 // ── Register on SDocs for cross-module access ──────────
 
-// One place that turns untrusted markdown into sanitised HTML, so every caller
-// uses the same DOMPurify config. The render orchestrator and the code-focus
-// annotation cards both go through here.
+// Shared policy for Markdown inserted into the main document DOM, including
+// token-based editing and annotations. Document styles come from the explicit
+// style controls rather than authored HTML stylesheets or style attributes.
+S.sanitizeMarkdownHtml = function (html) {
+  return DOMPurify.sanitize(String(html == null ? '' : html),
+    { FORBID_TAGS: ['style'], FORBID_ATTR: ['style'] });
+};
+
 S.renderMarkdownSafe = function (text) {
   try {
-    return DOMPurify.sanitize(marked.parse(String(text == null ? '' : text)),
-      { FORBID_ATTR: ['style'] });
+    return S.sanitizeMarkdownHtml(marked.parse(String(text == null ? '' : text)));
   } catch (e) { return ''; }
 };
 

@@ -1,0 +1,66 @@
+{
+  "date": "2026-11-09",
+  "scope": "Three defensive source reviews and disposable local regression fixtures",
+  "status": "validated locally, migration and deployment pending",
+  "baseline_application_commit": "c6eaac514b70ebacb069c788f6a2998a70dd7996",
+  "cli_version": "1.20.1",
+  "tests": {
+    "complete_node_suite_passed": 2328,
+    "complete_node_suite_failed": 0,
+    "selected_library_browser_checks_passed": 49,
+    "rendering_reviewer_browser_checks_passed": 281,
+    "additional_math_browser_checks_passed": 10,
+    "mutation_preview_comment_direct_edit_checks_passed": 76,
+    "independent_mutation_queue_fixture": "cross-document progress, permission revocation, failure recovery and queue cleanup passed",
+    "malformed_request_fixture": "local child server and local Nginx proxy, subsequent health request succeeds",
+    "npm_production_dependency_advisories": 0,
+    "limits": "Selected browser suites are not the entire Playwright suite. Focused Node checks are subsets of the complete run."
+  },
+  "resource_sample": {
+    "markdown_bytes": 4194342,
+    "save_ms": 4576,
+    "maximum_health_delay_during_save_ms": 32,
+    "query_ms": 298,
+    "maximum_health_delay_during_query_ms": 135,
+    "feature_rows": 0,
+    "database_bytes": 3514368,
+    "wal_bytes": 4288952,
+    "ordinary_examples_retaining_inverted_indexes": 3,
+    "limit": "Individual local measurements, not production capacity or latency guarantees"
+  },
+  "compatibility": {
+    "existing_document_limit_unchanged": true,
+    "existing_query_language_unchanged": true,
+    "existing_logins_preserved": true,
+    "normal_browser_device_approval_covered": true,
+    "lost_response_refresh_retry_preserved": true,
+    "scoped_components_and_slide_styles_covered": true,
+    "index_formats": "Existing inverted records remain version 3; compact records use version 4. Old readers rebuild rather than silently omit compact records.",
+    "rollback_limit": "Reverting also restores the old expensive index rebuild. Prefer roll-forward for untrusted content."
+  },
+  "production_configuration_read": {
+    "trust_proxy": true,
+    "loopback_binding": true,
+    "no_credentials_in_report": true
+  },
+  "coordinated_backup": {
+    "archive": "smalldocs-20261109T202136Z-c6eaac514b70ebacb069c788f6a2998a70dd7996.tar.gz",
+    "service_result": "success"
+  },
+  "local_cli": {
+    "version": "1.20.1",
+    "channel": "staging",
+    "origin": "https://cloud-staging.smalldocs.org",
+    "existing_authentication_and_skill_preserved": true
+  },
+  "residuals": [
+    "Storage billing counts revision payloads rather than total physical SQLite and index bytes.",
+    "Current head replacement collects its unused dictionary entries; historical purges are not globally swept.",
+    "Compact queries still consume total CPU, memory and IO even though they yield cooperatively.",
+    "Provider reconciliation coordination is process-local for the current single-process deployment.",
+    "Refresh hashes discarded before this release cannot be reconstructed.",
+    "This is not a penetration-test certification or a 100,000-document capacity certification."
+  ],
+  "live_adversarial_probes": false,
+  "real_payments_or_customer_notifications": false
+}

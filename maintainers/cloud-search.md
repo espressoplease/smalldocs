@@ -73,6 +73,32 @@ synchronous `beforeReturn` callback rechecks read
 entitlements. Search performs its final authorization checks before constructing
 counts and facets. Snippets are plain text with offsets, not HTML.
 
+## Compact records and rollback
+
+Ordinary prose retains the format-3 inverted index. Before generating keyed
+features, preparation estimates the representation size. A representation that
+exceeds the optimizer's source-relative or atomic-write allowance uses a format-4
+record with `scan_required=1`, the current revision ID, and the existing tag index.
+The document size limit and query syntax are unchanged. Text searches evaluate
+these authorized revisions exactly and yield between work batches. Field weights,
+phrase positions, prefix matching, Boolean expressions, literal matching, counts,
+facets, snippets and cursor ordering use the same semantics as indexed records.
+Compact text searches read document bodies; indexed queries retain their existing
+candidate and postings paths. Compression and online index preparation yield to
+the HTTP event loop. Revision and index updates still commit together.
+
+The current reader accepts formats 3 and 4. Existing format-3 rows require no
+backfill. A previous reader sees format 4 as stale and follows its existing
+rebuild path, returning `search_index_building` if more heads remain. It cannot
+mistake an empty compact posting list for a complete format-3 index. An old
+writer can rebuild a record to format 3 while retaining the additive scan flag;
+the current reader ignores that flag on format-3 records.
+
+Reverting the application also restores the old expensive index preparation and
+rebuild behavior. Prefer a roll-forward repair when untrusted documents are
+present. A rollback rebuild is compatible with the stored documents, but does
+not retain the resource-exhaustion fix.
+
 ## Backfill and operations
 
 Revision creation, save, restore and cross-library move update current-head
@@ -80,8 +106,10 @@ postings in the same SQLite transaction as the document change. Soft-deleted
 documents retain postings for restore, but the authorization relation excludes
 them. Purging the document removes its postings by foreign-key cascade. The
 project dictionary can retain encrypted vocabulary, tag labels and keyed features
-after a document purge; the project purge removes these. Dictionary collection
-must account for in-flight prepared revisions before removing term IDs.
+after a document purge; the project purge removes these. Replacing a head collects
+its unreferenced dictionary entries. Prepared revisions retain the encrypted
+payload needed to recreate a concurrently collected term, and resolve term IDs
+again inside the final write transaction.
 
 Existing databases need a backfill. Search prepares at most 100 missing or stale
 authorized heads per request. If more remain it returns `search_index_building`
@@ -100,7 +128,7 @@ Cloud key-provider factory. Run `--status` after backfill and verify `ready:true
 before enabling search on a deployment. Restarting does not require re-reading
 and decrypting the entire document corpus.
 
-Term and phrase matching, counts and facets use postings without decrypting every
+For inverted records, term and phrase matching, counts and facets use postings without decrypting every
 matching body. Result snippets decrypt only the selected page. Single-run literal searches
 also decrypt only selected page bodies, after vocabulary verification. Multi-run
 literals decrypt candidate bodies and can still approach a full scan for very

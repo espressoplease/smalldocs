@@ -196,7 +196,7 @@ module.exports = function(harness) {
         let revoked;
         store._decryptRevision = async function(row) {
           const result = await original.call(this, row);
-          if (!revoked) {
+          if (!revoked && selected.some(document => document.id === row.document_id)) {
             revoked = row.document_id;
             other.setDocumentPermission({ userId: owner, documentId: revoked, mode: 'custom', memberUserIds: [] });
           }
@@ -338,7 +338,10 @@ module.exports = function(harness) {
       await testAsync('indexed broad counts do not decrypt the full matching corpus', async () => {
         const original = store._decryptRevision;
         let decrypted = 0;
-        store._decryptRevision = async function(row) { decrypted++; return original.call(this, row); };
+        store._decryptRevision = async function(row) {
+          if (!this.db.prepare('SELECT scan_required FROM cloud_search_documents WHERE document_id=?').get(row.document_id).scan_required) decrypted++;
+          return original.call(this, row);
+        };
         try {
           const found = await search({ expression: term('backfillword'), limit: 3, facets: ['tags', 'authors', 'libraries'] });
           assert.strictEqual(found.total_count, 105);
@@ -352,7 +355,13 @@ module.exports = function(harness) {
         const originalKey = store._projectKey;
         const metadataRows = [];
         const projects = new Set();
-        store._decryptRevision = async function() { throw new Error('Browsing decrypted a document body'); };
+        let allowCompact = false;
+        store._decryptRevision = async function(row) {
+          if (allowCompact && this.db.prepare('SELECT scan_required FROM cloud_search_documents WHERE document_id=?').get(row.document_id).scan_required) {
+            return originalBody.call(this, row);
+          }
+          throw new Error('Browsing decrypted a document body');
+        };
         store._decryptRevisionMetadata = async function(row) {
           assert.strictEqual(row.body_ciphertext, undefined);
           metadataRows.push(row.document_id);
@@ -379,6 +388,7 @@ module.exports = function(harness) {
           const tagged = await search({ tags: ['browse-notes'], limit: 1 });
           assert.strictEqual(tagged.documents.length, 1);
           assert.ok(tagged.documents[0].tags.includes('browse-notes'));
+          allowCompact = true;
           const silent = await search({ expression: term('backfillword'), limit: 1, matchLimit: 0 });
           assert.strictEqual(silent.total_count, 105);
           assert.deepStrictEqual(silent.documents[0].matches, []);

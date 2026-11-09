@@ -2411,7 +2411,7 @@
     var list = walk ? (walk.byFile[currentWalkKey()] || []) : getAnnotations();
     var total = walk ? walk.steps.length : 0;
     var renderMd = (S.renderMarkdownSafe) ? S.renderMarkdownSafe : function (t) {
-      return DOMPurify.sanitize(marked.parse(String(t || '')), { FORBID_ATTR: ['style'] });
+      return DOMPurify.sanitize(marked.parse(String(t || '')), { FORBID_TAGS: ['style'], FORBID_ATTR: ['style'] });
     };
     for (var i = 0; i < list.length; i++) {
       var a = list[i];

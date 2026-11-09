@@ -22,6 +22,7 @@ module.exports = function(harness) {
     const nginx = fs.readFileSync(path.join(__dirname, '..', 'ops', 'nginx',
       'smalldocs.conf'), 'utf8');
     assert.ok(env.includes('HOST=127.0.0.1'));
+    assert.ok(env.includes('TRUST_PROXY=1'));
     assert.ok(env.includes('CLOUD_MODE=off'));
     assert.ok(env.includes('CLOUD_PUBLIC_MODE=hidden'));
     assert.ok(unit.includes('User=smalldocs'));

@@ -223,6 +223,18 @@ module.exports = function (h) {
         assert.strictEqual(saved.markdown, body.replace(/: before\./g, ': after.'));
         assert.strictEqual(saved.revision_number, 13);
       });
+      await testAsync('a refused concurrent edit does not hold up the next document edit', async () => {
+        const doc = await create('# Queue recovery\n\nOwner: Ana.\n');
+        const [refused, saved] = await Promise.all([
+          edit(doc, [{ old_text: 'Missing sentence.', new_text: 'Replacement.' }]),
+          edit(doc, [{ old_text: 'Owner: Ana.', new_text: 'Owner: Ben.' }]),
+        ]);
+        assert.strictEqual(refused.status, 409, JSON.stringify(refused.data));
+        assert.strictEqual(saved.status, 201, JSON.stringify(saved.data));
+        const opened = (await open(doc.id)).data.document;
+        assert.strictEqual(opened.markdown, '# Queue recovery\n\nOwner: Ben.\n');
+        assert.strictEqual(opened.revision_number, 2);
+      });
       await testAsync('replacement expansion enforces the existing document limit in preview and save without a revision', async () => {
         const doc = await create('# Capacity\n\n' + 'a'.repeat(1024));
         const edits = [{ old_text: 'a', new_text: 'b'.repeat(20000), all: true }];

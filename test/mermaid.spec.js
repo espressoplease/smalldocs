@@ -18,6 +18,34 @@ async function loadDoc(page, markdown) {
   await page.waitForSelector('#_sd_rendered', { state: 'visible' });
 }
 
+async function expectRenderedDiagram(page) {
+  await expect(page.locator('.sdoc-mermaid-stage svg.sdoc-mermaid-svg')).toHaveCount(1, { timeout: 10000 });
+  await expect(page.locator('.sdoc-mermaid-error')).toHaveCount(0);
+}
+
+async function sanitizeSvgFixture(page, source) {
+  return page.evaluate((svg) => {
+    const sanitizer = window.SDocMermaidCore.create({ window, document, sdocs: {} });
+    try {
+      const clean = sanitizer.sanitizeSvg(svg);
+      const parsed = new DOMParser().parseFromString(clean, 'image/svg+xml');
+      if (parsed.querySelector('parsererror')) throw new Error('Sanitizer returned invalid SVG');
+      const root = parsed.documentElement;
+      const attributes = node => Object.fromEntries(Array.from(node.attributes, attr => [attr.name, attr.value]));
+      return {
+        rootAttributes: attributes(root),
+        childAttributes: root.querySelector('g') ? attributes(root.querySelector('g')) : null,
+        images: Array.from(root.querySelectorAll('img'), attributes),
+        frames: root.querySelectorAll('iframe').length,
+        forms: root.querySelectorAll('form, input').length,
+        svgStyles: root.querySelectorAll(':scope > style').length,
+        labelStyles: root.querySelectorAll('foreignObject style').length,
+        text: root.textContent,
+      };
+    } finally { sanitizer.destroy(); }
+  }, source);
+}
+
 // ── Render: full pipeline (network-dependent) ───────────
 
 test('renders ```mermaid fence as an SVG', async ({ page }) => {
@@ -218,22 +246,22 @@ test('XSS: <script> in label is escaped, no script element survives', async ({ p
   page.on('dialog', async (d) => { alertFired = true; await d.dismiss(); });
   await loadDoc(page,
     '```mermaid\ngraph TD\n  A["<script>alert(1)</script>"] --> B\n```');
-  await page.waitForSelector('.sdoc-mermaid', { timeout: 10000 });
-  // Allow Mermaid render to complete or fail (strict mode often rejects this)
-  await page.waitForTimeout(2000);
+  await expectRenderedDiagram(page);
   const hasScript = await page.locator('.sdoc-mermaid script').count();
   expect(hasScript).toBe(0);
   expect(alertFired).toBe(false);
 });
 
-test('XSS: img onerror in label does not execute', async ({ page }) => {
-  let alertFired = false;
-  page.on('dialog', async (d) => { alertFired = true; await d.dismiss(); });
-  await loadDoc(page,
-    '```mermaid\ngraph TD\n  A["<img src=x onerror=alert(1)>"] --> B\n```');
-  await page.waitForSelector('.sdoc-mermaid', { timeout: 10000 });
-  await page.waitForTimeout(2000);
-  expect(alertFired).toBe(false);
+test('post-sanitize strips empty event attributes from HTML image labels', async ({ page }) => {
+  await loadDoc(page, '```mermaid\nflowchart TD\n  A[Hello] --> B[World]\n```');
+  await expectRenderedDiagram(page);
+  const result = await sanitizeSvgFixture(page,
+    '<svg xmlns="http://www.w3.org/2000/svg"><foreignObject><div xmlns="http://www.w3.org/1999/xhtml">' +
+    '<img alt="Kept image" onerror=""/><p>Kept label</p></div></foreignObject></svg>');
+  expect(result.images).toHaveLength(1);
+  expect(result.images[0].alt).toBe('Kept image');
+  expect(result.images[0]).not.toHaveProperty('onerror');
+  expect(result.text).toContain('Kept label');
 });
 
 test('foreignObject is allowed (htmlLabels:true) but stays empty when no HTML wrapping needed', async ({ page }) => {
@@ -246,37 +274,57 @@ test('foreignObject is allowed (htmlLabels:true) but stays empty when no HTML wr
   expect(fo).toBeGreaterThan(0);
 });
 
-test('XSS: foreignObject smuggling iframe srcdoc neutralised', async ({ page }) => {
-  let alertFired = false;
-  page.on('dialog', async (d) => { alertFired = true; await d.dismiss(); });
-  // Mermaid's strict mode escapes user labels, so a pure label-injection
-  // attempt is already neutralised. This test confirms the *post-sanitize*
-  // layer holds: even if Mermaid (or a future bug) emits an iframe inside
-  // a foreignObject, our sanitizeSvg strips iframe entirely.
-  await loadDoc(page, '```mermaid\nflowchart TD\n  A["<iframe srcdoc=\\"<script>alert(1)</script>\\">"] --> B\n```');
-  await page.waitForSelector('.sdoc-mermaid', { timeout: 10000 });
-  await page.waitForTimeout(2000);
-  expect(alertFired).toBe(false);
-  expect(await page.locator('.sdoc-mermaid iframe').count()).toBe(0);
+test('post-sanitize removes inert iframe containers from foreignObject labels', async ({ page }) => {
+  await loadDoc(page, '```mermaid\nflowchart TD\n  A[Hello] --> B[World]\n```');
+  await expectRenderedDiagram(page);
+  // Exercise the exported sanitizer directly. Mermaid escaping or a parse
+  // failure must not substitute for coverage of this second layer.
+  const result = await sanitizeSvgFixture(page,
+    '<svg xmlns="http://www.w3.org/2000/svg"><foreignObject><div xmlns="http://www.w3.org/1999/xhtml">' +
+    '<iframe title="Inactive fixture" srcdoc="Plain fixture text"></iframe><p>Kept label</p>' +
+    '</div></foreignObject></svg>');
+  expect(result.frames).toBe(0);
+  expect(result.text).toContain('Kept label');
 });
 
 test('XSS: <style> inside foreignObject is stripped, SVG-level <style> kept', async ({ page }) => {
   await loadDoc(page, '```mermaid\nflowchart TD\n  A[Hello] --> B[World]\n```');
-  await page.waitForSelector('.sdoc-mermaid-stage svg', { timeout: 10000 });
-  await page.waitForTimeout(700);
-  // SVG-level <style> must survive (Mermaid's node fill/stroke CSS lives there)
-  const svgStyle = await page.locator('.sdoc-mermaid-stage svg > style').count();
-  expect(svgStyle).toBeGreaterThan(0);
-  // Style inside foreignObject must NEVER survive (CSS @import is a network exfil)
-  const foStyle = await page.locator('.sdoc-mermaid-stage foreignObject style').count();
-  expect(foStyle).toBe(0);
+  await expectRenderedDiagram(page);
+  const result = await sanitizeSvgFixture(page,
+    '<svg xmlns="http://www.w3.org/2000/svg"><style>.node { fill: red; }</style>' +
+    '<foreignObject><div xmlns="http://www.w3.org/1999/xhtml">' +
+    '<style>.label { color: blue; }</style><p class="label">Kept label</p></div></foreignObject></svg>');
+  expect(result.svgStyles).toBe(1);
+  expect(result.labelStyles).toBe(0);
+  expect(result.text).toContain('Kept label');
 });
 
-test('XSS: form/input inside HTML labels stripped (no phishing UI)', async ({ page }) => {
-  await loadDoc(page, '```mermaid\nflowchart TD\n  A["<form action=\\"//evil\\"><input name=p></form>"] --> B\n```');
-  await page.waitForSelector('.sdoc-mermaid', { timeout: 10000 });
-  await page.waitForTimeout(2000);
-  expect(await page.locator('.sdoc-mermaid form, .sdoc-mermaid input').count()).toBe(0);
+test('post-sanitize removes inert form/input containers and preserves label text', async ({ page }) => {
+  await loadDoc(page, '```mermaid\nflowchart TD\n  A[Hello] --> B[World]\n```');
+  await expectRenderedDiagram(page);
+  const result = await sanitizeSvgFixture(page,
+    '<svg xmlns="http://www.w3.org/2000/svg"><foreignObject><div xmlns="http://www.w3.org/1999/xhtml">' +
+    '<form><input value="Fixture"/></form><p>Kept label</p></div></foreignObject></svg>');
+  expect(result.forms).toBe(0);
+  expect(result.text).toContain('Kept label');
+});
+
+test('post-sanitize applies the existing attribute policy to SVG roots and descendants', async ({ page }) => {
+  await loadDoc(page, '```mermaid\nflowchart TD\n  A[Hello] --> B[World]\n```');
+  await expectRenderedDiagram(page);
+  const inertAttributes = 'onload="" srcdoc="Fixture" formaction="/fixture" action="/fixture" ping="/fixture" background="fixture"';
+  const result = await sanitizeSvgFixture(page,
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 50" style="color: red" ' + inertAttributes + '>' +
+    '<g id="node" style="fill: blue" ' + inertAttributes + '><title>Kept label</title></g></svg>');
+  for (const attributes of [result.rootAttributes, result.childAttributes]) {
+    for (const name of ['onload', 'srcdoc', 'formaction', 'action', 'ping', 'background']) {
+      expect(attributes).not.toHaveProperty(name);
+    }
+  }
+  expect(result.rootAttributes.viewBox).toBe('0 0 100 50');
+  expect(result.rootAttributes.style).toBe('color: red');
+  expect(result.childAttributes.style).toBe('fill: blue');
+  expect(result.text).toContain('Kept label');
 });
 
 test('explicit <br/> in label produces multi-line foreignObject', async ({ page }) => {
@@ -297,25 +345,29 @@ test('explicit <br/> in label produces multi-line foreignObject', async ({ page 
   expect(longLabelHeight).toBeGreaterThan(40);
 });
 
-test('XSS: %%{init: securityLevel:loose}%% directive is stripped', async ({ page }) => {
-  // If the directive survived, Mermaid would re-init with 'loose' which
-  // permits HTML in labels. We strip the directive in source before render,
-  // so labels should still be escaped.
-  let alertFired = false;
-  page.on('dialog', async (d) => { alertFired = true; await d.dismiss(); });
-  await loadDoc(page, [
+test('%%{init: securityLevel:loose}%% directive is stripped before rendering', async ({ page }) => {
+  await loadDoc(page, '```mermaid\nflowchart TD\n  A[Hello] --> B[World]\n```');
+  await expectRenderedDiagram(page);
+  await page.evaluate(() => {
+    const render = window.mermaid.render;
+    window.__mermaidRenderedSource = '';
+    window.mermaid.render = function (id, source, container) {
+      window.__mermaidRenderedSource = source;
+      return render.call(this, id, source, container);
+    };
+  });
+  await page.evaluate((source) => window.SDocs.loadText(source, 'mermaid.md'), [
     '```mermaid',
     '%%{init: {"securityLevel":"loose"}}%%',
     'graph TD',
-    '  A["<img src=x onerror=alert(1)>"] --> B',
+    '  A[Hello] --> B[World]',
     '```'
   ].join('\n'));
-  await page.waitForSelector('.sdoc-mermaid', { timeout: 10000 });
-  await page.waitForTimeout(2000);
-  expect(alertFired).toBe(false);
-  // No img with onerror should have survived
-  const dangerous = await page.locator('.sdoc-mermaid img[onerror]').count();
-  expect(dangerous).toBe(0);
+  await expectRenderedDiagram(page);
+  const renderedSource = await page.evaluate(() => window.__mermaidRenderedSource);
+  expect(renderedSource).toContain('A[Hello] --> B[World]');
+  expect(renderedSource).not.toContain('%%{init:');
+  expect(await page.evaluate(() => window.mermaid.mermaidAPI.getConfig().securityLevel)).toBe('strict');
 });
 
 // ── DoS / resource budget ─────────────────────────────────

@@ -64,7 +64,7 @@ function buildWriteSession(source) {
     if (token.type === 'space') return;
     var input = [token]; input.links = tokens.links;
     var template = document.createElement('template');
-    template.innerHTML = DOMPurify.sanitize(marked.parser(input), { FORBID_ATTR: ['style'] });
+    template.innerHTML = S.sanitizeMarkdownHtml(marked.parser(input));
     var nodes = Array.prototype.filter.call(template.content.childNodes, function (node) {
       return node.nodeType === 1 || (node.nodeType === 3 && node.textContent.trim());
     });

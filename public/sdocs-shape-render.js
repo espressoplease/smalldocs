@@ -296,6 +296,8 @@ function contentToMarkdownNode(content, attrs) {
     return host;
   }
 
+  // Shape content stays in a shadow root. Keep its authored styles scoped to
+  // that shape, separately from the main document's Markdown CSS policy.
   var html = markedFn(content);
   if (purify && typeof purify.sanitize === 'function') html = purify.sanitize(html);
 

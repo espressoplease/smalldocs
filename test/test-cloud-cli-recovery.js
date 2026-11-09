@@ -27,7 +27,7 @@ module.exports = function (h) {
         assert.strictEqual(later.refreshToken, next.refreshToken);
         assert.strictEqual(auth.authenticateAccessToken(later.accessToken).ok, true);
         auth.refreshCliCredential({ refreshToken: later.refreshToken, requestId: crypto.randomBytes(32).toString('base64url') });
-        assert.throws(() => auth.refreshCliCredential({ refreshToken: first.refreshToken, requestId }), e => e.code === 'invalid_token');
+        assert.throws(() => auth.refreshCliCredential({ refreshToken: first.refreshToken, requestId }), e => e.code === 'token_reuse');
       });
       await testAsync('a different refresh request using the consumed token still revokes the installation', async () => {
         const first = issue();

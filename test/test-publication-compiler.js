@@ -22,6 +22,16 @@ module.exports = function (h) {
     assert.throws(() => createCompilerClient({}), /Unix socket/);
     assert.throws(() => createCompilerClient({ socketPath: 'relative.sock' }), /Unix socket/);
   });
+  test('publication compiler permits the reader Mermaid security patch and rejects older or unpinned builds', () => {
+    const source = fs.readFileSync(path.join(__dirname, '../public/sdocs-mermaid.js'), 'utf8');
+    const version = /MERMAID_VERSION\s*=\s*'([^']+)'/.exec(source)[1];
+    const own = 'http://127.0.0.1:3131';
+    assert.strictEqual(version, '10.9.8');
+    assert(assetAllowed('https://cdn.jsdelivr.net/npm/mermaid@' + version + '/dist/mermaid.min.js', own, 'script'));
+    for (const stale of ['10.9.1', '10.9.6', 'latest']) {
+      assert(!assetAllowed('https://cdn.jsdelivr.net/npm/mermaid@' + stale + '/dist/mermaid.min.js', own, 'script'));
+    }
+  });
   return async function () {
     await assert.rejects(startCompilerWorker({}), /Unix socket/);
     await testAsync('publication compiler uses fresh contexts, serial jobs, sandboxing and a credential-free browser environment', async () => {

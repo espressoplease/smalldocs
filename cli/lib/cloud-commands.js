@@ -1228,9 +1228,28 @@ function sourceFileForPath(supplied, absolute) {
 
 function atomicFileWrite(file, content) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
-  const temporary = file + '.sdocs-tmp-' + process.pid;
-  fs.writeFileSync(temporary, content);
-  fs.renameSync(temporary, file);
+  let mode;
+  try { mode = fs.statSync(file).mode & 0o777; }
+  catch (error) { if (error.code !== 'ENOENT') throw error; }
+  const temporary = file + '.sdocs-tmp-' + process.pid + '-' + crypto.randomBytes(12).toString('hex');
+  let descriptor;
+  let created = false;
+  try {
+    descriptor = fs.openSync(temporary, 'wx', 0o600);
+    created = true;
+    fs.writeFileSync(descriptor, content);
+    if (mode !== undefined) fs.fchmodSync(descriptor, mode);
+    fs.fsyncSync(descriptor);
+    fs.closeSync(descriptor);
+    descriptor = undefined;
+    fs.renameSync(temporary, file);
+  } finally {
+    if (descriptor !== undefined) fs.closeSync(descriptor);
+    if (created) {
+      try { fs.unlinkSync(temporary); }
+      catch (error) { if (error.code !== 'ENOENT') throw error; }
+    }
+  }
 }
 
 async function pull(opts, client) {

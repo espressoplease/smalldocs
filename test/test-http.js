@@ -61,6 +61,14 @@ module.exports = function(harness) {
     const teamsFormAddress = teamsFormServer.address();
     const teamsFormAction = 'http://127.0.0.1:' + teamsFormAddress.port +
       '/teams-interest-test';
+    const stripeSubscriptions = new Map();
+    const stripeServer = http.createServer((req, res) => {
+      const subscription = stripeSubscriptions.get(req.url.slice('/v1/subscriptions/'.length));
+      res.writeHead(subscription ? 200 : 404, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(subscription || { error: { code: 'resource_missing' } }));
+    });
+    await new Promise(resolve => stripeServer.listen(0, '127.0.0.1', resolve));
+    stripeServer.unref();
 
     let serverOutput = '';
     const server = spawn('node', [path.join(__dirname, '..', 'server.js')], {
@@ -94,6 +102,7 @@ module.exports = function(harness) {
         CLOUD_WORKSPACE_RESTORE_WINDOW_MS: '60000',
         CLOUD_DOCUMENT_RESTORE_WINDOW_MS: '60000',
         STRIPE_SECRET_KEY: 'sk_test_http',
+        SDOCS_STRIPE_TEST_API_BASE: 'http://127.0.0.1:' + stripeServer.address().port,
         STRIPE_WEBHOOK_SECRET: 'whsec_http_test',
         GOOGLE_OAUTH_CLIENT_ID: 'http-test-google-client',
         GOOGLE_OAUTH_CLIENT_SECRET: 'http-test-google-secret',
@@ -157,6 +166,7 @@ module.exports = function(harness) {
       });
     }
     function postStripeEvent(event) {
+      stripeSubscriptions.set(event.data.object.id, event.data.object);
       const crypto = require('crypto');
       const raw = Buffer.from(JSON.stringify(event));
       const timestamp = Math.floor(Date.now() / 1000);
@@ -2310,6 +2320,7 @@ module.exports = function(harness) {
     try { fs.unlinkSync(testShortLinksDbPath + '-wal'); } catch (_) {}
     try { fs.unlinkSync(testShortLinksDbPath + '-shm'); } catch (_) {}
     await new Promise(resolve => teamsFormServer.close(resolve));
+    await new Promise(resolve => stripeServer.close(resolve));
     try { fs.unlinkSync(testCloudAuthDbPath); } catch (_) {}
     try { fs.unlinkSync(testCloudAuthDbPath + '-wal'); } catch (_) {}
     try { fs.unlinkSync(testCloudAuthDbPath + '-shm'); } catch (_) {}

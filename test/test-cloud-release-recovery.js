@@ -1,10 +1,17 @@
 'use strict';
 module.exports = h => async function () {
 {
-const assert=require('assert'),crypto=require('crypto');
+const assert=require('assert'),crypto=require('crypto'),http=require('http');
 const {startFixture}=require('../test/cloud-onboarding-fixture');
 await h.testAsync('an incomplete first payment preserves the original trial paywall', async()=>{
- const f=await startFixture({singlePlan:true,stripeApiBase:'http://127.0.0.1:1'});
+ let providerSubscription;
+ const mock=http.createServer((req,res)=>{
+  const found=providerSubscription&&req.url==='/v1/subscriptions/'+providerSubscription.id;
+  res.writeHead(found?200:404,{'Content-Type':'application/json'});
+  res.end(JSON.stringify(found?providerSubscription:{error:{code:'resource_missing'}}));
+ });
+ await new Promise(resolve=>mock.listen(0,'127.0.0.1',resolve));
+ const f=await startFixture({singlePlan:true,stripeApiBase:'http://127.0.0.1:'+mock.address().port});
  try{
   const home = await (await fetch(f.origin + '/')).text();
   assert.ok(home.includes('homepage-signup-divider'));
@@ -17,6 +24,7 @@ await h.testAsync('an incomplete first payment preserves the original trial payw
   const now=Math.floor(Date.now()/1000),sub={id:'sub_unpaid_audit',created:now,status:'incomplete',customer:'cus_unpaid_audit',
    metadata:{workspace_id:id,plan:'team',single_plan:'true',owner_user_id:f.users.josh.id},
    items:{data:[{id:'si_unpaid',price:{id:'price_standard'},quantity:1,current_period_end:now+2592000}]}};
+  providerSubscription=sub;
   const raw=JSON.stringify({id:'evt_unpaid_audit',type:'customer.subscription.created',created:now,data:{object:sub}});
   const sig=crypto.createHmac('sha256','whsec_fixture').update(now+'.'+raw).digest('hex');
   const event=await fetch(f.origin+'/api/cloud/billing/stripe/webhook',{method:'POST',headers:{'Content-Type':'application/json','Stripe-Signature':'t='+now+',v1='+sig},body:raw});assert.equal(event.status,200);
@@ -29,7 +37,8 @@ await h.testAsync('an incomplete first payment preserves the original trial payw
   assert.equal((await f.api('josh','/api/cloud/billing/subscription')).data.phase,'trial');
   f.billing.db.prepare('UPDATE cloud_billing_personal_trials SET ends_at_ms=? WHERE user_id=?').run(Date.now()-8*86400000,f.users.josh.id);
   for (const [index,status] of ['incomplete_expired','active','canceled'].entries()) {
-   const body=JSON.stringify({id:'evt_unpaid_transition_'+index,type:'customer.subscription.updated',created:now+index+1,data:{object:{...sub,status}}});
+   providerSubscription={...sub,status};
+   const body=JSON.stringify({id:'evt_unpaid_transition_'+index,type:'customer.subscription.updated',created:now+index+1,data:{object:providerSubscription}});
    const signature=crypto.createHmac('sha256','whsec_fixture').update(now+'.'+body).digest('hex');
    assert.equal((await fetch(f.origin+'/api/cloud/billing/stripe/webhook',{method:'POST',headers:{'Content-Type':'application/json','Stripe-Signature':'t='+now+',v1='+signature},body})).status,200);
    assert.equal((await f.api('josh',path)).status,index===0?402:200);
@@ -44,7 +53,7 @@ await h.testAsync('an incomplete first payment preserves the original trial payw
   f.billing.upsertSubscription({workspaceId:'no-trial',plan:'team',status:'read_only',provider:'stripe',initialPaymentPending:true});
   assert.equal(f.billing.computeEntitlements('no-trial').effectiveStatus,'payment_required');
 
- }finally{await f.close()}
+ }finally{await f.close();await new Promise(resolve=>mock.close(resolve))}
 });
 }
 {
@@ -102,7 +111,8 @@ await h.testAsync('checkout reconciles intervening members and publishes payment
    const result={case:'member_joins_while_checkout_open',expected_seats:single.seatCount(library),provider_quantity:sub.items.data[0].quantity,
     local_quantity:f.billing.getSubscription(library).seatQuantity,member_covered:memberStatus.data.covered_elsewhere,seat_update_requests:updates.length,pending_seat_sync_jobs:row.n};
    console.log(JSON.stringify(result));assert.equal(result.expected_seats,2);assert.equal(result.provider_quantity,2);assert.equal(result.local_quantity,2);
-   const failedRaw=JSON.stringify({id:'evt_audit_failed',type:'customer.subscription.updated',created:now+2,data:{object:{...sub,status:'past_due'}}});
+   sub.status='past_due';
+   const failedRaw=JSON.stringify({id:'evt_audit_failed',type:'customer.subscription.updated',created:now+2,data:{object:sub}});
    const failedSig=crypto.createHmac('sha256','whsec_fixture').update(now+'.'+failedRaw).digest('hex');
    const failedWebhook=await fetch(f.origin+'/api/cloud/billing/stripe/webhook',{method:'POST',headers:{'Content-Type':'application/json','Stripe-Signature':'t='+now+',v1='+failedSig},body:failedRaw});assert.equal(failedWebhook.status,200);
    const failedSummary=await f.api('josh','/api/cloud/billing/subscription');
