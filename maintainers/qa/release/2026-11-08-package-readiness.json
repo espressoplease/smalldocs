@@ -33,9 +33,11 @@
     "version": 54,
     "cloud_document_url": "https://cloud-staging.smalldocs.org/docs?cloud-document=e216454f-0d2e-4dc0-88ab-1ac20c89558a",
     "source_sha256": "046f9323b45663f425960bd304dc38543f5b99163a77e18398560e504e3a9d80",
-    "user_approval": "pending",
+    "user_approval": "approved",
     "supersedes_version": 53,
-    "note": "Updated after the package dry run at the user request to clarify knowledge-library intent, rich formats and relevant feature and Cloud administration guidance; installation and skill checks passed 96 checks."
+    "note": "Updated after the package dry run at the user request to clarify knowledge-library intent, rich formats and relevant feature and Cloud administration guidance; installation and skill checks passed 96 checks.",
+    "approved_on": "2026-11-09",
+    "approval_context": "User approved the final skill wording and production launch after review in chat."
   },
   "production_release": "e5c705b24e8537dd5b2041fc3eb11801928af375",
   "production_deployed": false

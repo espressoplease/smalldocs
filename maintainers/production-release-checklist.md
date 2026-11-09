@@ -242,14 +242,19 @@ Evidence: [package and configuration receipt](qa/release/2026-11-08-package-read
   Its source SHA-256 is
   046f9323b45663f425960bd304dc38543f5b99163a77e18398560e504e3a9d80.
   The v54 wording supersedes the earlier v53 review. All 96 targeted skill and
-  installation checks pass. Approval is pending. No new notification copy is
-  included in this release.
+  installation checks pass. Joshua approved the final skill wording and
+  production launch on 9 November 2026. No new notification copy is included.
 
 ## Homepage preparation
 
-- [ ] Joshua: record a new homepage video for the Cloud-first experience.
-- [ ] Replace the temporary 30-second clip, poster, preview and captions with the
-  new recording. Add chapter times if the recording has multiple sections.
+- Joshua approved launching with the current production recording on 9 November
+  2026. The new homepage retains its CDN video, muted teaser and poster, and
+  uses its existing transcript and chapters. Native captions are generated from
+  that same transcript. The expanded player and controls below the frame remain.
+- [ ] Joshua: record a replacement homepage video for the Cloud-first experience
+  after launch.
+- [ ] Replace the retained production recording, poster, preview and captions
+  when the new recording is ready. Update its chapter times as needed.
 - The old and new homepages now share their player controls, captions and
   fullscreen code. The new homepage keeps a compact muted preview and expands
   in place to the text column width, keeping its top-left corner fixed. It

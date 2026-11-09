@@ -109,11 +109,14 @@ for (let index = 0; index < 3; index++) {
   });
 }
 
-test('the introduction is a 30-second clip with captions', async ({ page }) => {
+test('the introduction retains the production recording with captions and chapters', async ({ page }) => {
+  await require('./homepage-video-fixture')(page);
   await page.goto('/home-next');
   await page.locator('#intro-video').evaluate(video => video.load());
   await expect.poll(() => page.locator('#intro-video').evaluate(video => video.duration)).toBeGreaterThanOrEqual(30);
-  expect(await page.locator('#intro-video').evaluate(video => video.duration)).toBeLessThan(31);
+  await expect(page.locator('#intro-video')).toHaveAttribute('src', 'https://pub-2f643f8894234288bc4ec244aec40c51.r2.dev/homepage/demo-web.mp4');
+  await expect(page.locator('#heroTeaser')).toHaveAttribute('src', 'https://pub-2f643f8894234288bc4ec244aec40c51.r2.dev/homepage/demo-teaser.mp4');
+  await expect(page.locator('#chapMenu [role="menuitem"]')).toHaveCount(6);
   await expect(page.locator('#intro-video track')).toHaveAttribute('kind', 'captions');
 });
 

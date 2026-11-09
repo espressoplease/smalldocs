@@ -5,7 +5,7 @@ file: agent-changes.md
 
 # SmallDocs agent skill changelog
 
-## v54 (unreleased)
+## v54 (CLI 1.20.0, 9 November 2026)
 
 **Reason:** Introduce useful rich document features and Cloud administration in context, including interactive HTML and JavaScript.
 
