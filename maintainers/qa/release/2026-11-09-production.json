@@ -1,0 +1,137 @@
+{
+  "date": "2026-11-09",
+  "approval": "Joshua approved production launch, final skill copy and retaining the current production video",
+  "production_commit": "d55bb439c82c0879bf189b20b9167d221e34c42e",
+  "staging_commit": "d55bb439c82c0879bf189b20b9167d221e34c42e",
+  "previous_production_commit": "e5c705b24e8537dd5b2041fc3eb11801928af375",
+  "skill_version": 54,
+  "cli_version": "1.20.0",
+  "tests": {
+    "local_node_passed": 2290,
+    "homepage_browser_passed": 38,
+    "publish_workflow_tests": "passed"
+  },
+  "backups": {
+    "before_cutover": "s3://odd-solutions-smalldocs-prod-backups-732006412787/daily/2026/11/09/smalldocs-20261109T174150Z-e5c705b24e8537dd5b2041fc3eb11801928af375.tar.gz",
+    "after_cutover": "s3://odd-solutions-smalldocs-prod-backups-732006412787/daily/2026/11/09/smalldocs-20261109T180145Z-d55bb439c82c0879bf189b20b9167d221e34c42e.tar.gz",
+    "coordinated": true,
+    "environment_rollback_copy": "/etc/smalldocs/smalldocs.env.before-cloud-first-d55bb439",
+    "redundant_prepared_files_removed": true
+  },
+  "configuration": {
+    "production_google_enabled": true,
+    "single_plan_enabled": true,
+    "live_standard_price": "price_1UXlb30bIITqEUvtb3MW00ii",
+    "feedback_owner_allowlisted": true,
+    "active_env_permissions": "0600",
+    "unrelated_env_values_preserved": true
+  },
+  "real_browser": {
+    "google_sign_in": true,
+    "linked_to_existing_account": true,
+    "providers": [
+      "email",
+      "google"
+    ],
+    "terms_acceptance": "Separately approved by Joshua and completed in Chrome",
+    "existing_library_documents_visible": 188,
+    "library_reload_completed": true,
+    "library_initial_load": "Observed slow first load; latency and cause were not measured",
+    "screenshot": "/tmp/smalldocs-production-library-live.png"
+  },
+  "production_fixture_checks": {
+    "release": "d55bb439c82c0879bf189b20b9167d221e34c42e",
+    "production": true,
+    "fixture_authentication": true,
+    "trial_and_personal_library": true,
+    "cli_device_authorization": true,
+    "cloud_save_read_search_edit_history": true,
+    "cross_library_document_search_tag_isolation": true,
+    "team_private_grant_revoke": true,
+    "anonymous_publication_and_withdrawal": true,
+    "public_html_contains_text_without_local_path": true,
+    "non_admin_feedback_inbox_denied": true,
+    "existing_customers_charged": false
+  },
+  "fixture_cleanup": {
+    "completed": true,
+    "soft_deleted_documents": 3,
+    "disabled_identities": 2,
+    "cli_credentials_and_sessions_revoked": true,
+    "temporary_homes_removed": true
+  },
+  "homepage": {
+    "retained_current_production_recording": true,
+    "duration_seconds": 816.45,
+    "live_headless_playback_verified": true,
+    "expands_in_place_to_text_column": true,
+    "controls_below_frame": true,
+    "existing_teaser_transcript_and_chapters": true,
+    "screenshot": "/tmp/smalldocs-production-home-live.png"
+  },
+  "npm": {
+    "published": true,
+    "registry_latest": "1.20.0",
+    "tag": "v1.20.0",
+    "workflow": "https://github.com/espressoplease/smalldocs/actions/runs/42668588682",
+    "conclusion": "success",
+    "trusted_publisher_oidc": true,
+    "provenance_predicate_type": "https://slsa.dev/provenance/v1",
+    "provenance_source": [
+      {
+        "uri": "git+https://github.com/espressoplease/smalldocs@refs/tags/v1.20.0",
+        "digest": {
+          "gitCommit": "d55bb439c82c0879bf189b20b9167d221e34c42e"
+        }
+      }
+    ],
+    "provenance_attestation_url": "https://registry.npmjs.org/-/npm/v1/attestations/sdocs-dev@1.20.0",
+    "official_installer_check": {
+      "version": "1.20.0",
+      "skill_version": 54,
+      "origin": "https://smalldocs.org",
+      "official_installer": true,
+      "cloud_status_save_tags_read_edit_history": true,
+      "checked_at": "2026-11-09T18:01:08.968Z"
+    },
+    "user_local_staging_install_preserved": true
+  },
+  "operations": {
+    "application_active": true,
+    "compiler_active": true,
+    "monitor_result": "success",
+    "backup_result": "success",
+    "failed_systemd_units": 0,
+    "jobs": {
+      "states": {
+        "queued": 133,
+        "running": 0,
+        "complete": 338,
+        "dead": 0
+      },
+      "expired_leases": 0
+    }
+  },
+  "verification_limits": [
+    "Synthetic production identities were operator-seeded; real Google proof was checked separately.",
+    "Live email-code delivery was not repeated during cutover.",
+    "Hosted sandbox payment, reward and cancellation checks are recorded in the 8 November receipt. No live customer was charged during cutover.",
+    "A first real customer payment and webhook outcome still need observation.",
+    "Google custom branding is unverified.",
+    "Refund and dispute referral-credit reconciliation remains manual."
+  ],
+  "follow_up": [
+    "Record and replace the retained homepage video when ready.",
+    "Measure and improve cold library loading latency if the slow first-load behavior recurs."
+  ],
+  "stripe": {
+    "checked_at": "2026-11-09T18:05:13.475Z",
+    "live": true,
+    "webhook_enabled": true,
+    "webhook_url": "https://smalldocs.org/api/cloud/billing/stripe/webhook",
+    "required_events_enabled": true,
+    "recent_events": 20,
+    "recent_events_pending_webhooks": 0,
+    "no_payment_taken": true
+  }
+}

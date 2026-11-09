@@ -1,12 +1,14 @@
 # Cloud-first production release
 
-Migration and billing checked 3 November 2026. Evidence: [release receipt](qa/release/2026-11-03.json).
-Release readiness, npm access and live configuration checked 8 November 2026.
-Production application code, active environment and service configuration remain unchanged.
-Inactive, root-only Google OAuth and Cloud-first configurations were prepared
-separately on 8 November.
-Live Stripe catalogue and webhook preparation was authorized and completed separately.
-The checks below authorize no production deployment or npm publication.
+Released to production on 9 November 2026 with Joshua's approval. Production
+and staging serve d55bb439c82c0879bf189b20b9167d221e34c42e. CLI 1.20.0 is
+published on npm with its matching v1.20.0 source tag and provenance.
+Evidence: [production cutover receipt](qa/release/2026-11-09-production.json).
+
+The dated preparation sections below are historical records. Migration and
+billing were rehearsed on 3 November; release readiness and inactive live
+configuration were checked on 8 November. The following launch section records
+the completed cutover and the limits of its verification.
 
 ## Completed
 
@@ -265,42 +267,54 @@ Evidence: [package and configuration receipt](qa/release/2026-11-08-package-read
   retrying a failed load, keyboard navigation and replay.
   Another 43 Chromium checks cover the homepage, signup and routing.
 
-## Launch actions still pending
+## Production launch, 9 November 2026
 
-1. Obtain release approval. Current production remains on e5c705b24e8537dd5b2041fc3eb11801928af375.
-2. Activate the prepared production Google OAuth values at cutover, as described
-   above. Verify an actual sign-in on the production origin, including the
-   existing account-linking flow. The production-only client is created and
-   published in Google; its credential is deliberately not loaded by the
-   currently running production application.
-3. At the approved cutover, merge the inactive Cloud-first configuration above.
-   It sets CLOUD_SINGLE_PLAN_ENABLED=1 and
-   STRIPE_STANDARD_PRICE_ID=price_1UXlb30bIITqEUvtb3MW00ii for production.
-   Preserve auth, cursor and idempotency secrets, database paths and KMS context.
-   The live application key's required billing operations have been verified.
-   Repeat that check if its credential or permissions change before launch.
-   CLOUD_FEEDBACK_ADMIN_USER_IDS is prepared using the verified production
-   owner ID. An unset value leaves the private inbox inaccessible.
-4. Recheck live webhook delivery after cutover. The required event selection is
-   already installed; preserve the signing secret and working portal configuration.
-5. Deploy the approved server release with ops/deploy-production.sh. This now
-   provisions the production compiler, reuses an already-built immutable staged
-   release and rolls back an unsuccessful application or compiler start.
-6. Publish the reviewed CLI package through the GitHub trusted-publisher workflow
-   with provenance and its matching source tag. Deploy the matching backend
-   before distributing the CLI. Production /install currently resolves npm
-   latest, which remains 1.19.2. npm administration login is verified; it is not
-   the credential used by the OIDC workflow. No package has been published.
-7. The hosted sandbox Checkout and real payment/referral webhooks are verified
-   above. Run a short check on the
-   production origin: Google and email sign-in, return
-   to the last library, CLI authorization, tagged save/read/edit, member access,
-   Checkout and billing portal links, public publish/update/withdraw, and logout.
-   Verify production public pages are indexable and staging remains noindex.
-   Include the new feedback form and administrator inbox in the access checks.
-8. Check the production monitor, backup and compiler services, Stripe delivery
-   failures, and any queued/dead jobs. A successful root-page request alone does
-   not prove publishing or billing works.
+- Joshua approved the final skill copy, production deployment and retaining the
+  current production video. All 2,290 local Node checks and 38 homepage browser
+  checks passed. The matching GitHub publish workflow also passed its tests.
+- Deployed the immutable candidate to staging, then ran a fresh coordinated
+  production backup. Merged the prepared Google, single-plan, standard-price and
+  feedback-owner values into the live environment, preserving unrelated values.
+  Retained a root-only copy of the previous environment for rollback.
+- Deployed production with ops/deploy-production.sh. The application and isolated
+  compiler are active. The previous code release remains available through
+  /opt/smalldocs/previous. Rollback also needs the saved environment; the script
+  does not restore environment values itself.
+- Completed real Google sign-in in Chrome. It linked Google to the existing
+  owner's email identity. Joshua separately approved accepting the current
+  SmallDocs Terms. The signed-in library loaded the existing 188 documents.
+  The initial library load was slow; subsequent reload completed. This check
+  did not measure that delay or establish its cause, so retain cold library
+  latency as a follow-up rather than claiming a performance fix.
+- Used disposable identities through production onboarding, CLI device
+  authorization, tagged save, read, search, labelled edit and history. Checked
+  cross-library document/search/tag isolation and private team access before,
+  during and after a grant. Published a rendered document anonymously, verified
+  text in its HTML and no local path or private tags, then withdrew it. Checked
+  non-admin feedback-inbox denial. Production publication was indexable; staging
+  publications retained noindex headers.
+- Published CLI 1.20.0 through the GitHub trusted publisher, with v1.20.0 and
+  provenance identifying the deployed commit. Installed through the production
+  /install endpoint in an isolated home, then verified skill v54, production
+  origin, Cloud status, tagged save, read, edit reasons and history. The user's
+  existing local staging install was preserved.
+- Soft-deleted all three release-fixture documents, revoked fixture CLI
+  credentials and sessions, disabled both synthetic identities and removed their
+  temporary homes. The fixture identity proof was seeded by the operator; it
+  does not count as a real email-code delivery test.
+- Completed a second coordinated offsite backup containing the deployed code
+  metadata and active environment. Removed the redundant prepared environment
+  files after verifying their values match the active file. The monitor passes,
+  there are no failed services or dead jobs, and no expired job leases.
+- Rechecked the live Stripe endpoint and required event selection. The latest
+  20 live events have zero pending webhook deliveries. Restored the user's
+  original sandbox CLI context after this read-only check.
+
+Verification limits: the hosted sandbox payment, referral reward and cancellation
+checks above remain the payment evidence. This cutover did not charge a live
+customer, repeat live email-code delivery, or complete a new live paid Checkout.
+Check the first real payment and its webhook outcome when a customer subscribes.
+Google's production sign-in works; its custom branding remains unverified.
 
 Refunds and disputes currently need manual referral-credit reconciliation.
 Review the referral ledger and applied discount before making an adjustment.
