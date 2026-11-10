@@ -1,6 +1,6 @@
 {
-  "commit": "bed9ec3b89e8a08603081d860b61459b4e751fd6",
-  "builtAt": "2026-11-10T22:15:28Z",
+  "commit": "ed5b3a3cae32eb79697d8385975dbbbad30e5049",
+  "builtAt": "2026-11-10T23:38:01Z",
   "repo": "https://github.com/espressoplease/smalldocs",
   "files": [
     {
@@ -115,13 +115,13 @@
     },
     {
       "path": "/cloud-admin.html",
-      "sha256": "d3231e91c3a458cb42425d52eea67dcfbd551a0c205c4dc4ac5ac3a20376706b",
-      "bytes": 15016
+      "sha256": "657c4384030c1ed657d578cb5e748beb7baa4d375078230dbfa11daeca0e52d4",
+      "bytes": 15486
     },
     {
       "path": "/cloud-admin.js",
-      "sha256": "53d898cd2e178e851b48c3fc9516bf7bf45aff37276587ee094ea1b66681aaf1",
-      "bytes": 53557
+      "sha256": "c8c718cf66f6f446f3c7b983b0cbd97dc214dba2a7f2fefe1bc49f5ccce5fdc6",
+      "bytes": 54048
     },
     {
       "path": "/cloud-authorize.html",
@@ -172,6 +172,11 @@
       "path": "/cloud-pricing.js",
       "sha256": "7763b9e6b0d6dd6d441cfce12565bc0687a525f51d64c92b90ed137a9a990e30",
       "bytes": 3578
+    },
+    {
+      "path": "/cloud-product-analytics.js",
+      "sha256": "c91756a025651c5553133ccafd386f92b23f4a2152e3781dbc989510cb7d9736",
+      "bytes": 6741
     },
     {
       "path": "/cloud-profile.html",
@@ -292,6 +297,11 @@
       "path": "/css/cloud-pills.css",
       "sha256": "afb43106d59d9f8db2f19f1230c98648a2181359ac1c8d7a06b53bf180210910",
       "bytes": 1770
+    },
+    {
+      "path": "/css/cloud-product-analytics.css",
+      "sha256": "b1770a4f16c5750fc9d0d5865909e95377757a8afc15281d4cfea9ff22c55a0c",
+      "bytes": 1395
     },
     {
       "path": "/css/cloud-prototype.css",
@@ -655,8 +665,8 @@
     },
     {
       "path": "/privacy.md",
-      "sha256": "13344c4023df6966b72148f7cc427e19d2fb056dc340d98d1553f82f51d83cc4",
-      "bytes": 16800
+      "sha256": "1ea88be8e23b37ad5c4b4bc98e64bfa0db519385d666fe06af4db7d5b309489e",
+      "bytes": 17255
     },
     {
       "path": "/runnable-html.md",
@@ -665,8 +675,8 @@
     },
     {
       "path": "/sdoc.md",
-      "sha256": "ee257e94b0e6c79f8a27d40785dc4cbe5045be85841082eb901362a8f2916247",
-      "bytes": 76347
+      "sha256": "8c5491c753e99bcbc9701af330e3f5b23fe238a1fe535a4cf44ea1eb27a9116f",
+      "bytes": 76518
     },
     {
       "path": "/sdocs-app-runner.html",
