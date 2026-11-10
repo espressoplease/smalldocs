@@ -21,6 +21,16 @@ async function openFeedback(page, actor = 'member') {
   return sidebar.locator('[data-feedback-panel]');
 }
 
+test('the restricted admin template is not advertised as a public asset', async () => {
+  const response = await fetch(f.origin + '/trust/manifest');
+  expect(response.ok).toBe(true);
+  const manifest = await response.json();
+  expect(manifest.files.some(file => file.path.endsWith('/cloud-feedback-admin.html'))).toBe(false);
+  expect((await fetch(f.origin + '/templates/cloud-feedback-admin.html')).status).toBe(404);
+  expect((await f.api('bob', '/cloud/feedback')).status).toBe(200);
+  expect((await f.api('bob', '/public/cloud-feedback-admin.html')).status).toBe(200);
+});
+
 test('feedback is private, encrypted and attributed to the authenticated sender', async () => {
   const secret = 'Private sender feedback ' + crypto.randomUUID();
   const result = await f.api('member', '/api/cloud/v1/feedback', 'POST', body(secret, {

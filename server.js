@@ -4116,7 +4116,7 @@ const server = http.createServer((req, res) => {
       sendJson(res, 404, { ok: false, error: 'resource_unavailable' }); return;
     }
     if (redirectForCloudTerms(res, authenticated, '/cloud/feedback')) return;
-    serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'cloud-feedback-admin.html'), null, {
+    serveHtmlWithRewrite(res, path.join(__dirname, 'templates', 'cloud-feedback-admin.html'), null, {
       'Cache-Control': 'no-store', 'X-Frame-Options': 'DENY', 'Referrer-Policy': 'same-origin',
       'Content-Security-Policy': "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
     }); return;
