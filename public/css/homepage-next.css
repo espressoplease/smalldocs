@@ -19,18 +19,19 @@
 .homepage-intro {
   --homepage-sticker-size: clamp(124px, 20vw, 190px);
   --homepage-github-size: clamp(88px, 12vw, 112px);
+  --homepage-stickers-width: calc(var(--homepage-sticker-size) + var(--homepage-github-size) - 14px);
   position: relative;
   display: flow-root;
   margin-bottom: 19px;
 }
-.homepage-intro .homepage-small-video { max-width: min(360px, calc(100% - var(--homepage-sticker-size) - 24px)); margin-bottom: 0; }
+.homepage-intro .homepage-small-video { max-width: min(360px, calc(100% - var(--homepage-stickers-width) - 24px)); margin-bottom: 0; }
 .homepage-intro .homepage-small-video.is-expanded { max-width: 100%; }
 .homepage-stickers {
   position: absolute;
   bottom: 0;
   right: 0;
-  width: var(--homepage-sticker-size);
-  height: calc(var(--homepage-sticker-size) + var(--homepage-github-size) - 14px);
+  width: var(--homepage-stickers-width);
+  height: calc(var(--homepage-sticker-size) + 8px);
 }
 .homepage-sticker {
   --homepage-sticker-angle: 8deg;
@@ -57,8 +58,8 @@
   --homepage-sticker-angle: -10deg;
   position: absolute;
   z-index: 1;
-  top: calc(var(--homepage-sticker-size) - 14px);
-  right: 30%;
+  top: calc(var(--homepage-sticker-size) - var(--homepage-github-size) + 8px);
+  right: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -80,10 +81,7 @@
     position: relative;
     bottom: auto;
     align-self: flex-end;
-    width: calc(var(--homepage-sticker-size) + var(--homepage-github-size) - 14px);
-    height: calc(var(--homepage-sticker-size) + 8px);
   }
-  .homepage-sticker-github { top: calc(var(--homepage-sticker-size) - var(--homepage-github-size) + 8px); right: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
   .homepage-sticker { transition: none; }
@@ -132,7 +130,18 @@
 .install-reveal p { margin-top: 18px; }
 .install-reveal .cmd { overflow-wrap: anywhere; min-width: 0; }
 .home-next main { padding-bottom: 66px; }
+.home-next footer { margin-top: 0; padding-bottom: 36px; }
+.homepage-footer-inner { padding-top: 32px; border-top: 1px solid var(--line); }
+.homepage-footer-links { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px; }
+.homepage-footer-links h2 { margin: 0; color: var(--ink); font-size: 14px; font-weight: 600; line-height: 1.4; letter-spacing: 0; }
+.homepage-footer-links ul { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; list-style: none; }
+.homepage-footer-links a { color: var(--ink-2); font-size: 13px; line-height: 1.5; text-decoration: none; }
+.homepage-footer-links a:hover { text-decoration: underline; text-underline-offset: 3px; }
+.homepage-footer-links a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.homepage-footer-company { margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--line); color: var(--ink-3); font-size: 12px; line-height: 1.6; }
 @media (max-width: 600px) {
+  .homepage-footer-links { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px 24px; }
+  .homepage-footer-links h2 { font-size: 13px; }
   #start-samples, #start-praise { padding: 24px 0; }
   .homepage-google, .homepage-direct > summary { min-height: 48px; }
   .homepage-email { flex-direction: column; }

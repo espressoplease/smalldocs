@@ -12,8 +12,8 @@ for (const width of [390, 1440]) {
     }));
     await page.goto('/home-next');
     expect(await page.evaluate(() => window.loginAtLoad.visibility)).toBe('hidden');
-    await expect(page.locator('nav a')).toHaveCount(1);
-    await expect(page.locator('nav details, nav button')).toHaveCount(0);
+    await expect(page.locator('.homepage-login-nav a')).toHaveCount(1);
+    await expect(page.locator('.homepage-login-nav details, .homepage-login-nav button')).toHaveCount(0);
     const login = page.getByRole('link', { name: 'Log in', exact: true });
     await expect(login).toHaveAttribute('href', '/cloud/sign-in?return=%2Flibrary%3Fscope%3Dcloud');
     await expect.poll(() => login.evaluate(el => getComputedStyle(el).opacity)).toBe('1');
