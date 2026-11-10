@@ -572,13 +572,15 @@ On each visit, the service worker sends a single request to `/version-check` in 
 
 We don't use any third-party analytics provider.
 
-The `/version-check` request described in the works offline section above is the only request SmallDocs makes to the server. Like any HTTP request, it includes your IP address, browser user-agent, referring URL, and the timestamp — this is standard to how the web works and is not something we add. The server logs the user-agent, referer, and accept-language to stdout, but does not record your IP address anywhere.
+The public reader sends a `/version-check` request to check for application updates. When analytics are enabled, this request can also record a page-load visit. Cloud features make separate authenticated API requests.
 
-In addition to these standard fields, the version-check request includes your cohort week — the week you first visited SmallDocs. This is stored in your browser's localStorage under the key `sdocs_cohort`. For example, if you first visit on 2026-04-10, the value `2026-W15` is stored and sent with each subsequent version-check.
+When analytics are enabled, the version-check request includes your cohort week, the week you first visited SmallDocs. This is stored in your browser's localStorage under the key `sdocs_cohort`. For example, if you first visit on 2026-04-10, the value `2026-W15` is stored and sent with each subsequent version-check.
 
 This is not a unique identifier. It groups you with every other person who first visited that same week. Alongside the cohort, each visit also records a coarse device label (desktop / mobile / tablet), browser family (Chrome, Safari, etc.), a referrer category parsed from the standard HTTP headers, and the local hour and weekday from your device's clock at the time of the visit. If a homepage or short-link entry URL contains a source label such as `?src=email-launch`, that label is recorded in lowercase, with surrounding spaces removed. Sources are not inferred from referrers. A social short link can also opt into placement attribution with a public `pid`, such as `?src=x&pid=launch-reply-01`. A valid `pid` records the publishing placement and associated short-link id. It identifies a post, reply, or comment, not a visitor. Untagged short links do not receive placement attribution. Local `#md` document links are not source-attributed. None of these fields identifies you individually. Every 15 minutes, buffered visits are written to a local SQLite database. The dashboard at [smalldocs.org/analytics](https://smalldocs.org/analytics) links to separate homepage and short-link source views. Each view creates a weekly chart and table for every source label after its first recorded visit. The short-link view also shows opted-in placements. Source-attributed and placement-attributed visits remain part of the ordinary visit and short-link totals.
 
 To opt out, visit [smalldocs.org/analytics](https://smalldocs.org/analytics). Subsequent visits are sent with an empty cohort and counted under "Unattributed".
+
+The analytics page also shows daily signup totals from retained Cloud account records. Repeat sign-ins, linked email addresses and additional libraries do not add accounts. Names, email addresses, account IDs, document content and billing details are not published. These counts are separate from visit tracking and do not connect a visitor's browsing history to their Cloud account.
 
 ### Auto-save
 

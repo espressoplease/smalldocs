@@ -733,6 +733,15 @@
     };
   }
 
+  function loadProductAdministration() {
+    if (settingsScope === 'library') return;
+    request('/admin/status').then(function (access) {
+      byId('product-administration').hidden = !access.can_view_overview && !access.can_view_feedback;
+      byId('product-overview-link').hidden = !access.can_view_overview;
+      byId('product-feedback-link').hidden = !access.can_view_feedback;
+    }).catch(function () {});
+  }
+
   async function initialize() {
     setupInstall();
     wireEvents();
@@ -742,6 +751,7 @@
       ]);
       state.singlePlan = Boolean(responses[0].single_plan);
       state.me = responses[0].user || null;
+      loadProductAdministration();
       byId('connect-google').hidden = !responses[0].google_enabled;
       byId('sign-in-methods').replaceChildren();
       (responses[0].sign_in_methods || []).forEach(function (method) {
@@ -932,6 +942,7 @@
     try {
       var me = await request('/me');
       state.me = me.user || {}; state.singlePlan = Boolean(me.single_plan);
+      loadProductAdministration();
       byId('account-label').textContent = [state.me.first_name, state.me.last_name].filter(Boolean).join(' ') + (state.me.email ? ' · ' + state.me.email : '');
       byId('connect-google').hidden = !me.google_enabled;
       (me.sign_in_methods || []).forEach(function (method) {

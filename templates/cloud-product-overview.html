@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Product overview - SmallDocs</title>
+<script src="/public/sdocs-theme-preference.js"></script>
+<link rel="stylesheet" href="/public/css/fonts.css">
+<link rel="stylesheet" href="/public/css/sidebar-shared.css">
+<link rel="stylesheet" href="/public/css/site-sidebar.css">
+<link rel="stylesheet" href="/public/css/info.css">
+<link rel="stylesheet" href="/public/css/cloud-admin.css">
+<link rel="stylesheet" href="/public/css/cloud-product-analytics.css">
+</head>
+<body class="sdocs-site-shell" data-legacy-library="false" data-sdocs-site-page="settings" data-cloud-authenticated="true" data-cloud-terms-accepted="true">
+<main class="main" data-product-analytics="private">
+  <header class="page-head"><div><h1>Product overview</h1><p class="description">Signups, setup and subscriptions.</p></div><button class="btn" data-product-refresh type="button">Refresh</button></header>
+  <nav class="product-links" aria-label="Administration"><a class="btn" href="/analytics">Public analytics</a><a class="btn" href="/cloud/feedback" data-product-feedback hidden>Feedback inbox</a><a class="btn" href="/cloud/admin?panel=account">Account settings</a></nav>
+  <p class="description" data-product-status role="status" aria-live="polite">Loading overview...</p>
+  <div data-product-results hidden>
+    <section aria-labelledby="signup-heading"><div class="section-head"><h2 id="signup-heading">New accounts</h2><p>Accounts created after verified sign-in. Repeat sign-ins and linked email addresses do not add accounts. Days use UTC.</p></div><div class="stats" data-signup-summary></div></section>
+    <section aria-labelledby="setup-heading"><div class="section-head"><h2 id="setup-heading">Getting started</h2><p>Current progress across all retained accounts. These stages can overlap.</p></div><div class="card" data-product-progress></div></section>
+    <section aria-labelledby="billing-heading"><div class="section-head"><h2 id="billing-heading">Trials and subscriptions</h2><p>Stripe status from the latest processed billing events. Seats are billing quantities, not a second count of people.</p></div><div class="card table-wrap"><table><thead><tr><th scope="col">Measure</th><th scope="col">Count</th></tr></thead><tbody data-product-billing></tbody></table></div><p class="description" data-product-billing-note hidden>Subscription figures are not available on this deployment.</p></section>
+    <section aria-labelledby="libraries-heading"><div class="section-head"><h2 id="libraries-heading">Libraries</h2><p>Libraries that have not been deleted.</p></div><div class="stats" data-product-libraries></div></section>
+    <section aria-labelledby="cohort-heading"><div class="section-head"><h2 id="cohort-heading">Progress by signup date</h2><p>Each row groups accounts created on that date and shows their current progress.</p></div>
+      <label class="product-range">Show <select class="field" data-product-days><option value="7">7 days</option><option value="30" selected>30 days</option><option value="90">90 days</option></select></label>
+      <div class="card table-wrap"><table><thead><tr><th scope="col">Signup date (UTC)</th><th scope="col">Accounts</th><th scope="col">Profile</th><th scope="col">Ready</th><th scope="col">Agent authorized</th><th scope="col">Document</th><th scope="col">Paid</th></tr></thead><tbody data-product-days-body></tbody></table></div>
+    </section>
+    <p class="description product-footnote">Counts include disabled accounts and exclude permanently deleted accounts. This view uses account and billing metadata, without opening document content.</p>
+  </div>
+</main>
+<script src="/public/sdocs-sidebar-shared.js" defer></script>
+<script src="/public/sdocs-scroll-header.js" defer></script>
+<script src="/public/sdocs-site-sidebar.js" defer></script>
+<script src="/public/sdocs-info-panel.js" defer></script>
+<script src="/public/sdocs-info.js" defer></script>
+<script src="/public/cloud-product-analytics.js" defer></script>
+</body>
+</html>

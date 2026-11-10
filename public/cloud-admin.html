@@ -12,6 +12,7 @@
 <link rel="stylesheet" href="/public/css/info.css">
 __CLOUD_SETTINGS_LIBRARY_STYLES__
 <link rel="stylesheet" href="/public/css/cloud-admin.css">
+<link rel="stylesheet" href="/public/css/cloud-product-analytics.css">
 </head>
 <body class="sdocs-site-shell" data-legacy-library="__CLOUD_LEGACY_LIBRARY__" data-sdocs-site-page="settings" data-settings-scope="__CLOUD_SETTINGS_SCOPE__" data-cloud-authenticated="true" data-cloud-terms-accepted="true">
 <div class="shell">
@@ -64,6 +65,7 @@ __CLOUD_SETTINGS_LIBRARY_STYLES__
     </section>
     <section class="panel" id="panel-account" hidden>
       <div class="page-head"><div><h2>Account</h2><p class="description">Manage your sign-in methods and browser session.</p></div></div>
+      <div class="card" id="product-administration" hidden><div class="card-head"><div><h2>Administration</h2><p>Product statistics and feedback.</p></div></div><div class="install-content product-links"><a class="btn" href="/cloud/overview" id="product-overview-link" hidden>Product overview</a><a class="btn" href="/cloud/feedback" id="product-feedback-link" hidden>Feedback inbox</a></div></div>
       <div class="card"><div class="card-head"><div><h2>Sign-in methods</h2><p>Use Google or an email code to open the same account.</p></div></div>
         <div class="install-content"><div id="sign-in-methods"></div><p><a class="btn" id="connect-google" hidden href="/api/cloud/auth/oauth/google?link=1&amp;return_to=%2Fcloud%2Fadmin%3Fpanel%3Daccount">Connect Google</a> <a class="btn" href="/cloud/link-email">Add an email address</a></p></div></div>
       <div class="card"><div class="billing-row"><div><strong>Browser session</strong><p>Log out of SmallDocs on this browser.</p></div><form id="logout-form" method="post" action="/api/cloud/auth/logout"><button class="btn" type="submit">Log out</button></form></div></div>

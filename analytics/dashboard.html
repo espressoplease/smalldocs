@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SDocs Analytics</title>
+<link rel="stylesheet" href="/public/css/cloud-product-analytics.css">
+<script src="/public/cloud-product-analytics.js" defer></script>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32' fill='none'%3E%3Crect x='2' y='2' width='28' height='28' rx='7' fill='%232563EB' fill-opacity='.15'/%3E%3Crect x='2' y='2' width='28' height='28' rx='7' stroke='%232563EB' stroke-width='2'/%3E%3Cpath d='M9 11h14M9 16h11M9 21h8' stroke='%232563EB' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E">
 <style>
   @font-face { font-family: 'Inter'; font-style: normal; font-weight: 400; font-display: swap; src: url('/public/fonts/inter-400.woff2') format('woff2'); }
@@ -281,6 +283,17 @@
 </div>
 
 <div class="content">
+  <section data-product-analytics="public" aria-labelledby="signup-heading">
+    <h1 id="signup-heading">New accounts</h1>
+    <p class="subtitle">Accounts created after verified sign-in. Repeat sign-ins and linked email addresses count once per account. These are public totals, without account details. Days use UTC.</p>
+    <p class="segment-note" data-product-status role="status" aria-live="polite">Loading signup totals...</p>
+    <div data-product-results hidden>
+      <div class="charts-grid" data-signup-summary></div>
+      <label class="product-range">Show <select data-product-days><option value="7">7 days</option><option value="30" selected>30 days</option><option value="90">90 days</option></select></label>
+      <div class="table-wrap"><table><thead><tr><th scope="col">Date (UTC)</th><th scope="col">New accounts</th></tr></thead><tbody data-product-days-body></tbody></table></div>
+      <p class="segment-note">Counts include disabled accounts and exclude permanently deleted accounts.</p>
+    </div>
+  </section>
   <h1>Visits by weekly cohort</h1>
   <p class="subtitle">Each row is a cohort — visitors who first came the same week. Cells are the number of <strong>page-load visits</strong> that cohort generated each week. We don't track unique users; one person revisiting many times counts as many visits. Weeks begin Monday (UTC, ISO 8601), applied to both the cohort table and the charts below. Counts are the sum of two deployments: sdocs.dev (this project's home until June 2026) and smalldocs.org. <a href="https://smalldocs.org/#sec=analytics">How this works</a></p>
   <div id="cohort-panel" class="cohort-panel" style="display:none"></div>
