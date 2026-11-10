@@ -1,6 +1,6 @@
 {
-  "commit": "ed5b3a3cae32eb79697d8385975dbbbad30e5049",
-  "builtAt": "2026-11-10T23:38:01Z",
+  "commit": "5d551eba18bec1b23ab131972c5503f8fa371a76",
+  "builtAt": "2026-11-10T23:57:24Z",
   "repo": "https://github.com/espressoplease/smalldocs",
   "files": [
     {
@@ -175,8 +175,8 @@
     },
     {
       "path": "/cloud-product-analytics.js",
-      "sha256": "c91756a025651c5553133ccafd386f92b23f4a2152e3781dbc989510cb7d9736",
-      "bytes": 6741
+      "sha256": "cd57101756fdd2a3f7117d933f21191b36fabab5f09de4f3f5cf92a760a39e5e",
+      "bytes": 10034
     },
     {
       "path": "/cloud-profile.html",
@@ -300,8 +300,8 @@
     },
     {
       "path": "/css/cloud-product-analytics.css",
-      "sha256": "b1770a4f16c5750fc9d0d5865909e95377757a8afc15281d4cfea9ff22c55a0c",
-      "bytes": 1395
+      "sha256": "a5880e02a638732aaf1bdec6435acb2930991eefeb78a66a09f9c0b6935feba1",
+      "bytes": 1651
     },
     {
       "path": "/css/cloud-prototype.css",
@@ -665,8 +665,8 @@
     },
     {
       "path": "/privacy.md",
-      "sha256": "1ea88be8e23b37ad5c4b4bc98e64bfa0db519385d666fe06af4db7d5b309489e",
-      "bytes": 17255
+      "sha256": "3df02af6232e1e3752ca73c3df3684488fb36bf94b11644f79c647da472f028d",
+      "bytes": 17409
     },
     {
       "path": "/runnable-html.md",
