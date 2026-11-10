@@ -1,19 +1,11 @@
 {
-  "checkedAt": "2026-11-10T22:15:48.634Z",
+  "checkedAt": "2026-11-10T22:18:03.268Z",
   "base": "https://smalldocs.org",
-  "commit": "344005c61db268e0b1321885d41e8f1494eee293",
-  "commitShort": "344005c",
-  "result": "mismatch",
-  "totalFiles": 240,
+  "commit": "bed9ec3b89e8a08603081d860b61459b4e751fd6",
+  "commitShort": "bed9ec3",
+  "result": "ok",
+  "totalFiles": 239,
   "matched": 239,
-  "mismatches": [
-    {
-      "path": "/cloud-feedback-admin.html",
-      "expected": "5788b5f7f3fb10ed701e7ad399f5471aeeeaf19b7571d67326ec3531604a4acf",
-      "got": "2799c0e1da49622b01969bb293bcf78e54af70c314873b2a51dabcf2df9b21ec",
-      "expectedBytes": 1793,
-      "gotBytes": 6816
-    }
-  ],
-  "manifestUrl": "https://raw.githubusercontent.com/espressoplease/smalldocs/trust-manifests/344005c61db268e0b1321885d41e8f1494eee293.json"
+  "mismatches": [],
+  "manifestUrl": "https://raw.githubusercontent.com/espressoplease/smalldocs/trust-manifests/bed9ec3b89e8a08603081d860b61459b4e751fd6.json"
 }
