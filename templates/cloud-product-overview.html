@@ -11,6 +11,7 @@
 <link rel="stylesheet" href="/public/css/info.css">
 <link rel="stylesheet" href="/public/css/cloud-admin.css">
 <link rel="stylesheet" href="/public/css/cloud-product-analytics.css">
+<link rel="stylesheet" href="/public/css/cloud-feedback.css">
 </head>
 <body class="sdocs-site-shell" data-legacy-library="false" data-sdocs-site-page="settings" data-cloud-authenticated="true" data-cloud-terms-accepted="true">
 <main class="main" data-product-analytics="private">
@@ -19,6 +20,11 @@
   <p class="description" data-product-status role="status" aria-live="polite">Loading overview...</p>
   <div data-product-results hidden>
     <section aria-labelledby="signup-heading"><div class="section-head"><h2 id="signup-heading">New accounts</h2><p>Accounts created after verified sign-in. Repeat sign-ins and linked email addresses do not add accounts. Days use UTC.</p></div><div class="stats" data-signup-summary></div></section>
+    <section aria-labelledby="accounts-heading"><div class="section-head"><h2 id="accounts-heading">Accounts</h2><p>Accounts, newest first. Linked verified email addresses appear together.</p></div>
+      <p class="description" data-product-users-status role="status" aria-live="polite">Loading accounts...</p>
+      <div class="card table-wrap"><table><thead><tr><th scope="col">Email</th><th scope="col">Signed up (UTC)</th><th scope="col">Account</th><th scope="col">Profile</th></tr></thead><tbody data-product-users></tbody></table></div>
+      <nav class="feedback-pagination" aria-label="Account pages"><button class="btn" data-product-users-previous type="button" disabled>Previous</button><button class="btn" data-product-users-next type="button" disabled>Next</button></nav>
+    </section>
     <section aria-labelledby="setup-heading"><div class="section-head"><h2 id="setup-heading">Getting started</h2><p>Current progress across all retained accounts. These stages can overlap.</p></div><div class="card" data-product-progress></div></section>
     <section aria-labelledby="billing-heading"><div class="section-head"><h2 id="billing-heading">Trials and subscriptions</h2><p>Stripe status from the latest processed billing events. Seats are billing quantities, not a second count of people.</p></div><div class="card table-wrap"><table><thead><tr><th scope="col">Measure</th><th scope="col">Count</th></tr></thead><tbody data-product-billing></tbody></table></div><p class="description" data-product-billing-note hidden>Subscription figures are not available on this deployment.</p></section>
     <section aria-labelledby="libraries-heading"><div class="section-head"><h2 id="libraries-heading">Libraries</h2><p>Libraries that have not been deleted.</p></div><div class="stats" data-product-libraries></div></section>

@@ -1770,6 +1770,13 @@ async function handleCloudApi(req, res, url) {
       res.cloudSubscription = null;
       sendJson(res, 200, { ok: true, ...overview }); return;
     }
+    if (req.method === 'GET' && pathname === base + '/admin/users') {
+      if (!cloudProductAnalytics) throw Object.assign(new Error('resource_unavailable'), { code: 'resource_unavailable' });
+      const users = cloudProductAnalytics.users(user.id, url.searchParams.get('after'));
+      requireCurrentCloudIdentity(req, user.id);
+      res.cloudSubscription = null;
+      sendJson(res, 200, { ok: true, ...users }); return;
+    }
     if (req.method === 'GET' && pathname === base + '/feedback/status') {
       sendJson(res, 200, { ok: true, can_view_inbox: cloudFeedback.isAdmin(user.id) }); return;
     }

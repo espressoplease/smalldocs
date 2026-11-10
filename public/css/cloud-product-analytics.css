@@ -3,6 +3,10 @@
 .product-range { display:flex; align-items:center; gap:8px; margin:12px 0; }
 .product-range select { width:auto; }
 .product-footnote { margin-top:24px; }
+[data-product-users] td:first-child { min-width:180px; overflow-wrap:anywhere; }
+[data-product-users] td:not(:first-child) { white-space:nowrap; }
+[data-product-users] td:first-child span { display:block; }
+[data-product-users-status] { margin:0 0 10px; }
 [data-product-analytics="private"] .stat span,
 [data-product-analytics="private"] th,
 [data-product-analytics="private"] .billing-row p { color:var(--text-2); font-size:12px; }
