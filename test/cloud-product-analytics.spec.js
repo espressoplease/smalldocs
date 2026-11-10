@@ -27,9 +27,11 @@ test('public signup API returns only aggregate counts, independently of browser 
 test('private overview rejects ordinary users, company owners and caller-supplied administrator identities', async () => {
   expect((await fetch(f.origin + '/cloud/overview', { redirect: 'manual' })).status).toBe(303);
   expect((await fetch(f.origin + '/api/cloud/v1/admin/overview')).status).toBe(401);
+  expect((await fetch(f.origin + '/api/cloud/v1/admin/users')).status).toBe(401);
   for (const actor of ['josh', 'member', 'outsider', 'gmail']) {
     expect((await f.api(actor, '/cloud/overview')).status).toBe(404);
     expect((await f.api(actor, '/api/cloud/v1/admin/overview?user_id=' + f.users.bob.id)).status).toBe(404);
+    expect((await f.api(actor, '/api/cloud/v1/admin/users?user_id=' + f.users.bob.id)).status).toBe(404);
     expect((await f.api(actor, '/api/cloud/v1/admin/status')).data.can_view_overview).toBe(false);
   }
   const admin = await f.api('bob', '/api/cloud/v1/admin/overview');
@@ -60,9 +62,59 @@ test('revoked browser sessions and CLI credentials cannot reuse cached private a
   expect((await bearer()).status).toBe(200);
   f.auth.revokeCliCredential({ userId: f.users.bob.id, credentialId: credentials.credentialId });
   expect((await bearer()).status).toBe(401);
+  expect((await fetch(f.origin + '/api/cloud/v1/admin/users', { headers: { Authorization: 'Bearer ' + credentials.accessToken } })).status).toBe(401);
   expect((await f.api('bob', '/api/cloud/v1/admin/overview')).status).toBe(200);
   f.auth.db.prepare('UPDATE cloud_auth_sessions SET revoked_at_ms=? WHERE user_id=?').run(Date.now(), f.users.bob.id);
   expect((await f.api('bob', '/api/cloud/v1/admin/overview')).status).toBe(401);
+  expect((await f.api('bob', '/api/cloud/v1/admin/users')).status).toBe(401);
+});
+
+test('the private account list returns verified emails only to administrators and never to public reports', async () => {
+  const response = await f.api('bob', '/api/cloud/v1/admin/users');
+  expect(response.status).toBe(200); expect(response.headers.get('cache-control')).toBe('no-store');
+  expect(response.data.items).toHaveLength(7);
+  const member = response.data.items.find(user => user.id === f.users.member.id);
+  expect(member.emails).toEqual([f.users.member.email]);
+  expect(member).not.toHaveProperty('first_name');
+  for (const route of ['/analytics/signups', '/analytics/data', '/api/cloud/v1/admin/overview']) {
+    const result = await f.api('bob', route);
+    expect(JSON.stringify(result.data)).not.toContain(f.users.member.email);
+  }
+  expect((await fetch(f.origin + '/analytics/users')).status).toBe(404);
+});
+
+test('the account list has stable pagination and rejects invalid cursors', async () => {
+  for (let i = 0; i < 48; i++) f.auth.signInWithVerifiedEmail('pagination-' + i + '@example.test');
+  const one = await f.api('bob', '/api/cloud/v1/admin/users');
+  const two = await f.api('bob', '/api/cloud/v1/admin/users?after=' + encodeURIComponent(one.data.next_cursor));
+  expect(one.data.items).toHaveLength(50); expect(two.data.items).toHaveLength(5);
+  expect(new Set([...one.data.items, ...two.data.items].map(user => user.id)).size).toBe(55);
+  expect(two.data.next_cursor).toBeNull();
+  expect((await f.api('bob', '/api/cloud/v1/admin/users?after=missing')).status).toBe(400);
+});
+
+test('account rows render email text safely, handle removed addresses and paginate in the browser', async ({ page }) => {
+  const injected = '<img src=x onerror="window.emailInjected=true">@example.test';
+  f.auth.db.prepare('UPDATE cloud_auth_identities SET verified_email=? WHERE user_id=?').run(injected, f.users.member.id);
+  f.auth.db.prepare('DELETE FROM cloud_auth_identities WHERE user_id=?').run(f.users.missing.id);
+  f.auth.db.prepare('UPDATE cloud_auth_users SET disabled_at_ms=? WHERE id=?').run(Date.now(), f.users.missing.id);
+  for (let i = 0; i < 48; i++) f.auth.signInWithVerifiedEmail('browser-page-' + i + '@example.test');
+  await signIn(page, 'bob'); await page.goto(f.origin + '/cloud/overview');
+  await expect(page.locator('[data-product-users] tr')).toHaveCount(50);
+  await expect(page.locator('[data-product-users-previous]')).toBeDisabled();
+  await page.locator('[data-product-users-next]').click();
+  await expect(page.locator('[data-product-users] tr')).toHaveCount(5);
+  await expect(page.locator('[data-product-users-next]')).toBeDisabled();
+  await page.locator('[data-product-users-previous]').click();
+  await expect(page.locator('[data-product-users] tr')).toHaveCount(50);
+  expect(await page.evaluate(() => window.emailInjected)).toBeUndefined();
+  // Refresh to a small list so both special cases are on the first page.
+  f.auth.db.prepare("DELETE FROM cloud_auth_users WHERE id NOT IN (SELECT user_id FROM cloud_auth_identities WHERE verified_email NOT LIKE 'browser-page-%') AND id!=?").run(f.users.missing.id);
+  await page.getByRole('button', { name: 'Refresh', exact: true }).click();
+  await expect(page.locator('[data-product-users]')).toContainText(injected);
+  await expect(page.locator('[data-product-users]')).toContainText('No verified email retained');
+  await expect(page.locator('[data-product-users] img')).toHaveCount(0);
+  expect(await page.evaluate(() => window.emailInjected)).toBeUndefined();
 });
 
 test('an explicit empty overview allowlist denies everyone while feedback access remains unchanged', async () => {
@@ -116,6 +168,7 @@ for (const width of [1440, 390]) {
     expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
     await signIn(page, 'bob'); await page.goto(f.origin + '/cloud/overview');
     await expect(page.locator('[data-product-results]')).toBeVisible();
+    await expect(page.locator('[data-product-users]')).toContainText(f.users.member.email);
     if (width < 769) await expect.poll(() => page.evaluate(() => parseFloat(getComputedStyle(document.body).paddingLeft))).toBe(0);
     await expect(page.locator('[data-product-progress]')).toContainText('Profile completed');
     await expect(page.locator('[data-product-billing]')).toContainText('Active subscriptions');
@@ -143,11 +196,13 @@ test('account settings offer admin links only for the configured reader', async 
 test('losing access clears displayed figures and history restoration checks authorization again', async ({ page }) => {
   await signIn(page, 'bob'); await page.goto(f.origin + '/cloud/overview');
   await expect(page.locator('[data-product-results]')).toBeVisible();
+  await expect(page.locator('[data-product-users]')).toContainText(f.users.member.email);
   await page.route('**/api/cloud/v1/admin/overview', route => route.fulfill({ status: 404, json: { error: 'resource_unavailable' } }));
   await page.evaluate(() => window.dispatchEvent(new Event('focus')));
   await expect(page.locator('[data-product-status]')).toContainText('not available for this account');
   await expect(page.locator('[data-product-results]')).toBeHidden();
   await expect(page.locator('[data-product-days-body] tr')).toHaveCount(0);
+  await expect(page.locator('[data-product-users] tr')).toHaveCount(0);
   await page.evaluate(() => { window.dispatchEvent(new Event('pagehide')); window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true })); });
   await expect(page.locator('[data-product-status]')).toContainText('not available for this account');
 });

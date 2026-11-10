@@ -7,6 +7,7 @@
 - `/cloud/overview` is the private product overview. Account settings show a link under Account > Administration for permitted readers.
 - `GET /api/cloud/v1/admin/status` reports whether the signed-in account can view the overview and feedback inbox.
 - `GET /api/cloud/v1/admin/overview` returns aggregate setup and subscription figures for permitted administrators. Browser sessions and existing Cloud CLI bearer credentials use the same authorization checks.
+- `GET /api/cloud/v1/admin/users` lists up to 50 retained accounts with their verified email addresses, signup dates, account status and profile completion. `?after=CURSOR` continues the list. Linked addresses are deduplicated within an account. Accounts whose identities were removed show no retained email address. This endpoint uses the same administrator permission as the overview, without a shared or per-user response cache.
 
 Configure `CLOUD_ANALYTICS_ADMIN_USER_IDS` with a comma-separated list of stable Cloud user IDs in the server environment, not email addresses or source-code defaults. Resolve each intended administrator through their verified identity before configuring the ID. When this variable is unset, the overview uses `CLOUD_FEEDBACK_ADMIN_USER_IDS`, so existing feedback administrators can use it. An explicitly empty value grants nobody overview access. Overview access does not grant feedback inbox access. Library ownership and library administration do not grant either permission.
 
@@ -24,7 +25,9 @@ The existing visit database stays separate. Signup counting does not add an iden
 
 ## Private figures
 
-The overview returns counts, not account rows:
+The overview summary endpoint returns counts. The private page loads its account list separately, with Previous and Next navigation. Emails render as plain text, without HTML interpretation, and are cleared together with the aggregate figures when access is lost or the page enters browser history. Nothing is stored in browser local storage. Public analytics and the aggregate caches do not receive these account rows.
+
+The summary measures are:
 
 - Account created: retained account records, including disabled accounts.
 - Profile completed: first and last names are supplied.
@@ -51,4 +54,6 @@ A dedicated read-only connection uses `PRAGMA query_only=ON`, including its atta
 
 `test/cloud-product-analytics.spec.js` exercises the real server with isolated databases: anonymous access, other-account and other-company denial, ordinary library owners, explicit and inherited admin configuration, revoked sessions and CLI credentials, deployment isolation, public response field projection, hidden templates, account settings navigation, loading and error states, browser history restoration, and desktop/mobile light and dark views. Existing feedback tests cover the unchanged feedback access boundary.
 
-Local validation on 10 November 2026 passed 2,340 Node tests and 31 Chromium browser tests across the product analytics, feedback and existing analytics source views. The metadata-scale case used 5,000 accounts and 100,000 document rows and returned less than 20 KB of aggregate JSON. Narrow-screen coverage uses Chromium at 390 pixels, rather than a physical iOS device. Copy review checked metric definitions and the public privacy explanation.
+Local validation on 10 November 2026 passed 2,342 Node tests and 34 Chromium browser tests across the product analytics, feedback and existing analytics source views. The metadata-scale case used 5,000 accounts and 100,000 document rows and returned less than 20 KB of aggregate JSON. Narrow-screen coverage uses Chromium at 390 pixels, rather than a physical iOS device. Copy review checked metric definitions and the public privacy explanation.
+
+Account-list checks also cover linked addresses, removed identities, disabled accounts, stable pagination, immediate email updates without caching, HTML-shaped input rendered as text, and removal of visible emails after access loss.

@@ -109,6 +109,35 @@ module.exports = function ({ test, assert }) {
     assert.strictEqual(f.analytics.db.pragma('query_only', { simple: true }), 1);
   }));
 
+  test('identified accounts require administrator access and paginate without duplicate linked identities', () => fixture(f => {
+    for (let i = 0; i < 55; i++) f.add('person-' + String(i).padStart(3, '0'));
+    f.auth.exec("INSERT INTO cloud_auth_identities VALUES ('person-054','google','primary@example.test'),('person-054','email','primary@example.test'),('person-054','email','alias@example.test')");
+    assert.throws(() => f.analytics.users('member', 'missing'), error => error.code === 'resource_unavailable');
+    const one = f.analytics.users('admin'); const two = f.analytics.users('admin', one.next_cursor);
+    assert.strictEqual(one.items.length, 50); assert.strictEqual(two.items.length, 5);
+    assert.strictEqual(new Set([...one.items, ...two.items].map(item => item.id)).size, 55);
+    assert.deepStrictEqual(one.items[0].emails, ['alias@example.test', 'primary@example.test']);
+    assert.strictEqual(two.next_cursor, null);
+    assert.deepStrictEqual(Object.keys(one.items[0]).sort(), ['created_at', 'disabled', 'emails', 'id', 'profile_complete']);
+    for (const cursor of ['', 'missing', 'x'.repeat(129), {}, "' OR 1=1 --"]) {
+      assert.throws(() => f.analytics.users('admin', cursor), error => error.code === 'invalid_request');
+    }
+  }));
+
+  test('email rows are uncached and never enter either aggregate cache', () => fixture(f => {
+    f.add('one'); f.add('disabled', f.now - DAY_MS, f.now);
+    f.auth.exec("INSERT INTO cloud_auth_identities VALUES ('one','email','first@example.test')");
+    f.analytics.signups(); f.analytics.overview('admin');
+    assert.deepStrictEqual(f.analytics.users('admin').items[0].emails, ['first@example.test']);
+    f.auth.exec("UPDATE cloud_auth_identities SET verified_email='updated@example.test'");
+    const users = f.analytics.users('admin');
+    assert.deepStrictEqual(users.items[0].emails, ['updated@example.test']);
+    assert.deepStrictEqual(users.items[1].emails, []); assert.strictEqual(users.items[1].disabled, true);
+    for (const cache of [f.analytics.publicCache, f.analytics.privateCache]) assert.ok(!JSON.stringify(cache).includes('@example.test'));
+    f.analytics.admins.clear();
+    assert.throws(() => f.analytics.users('admin'), error => error.code === 'resource_unavailable');
+  }));
+
   test('empty deployments return zero totals without fabricating billing or content availability', () => fixture(f => {
     const empty = new CloudProductAnalytics({ auth: { db: f.auth }, adminUserIds: 'admin', now: () => f.now });
     try {
