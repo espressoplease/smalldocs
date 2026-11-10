@@ -1,0 +1,66 @@
+{
+  "date": "2026-11-10",
+  "release_commit": "344005c61db268e0b1321885d41e8f1494eee293",
+  "branch": "codex/homepage-next-review",
+  "npm": {
+    "version": "1.20.2",
+    "source_commit": "344005c61db268e0b1321885d41e8f1494eee293",
+    "files_compared": 60,
+    "integrity_verified": true,
+    "attestation_present": true,
+    "real_npx_global_install_verified": true,
+    "detected_agents": [
+      "Claude Code",
+      "Codex",
+      "Gemini CLI"
+    ],
+    "old_standard_state_cannot_override_npx_cloud": true,
+    "workflow": "https://github.com/espressoplease/smalldocs/actions/runs/42900648839",
+    "workflow_conclusion": "success"
+  },
+  "deployments": [
+    {
+      "origin": "https://smalldocs.org",
+      "commit": "344005c61db268e0b1321885d41e8f1494eee293",
+      "skill_version": 54,
+      "skill_sha256": "046f9323b45663f425960bd304dc38543f5b99163a77e18398560e504e3a9d80",
+      "docs_command_rendered_in_browser": true,
+      "install_authentication_route_verified": true
+    },
+    {
+      "origin": "https://cloud-staging.smalldocs.org",
+      "commit": "344005c61db268e0b1321885d41e8f1494eee293",
+      "skill_version": 54,
+      "skill_sha256": "62dcf1e3f0981b80b548e4628edc59d43048924d2f7839f779476f119bff439e",
+      "docs_command_rendered_in_browser": true,
+      "install_authentication_route_verified": true
+    }
+  ],
+  "validation": {
+    "node_checks": 2331,
+    "onboarding_browser_checks": 16,
+    "fresh_context_agent_cases": 13,
+    "library_clarification_followups": 1,
+    "all_agent_cases_passed": true,
+    "independent_browser_component_checks": 5
+  },
+  "local_install": {
+    "version": "1.20.2",
+    "channel": "staging",
+    "origin": "https://cloud-staging.smalldocs.org",
+    "skill_version": 54,
+    "credentials_preserved": true,
+    "status_requires_library_selection": true
+  },
+  "cleanup": {
+    "disposable_agent_homes_removed": true,
+    "model_authentication_copies_removed": true
+  },
+  "production_email_check": {
+    "provider": "Resend",
+    "smtp_authentication_succeeded": true,
+    "starttls": true,
+    "certificate_valid": true,
+    "message_sent": false
+  }
+}

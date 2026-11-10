@@ -97,7 +97,7 @@ function grade(record, events, filesDirectory) {
     const result = require('../cli/lib/slides-verify').verifySlides(fresh[0] && fresh[0].markdown || '');
     checks.five_valid_slides = result.ok && result.slideCount === 5;
     checks.agent_verified_slides = /sdoc slides verify/.test(commands);
-    checks.agent_opened_presentation = /sdoc present/.test(commands);
+    checks.agent_invoked_presentation = /sdoc present/.test(commands);
   }
   if (record.id === 'calculator') checks.runnable_component = /(?:```|~~~)sdoc-app\n/.test(fresh[0] && fresh[0].markdown || '');
   if (record.id === 'feedback') {

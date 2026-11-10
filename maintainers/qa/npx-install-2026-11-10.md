@@ -45,7 +45,11 @@ Independent headless browser checks verified the calculator at 390px and 1440px 
 
 The real installer was also tested with Claude Code, Codex and Gemini CLI detected in a disposable home. Codex and Gemini used the universal canonical directory; Claude received its agent-specific link. Behavioral model trials used Codex only.
 
+An independent review of the traces confirmed the outcomes. The authoring agents did not perform their own browser inspections: structural validation and invoking `sdoc present` do not establish that an agent observed the render. The independent checks above establish the calculator and budget behavior. One slide used an unsupported template slot; the validator explained it and the agent fixed it before saving. One ambiguity run made a redundant tags request after status had already reported the unresolved library choice.
+
 Evidence: [structured results](../evaluations/cloud-npx-agent-install-2026-11-10.json). Additional validation: 2,331 Node checks and 16 onboarding browser tests passed.
+
+Release commit `344005c61db268e0b1321885d41e8f1494eee293` was deployed to staging and production. npm 1.20.2 was published with provenance by the tag workflow. All 60 downloaded package files matched the CLI source; the tarball integrity and source commit matched. A real NPX install using that published CLI also verified that stale standard setup state cannot override the new Cloud skill. The local staging installation was updated without replacing its credentials or origin. [Release receipt](release/2026-11-10-npx-install.json).
 
 ## Related production checks
 

@@ -132,7 +132,7 @@
           "real_link_returned": true,
           "five_valid_slides": true,
           "agent_verified_slides": true,
-          "agent_opened_presentation": true
+          "agent_invoked_presentation": true
         }
       }
     },
@@ -448,6 +448,7 @@
     "Behavior trials used Codex. Claude Code and Gemini CLI installation coverage was verified, not their model behavior.",
     "The isolated Cloud service uses fixture email identities and a local encryption key provider, not live production signup or KMS.",
     "Model behavior is sampled, not guaranteed for every future task or model.",
-    "Calculator behavior and geometry were independently tested headlessly; this was not a full visual audit of every generated artifact."
+    "Calculator behavior and geometry were independently tested headlessly; this was not a full visual audit of every generated artifact.",
+    "Authoring agents did not execute their own browser inspections. Invoking sdoc present is not proof that an agent observed a rendered presentation."
   ]
 }
