@@ -115,6 +115,7 @@
 
   var COPY_ICON = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
   var CHECK_ICON = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m20 6-11 11-5-5"/></svg>';
+  var DISCLOSURE_ICON = '<svg class="sdoc-install-chevron" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>';
 
   function cloudInstallMarkup(options) {
     options = options || {};
@@ -131,14 +132,14 @@
       + '<div class="sdoc-install-prompt">' + (onboarding ? '' : '<div class="sdoc-install-prompt-head"><span>Copy setup prompt</span>' + copyButton('prompt', 'Copy setup prompt') + '</div>')
       + '<pre data-install-field="prompt" data-home-prompt' + (accountPage ? ' id="install-prompt"' : '') + '>' + escape(instructions.prompt) + '</pre></div>'
       + (onboarding ? '' : '<p class="sdoc-install-note">Paste into your coding agent.</p>') + '</div>';
-    var manual = '<details class="sdoc-install-method" data-install-method="manual"><summary>Install yourself</summary>'
+    var manual = '<details class="sdoc-install-method" data-install-method="manual"><summary>Install yourself' + DISCLOSURE_ICON + '</summary>'
       + '<div class="sdoc-install-content"' + (accountPage ? ' id="install-command"' : '') + '>'
       + command('cli', 'Copy CLI command', instructions.install_command)
       + command('skill', 'Copy skill command', instructions.skill_command)
       + '<div class="sdoc-install-prompt"><div class="sdoc-install-prompt-head"><span>Then paste this into your agent</span>' + copyButton('connect', 'Copy connection prompt') + '</div><pre data-install-field="connect">' + escape(instructions.connection_prompt) + '</pre></div>'
       + '</div></details>';
     return '<div class="sdoc-install' + (onboarding ? ' sdoc-install-onboarding' : '') + '"' + (accountPage ? '' : ' data-home-install') + '>'
-      + (onboarding ? prompt : '<details class="sdoc-install-method" data-install-method="prompt" open><summary>Use install prompt</summary>' + prompt + '</details>')
+      + (onboarding ? prompt : '<details class="sdoc-install-method" data-install-method="prompt"><summary>Use install prompt' + DISCLOSURE_ICON + '</summary>' + prompt + '</details>')
       + manual
       + '<p class="sdoc-install-status" data-install-copy-status' + (accountPage ? ' id="install-copy-status"' : '') + ' role="status" aria-live="polite"></p></div>';
   }
