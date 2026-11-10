@@ -37,8 +37,9 @@ module.exports = function (h) {
       for (const windows of [false, true]) {
         const instructions = setup.cloudInstructions({ origin: STAGING_ORIGIN, workspaceId: 'library-123', workspaceName: 'Engineering', windows });
         assert.ok(instructions.commands.indexOf('SDOCS_CLOUD_URL=') < instructions.commands.indexOf('sdoc cloud login'));
-        assert.ok(instructions.commands.indexOf('sdoc cloud login') < instructions.commands.indexOf('sdoc setup --cloud'));
-        assert.ok(instructions.commands.includes('sdoc setup --cloud --account library-123 --yes'));
+        assert.ok(instructions.commands.indexOf('sdoc cloud login') < instructions.commands.indexOf('npx --yes skills@latest'));
+        assert.ok(instructions.commands.includes('npx --yes skills@latest add ' + STAGING_ORIGIN + '/agent-skills/cloud --global --yes'));
+        assert.ok(!instructions.commands.includes('sdoc setup'));
         assert.ok(instructions.commands.indexOf('sdoc cloud login') < instructions.commands.indexOf('sdoc cloud library-default library-123 --json'));
         assert.ok(instructions.commands.indexOf('sdoc cloud library-default library-123 --json') < instructions.commands.indexOf('sdoc cloud status'));
         assert.ok(instructions.commands.includes(STAGING_ORIGIN + (windows ? '/cli/sdocs-dev.tgz' : '/install')));

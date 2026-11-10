@@ -43,6 +43,18 @@ module.exports = function (h) {
         assert.strictEqual(value.upgrade, 'npm i -g sdocs-dev@latest');
         assert.strictEqual(value.custom, 'http://localhost:3000');
       });
+      await testAsync('hosted skills use their service origin without claiming the CLI is staging-bound', async () => {
+        const sourceSkill = require('../cli/lib/agent-block');
+        const production = sourceSkill.formatSkill(sourceSkill.SKILL_VERSION, { cloud: true });
+        assert.strictEqual(sourceSkill.formatSkill(sourceSkill.SKILL_VERSION, { cloud: true, origin: 'https://smalldocs.org' }), production);
+        const hosted = sourceSkill.formatSkill(sourceSkill.SKILL_VERSION, { cloud: true, origin });
+        assert.strictEqual(sourceSkill.readSkillOrigin(hosted), origin);
+        assert.ok(hosted.includes('Cloud service: ' + origin));
+        assert.ok(hosted.includes(origin + '/cloud-search'));
+        assert.ok(!hosted.includes('https://smalldocs.org'));
+        assert.ok(!hosted.includes('Production URL overrides are rejected'));
+        assert.ok(!hosted.includes('CLI updates are manual'));
+      });
       await testAsync('maintainer installer copies the current CLI with staging metadata and records its runtime fingerprint', async () => {
         assert.strictEqual(installation.version, require('../cli/package.json').version);
         assert.match(installation.source_sha256, /^[a-f0-9]{64}$/);
@@ -80,11 +92,11 @@ module.exports = function (h) {
         assert.strictEqual(blocked.status, 2);
         assert.strictEqual(JSON.parse(blocked.stdout).error, 'invalid_request');
       });
-      await testAsync('Cloud staging requests refuse redirects and skill guidance uses the installed setup command', async () => {
+      await testAsync('Cloud staging requests refuse redirects and skill guidance uses the staging global installer', async () => {
         const value = evaluate(`const cloud=require(root+'/lib/cloud-commands');let redirect;const client=new cloud.CloudClient({fetch:async(url,options)=>{redirect=options.redirect;return{json:async()=>({ok:true}),status:200};}});client.raw('/test',{redirect:'follow'}).then(()=>process.stdout.write(JSON.stringify({redirect,install:cloud.skillInstallCommand(client.origin,true),standard:cloud.skillInstallCommand(client.origin,false),guide:cloud.CLOUD_SEARCH_HELP})));`);
         assert.strictEqual(value.redirect, 'manual');
-        assert.strictEqual(value.install, 'sdoc setup --cloud --yes');
-        assert.strictEqual(value.standard, 'sdoc setup --standard --yes');
+        assert.strictEqual(value.install, 'npx --yes skills@latest add ' + origin + '/agent-skills/cloud --global --yes');
+        assert.strictEqual(value.standard, 'npx --yes skills@latest add ' + origin + '/agent-skills/standard --global --yes');
         assert.ok(value.guide.includes(origin + '/cloud-search'));
         assert.ok(!value.guide.includes('https://smalldocs.org'));
       });

@@ -64,7 +64,9 @@ USAGE
                                   edit local front matter in local-first mode
   sdoc defaults                    Show ~/.sdocs/styles.yaml
   sdoc defaults --reset            Remove default styles
-  sdoc setup                       Install the SmallDocs skill for your coding agents
+  npx --yes skills@latest add https://smalldocs.org/agent-skills/cloud --global --yes
+                                  Install the Cloud skill for all detected agents
+  sdoc setup                       Built-in agent skill installer (fallback)
   sdoc setup --cloud --yes         Enable Cloud-first opens and install the Cloud skill
   sdoc setup --cloud --account ID  Use one Cloud account for automatic creates
   sdoc setup --standard --yes      Return to local-first behavior

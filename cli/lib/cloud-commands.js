@@ -29,8 +29,10 @@ const EXIT = { unexpected: 1, invalid_request: 2, edit_reason_required: 2, login
 const CLOUD_HELP = `SmallDocs Cloud
 
 Cloud stores selected Markdown documents with search, revisions, member access,
-and cross-device CLI and browser access. Run \`sdoc setup --cloud --yes\` to make
-ordinary \`sdoc FILE.md\` opens create or update the Cloud document first.
+and cross-device CLI and browser access. Install the Cloud skill globally:
+  npx --yes skills@latest add https://smalldocs.org/agent-skills/cloud --global --yes
+Ordinary \`sdoc FILE.md\` opens then create or update the Cloud document first.
+If npx skills is unavailable, use \`sdoc setup --cloud --yes\`.
 
 BUILD A TAGGED LIBRARY OF KNOWLEDGE
 
@@ -724,8 +726,7 @@ function emit(opts, command, value, human) {
 
 function skillInstallCommand(originValue, cloud) {
   const edition = cloud ? 'cloud' : 'standard';
-  if (constants.INSTALLATION_CHANNEL) return 'sdoc setup --' + edition + ' --yes';
-  return 'npx skills@latest add ' + originValue + '/agent-skills/' + edition + ' --global';
+  return 'npx --yes skills@latest add ' + originValue + '/agent-skills/' + edition + ' --global --yes';
 }
 
 function fail(opts, command, error) {
@@ -745,7 +746,7 @@ function sleep(ms) { return new Promise((resolve) => setTimeout(resolve, ms)); }
 
 async function login(opts, client) {
   const installCommand = skillInstallCommand(client.origin, true);
-  const setupCommand = 'sdoc setup --cloud --yes';
+  const setupCommand = installCommand;
   if (client.loadCredential()) {
     try {
       const me = await client.authenticated('/api/cloud/v1/me');
@@ -754,7 +755,7 @@ async function login(opts, client) {
         skill_mode: 'cloud', skill_install_command: installCommand,
         cloud_first_setup_command: setupCommand },
         'Already signed in as ' + (me.user.email || me.user.id) + '.\n' +
-        'Enable Cloud-first SmallDocs on this machine:\n' + setupCommand);
+        'Install the Cloud skill globally for your coding agents:\n' + installCommand);
     } catch (_) {}
   }
   const issued = await client.raw('/api/cloud/v1/cli/device-authorizations', {
@@ -785,7 +786,7 @@ async function login(opts, client) {
       skill_install_command: installCommand,
       cloud_first_setup_command: setupCommand },
     'Cloud login saved for this machine.\n' +
-    'Enable Cloud-first SmallDocs on this machine:\n' + setupCommand);
+    'Install the Cloud skill globally for your coding agents:\n' + installCommand);
   }
   throw new CloudCommandError('login_required', 'Authorization expired before it was approved.');
 }
@@ -804,7 +805,7 @@ async function logout(opts, client) {
     standard_setup_command: standardSetupCommand },
   'Signed out of SmallDocs Cloud. The installed skill was not changed.\n' +
   'If you do not expect to use Cloud on this machine, restore local-first behavior:\n' +
-  standardSetupCommand);
+  restoreCommand);
 }
 
 function filterTags(documents, tags) {
@@ -1698,6 +1699,11 @@ async function libraryDefault(opts, client) {
   if (!opts.extra) data = await client.authenticated('/api/cloud/v1/cli/library-default');
   else data = await client.authenticated('/api/cloud/v1/cli/credentials/' + encodeURIComponent(credential.credential_id) + '/library-default', {
     method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ workspace_id: opts.extra === 'clear' ? null : opts.extra }) });
+  if (opts.extra) {
+    const setup = require('./agent-block');
+    const state = setup.readSetupState();
+    if (state && state.cloudAccountId) setup.writeSetupState({ ...state, cloudAccountId: data.workspace_id || null });
+  }
   emit(opts, 'cloud.library-default', data, data.workspace_id ? 'Default library: ' + data.workspace_id : 'No default library. Ask when several libraries are available.');
 }
 async function move(opts, client) {

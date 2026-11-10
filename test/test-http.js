@@ -335,6 +335,9 @@ module.exports = function(harness) {
       assert.ok(cloudGlobal.body.includes('name: smalldocs'));
       assert.ok(cloudGlobal.body.includes('This user has enabled Cloud-first mode'));
       assert.ok(cloudGlobal.body.includes('sdoc cloud status --json'));
+      assert.ok(cloudGlobal.body.includes('Cloud service: http://localhost:3099'));
+      assert.ok(cloudGlobal.body.includes('http://localhost:3099/cloud-search'));
+      assert.ok(!cloudGlobal.body.includes('https://smalldocs.org'));
 
     });
 

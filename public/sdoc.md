@@ -32,20 +32,23 @@ From personal experience, SmallDocs is great for sharing agent debugging reports
 
 #### Set up your coding agent
 
-Install the CLI, then teach your agent about `sdoc`:
+Install the CLI, connect your account, then install the Cloud skill for your coding agents:
 
 ```bash
 curl -fsSL https://smalldocs.org/install | sh
-npx skills@latest add https://smalldocs.org/agent-skills/standard --global
+export PATH="$HOME/.sdocs/bin:$PATH"
+sdoc cloud login
+npx --yes skills@latest add https://smalldocs.org/agent-skills/cloud --global --yes
+sdoc cloud status --json
 ```
 
-The `skills` installer detects supported coding agents and installs the SmallDocs **skill** globally. SmallDocs becomes the default for documents and artifacts, including reports, plans, slides, and spreadsheets, even when you do not mention SmallDocs. An explicit request for another format or tool takes precedence. The short description stays available to your agent; the full instructions load when needed.
+The `skills` installer detects supported coding agents and installs the SmallDocs **Cloud skill** globally for all of them. `--global` uses your user account rather than the current project; `--yes` accepts the detected agents without a selection prompt. Ask your agent to read the installed `~/.agents/skills/smalldocs/SKILL.md` to use it in the current chat, or start a new chat. SmallDocs becomes the default for documents and artifacts, including reports, plans, slides, and spreadsheets, even when you do not mention SmallDocs. An explicit request for another format or tool takes precedence.
 
 Each document builds your tagged knowledge library. Agents choose meaningful tags, reuse existing vocabulary, and preserve relevant tags when updating documents, so you and your agents can find and build on earlier work.
 
-Run `sdoc cloud login`, complete authorization in the browser, then run `sdoc cloud status --json`. First-time Cloud-first authorization prepares your private Personal library and trial before the CLI connects. People signing up through a team invitation also get a Personal library. Personal cannot have other members; create a Team library in [Libraries settings](/cloud/admin?panel=libraries) to invite people. One library is selected automatically; with several libraries, choose where new documents should be saved. Additional libraries use the same per-person billing account and original trial deadline.
+When the browser opens, sign in and approve this computer. First-time authorization prepares your private Personal library and trial before the CLI connects. People signing up through a team invitation also get a Personal library. Personal cannot have other members; create a Team library in [Libraries settings](/cloud/admin?panel=libraries) to invite people. One library is selected automatically; with several libraries, choose where new documents should be saved. Additional libraries use the same per-person billing account and original trial deadline.
 
-After you connect SmallDocs Cloud, run `sdoc setup --cloud --yes`. The Cloud edition has the same `smalldocs` name, so agents do not see two overlapping SmallDocs skills. In Cloud-first mode, `sdoc FILE.md` creates or updates the Cloud document before opening it. List your libraries with `sdoc cloud libraries --json`. Use `sdoc cloud library-default LIBRARY_UUID --json` to select the default for new documents from this connected computer. An explicit `--account UUID` takes priority; existing documents keep their bindings.
+Installing the Cloud skill replaces any previously installed standard `smalldocs` skill and makes `sdoc FILE.md` create or update the Cloud document before opening it. List your libraries with `sdoc cloud libraries --json`. Use `sdoc cloud library-default LIBRARY_UUID --json` to select the default for new documents from this connected computer. An explicit `--account UUID` takes priority; existing documents keep their bindings.
 
 For a project-specific destination, put a `.sdocs.json` file in its folder:
 
@@ -71,16 +74,16 @@ When updating an existing Cloud document, include `--reason "Why this change is 
 
 Read Cloud feedback with `sdoc cloud comments DOCUMENT_ID --json`. For small changes, use scoped reads and `sdoc cloud edit`; full-file pull/edit/push remains available. After verifying an edit, agents normally delete its addressed comment to keep the document clean, or resolve it when the discussion should be retained. A reply alone leaves feedback open. Agents can also reopen, add and reattach comments. Resolve keeps the discussion in the document, while delete removes its thread and replies. Earlier revisions follow the 90-day retention policy. See the [Cloud editing and feedback guide](/cloud-updates), `sdoc cloud edit --help` and `sdoc cloud comments --help` for examples and recovery.
 
-`npx skills@latest` currently requires Node 22.20 or newer. `sdoc setup` remains the built-in fallback and also removes the always-on SmallDocs block written by older CLI releases:
+`npx skills@latest` currently requires Node 22.20 or newer. If it is unavailable, use the built-in Cloud skill installer. It also removes the always-on SmallDocs block written by older CLI releases:
 
 ```bash
-sdoc setup
+sdoc setup --cloud --yes
 ```
 
-To inspect the exact standard skill without writing anything:
+To inspect the exact Cloud skill without writing anything:
 
 ```bash
-sdoc setup --yes --dry-run
+sdoc setup --cloud --yes --dry-run
 ```
 
 ## How SmallDocs work
@@ -633,19 +636,25 @@ After this, every global npm install lives under `~/.npm-global` and never needs
 
 ### Setup
 
+```bash
+npx --yes skills@latest add https://smalldocs.org/agent-skills/cloud --global --yes
 ```
+
+Installs the SmallDocs Cloud skill globally for all detected supported agents using the cross-agent `skills` installer. Its short description stays available to your agent; the full reference loads when needed. The skill covers tagged documents, rich formats, search, edits, comments, sharing, members and billing. Run `sdoc cloud login` to authorize this computer.
+
+Run `sdoc setup --cloud --yes` when `npx skills` is unavailable, or to remove an always-on SmallDocs block written by an older release. The fallback writes the same Cloud skill to `~/.agents/skills/smalldocs/SKILL.md`, links detected agent-specific skill directories to it, and preserves surrounding notes.
+
+For URL-only local use, the standard skill remains available:
+
+```bash
 npx skills@latest add https://smalldocs.org/agent-skills/standard --global
 ```
-
-Installs the standard SmallDocs skill globally using the cross-agent `skills` installer. The skill is a `SKILL.md` whose short description sits in your agent's context and whose full reference loads on demand only when relevant. The full reference includes runnable HTML guidance so agents use executable components only when interaction explains something more clearly than prose, diagrams, charts, or computed cells.
-
-Run `sdoc setup` when `npx skills` is unavailable, or when an older SmallDocs release previously wrote an always-on block to an agent configuration file. The built-in setup writes one canonical copy to `~/.agents/skills/smalldocs/SKILL.md`, links detected agent-specific skill directories to it, and removes recognised legacy blocks while preserving surrounding notes.
 
 Run `sdoc setup --help` to read setup options without installing a skill or opening a prompt.
 
 `sdoc setup` also auto-prompts once the first time you use the CLI. If you decline or skip it then, you can come back and run it manually. It is idempotent, so re-running it on an up-to-date install is a no-op.
 
-The setup wizard also asks whether you want sdoc to auto-install its own updates when a new version ships on npm. Recommended if you mostly use sdoc through coding agents (which never see the interactive update prompt). Toggle later with `sdoc auto-update on` or `sdoc auto-update off`. Each auto-install prints a source-diff link so you (or your agent) can verify what was installed.
+Rerun the NPX command to update the globally installed skill. In the interactive `sdoc setup` fallback, you can also choose whether sdoc automatically installs CLI updates from npm. Toggle that separately with `sdoc auto-update on` or `sdoc auto-update off`. Each automatic CLI install prints a source-diff link.
 
 When the skill is itself updated (rare, only on releases that change the wording), sdoc prints a one-line summary plus a link to [the skill changelog](/agent-changes) so you can audit what changed. Because every agent resolves to the one canonical file, a refresh rewrites that single file and every symlinked agent picks it up.
 
@@ -749,32 +758,32 @@ sdoc charts            # chart types, JSON format, styling, annotations
 
 ### Set up your agent
 
-Use the cross-agent installer for the standard skill:
+Use the cross-agent installer for the Cloud skill:
 
 ```bash
-npx skills@latest add https://smalldocs.org/agent-skills/standard --global
+npx --yes skills@latest add https://smalldocs.org/agent-skills/cloud --global --yes
 ```
 
-After `sdoc cloud login`, run `sdoc setup --cloud --yes`. Both editions use the
-same `smalldocs` skill name, so one replaces the other. In Cloud-first mode,
-ordinary `sdoc FILE.md` opens create or update Cloud before opening the browser.
-Use `sdoc setup --cloud --account UUID --yes` to keep automatic creates in one
-workspace when the user belongs to several accounts.
+Run `sdoc cloud login` and approve this computer in your browser. The skill is
+installed globally for all detected supported agents, using the same `smalldocs`
+name as the standard edition. After installing the Cloud skill, `sdoc FILE.md`
+creates or updates a Cloud document, then opens it in your browser. With several libraries, run
+`sdoc cloud library-default LIBRARY_UUID --json` to choose the computer default.
 
-If `npx skills` is unavailable, run `sdoc setup`. It installs one canonical
+If `npx skills` is unavailable, run `sdoc setup --cloud --yes`. It installs one canonical
 `SKILL.md` at `~/.agents/skills/smalldocs`; agents using that universal
 location read it directly and other detected agents receive a symlink. This
-built-in setup installs the standard edition unless `--cloud` is passed.
+built-in fallback also removes recognised legacy configuration blocks.
 
 If you previously ran an older `sdoc setup` that pasted an always-on SmallDocs
 section into a `CLAUDE.md` / `AGENTS.md` / `GEMINI.md`, running `sdoc setup` or
 `sdoc refresh` removes it - the skill replaces it, and leaving both would
 double-load the reference.
 
-Preview the exact standard skill and built-in install plan without writing:
+Preview the exact Cloud skill and built-in install plan without writing:
 
 ```bash
-sdoc setup --yes --dry-run
+sdoc setup --cloud --yes --dry-run
 ```
 
 ```bash

@@ -4528,7 +4528,7 @@ const server = http.createServer((req, res) => {
       'Access-Control-Allow-Origin': '*',
       'X-Content-Type-Options': 'nosniff',
     });
-    res.end(smallDocsAgentSkill.formatSkill(smallDocsAgentSkill.SKILL_VERSION, { cloud }));
+    res.end(smallDocsAgentSkill.formatSkill(smallDocsAgentSkill.SKILL_VERSION, { cloud, origin: CLOUD_AUTH_PUBLIC_ORIGIN }));
     return;
   }
 

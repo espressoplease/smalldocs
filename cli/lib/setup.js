@@ -20,6 +20,7 @@ const {
   SKILL_BODY,
   SKILL_NAME,
   formatSkill,
+  readSkillVersion,
   readSkillEdition,
   canonicalSkillFile,
   canonicalSkillDir,
@@ -164,6 +165,16 @@ function setupStateFields(edition, accountId, existing) {
 
 function cloudFirstSettings() {
   const state = readSetupState();
+  // An explicit external skill install can replace a previous built-in setup.
+  // Follow the installed edition without changing the user's update consent.
+  try {
+    const content = fs.readFileSync(canonicalSkillFile(os.homedir()), 'utf8');
+    if (readSkillVersion(content) !== null) {
+      return readSkillEdition(content) === 'cloud'
+        ? { accountId: state && state.skillEdition === 'cloud' ? state.cloudAccountId || null : null }
+        : null;
+    }
+  } catch (_) {}
   if (state) {
     if (state.declined || state.skillEdition !== 'cloud') return null;
     return { accountId: state.cloudAccountId || null };

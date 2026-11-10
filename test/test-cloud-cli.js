@@ -69,9 +69,9 @@ module.exports = function(harness) {
 
   test('Cloud skill install commands preserve the selected server origin', () => {
     assert.strictEqual(skillInstallCommand('https://cloud-staging.smalldocs.org', true),
-      'npx skills@latest add https://cloud-staging.smalldocs.org/agent-skills/cloud --global');
+      'npx --yes skills@latest add https://cloud-staging.smalldocs.org/agent-skills/cloud --global --yes');
     assert.strictEqual(skillInstallCommand('https://smalldocs.org', false),
-      'npx skills@latest add https://smalldocs.org/agent-skills/standard --global');
+      'npx --yes skills@latest add https://smalldocs.org/agent-skills/standard --global --yes');
   });
 
   test('Cloud help documents search result fields and read/update workflows', () => {
@@ -522,7 +522,7 @@ module.exports = function(harness) {
       assert.strictEqual(result.skill_mode, 'cloud');
       assert.strictEqual(result.already_logged_in, true);
       assert.ok(result.skill_install_command.includes('/agent-skills/cloud'));
-      assert.strictEqual(result.cloud_first_setup_command, 'sdoc setup --cloud --yes');
+      assert.strictEqual(result.cloud_first_setup_command, result.skill_install_command);
     });
 
     await testAsync('Cloud logout leaves the installed skill and offers an explicit restore', async () => {

@@ -29,7 +29,7 @@ for (const width of [390, 1440]) {
     await page.goto('/cloud/admin?panel=install');
     await expect(page.getByRole('heading', { name: 'Install SmallDocs', exact: true })).toBeVisible();
     await expect(page.locator('#account-label')).toHaveText('Alex Rivera · alex@example.com');
-    await expect(page.locator('#install-command')).toContainText('sdoc setup --cloud --yes');
+    await expect(page.locator('#install-command')).toContainText('/agent-skills/cloud --global --yes');
     await expect(page.locator('#install-command')).toContainText('export SDOCS_CLOUD_URL=' + new URL(page.url()).origin + '\nsdoc cloud login');
     await expect(page.locator('#install-prompt')).toContainText('Let me approve this computer in my browser');
     await expect(page.locator('#install-prompt')).toContainText('Create one short getting-started document');

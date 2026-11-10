@@ -83,7 +83,7 @@
     var environment = origin === 'https://smalldocs.org' ? '' : options.windows
       ? '$env:SDOCS_CLOUD_URL="' + origin + '"' : 'export SDOCS_CLOUD_URL=' + origin;
     var scope = account ? ' --account ' + account : '';
-    var setup = 'sdoc setup --cloud' + scope + ' --yes';
+    var setup = 'npx --yes skills@latest add ' + origin + '/agent-skills/cloud --global --yes';
     var status = 'sdoc cloud status' + scope + ' --json';
     var commands = [install];
     if (!options.windows) commands.push('export PATH="$HOME/.sdocs/bin:$PATH"');
@@ -97,7 +97,7 @@
     if (!options.windows) steps.push('Make sdoc available in this terminal:\n   `export PATH="$HOME/.sdocs/bin:$PATH"`');
     if (environment) steps.push('Before running any sdoc command, set the Cloud server:\n   `' + environment + '`');
     steps.push('Run `sdoc cloud login`. Let me approve this computer in my browser.',
-      'Install the SmallDocs skill' + (account ? ' and select this library for new documents' : '') + ':\n   `' + setup + '`',
+      'Install or update the Cloud skill globally for all detected coding agents:\n   `' + setup + '`',
       'Read the installed `~/.agents/skills/smalldocs/SKILL.md` now so you can use it in this chat.');
     if (account) steps.push('Save this library as the default for this computer:\n   `sdoc cloud library-default ' + account + ' --json`');
     steps.push('Confirm the selected library and that `can_create_document` is true:\n   `' + status + '`',

@@ -39,6 +39,41 @@ module.exports = function (harness) {
   const scenarios = [];
   const scenario = (name, fn) => scenarios.push([name, fn]);
 
+  scenario('an externally installed Cloud skill enables Cloud opens for fresh and previously configured users', async () => {
+    for (const previous of [null, { skillEdition: 'standard', declined: false }, { skillEdition: 'standard', declined: true }]) {
+      const fx = createFixture({ agents: ['claude', 'codex'], setupState: previous });
+      try {
+        fx.write(skillRel, cli.formatSkill(cli.SKILL_VERSION, { cloud: true }));
+        fx.write('report.md', '# A Cloud report\n');
+        const before = fx.readSetupState();
+        const result = await fx.run(path.join(fx.home, 'report.md') + ' --no-open --json', { env: {
+          SDOCS_HOME: path.join(fx.home, '.sdocs'), SDOCS_CLOUD_FILE_CREDENTIALS: '1',
+        } });
+        assert.strictEqual(result.exitCode, 1);
+        assert.ok(result.stderr.includes('sdoc cloud login'), result.stderr);
+        assert.ok(!result.stdout.includes('#md='), 'Cloud opens must not fall back to a URL-only document');
+        assert.deepStrictEqual(fx.readSetupState(), before, 'external install does not change update consent');
+      } finally { fx.cleanup(); }
+    }
+  });
+
+  scenario('an externally installed standard skill replaces a previous Cloud-open preference', async () => {
+    const fx = createFixture({ agents: ['codex'], setupState: {
+      skillEdition: 'cloud', cloudAccountId: 'old-library', declined: false, autoInstallUpdates: false,
+    } });
+    try {
+      fx.write(skillRel, cli.formatSkill(cli.SKILL_VERSION));
+      fx.write('report.md', '# A local report\n');
+      const before = fx.readSetupState();
+      const result = await fx.run(path.join(fx.home, 'report.md') + ' --no-open --json', { env: {
+        SDOCS_HOME: path.join(fx.home, '.sdocs'), SDOCS_CLOUD_FILE_CREDENTIALS: '1',
+      } });
+      assert.strictEqual(result.exitCode, 0, result.stderr);
+      assert.ok(!result.stderr.includes('sdoc cloud login'), 'local opens do not require a Cloud credential');
+      assert.deepStrictEqual(fx.readSetupState(), before);
+    } finally { fx.cleanup(); }
+  });
+
   scenario('setup help exits without prompts, installing skills, or changing state', async () => {
     for (const args of ['setup --help', 'setup -h', 'setup --cloud --yes --help']) {
       const fx = createFixture({ agents: ['claude'] });

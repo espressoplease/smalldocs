@@ -2,6 +2,12 @@ module.exports = function (h) {
   const { assert, testAsync } = h;
   const { runCloudCommand } = require('../cli/lib/cloud-commands');
   return async function () {
+    const setup = require('../cli/lib/agent-block');
+    const readSetup = setup.readSetupState, writeSetup = setup.writeSetupState;
+    let localState = { skillEdition: 'cloud', cloudAccountId: 'previous-library', autoInstallUpdates: false };
+    setup.readSetupState = () => ({ ...localState });
+    setup.writeSetupState = value => { localState = value; };
+    try {
     const calls = [];
     const client = { origin: 'https://smalldocs.org', loadCredential: () => ({ credential_id: 'computer-a', user_id: 'user-a' }),
       authenticated: async (endpoint, options) => {
@@ -27,8 +33,11 @@ module.exports = function (h) {
       assert.strictEqual((await run({ file: 'library-default' })).workspace_id, 'library-b');
       await run({ file: 'library-default', extra: 'library-b' });
       assert.strictEqual(calls.at(-1).endpoint, '/api/cloud/v1/cli/credentials/computer-a/library-default');
+      assert.strictEqual(localState.cloudAccountId, 'library-b');
+      assert.strictEqual(localState.autoInstallUpdates, false);
       await run({ file: 'library-default', extra: 'clear' });
       assert.strictEqual(JSON.parse(calls.at(-1).options.body).workspace_id, null);
+      assert.strictEqual(localState.cloudAccountId, null);
     });
     await testAsync('move dry-run returns a Cloud URL and permission consequence without mutation', async () => {
       calls.length = 0;
@@ -43,5 +52,6 @@ module.exports = function (h) {
       assert.strictEqual(result.url, 'https://smalldocs.org/docs?cloud-document=document-a');
       assert.strictEqual(result.workspace_id, 'library-b');
     });
+    } finally { setup.readSetupState = readSetup; setup.writeSetupState = writeSetup; }
   };
 };

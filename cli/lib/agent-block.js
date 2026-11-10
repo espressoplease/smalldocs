@@ -239,13 +239,13 @@ function formatSkill(version, options) {
   let body = cloud ? CLOUD_SKILL_BODY : SKILL_BODY;
   const edition = cloud ? 'cloud' : 'standard';
   let originMarker = '';
-  if (INSTALLATION_CHANNEL) {
-    const origin = INSTALLATION_CHANNEL.origin;
-    description += ' Staging: ' + origin + '.';
+  const origin = INSTALLATION_CHANNEL ? INSTALLATION_CHANNEL.origin : options && options.origin;
+  if (origin && origin !== 'https://smalldocs.org') {
+    description += (INSTALLATION_CHANNEL ? ' Staging: ' : ' Cloud service: ') + origin + '.';
     body = body.split('https://smalldocs.org').join(origin);
-    body += '\n### Installation destination\n\nThis CLI is bound to ' + origin +
-      '. Use the installed sdoc command and returned URLs for this environment. ' +
-      'Production URL overrides are rejected. CLI updates are manual; sdoc upgrade prints the reinstall command.\n';
+    if (INSTALLATION_CHANNEL) body += '\n### Installation destination\n\nThis CLI is bound to ' + origin +
+        '. Use the installed sdoc command and returned URLs for this environment. ' +
+        'Production URL overrides are rejected. CLI updates are manual; sdoc upgrade prints the reinstall command.\n';
     originMarker = '<!-- sdocs-skill-origin: ' + origin + ' -->\n';
   }
   return `---\nname: ${SKILL_NAME}\ndescription: "${description}"\n---\n\n<!-- sdocs-skill: v=${version} -->\n<!-- sdocs-skill-edition: ${edition} -->\n${originMarker}${body}`;
