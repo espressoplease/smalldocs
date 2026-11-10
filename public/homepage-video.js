@@ -243,10 +243,15 @@
   let dockHome = null, compactHold = 0, compactTimer = 0;
   const clamp = value => Math.max(0, Math.min(1, value));
   const mix = (from, to, amount) => from + (to - from) * amount;
+  function placeDockCaption(beside) {
+    const host = beside ? toolbarClip : screen;
+    if (caption.parentElement !== host) host.appendChild(caption);
+  }
   function releaseScrollDock(holdHome) {
     if (!scrollDockEnabled) return;
     if (!docked && !previewHome.style.height) return;
     docked = false; card.classList.remove('is-scroll-docked');
+    placeDockCaption(false);
     dockProperties.forEach(name => card.style.removeProperty('--dock-' + name));
     if (!holdHome && !compactHold) previewHome.style.removeProperty('height');
     document.documentElement.classList.remove('has-homepage-dock');
@@ -276,6 +281,7 @@
     if (home.top > pinTop) { releaseScrollDock(); return; }
     if (!docked || dockNeedsMeasure) {
       card.classList.remove('is-scroll-docked');
+      placeDockCaption(false);
       previewHome.style.removeProperty('height');
       home = previewHome.getBoundingClientRect();
       dockHome = { width: home.width, height: card.getBoundingClientRect().height };
@@ -288,6 +294,7 @@
     const gap = innerWidth <= 600 ? 12 : 20;
     const sideAt = Math.min(.82, Math.max(.45, (gap + (innerWidth <= 600 ? 128 : 240)) / (dockHome.width - smallWidth)));
     const beside = progress >= sideAt;
+    placeDockCaption(beside);
     const sideProgress = clamp((progress - sideAt) / Math.max(.01, 1 - sideAt));
     const toolbarLeft = beside ? screenWidth + gap + 12 * (1 - sideProgress) : 0;
     const opacity = beside ? sideProgress : 1 - clamp((progress - sideAt + .16) / .16);
@@ -313,7 +320,7 @@
       if (event.propertyName === 'max-width') scheduleScrollDock(true);
     });
     new ResizeObserver(() => scheduleScrollDock(true)).observe(previewHome);
-    new ResizeObserver(() => scheduleScrollDock()).observe(controls);
+    new ResizeObserver(() => scheduleScrollDock()).observe(toolbar);
     reducedMotion.addEventListener('change', () => scheduleScrollDock(true));
   }
 

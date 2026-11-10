@@ -305,6 +305,23 @@ html.has-homepage-dock { scroll-padding-top: var(--homepage-dock-height); }
   transition: none;
 }
 .videocard.is-scroll-docked .vid-caption { max-width: calc(100% - 12px); font-size: 12px; bottom: 8px; }
+.videocard.is-scroll-docked .vid-toolbar .vid-caption {
+  position: static;
+  transform: none;
+  width: auto;
+  max-width: none;
+  margin-top: 10px;
+  color: var(--ink);
+  text-align: left;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+.videocard.is-scroll-docked .vid-toolbar .vid-caption span {
+  color: inherit;
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+}
 .videocard.is-scroll-docked .vid-toolbar .vid-chapmenu {
   top: calc(100% + 8px);
   bottom: auto;
