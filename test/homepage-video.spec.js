@@ -260,6 +260,8 @@ for (const width of [320, 390, 1440]) {
     expect(box.x).toBeGreaterThan(screen.x + screen.width);
     expect(box.y).toBeGreaterThanOrEqual(controls.y + controls.height + 9);
     expect(box.x + box.width).toBeLessThanOrEqual(width);
+    expect(box.x + box.width).toBeCloseTo(controls.x + controls.width, 0);
+    expect(await caption.evaluate(el => getComputedStyle(el).textAlign)).toBe('right');
     expect(await caption.locator('span').evaluate(el => getComputedStyle(el).backgroundColor)).toBe('rgba(0, 0, 0, 0)');
     expect(await caption.locator('span').evaluate(el => getComputedStyle(el).color)).toBe('rgb(27, 24, 21)');
     await page.evaluate(() => {

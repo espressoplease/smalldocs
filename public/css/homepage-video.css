@@ -312,7 +312,7 @@ html.has-homepage-dock { scroll-padding-top: var(--homepage-dock-height); }
   max-width: none;
   margin-top: 10px;
   color: var(--ink);
-  text-align: left;
+  text-align: right;
   font-size: 14px;
   overflow-wrap: anywhere;
 }
