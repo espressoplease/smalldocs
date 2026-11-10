@@ -11,6 +11,13 @@ module.exports = function(harness) {
   const { assert, test } = harness;
 
   console.log('\n── CLI Reference Tests ─────────────────────\n');
+  test('Cloud login parses a referral code without changing its action or opening preference', () => {
+    const opts = cli.parseArgs(['cloud', 'login', '--referral-code', 'abcdefghijklmnopqrstuvwx', '--no-open', '--json']);
+    assert.strictEqual(opts.file, 'login');
+    assert.strictEqual(opts.referralCode, 'abcdefghijklmnopqrstuvwx');
+    assert.strictEqual(opts.noOpenFlag, true);
+    assert.strictEqual(cli.parseArgs(['cloud', 'login', '--referral-code', '--json']).referralCode, '');
+  });
 
   test('slides list reads the registry from the published CLI package', () => {
     const lines = [];

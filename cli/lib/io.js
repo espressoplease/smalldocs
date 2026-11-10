@@ -80,6 +80,7 @@ function parseArgs(argv) {
   let starredOnlyFlag = false;
   let noteText = null;
   let reasonText = null;
+  let referralCode = null;
   let roleFlag = null;
   let ratingFlag = null;
   const memberFlags = [];
@@ -290,6 +291,9 @@ function parseArgs(argv) {
     if (arg === '--standard')                        { skillEdition     = 'standard'; continue; }
     if (arg === '--sheet')                           { sheetName        = args[++i]; continue; }
     if (arg === '--project')                         { projectFlag      = args[++i]; continue; }
+    if (arg === '--referral-code' && subcommand === 'cloud' && file === 'login') {
+      referralCode = args[i + 1] && !args[i + 1].startsWith('--') ? args[++i] : ''; continue;
+    }
     if (arg === '--account')                         { accountFlag      = args[++i]; continue; }
     if (arg === '--member')                          { memberFlags.push(args[++i]); continue; }
     if (arg === '--everyone')                        { everyoneFlag     = true; continue; }
@@ -375,7 +379,7 @@ function parseArgs(argv) {
     projectFlag, accountFlag, outputPath, revisionFlag, documentFlag, baseRevisionFlag,
     ifCurrentFlag, rejectConflictsFlag, fromRevisionFlag, toRevisionFlag,
     limitFlag, noOpenFlag, noBindFlag, forceFlag, tagFilters,
-    everyoneFlag, onlyYouFlag, sharedWithMeFlag, starredOnlyFlag, noteText, reasonText, roleFlag, ratingFlag, memberFlags, documentFlags,
+    everyoneFlag, onlyYouFlag, sharedWithMeFlag, starredOnlyFlag, noteText, reasonText, referralCode, roleFlag, ratingFlag, memberFlags, documentFlags,
     addTags, annotations, files,
   }, discovery, cloudContent, cloudComments);
 }

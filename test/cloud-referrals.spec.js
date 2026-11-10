@@ -61,7 +61,7 @@ for(const width of [1440,390]) for(const method of ['email','google']) {
       if(method==='email') {
         const form=signup.locator('[data-install-form]').first();
         await form.locator('input').fill('referred-email@example.test');
-        await form.getByRole('button',{name:'Get install prompt'}).click();
+        await form.getByRole('button',{name:'Continue with email'}).click();
         await expect(signup.locator('#code-view')).toBeVisible();
         await expect.poll(()=>mail.messages.length).toBe(1);
         const text=decodeMimeParts(mail.messages[0]).map(part=>part.body).join('\n');
@@ -76,8 +76,8 @@ for(const width of [1440,390]) for(const method of ['email','google']) {
         await signup.getByLabel('First name').fill('Robin');await signup.getByLabel('Last name').fill('Walker');
         await signup.getByRole('button',{name:'Continue',exact:true}).click();
       }
-      await expect(signup).toHaveURL(/cloud\/admin\?panel=install/);
-      await expect(signup.locator('#install-prompt')).toContainText('Create one short getting-started document');
+      await expect(signup).toHaveURL(/cloud\/install/);
+      await expect(signup.locator('#install-prompt')).toContainText('Create one getting-started document');
       const headers={Origin:f.origin};
       const issued=await signup.request.post(f.origin+'/api/cloud/v1/cli/device-authorizations',{data:{display_name:'Laptop'}});
       const issuedData=await issued.json();expect(issued.status()).toBe(201);

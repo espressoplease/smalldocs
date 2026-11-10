@@ -88,33 +88,95 @@
     var commands = [install];
     if (!options.windows) commands.push('export PATH="$HOME/.sdocs/bin:$PATH"');
     if (environment) commands.push(environment);
-    commands.push('sdoc cloud login', setup);
+    var referral = /^[A-Za-z0-9_-]{24}$/.test(options.referralCode || '') ? options.referralCode : '';
+    var login = 'sdoc cloud login' + (referral ? ' --referral-code ' + referral : '');
+    commands.push(setup, login);
     if (account) commands.push('sdoc cloud library-default ' + account + ' --json');
     commands.push(status);
-    var steps = [
-      'Install or update the SmallDocs CLI:\n   `' + install + '`',
-    ];
-    if (!options.windows) steps.push('Make sdoc available in this terminal:\n   `export PATH="$HOME/.sdocs/bin:$PATH"`');
-    if (environment) steps.push('Before running any sdoc command, set the Cloud server:\n   `' + environment + '`');
-    steps.push('Run `sdoc cloud login`. Let me approve this computer in my browser.',
-      'Install or update the Cloud skill globally for all detected coding agents:\n   `' + setup + '`',
-      'Read the installed `~/.agents/skills/smalldocs/SKILL.md` now so you can use it in this chat.');
-    if (account) steps.push('Save this library as the default for this computer:\n   `sdoc cloud library-default ' + account + ' --json`');
-    steps.push('Confirm the selected library and that `can_create_document` is true:\n   `' + status + '`',
-      'Create one short getting-started document in my Cloud library. Read `sdoc cloud tags --help`, then check existing tags and reuse relevant ones. Give the document meaningful tags, such as `getting-started` and `smalldocs` if they fit. Save it with the CLI and verify `ok`, the saved tags and the returned Cloud URL. Open that URL for me.');
+    var destination = (libraryName ? 'My library is ' + JSON.stringify(libraryName) + '. ' : '') + (account
+      ? 'Use library ID ' + account + ' as the default on this computer.'
+      : 'Use my configured library, or my Personal library if this is a new account. Ask me if a library choice is needed.');
+    var connect = 'Connect me to ' + origin + ' with `' + login + '`. Let me sign in with Google or an email code and approve the connection in my browser. Keep the login running while I do this.';
+    var tour = 'Create one getting-started document from ' + origin + '/public/getting-started.md, following "First setup and tour" in the skill. Verify the spreadsheets and slides, look up and reuse relevant tags, save the document to my Cloud library with meaningful tags, and open it for me.';
+    var readSkill = 'Read the installed SmallDocs Cloud skill at `~/.agents/skills/smalldocs/SKILL.md`.';
     return {
+      install_command: install,
+      skill_command: setup,
       commands: commands.join('\n'),
-      prompt: 'Set up SmallDocs Cloud for me and show me how to use it with one document.' +
-        (libraryName ? '\n\nMy library is ' + JSON.stringify(libraryName) + '.' : '') + '\n\n' +
-        steps.map(function (step, index) { return (index + 1) + '. ' + step; }).join('\n') +
-        '\n\nPut this short guide in the document:\n' +
-        '- My library holds Cloud documents I can open from other computers. Everyone has a private Personal library. To invite people, I create or join a separate Team library. Tags are labels, such as `launch` or `research`, that help us find related documents again.\n' +
-        '- I can ask for a document without naming a tool: "Write a document about our launch plan." I can also say "Make a SmallDoc" or "Use SmallDocs". Use SmallDocs by default unless I request another format or tool.\n' +
-        '- I can ask you to find documents by tags, author or words, read comments and update the same document. Edits keep its Cloud URL, and the open browser page picks up saved changes.\n' +
-        '- I can ask you to manage my library and account through chat. You can invite or remove members when my role allows it, check my trial and billing, and open account settings. "Subscribe to SmallDocs" opens the subscription page, where I complete payment. "Cancel my subscription" opens billing settings, where I complete cancellation. Inviting someone does not share existing private documents.\n' +
-        'Use CLI help and the installed skill for these workflows. For this tour, demonstrate document creation only. In chat, confirm setup worked, link to the document and give three example requests I can try next. Keep command names, account IDs and setup details out of the tour.\n\n' +
-        'For future documents and artifacts, use SmallDocs by default unless I request another format or tool. Save every new document with meaningful tags. Example: `sdoc report.md --cloud' + scope + ' --json +subject +project`. Replace the example tags with tags relevant to the document. Verify the save and tags, then link to the returned Cloud URL. When updating a document, save it back to its current library.',
+      connection_prompt: 'I have installed SmallDocs on this computer. ' + readSkill + (environment ? ' Use this Cloud server: `' + environment + '`.' : '') + '\n\nConnect me to ' + origin + '. Let me sign in and approve the connection in my browser when needed. ' + destination + '\n\nFollow "First setup and tour" in the skill to create and open one tagged document from ' + origin + '/public/getting-started.md.',
+      prompt: 'Install SmallDocs Cloud for me and show me a tour.\n\n'
+        + 'Install or update the CLI: `' + install + '`.'
+        + (!options.windows ? ' Make it available in this terminal with `export PATH="$HOME/.sdocs/bin:$PATH"`.' : '') + '\n\n'
+        + 'Install the Cloud skill globally: `' + setup + '`. ' + readSkill + '\n\n'
+        + (environment ? 'Use this Cloud server: `' + environment + '`.\n\n' : '')
+        + connect + '\n\n' + destination + '\n\n' + tour,
     };
+  }
+
+  var COPY_ICON = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+  var CHECK_ICON = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m20 6-11 11-5-5"/></svg>';
+
+  function cloudInstallMarkup(options) {
+    options = options || {};
+    var instructions = cloudInstructions(options), accountPage = options.accountPage, onboarding = options.onboarding;
+    function escape(value) { return String(value).replace(/[&<>"']/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]; }); }
+    function copyButton(field, label, primary) {
+      return '<button class="sdoc-install-copy' + (primary ? ' sdoc-install-copy-primary primary-button' : '') + '" type="button" data-install-copy="' + field + '" aria-label="' + label + '" title="' + label + '">' + COPY_ICON + (primary ? '<span>Copy setup prompt</span>' : '') + '</button>';
+    }
+    function command(field, label, value) {
+      return '<div class="sdoc-install-command"><code data-install-field="' + field + '" data-home-' + field + '>' + escape(value) + '</code>' + copyButton(field, label) + '</div>';
+    }
+    var prompt = '<div class="sdoc-install-content">'
+      + (onboarding ? copyButton('prompt', 'Copy setup prompt', true) : '')
+      + '<div class="sdoc-install-prompt">' + (onboarding ? '' : '<div class="sdoc-install-prompt-head"><span>Copy setup prompt</span>' + copyButton('prompt', 'Copy setup prompt') + '</div>')
+      + '<pre data-install-field="prompt" data-home-prompt' + (accountPage ? ' id="install-prompt"' : '') + '>' + escape(instructions.prompt) + '</pre></div>'
+      + (onboarding ? '' : '<p class="sdoc-install-note">Paste into your coding agent.</p>') + '</div>';
+    var manual = '<details class="sdoc-install-method" data-install-method="manual"><summary>Install yourself</summary>'
+      + '<div class="sdoc-install-content"' + (accountPage ? ' id="install-command"' : '') + '>'
+      + command('cli', 'Copy CLI command', instructions.install_command)
+      + command('skill', 'Copy skill command', instructions.skill_command)
+      + '<div class="sdoc-install-prompt"><div class="sdoc-install-prompt-head"><span>Then paste this into your agent</span>' + copyButton('connect', 'Copy connection prompt') + '</div><pre data-install-field="connect">' + escape(instructions.connection_prompt) + '</pre></div>'
+      + '</div></details>';
+    return '<div class="sdoc-install' + (onboarding ? ' sdoc-install-onboarding' : '') + '"' + (accountPage ? '' : ' data-home-install') + '>'
+      + (onboarding ? prompt : '<details class="sdoc-install-method" data-install-method="prompt" open><summary>Use install prompt</summary>' + prompt + '</details>')
+      + manual
+      + '<p class="sdoc-install-status" data-install-copy-status' + (accountPage ? ' id="install-copy-status"' : '') + ' role="status" aria-live="polite"></p></div>';
+  }
+
+  // One copy interaction for homepage and account installation. Only show success
+  // after the clipboard write completes; keep the control outside scrolling text.
+  function bindInstallCopy(root) {
+    root.querySelectorAll('[data-install-copy]').forEach(function (button) {
+      if (button.dataset.copyBound) return;
+      button.dataset.copyBound = 'true';
+      var original = button.innerHTML;
+      button.addEventListener('click', async function () {
+        if (button.dataset.copying) return;
+        var field = button.dataset.installCopy;
+        var source = root.querySelector('[data-install-field="' + field + '"]');
+        var status = root.querySelector('[data-install-copy-status]');
+        button.dataset.copying = 'true';
+        try {
+          await navigator.clipboard.writeText(source.textContent);
+          button.innerHTML = CHECK_ICON + (button.classList.contains('sdoc-install-copy-primary') ? '<span>Copied</span>' : '');
+          button.classList.add('done');
+          button.setAttribute('aria-label', 'Copied');
+          button.title = 'Copied';
+          status.textContent = field === 'prompt' || field === 'connect' ? 'Prompt copied. Paste it into your coding agent.' : 'Command copied.';
+          setTimeout(function () {
+            button.innerHTML = original;
+            button.classList.remove('done');
+            button.setAttribute('aria-label', button.dataset.copyLabel);
+            button.title = button.dataset.copyLabel;
+          }, 1500);
+        } catch (_) {
+          status.textContent = 'Select the text and copy it.';
+        } finally {
+          delete button.dataset.copying;
+        }
+      });
+      button.dataset.copyLabel = button.getAttribute('aria-label');
+    });
   }
 
   exports.SETUP_PROMPT = SETUP_PROMPT;
@@ -123,4 +185,6 @@
   exports.upgradeCommand = upgradeCommand;
   exports.reinstallCommand = reinstallCommand;
   exports.cloudInstructions = cloudInstructions;
+  exports.cloudInstallMarkup = cloudInstallMarkup;
+  exports.bindInstallCopy = bindInstallCopy;
 })(typeof module !== "undefined" && module.exports ? module.exports : (window.SDocCliSetup = {}));

@@ -833,7 +833,7 @@ test('a fresh CLI authorizes, manages a Cloud document, persists, and revokes it
 
       const loginProcess = runCli(['cloud', 'login', '--no-open', '--json'], cliEnv);
       await expect.poll(loginProcess.stderr, { timeout: 10000 })
-        .toContain('Authorize this CLI at:');
+        .toContain('Connect your agent at:');
       const verificationUrl = loginProcess.stderr().split('\n')
         .find(line => line.startsWith(baseURL + '/cloud/authorize?'));
       expect(verificationUrl).toBeTruthy();

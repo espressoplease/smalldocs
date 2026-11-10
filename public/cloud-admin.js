@@ -401,6 +401,10 @@
   }
 
   function activatePanel(name, updateLocation, skipLoad) {
+    if (settingsScope === 'account' && name === 'install') {
+      location.assign('/cloud/install' + (state.workspace ? '?workspace_id=' + encodeURIComponent(state.workspace.id) : ''));
+      return;
+    }
     if (settingsScope === 'library') {
       if (name === 'libraries') byId('panel-libraries').appendChild(byId('recovery-section'));
       else byId('panel-overview').insertBefore(byId('recovery-section'), byId('workspace-lifecycle'));
@@ -678,20 +682,16 @@
 
   function renderInstall(workspaceId) {
     var setup = window.SDocCliSetup;
-    var instructions = setup.cloudInstructions({ origin: location.origin, workspaceId: workspaceId,
-      workspaceName: state.workspace && accountName(state.workspace), windows: setup.isWindows() });
-    byId('install-command').textContent = instructions.commands;
-    byId('install-prompt').textContent = instructions.prompt;
+    var root = byId('install-methods');
+    var open = Array.from(root.querySelectorAll('details[open]')).map(function (details) { return details.dataset.installMethod; });
+    root.innerHTML = setup.cloudInstallMarkup({ origin: location.origin, workspaceId: workspaceId,
+      workspaceName: state.workspace && accountName(state.workspace), windows: setup.isWindows(), accountPage: true });
+    root.querySelectorAll('details').forEach(function (details) { details.open = open.indexOf(details.dataset.installMethod) !== -1; });
+    setup.bindInstallCopy(root);
   }
 
   function setupInstall() {
     renderInstall();
-    document.querySelectorAll('[data-install-copy]').forEach(function (button) {
-      button.addEventListener('click', async function () {
-        try { await navigator.clipboard.writeText(byId(button.dataset.installCopy).textContent); byId('install-copy-status').textContent = 'Copied'; }
-        catch (_) { byId('install-copy-status').textContent = 'Select the text and copy it.'; }
-      });
-    });
     byId('install-machines-link').addEventListener('click', function (event) { event.preventDefault(); activatePanel('machines'); });
     document.addEventListener('visibilitychange', function () {
       if (!document.hidden && !byId('panel-machines').hidden) loadCredentials().catch(showError);
@@ -878,7 +878,7 @@
         state.workspace = state.workspaces.find(function (library) { return library.id === id; }) || null;
         renderInstall(state.workspace && state.workspace.id);
         byId('install-destination-note').textContent = state.workspace
-          ? 'New documents will be saved to ' + accountName(state.workspace) + '.' : 'Choose a library for the installation prompt, or let your agent ask where to save.';
+          ? 'Setup will use ' + accountName(state.workspace) + '.' : 'Choose a library for setup, or let your agent ask where to save.';
         byId('install-library-link').href = '/library?scope=cloud' + (state.workspace ? '&workspace=' + encodeURIComponent(state.workspace.id) : '');
       }
       choice.value = selected ? selected.id : '';

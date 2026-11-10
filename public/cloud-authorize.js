@@ -41,7 +41,7 @@
     });
     if (response.ok) {
       form.hidden = true;
-      result.textContent = 'CLI authorized. You can return to the terminal.';
+      result.textContent = 'Agent connected. You can return to your chat or terminal.';
     } else {
       button.disabled = false;
       button.textContent = 'Try again';

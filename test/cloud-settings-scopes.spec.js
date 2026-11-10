@@ -128,10 +128,10 @@ test('unpaid account settings and CLI installation do not reset the trial or dep
   await page.goto(f.origin + '/cloud/admin');
   await expect(page.locator('#billing-status')).toContainText('Subscribe to continue');
   await page.getByRole('button', { name: 'Install', exact: true }).click();
-  await page.locator('#install-destination').selectOption(team.workspaceId);
+  await page.goto(f.origin + '/cloud/install?workspace_id=' + team.workspaceId);
   await expect(page.locator('#install-prompt')).toContainText(team.workspaceId);
   await expect(page.locator('#install-prompt')).toContainText('Northstar Engineering');
-  await page.getByRole('button', { name: 'Billing', exact: true }).click();
+  await page.goto(f.origin + '/cloud/admin?panel=billing');
   await expect(page.locator('#billing-status')).toContainText('Subscribe to continue');
   expect(new URL(page.url()).searchParams.has('workspace_id')).toBe(false);
   expect(f.billing.db.prepare('SELECT ends_at_ms FROM cloud_billing_personal_trials WHERE user_id=?').get(f.users.josh.id).ends_at_ms).toBe(before);

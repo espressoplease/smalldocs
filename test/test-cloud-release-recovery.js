@@ -14,7 +14,7 @@ await h.testAsync('an incomplete first payment preserves the original trial payw
  const f=await startFixture({singlePlan:true,stripeApiBase:'http://127.0.0.1:'+mock.address().port});
  try{
   const home = await (await fetch(f.origin + '/')).text();
-  assert.ok(home.includes('homepage-signup-divider'));
+  assert.ok(home.includes('data-home-install'));
   assert.ok(home.includes('/cloud/sign-in?return='));
   const id=(await f.api('josh','/api/cloud/v1/onboarding/complete','POST',{})).data.workspaces[0].id;
   const saved=await f.api('josh','/api/cloud/v1/account/documents','POST',{account_id:id,filename:'unpaid.md',markdown:'# Private saved content',tags:['audit'],idempotency_key:'unpaid-doc'});assert.equal(saved.status,201);

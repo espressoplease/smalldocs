@@ -130,13 +130,13 @@ test('homepage experiment preserves the supplied copy and vertical order', async
     'SmallDocs are built for human-agent feedback loops. Speed up your iteration with targeted features: easy ways to copy precise chunks of text, tables, code and charts, and the ability to leave comments on a document for your agent to pick up.',
     'SmallDocs are automatically saved to an encrypted cloud library. This library is accessible to humans (on the web, including mobile) and agents (via the SmallDocs command line tool).',
     'SmallDocs are agent agnostic, meaning teams using AI from a range of providers can all create and save documents in a standardized way.',
-    'Over 4,000 developers, financiers and scientists use SmallDocs. To join them, get your install prompt:',
-    'SmallDocs is free for a month, then £4/user/month, with all features included.',
+    'Over 4,000 developers, financiers and scientists use SmallDocs. To join them, sign up:',
+    'SmallDocs is free for a month, then £4/user/month.',
   ];
   expect(await page.locator('.homepage-copy').allTextContents()).toEqual(expected);
   await expect(page.locator('h1')).toHaveText('SmallDocs is a document format and library for coding agents.');
   expect(await page.locator('[data-install-form] button').allTextContents())
-    .toEqual(Array(3).fill('Get install prompt'));
+    .toEqual(Array(3).fill('Continue with email'));
   const positions = await page.evaluate(() => ['.homepage-small-video','h1','.homepage-copy','#start','#samples','#praise']
     .map(selector => document.querySelector(selector).getBoundingClientRect().top));
   expect(positions).toEqual([...positions].sort((a,b) => a-b));
@@ -217,7 +217,7 @@ for (const [locale, personal, team] of [['en-GB', '£4', '£7'], ['en-US', '$5',
     test.use({ locale });
     test('uses the existing Cloud prices in the introductory sentence', async ({ page }) => {
       await page.goto('/home-next');
-      await expect(page.locator('.homepage-price')).toHaveText('SmallDocs is free for a month, then ' + personal + '/user/month, with all features included.');
+      await expect(page.locator('.homepage-price')).toHaveText('SmallDocs is free for a month, then ' + personal + '/user/month.');
       await expect(page.locator('.homepage-price [data-cloud-plan="standard"] [data-cloud-price-primary]')).toHaveText(personal);
     });
   });

@@ -24,7 +24,7 @@ function setTrial(daysLeft) {
 test('reader, Library and Settings share account icons above the trial', async ({ page }) => {
   setTrial(23);
   await signIn(page);
-  for (const path of ['/docs', '/library?scope=cloud', '/cloud/admin?panel=install']) {
+  for (const path of ['/docs', '/library?scope=cloud', '/cloud/admin?panel=account']) {
     await page.goto(f.origin + path);
     const summary = page.locator('.sdocs-sidebar-subscription');
     await expect(summary).toBeVisible();
@@ -73,7 +73,7 @@ test('the last trial day and warning week have distinct remaining-time labels', 
 
 test('paid members do not see a trial or a second Subscribe action', async ({ page }) => {
   await signIn(page, 'returning');
-  await page.goto(f.origin + '/cloud/admin?panel=install');
+  await page.goto(f.origin + '/cloud/admin?panel=account');
   const status = await f.api('returning', '/api/cloud/billing/subscription');
   expect(status.data.phase).toBe('active');
   await page.evaluate(() => window.SDocsSidebarShared.bindSubscriptionUi());

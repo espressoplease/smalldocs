@@ -37,23 +37,25 @@ module.exports = function (h) {
       for (const windows of [false, true]) {
         const instructions = setup.cloudInstructions({ origin: STAGING_ORIGIN, workspaceId: 'library-123', workspaceName: 'Engineering', windows });
         assert.ok(instructions.commands.indexOf('SDOCS_CLOUD_URL=') < instructions.commands.indexOf('sdoc cloud login'));
-        assert.ok(instructions.commands.indexOf('sdoc cloud login') < instructions.commands.indexOf('npx --yes skills@latest'));
+        assert.ok(instructions.commands.indexOf('npx --yes skills@latest') < instructions.commands.indexOf('sdoc cloud login'));
         assert.ok(instructions.commands.includes('npx --yes skills@latest add ' + STAGING_ORIGIN + '/agent-skills/cloud --global --yes'));
         assert.ok(!instructions.commands.includes('sdoc setup'));
         assert.ok(instructions.commands.indexOf('sdoc cloud login') < instructions.commands.indexOf('sdoc cloud library-default library-123 --json'));
         assert.ok(instructions.commands.indexOf('sdoc cloud library-default library-123 --json') < instructions.commands.indexOf('sdoc cloud status'));
         assert.ok(instructions.commands.includes(STAGING_ORIGIN + (windows ? '/cli/sdocs-dev.tgz' : '/install')));
         if (!windows) assert.ok(instructions.commands.includes('export PATH="$HOME/.sdocs/bin:$PATH"'));
-        assert.ok(instructions.prompt.includes('Replace the example tags'));
-        assert.ok(instructions.prompt.includes('returned Cloud URL'));
         assert.ok(instructions.prompt.includes('My library is "Engineering".'));
-        assert.ok(instructions.prompt.includes('Create one short getting-started document'));
-        assert.ok(instructions.prompt.includes('can_create_document'));
-        assert.ok(instructions.prompt.includes('Write a document about our launch plan.'));
-        assert.ok(instructions.prompt.includes('invite or remove members'));
-        assert.ok(instructions.prompt.includes('Cancel my subscription'));
-        assert.ok(instructions.prompt.includes('where I complete payment'));
-        assert.ok(instructions.prompt.includes('where I complete cancellation'));
+        assert.ok(instructions.prompt.includes('library-123'));
+        assert.ok(instructions.prompt.includes('Create one getting-started document'));
+        assert.ok(instructions.prompt.includes('First setup and tour'));
+        assert.ok(instructions.prompt.includes('meaningful tags'));
+        assert.ok(instructions.prompt.length < 2000);
+        assert.ok(instructions.connection_prompt.includes('I have installed SmallDocs'));
+        assert.ok(instructions.connection_prompt.includes('library-123'));
+        assert.ok(instructions.connection_prompt.includes(STAGING_ORIGIN));
+        assert.ok(!instructions.connection_prompt.includes('npx'));
+        assert.ok(!instructions.connection_prompt.includes('curl'));
+
       }
       const unscoped = setup.cloudInstructions();
       assert.ok(!unscoped.commands.includes('library-default'));

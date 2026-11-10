@@ -90,7 +90,7 @@ module.exports = function (h) {
         assert.strictEqual(results[0].data.workspaces[0].name, 'Personal');
         const page = await api('josh', '/cloud/start');
         assert.strictEqual(page.status, 303);
-        assert.ok(page.headers.get('location').includes('panel=install'));
+        assert.strictEqual(page.headers.get('location'), '/cloud/install?workspace_id=' + own);
         assert.strictEqual((await api('josh', '/cloud/start?choose=1')).headers.get('location'), '/cloud/admin?panel=libraries&workspace_id=' + own);
       });
       await testAsync('creating another library shares one trial and billing account', async () => {

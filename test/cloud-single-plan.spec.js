@@ -8,7 +8,7 @@ async function login(page, actor = 'josh') {
   await page.context().addCookies([{ name: 'sdocs_cloud', value: f.users[actor].sessionToken, url: f.origin }]);
 }
 for (const width of [390, 1440]) {
-  test('signup and library management remain in settings without a choice page at ' + width, async ({ page }) => {
+  test('signup focuses on installation before library management at ' + width, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     await login(page, 'missing');
     await page.goto(f.origin + '/cloud/profile');
@@ -17,7 +17,8 @@ for (const width of [390, 1440]) {
     await page.getByRole('button', { name: 'Continue', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Install SmallDocs', exact: true })).toBeVisible();
     await expect(page.locator('body')).not.toContainText('Your SmallDocs libraries');
-    await page.getByRole('link', { name: 'Manage libraries', exact: true }).click();
+    await page.getByRole('link', { name: 'Already installed', exact: true }).click();
+    await page.getByRole('link', { name: 'Create team library', exact: true }).click();
     await page.getByRole('textbox', { name: 'Library name', exact: true }).fill('Engineering');
     await page.getByRole('button', { name: 'Create team library', exact: true }).click();
     await expect(page.locator('#workspace-button')).toContainText('Engineering');
