@@ -124,11 +124,11 @@ test('the introduction retains the production recording with captions and chapte
 test('homepage experiment preserves the supplied copy and vertical order', async ({ page }) => {
   await page.goto('/home-next');
   const expected = [
-    "You use it when you want to escape the limits of your chat interface or save an agent’s thinking at a given point in time. Your agents can use it on their own: a remote agent can write a SmallDoc and notify you. Simply ask your agent: “write me a doc about (topic)”.",
+    "You use it when you want to escape the limits of your chat interface or save an agent’s thinking at a given point in time. Simply ask your agent: “write me a doc about (topic)”.",
     "Agents handle all your tasks, but the document formats you're familiar with are siloed. SmallDocs are uniquely flexible. One SmallDoc can combine text, code, slides, spreadsheets, charts, diagrams, and interactive HTML and JavaScript components.",
     'SmallDocs are built for human-agent feedback loops. Speed up your iteration with targeted features: easy ways to copy precise chunks of text, tables, code and charts, and the ability to leave comments on a document for your agent to pick up. SmallDocs have version history built in.',
     "Using SmallDocs builds an agent-friendly knowledge base. SmallDocs are saved to an encrypted cloud library. Your agent smartly tags every document. This library is accessible to humans (on the web, including mobile) and agents (via the SmallDocs command line tool).",
-    'SmallDocs are agent agnostic, meaning teams using AI from a range of providers can all create and save documents in a standardized way.',
+    "SmallDocs are agent agnostic, meaning teams using AI from a range of providers can all create and save documents in a standardized way. Agents can use it on their own: a remote agent can write a SmallDoc and notify you.",
     'Sign up:',
     'SmallDocs is free for a month, then £4/user/month.',
   ];
