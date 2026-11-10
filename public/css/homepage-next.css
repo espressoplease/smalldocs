@@ -1,10 +1,11 @@
+.home-next { --t-label: 13px; }
 .homepage-column { max-width: 71ch; margin: 0 auto; }
 .homepage-referral { margin-bottom: 24px; padding: 16px; border: 1px solid var(--line); border-radius: var(--r); font-size: 14px; line-height: 1.5; }
 .homepage-referral p + p { margin-top: 6px; color: var(--ink-3); }
 .home-next .homepage-login-nav { position: static; }
 .homepage-login-nav .wrap { max-width: none; padding: 0 8px; }
 .homepage-login-nav .nav-in { max-width: none; height: auto; min-height: 48px; align-items: flex-start; justify-content: flex-end; padding: 8px 0; }
-.homepage-login { opacity: 0; visibility: hidden; min-height: 32px; transition: opacity .3s cubic-bezier(.4,0,.2,1), visibility .3s, background .12s, border-color .12s, color .12s; }
+.homepage-login { opacity: 0; visibility: hidden; min-height: 32px; font-size: var(--t-label); transition: opacity .3s cubic-bezier(.4,0,.2,1), visibility .3s, background .12s, border-color .12s, color .12s; }
 .homepage-login.is-visible { opacity: 1; visibility: visible; }
 @media (max-width: 600px) {
   .homepage-login { min-height: 36px; }
@@ -101,13 +102,13 @@
 @media (min-width: 901px) {
   .homepage-direct-panel { padding-top: 42px; }
 }
-.homepage-google, .homepage-direct > summary { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; min-height: 42px; padding: 10px 12px; background: #fff; border: 1px solid var(--line-2); border-radius: var(--r); color: #1f1f1f; font-size: 14px; font-weight: 500; line-height: 20px; text-decoration: none; cursor: pointer; transition: background .15s; }
+.homepage-google, .homepage-direct > summary { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; min-height: 42px; padding: 10px 12px; background: #fff; border: 1px solid var(--line-2); border-radius: var(--r); color: #1f1f1f; font-size: var(--t-sm); font-weight: 500; line-height: 20px; text-decoration: none; cursor: pointer; transition: background .15s; }
 .homepage-google:hover, .homepage-direct > summary:hover { background: #f2f2f2; }
 .homepage-direct > summary { justify-content: space-between; background: var(--accent); border-color: var(--accent); color: #fff; }
 .homepage-direct > summary:hover { background: color-mix(in srgb, var(--accent) 90%, #000); border-color: color-mix(in srgb, var(--accent) 90%, #000); }
 .homepage-google:focus-visible, .homepage-direct > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 .homepage-google-icon { width: 20px; height: 20px; flex-shrink: 0; }
-.homepage-signup-divider { display: flex; align-items: center; gap: 12px; margin: 14px 0; font-size: 12px; line-height: 18px; color: var(--ink-3); }
+.homepage-signup-divider { display: flex; align-items: center; gap: 12px; margin: 14px 0; font-size: var(--t-label); line-height: 18px; color: var(--ink-3); }
 .homepage-signup-divider::before, .homepage-signup-divider::after { content: ''; flex: 1; height: 1px; background: var(--line); }
 .homepage-email { display: flex; align-items: stretch; gap: 4px; width: 100%; }
 .homepage-email .tf-field { flex: 1; min-width: 0; }
@@ -118,7 +119,8 @@
 .homepage-email button:disabled { opacity: .6; }
 #start-samples, #start-praise { margin: 0; padding: 40px 0; }
 .home-next #praise, .home-next #talk-to-sales { padding-top: 0; }
-.homepage-sales-link { margin-top: 8px; font-size: var(--t-sm); color: var(--ink-2); }
+.homepage-sales-link { margin-top: 8px; font-size: var(--t-label); color: var(--ink-2); }
+.home-next .tf-status, .home-next .sdoc-install-note, .home-next .sdoc-install-status { font-size: var(--t-label); }
 .homepage-sales-link a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
 #talk-to-sales { scroll-margin-top: 24px; }
 .home-next #talk-to-sales .install-grid { display: block; }
@@ -135,15 +137,14 @@
 .home-next footer { margin-top: 0; padding-bottom: 36px; }
 .homepage-footer-inner { padding-top: 32px; border-top: 1px solid var(--line); }
 .homepage-footer-links { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px; }
-.homepage-footer-links h2 { margin: 0; color: var(--ink); font-size: 14px; font-weight: 600; line-height: 1.4; letter-spacing: 0; }
+.homepage-footer-links h2 { margin: 0; color: var(--ink); font-size: var(--t-label); font-weight: 600; line-height: 1.4; letter-spacing: 0; }
 .homepage-footer-links ul { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; list-style: none; }
 .homepage-footer-links a { color: var(--ink-2); font-size: 13px; line-height: 1.5; text-decoration: none; }
 .homepage-footer-links a:hover { text-decoration: underline; text-underline-offset: 3px; }
 .homepage-footer-links a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-.homepage-footer-company { margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--line); color: var(--ink-3); font-size: 12px; line-height: 1.6; }
+.homepage-footer-company { margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--line); color: var(--ink-3); font-size: var(--t-label); line-height: 1.6; }
 @media (max-width: 600px) {
   .homepage-footer-links { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px 24px; }
-  .homepage-footer-links h2 { font-size: 13px; }
   #start-samples, #start-praise { padding: 24px 0; }
   .homepage-google, .homepage-direct > summary { min-height: 48px; }
   .homepage-email { flex-direction: column; }
@@ -163,10 +164,11 @@
 .home-next .praise-head h2 { display: flex; align-items: flex-start; gap: 10px; }
 .home-next .praise-head .hn-badge { flex-shrink: 0; width: 25px; height: 25px; margin-top: 4px; font-size: 18px; }
 @media (min-width: 621px) {
+  .home-next .homepage-copy { font-size: 18px; }
   .home-next .praise-grid { grid-auto-rows: 1fr; }
 }
 .sample-group { display: flex; flex-direction: column; gap: 6px; }
 .sample-group + .sample-group { margin-top: 14px; }
-.sample-group-heading { margin: 0 0 2px; font-size: 1.0625rem; line-height: 1.65; font-weight: 500; color: var(--ink-2); }
+.sample-group-heading { margin: 0 0 2px; font-size: 18px; line-height: 1.65; font-weight: 500; color: var(--ink-2); }
 .home-next .learn-item[data-sample]:not([data-sample-standard]) { background: var(--sample-background); }
 .home-next .learn-item[data-sample]:not([data-sample-standard]):hover { background: color-mix(in srgb, var(--sample-background) 88%, var(--ink) 12%); }
