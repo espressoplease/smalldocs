@@ -284,7 +284,7 @@ const cloudFeedback = cloudStore ? new (require('./lib/cloud-feedback').Feedback
   store: cloudStore, adminUserIds: process.env.CLOUD_FEEDBACK_ADMIN_USER_IDS,
 }) : null;
 
-function requireFeedbackIdentity(req, userId) {
+function requireCurrentCloudIdentity(req, userId) {
   const bearer = /^Bearer\s+(.+)$/i.exec(String(req.headers.authorization || ''));
   const current = bearer ? cloudAuth.authenticateAccessToken(bearer[1]) : cloudAuthSession(req);
   if (!current.ok || current.user.id !== userId) throw new (require('./lib/cloud-store').CloudError)('login_required');
@@ -333,6 +333,11 @@ const cloudReferrals = cloudSinglePlan && cloudAuth
   ? new (require('./lib/cloud-referrals').CloudReferrals)({ billing: cloudBilling, auth: cloudAuth,
     store: cloudStore, single: cloudSinglePlan,
     secret: CLOUD_AUTH_PEPPER, origin: CLOUD_AUTH_PUBLIC_ORIGIN }) : null;
+const cloudProductAnalytics = CLOUD_DEPLOYMENT.publicEnabled && cloudAuth
+  ? new (require('./lib/cloud-product-analytics').CloudProductAnalytics)({
+    auth: cloudAuth, store: cloudStore, billing: cloudBilling, singlePlan: cloudSinglePlan,
+    adminUserIds: process.env.CLOUD_ANALYTICS_ADMIN_USER_IDS ?? process.env.CLOUD_FEEDBACK_ADMIN_USER_IDS,
+  }) : null;
 const cloudReferralBilling = cloudReferrals && cloudStripe && process.env.STRIPE_STANDARD_PRICE_ID
   ? new (require('./lib/cloud-referral-billing').ReferralBilling)({ referrals: cloudReferrals,
     single: cloudSinglePlan, stripe: cloudStripe, priceId: process.env.STRIPE_STANDARD_PRICE_ID }) : null;
@@ -1752,6 +1757,19 @@ async function handleCloudApi(req, res, url) {
     const principal = cloudApiPrincipal(req, res);
     if (!principal || !cloudApiMutationAllowed(req, res)) return;
     const user = principal.user;
+    if (req.method === 'GET' && pathname === base + '/admin/status') {
+      res.cloudSubscription = null;
+      sendJson(res, 200, { ok: true,
+        can_view_overview: Boolean(cloudProductAnalytics && cloudProductAnalytics.isAdmin(user.id)),
+        can_view_feedback: Boolean(cloudFeedback && cloudFeedback.isAdmin(user.id)) }); return;
+    }
+    if (req.method === 'GET' && pathname === base + '/admin/overview') {
+      if (!cloudProductAnalytics) throw Object.assign(new Error('resource_unavailable'), { code: 'resource_unavailable' });
+      const overview = cloudProductAnalytics.overview(user.id);
+      requireCurrentCloudIdentity(req, user.id);
+      res.cloudSubscription = null;
+      sendJson(res, 200, { ok: true, ...overview }); return;
+    }
     if (req.method === 'GET' && pathname === base + '/feedback/status') {
       sendJson(res, 200, { ok: true, can_view_inbox: cloudFeedback.isAdmin(user.id) }); return;
     }
@@ -1759,7 +1777,7 @@ async function handleCloudApi(req, res, url) {
       const body = await cloudAuthHttp.readJson(req);
       const receipt = await cloudFeedback.submit({ user, email: verifiedCloudEmail(user.id),
         message: body.message, requestId: body.idempotency_key,
-        beforeCommit: () => requireFeedbackIdentity(req, user.id),
+        beforeCommit: () => requireCurrentCloudIdentity(req, user.id),
         consumeRate: () => {
           const rate = cloudAuth.consumeRateLimit({ action: 'private_feedback', key: user.id,
             limit: 10, windowMs: 60 * 60 * 1000 });
@@ -1769,7 +1787,7 @@ async function handleCloudApi(req, res, url) {
     }
     if (req.method === 'GET' && pathname === base + '/feedback/inbox') {
       const inbox = await cloudFeedback.list({ userId: user.id, after: url.searchParams.get('after'),
-        beforeReturn: () => requireFeedbackIdentity(req, user.id) });
+        beforeReturn: () => requireCurrentCloudIdentity(req, user.id) });
       sendJson(res, 200, { ok: true, ...inbox }); return;
     }
     if (cloudReferrals && req.method === 'GET' && pathname === base + '/referrals') {
@@ -4122,6 +4140,22 @@ const server = http.createServer((req, res) => {
     }); return;
   }
 
+  if (pathname === '/cloud/overview') {
+    const authenticated = cloudAuthSession(req);
+    if (!authenticated.ok) {
+      res.writeHead(303, { Location: '/cloud/sign-in?return=%2Fcloud%2Foverview', 'Cache-Control': 'no-store' });
+      res.end(); return;
+    }
+    if (!cloudProductAnalytics || !cloudProductAnalytics.isAdmin(authenticated.user.id)) {
+      sendJson(res, 404, { ok: false, error: 'resource_unavailable' }); return;
+    }
+    if (redirectForCloudTerms(res, authenticated, pathname)) return;
+    serveHtmlWithRewrite(res, path.join(__dirname, 'templates', 'cloud-product-overview.html'), null, {
+      'Cache-Control': 'no-store', 'X-Frame-Options': 'DENY', 'Referrer-Policy': 'same-origin',
+      'Content-Security-Policy': "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'; object-src 'none'",
+    }); return;
+  }
+
   if (pathname === '/cloud/trial-feedback') {
     const session = cloudAuthSession(req);
     if (!session.ok) {
@@ -4429,6 +4463,16 @@ const server = http.createServer((req, res) => {
   }
 
   // Analytics dashboard + JSON API — only mounted when ANALYTICS_ENABLED=1
+  if (ANALYTICS_ENABLED && pathname === '/analytics/signups') {
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      sendJson(res, 405, { error: 'method_not_allowed' }, { Allow: 'GET, HEAD' }); return;
+    }
+    try {
+      const counts = cloudProductAnalytics ? cloudProductAnalytics.signups() : { available: false };
+      sendJson(res, 200, counts, { 'Cache-Control': 'public, max-age=60' });
+    } catch (_) { sendJson(res, 503, { available: false, error: 'temporarily_unavailable' }); }
+    return;
+  }
   if (ANALYTICS_ENABLED && pathname === '/analytics') {
     serveHtmlWithRewrite(res, path.join(__dirname, 'analytics', 'dashboard.html'), null, {
       'Cache-Control': 'no-cache',
@@ -4676,6 +4720,7 @@ function closeResources() {
   feedbackRateLimit.stopCleanup();
   const cleanup = [
     analytics && (() => analytics.close()),
+    cloudProductAnalytics && (() => cloudProductAnalytics.close()),
     () => shortLinks.close(),
     () => feedback.close(),
     cloudJoinRequests && (() => cloudJoinRequests.close()),

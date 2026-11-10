@@ -34,6 +34,7 @@ require('./test-video')(harness);
 require('./test-zoom-math')(harness);
 require('./test-update')(harness);
 require('./test-analytics')(harness);
+require('./test-cloud-product-analytics')(harness);
 require('./test-short-links')(harness);
 require('./test-chrome')(harness);
 require('./test-comments')(harness);
