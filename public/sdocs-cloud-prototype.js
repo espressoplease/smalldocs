@@ -9,21 +9,26 @@ var CLOUD_CHECK_SVG = '<svg width="18" height="18" viewBox="0 0 24 24" fill="non
 var FILE_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>';
 var USER_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></svg>';
 var USERS_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 21a8 8 0 0 0-16 0"/><circle cx="10" cy="8" r="5"/><path d="M22 20c0-3.37-2-6.5-4-8a5 5 0 0 0-.45-8.3"/></svg>';
+var LIBRARY_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/></svg>';
+var librarySettings = null;
+var selectedLibrary = null;
 var PLUS_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg>';
 var CHECK_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m20 6-11 11-5-5"/></svg>';
 var CLOSE_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
-var pendingChallenge = null;
 var cloudState = { account: null, accounts: [], user: null, members: [], permission: null,
-  suggestedTags: [], panel: null, status: '', busy: false };
+  suggestedTags: [], panel: null, status: '', busy: false, authStatus: 'checking' };
 var cloudSaveTimer = null;
 var cloudSavePromise = null;
 var cloudSaveQueued = false;
+var cloudDraftMergeBase = null;
+var cloudDeferredRichUpdate = null;
 var cloudSaveBlocked = false;
 var cloudLastSavedMarkdown = null;
 var cloudTargetRevisionId = null;
 var cloudTargetMarkdown = null;
 var cloudRecoveryMarkdown = null;
 var cloudPollTimer = null;
+var cloudPendingEditSession = null;
 
 function escapeHtml(value) {
   return String(value).replace(/[&<>"']/g, function (character) {
@@ -94,34 +99,52 @@ async function saveCloudRevision() {
     cloudSaveQueued = true;
     return cloudSavePromise;
   }
-  var markdown = currentMarkdown();
-  if (markdown === cloudLastSavedMarkdown) return S.cloudDocument;
+  var observedMarkdown = currentMarkdown();
+  var markdown = cloudDraftMergeBase && window.SDocsMerge
+    ? window.SDocsMerge.mergeTargetRevision(cloudDraftMergeBase, cloudTargetMarkdown, observedMarkdown).markdown
+    : observedMarkdown;
+  if (observedMarkdown === cloudLastSavedMarkdown) return S.cloudDocument;
   var documentId = S.cloudDocument.id;
+  var editSessionId = cloudPendingEditSession;
   var targetRevisionId = cloudTargetRevisionId || S.cloudDocument.current_revision_id;
   setCloudSaveStatus('Saving to Cloud...');
   cloudSavePromise = jsonRequest('/api/cloud/v1/documents/' + encodeURIComponent(documentId)
     + '/revisions', { method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ markdown: markdown, filename: currentFilename(),
         target_revision_id: targetRevisionId, target_markdown: cloudTargetMarkdown,
+        edit_session_id: editSessionId,
         idempotency_key: crypto.randomUUID() }) })
     .then(function (data) {
+      if (!S.cloudDocument || S.cloudDocument.id !== documentId) return null;
+      if (S.hasPendingWriteChanges && S.hasPendingWriteChanges()) S.flushWriteChanges();
       var current = currentMarkdown();
       var savedMarkdown = typeof data.document.markdown === 'string'
         ? data.document.markdown : markdown;
       S.cloudDocument = Object.assign({}, S.cloudDocument, data.document);
-      if (current === markdown) {
+      if (S.cloudHistory) S.cloudHistory.observe(S.cloudDocument);
+      if (current === observedMarkdown && !(S.richWrite && S.richWrite.hasActiveField() && savedMarkdown !== current)) {
         applyCloudMarkdown(savedMarkdown, data.document.filename || currentFilename());
         cloudLastSavedMarkdown = currentMarkdown();
-        cloudTargetRevisionId = data.document.current_revision_id;
-        cloudTargetMarkdown = cloudLastSavedMarkdown;
+        cloudDraftMergeBase = null;
+        cloudDeferredRichUpdate = null;
       } else {
-        cloudLastSavedMarkdown = markdown;
+        // New typing is based on the submitted local draft. Rebase that delta
+        // onto the acknowledged revision before the next request, using the
+        // same merge implementation as the server.
+        cloudLastSavedMarkdown = observedMarkdown;
+        cloudDraftMergeBase = observedMarkdown;
+        cloudDeferredRichUpdate = savedMarkdown;
       }
+      cloudTargetRevisionId = data.document.current_revision_id;
+      cloudTargetMarkdown = savedMarkdown;
       setCloudSaveStatus(data.document.combined
         ? 'Saved and combined with Cloud changes.' : 'Saved to Cloud.');
+      if (S.publications) S.publications.refresh();
       return S.cloudDocument;
     })
     .catch(function (error) {
+      if (!S.cloudDocument || S.cloudDocument.id !== documentId) return null;
+      if (S.hasPendingWriteChanges && S.hasPendingWriteChanges()) S.flushWriteChanges();
       if (error.data && (error.data.error === 'target_too_old' ||
           error.data.error === 'revision_conflict')) {
         cloudSaveBlocked = true;
@@ -147,6 +170,8 @@ async function saveCloudRevision() {
 }
 
 function queueCloudSave(source) {
+  if (source === 'write') cloudPendingEditSession = S.cloudHistory ? S.cloudHistory.editSessionId() : null;
+  else if (source !== 'remote') cloudPendingEditSession = null;
   if (!S.cloudDocument || S._loadingDocument || cloudSaveBlocked) return;
   if (cloudSaveTimer) clearTimeout(cloudSaveTimer);
   cloudSaveTimer = setTimeout(function () {
@@ -156,6 +181,8 @@ function queueCloudSave(source) {
 }
 
 async function flushCloudSave() {
+  if (S.richWrite) S.richWrite.commitCells();
+  if (S.hasPendingWriteChanges && S.hasPendingWriteChanges()) S.flushWriteChanges();
   do {
     if (cloudSaveTimer) {
       clearTimeout(cloudSaveTimer);
@@ -177,12 +204,18 @@ function installCloudSaveHook() {
   };
   S._cloudSaveHooked = true;
   S.saveCloudNow = flushCloudSave;
+  S.cloudPublicationSource = function () {
+    return { id:S.cloudDocument && S.cloudDocument.id,
+      markdown:cloudLastSavedMarkdown,
+      saved:!cloudSaveBlocked && !cloudSavePromise && currentMarkdown() === cloudLastSavedMarkdown };
+  };
 }
 
 async function jsonRequest(url, options) {
   var response = await fetch(url, Object.assign({ credentials: 'same-origin' }, options || {}));
   var data = await response.json().catch(function () { return {}; });
   if (!response.ok) {
+    if (data.error === 'trial_payment_required') location.assign('/cloud/subscribe');
     var error = new Error(data.error || 'request_failed');
     error.status = response.status;
     error.data = data;
@@ -192,19 +225,43 @@ async function jsonRequest(url, options) {
 }
 
 async function loadAccountData(accountId) {
+  try {
+    return await fetchAccountData(accountId);
+  } catch (error) {
+    if (error.status === 401) {
+      cloudState.authStatus = 'signed-out';
+      cloudState.account = null;
+      cloudState.accounts = [];
+      cloudState.user = null;
+    } else if (cloudState.authStatus === 'checking') {
+      cloudState.authStatus = 'unavailable';
+    }
+    throw error;
+  } finally {
+    refreshRow();
+  }
+}
+
+async function fetchAccountData(accountId) {
   if (!accountId) {
     var workspaceData = await jsonRequest('/api/cloud/v1/workspaces');
+    cloudState.authStatus = 'signed-in';
     cloudState.accounts = workspaceData.workspaces || [];
     cloudState.user = workspaceData.user || null;
     var selected = window.SDocsCloudAccountSelection.resolve(
       cloudState.accounts, null, localStorage);
-    if (!selected) return { account: null, accounts: cloudState.accounts,
-      user: cloudState.user, needs_selection: cloudState.accounts.length > 1 };
+    if (!selected) {
+      cloudState.account = null;
+      return { account: null, accounts: cloudState.accounts,
+        user: cloudState.user, needs_selection: cloudState.accounts.length > 1 };
+    }
     accountId = selected.id;
   }
   window.SDocsCloudAccountSelection.remember(localStorage, accountId);
   var suffix = '?account_id=' + encodeURIComponent(accountId);
   var data = await jsonRequest('/api/cloud/v1/account' + suffix);
+  cloudState.authStatus = 'signed-in';
+  cloudState.singlePlan = Boolean(data.single_plan);
   cloudState.account = data.account;
   cloudState.accounts = data.accounts || [];
   cloudState.user = data.user;
@@ -217,18 +274,18 @@ async function loadAccountData(accountId) {
   cloudState.members = details[0].members || [];
   cloudState.suggestedTags = details[1].tags || [];
   if (S.refreshCommentIdentity) S.refreshCommentIdentity();
-  refreshRow();
   return data;
 }
 
 async function loadCloudDocument(id) {
+  var requestedMode = new URLSearchParams(location.hash.slice(1)).get('mode');
+  if (S.setDocumentLoadState) S.setDocumentLoadState('loading');
   try {
     var data = await jsonRequest('/api/cloud/v1/documents/' + encodeURIComponent(id));
     S.cloudDocument = data.document;
     cloudState.permission = data.permission || null;
     if (data.document.workspace_id) {
       cloudState.account = { id: data.document.workspace_id };
-      await loadAccountData(data.document.workspace_id).catch(function () {});
     }
     S._isDefaultState = false;
     S._loadingDocument = true;
@@ -239,16 +296,34 @@ async function loadCloudDocument(id) {
     cloudTargetMarkdown = cloudLastSavedMarkdown;
     cloudRecoveryMarkdown = null;
     cloudSaveBlocked = false;
+    cloudPendingEditSession = null;
+    cloudDraftMergeBase = null;
+    cloudDeferredRichUpdate = null;
     if (S.refreshCommentIdentity) S.refreshCommentIdentity();
-    if (S.setMode) S.setMode('read', true);
+    if (S.setMode) S.setMode(['read', 'comment', 'style', 'share', 'history', 'write', 'raw', 'export', 'info'].indexOf(requestedMode) >= 0 ? requestedMode : 'read', true);
+    insertRow();
+    if (data.document.workspace_id) loadAccountData(data.document.workspace_id).catch(function () {});
+    if (S.setDocumentLoadState) S.setDocumentLoadState('ready');
   } catch (error) {
     if (error.status === 401) {
       location.href = '/cloud/sign-in?return=' +
         encodeURIComponent(location.pathname + location.search + location.hash);
       return;
     }
+    if (error.data && error.data.error === 'trial_payment_required') return;
     var status = document.getElementById('_sd_status-text');
     if (status) status.textContent = 'Could not open this Cloud document.';
+    if (S.setMode) S.setMode('read', true);
+    S.renderedEl.innerHTML = '<h1>Could not open this document</h1>' +
+      '<p>' + (error.status === 403 || error.status === 404
+        ? 'It may have been removed, or you may not have access.'
+        : 'Try again to load the document.') + '</p>' +
+      '<button type="button" class="btn" data-cloud-retry>Try again</button> ' +
+      '<a href="/library?scope=cloud">Open library</a>';
+    S.renderedEl.querySelector('[data-cloud-retry]').addEventListener('click', function () {
+      loadCloudDocument(id);
+    });
+    if (S.setDocumentLoadState) S.setDocumentLoadState('error');
   } finally {
     S._loadingDocument = false;
   }
@@ -256,12 +331,21 @@ async function loadCloudDocument(id) {
 
 async function checkCloudDocument() {
   if (!S.cloudDocument || cloudSaveBlocked || cloudSavePromise || document.hidden) return null;
+  if (S.richWrite && S.richWrite.hasActiveField()) return null;
+  if (S.hasPendingWriteChanges && S.hasPendingWriteChanges()) { S.flushWriteChanges(); return null; }
+  if (cloudDeferredRichUpdate && currentMarkdown() === cloudLastSavedMarkdown) {
+    var deferred = cloudDeferredRichUpdate; cloudDeferredRichUpdate = null;
+    applyCloudMarkdown(deferred, currentFilename());
+    cloudLastSavedMarkdown = currentMarkdown(); cloudTargetMarkdown = cloudLastSavedMarkdown; cloudDraftMergeBase = null;
+  }
+  if (S.commentsUi && S.commentsUi.hasDraft && S.commentsUi.hasDraft()) return null;
   var documentId = S.cloudDocument.id;
   try {
     var headData = await jsonRequest('/api/cloud/v1/documents/' + encodeURIComponent(documentId)
       + '/head?known_revision_id=' + encodeURIComponent(S.cloudDocument.current_revision_id));
     if (!S.cloudDocument || S.cloudDocument.id !== documentId) return null;
-    if (headData.document.current_revision_id === S.cloudDocument.current_revision_id) {
+    if (S.cloudHistory) S.cloudHistory.observe(headData.document);
+    if (headData.document.current_revision_id === S.cloudDocument.current_revision_id && (!headData.document.workspace_id || headData.document.workspace_id === S.cloudDocument.workspace_id)) {
       return headData.document;
     }
     if (currentMarkdown() !== cloudLastSavedMarkdown) {
@@ -270,7 +354,15 @@ async function checkCloudDocument() {
     }
     var data = await jsonRequest('/api/cloud/v1/documents/' + encodeURIComponent(documentId));
     if (!S.cloudDocument || S.cloudDocument.id !== documentId) return null;
+    if (S.commentsUi && S.commentsUi.hasDraft && S.commentsUi.hasDraft()) return null;
+    if (S.hasPendingWriteChanges && S.hasPendingWriteChanges()) { S.flushWriteChanges(); return null; }
+    if (currentMarkdown() !== cloudLastSavedMarkdown) { queueCloudSave('remote'); return null; }
+    if (cloudState.account && cloudState.account.id !== data.document.workspace_id) await loadAccountData(data.document.workspace_id);
+    if (!S.cloudDocument || S.cloudDocument.id !== documentId) return null;
+    if (S.hasPendingWriteChanges && S.hasPendingWriteChanges()) { S.flushWriteChanges(); return null; }
+    if (currentMarkdown() !== cloudLastSavedMarkdown) { queueCloudSave('remote'); return null; }
     S.cloudDocument = Object.assign({}, S.cloudDocument, data.document);
+    if (S.cloudHistory) S.cloudHistory.observe(S.cloudDocument);
     cloudState.permission = data.permission || cloudState.permission;
     applyCloudMarkdown(data.document.markdown, data.document.filename);
     cloudLastSavedMarkdown = currentMarkdown();
@@ -344,8 +436,9 @@ function cloudRow() {
     var tags = documentTags().map(cloudTag).join('');
     var many = cloudState.permission && (cloudState.permission.mode === 'everyone' ||
       (cloudState.permission.member_user_ids || []).length > 1);
-    row.innerHTML = '<span class="fic-label">Cloud</span>'
-      + '<div class="sdoc-cloud-lab-row-main"><div class="sdoc-cloud-lab-pills">'
+    row.innerHTML = '<span class="fic-label">Library</span><div class="sdoc-cloud-lab-row-main"><div class="sdoc-cloud-lab-pills">'
+      + (cloudState.accounts.length > 1 ? '<button class="sdoc-cloud-lab-access sdoc-cloud-library-pill" type="button" data-cloud-open="library" aria-label="Library: '
+        + escapeHtml(cloudState.account && cloudState.account.name || 'Library') + '"><span class="sdoc-cloud-library-icon" style="color:' + window.SDocsCloudAccountSelection.color(S.cloudDocument.workspace_id) + '">' + LIBRARY_SVG + '</span><span>' + escapeHtml(cloudState.account && cloudState.account.name || 'Library') + '</span></button>' : '')
       + '<button class="sdoc-cloud-lab-access" type="button" data-cloud-open="access"'
       + ' title="' + escapeHtml(permissionNames()) + '">' + (many ? USERS_SVG : USER_SVG)
       + '<span>' + escapeHtml(permissionLabel()) + '</span></button>'
@@ -364,111 +457,48 @@ function cloudRow() {
     row.querySelector('.sdoc-cloud-lab-saved').addEventListener('click', removeCloudDocument);
     return row;
   }
-  var showPaidIntro = !cloudState.account || !cloudState.account.can_write;
-  if (showPaidIntro) row.classList.add('fic-row-cloud-intro');
-  row.innerHTML = '<span class="fic-label">Cloud</span>'
-    + '<button class="sdoc-cloud-lab-add-link" type="button" title="Add this document to Cloud">Add to Cloud</button>'
-    + (showPaidIntro
-      ? '<span class="fic-short-intro-text">Encrypted document on our server; paid feature '
-        + '(<a class="fic-short-intro-learn fic-cloud-learn" href="/cloud" target="_blank" rel="noopener">learn more</a>)</span>' : '')
-    + '<button class="sdoc-cloud-lab-state-icon sdoc-cloud-lab-upload" type="button" title="Add this document to Cloud">'
-    + CLOUD_UPLOAD_SVG + '</button>';
-  row.querySelector('.sdoc-cloud-lab-add-link').addEventListener('click', beginAdd);
-  row.querySelector('.sdoc-cloud-lab-upload').addEventListener('click', beginAdd);
+  var signedOut = cloudState.authStatus === 'signed-out';
+  var label = signedOut ? 'Sign up to save to your library' : 'Add to your library';
+  var checking = cloudState.authStatus === 'checking';
+  var tag = signedOut ? 'a' : 'button';
+  var attributes = signedOut ? ' href="/cloud/sign-in?return=%2Fdocs"'
+    : ' type="button"' + (checking || cloudState.busy ? ' disabled' : '');
+  row.setAttribute('aria-busy', String(checking || cloudState.busy));
+  row.innerHTML = '<span class="fic-label">Library</span>'
+    + '<div class="sdoc-cloud-lab-row-main sdoc-cloud-lab-intro">'
+    + '<' + tag + ' class="sdoc-cloud-lab-add-link"' + attributes + '>' + label + '</' + tag + '>'
+    + (signedOut ? '<a class="fic-cloud-learn" href="/home" target="_blank" rel="noopener">Learn more about SmallDocs</a>' : '')
+    + '</div>'
+    + '<' + tag + ' class="sdoc-cloud-lab-state-icon sdoc-cloud-lab-upload"' + attributes
+    + ' aria-label="' + label + '" title="' + label + '">' + CLOUD_UPLOAD_SVG + '</' + tag + '>';
+  var action = signedOut ? S.signInFromDocument : beginAdd;
+  row.querySelector('.sdoc-cloud-lab-add-link').addEventListener('click', action);
+  row.querySelector('.sdoc-cloud-lab-upload').addEventListener('click', action);
   return row;
 }
 
 function insertRow() {
+  if (S.publicationSource && S.publicationSource.isViewing()) return;
   var card = document.getElementById('_sd_sdocs-file-info');
   var rows = card && card.querySelector('.fic-rows');
   if (!card || !rows || rows.querySelector('.fic-row-cloud')) return;
   var hasDocument = !!(S.currentBody || (S.currentMeta && Object.keys(S.currentMeta).length));
   if (!hasDocument || S._isDefaultState) return;
   var row = cloudRow();
-  var filename = rows.querySelector('[data-key="file"]');
-  if (filename && filename.nextSibling) rows.insertBefore(row, filename.nextSibling);
-  else if (filename) rows.appendChild(row);
-  else rows.insertBefore(row, rows.firstChild);
+  rows.insertBefore(row, rows.firstChild);
   rows.hidden = false;
   card.hidden = false;
 }
 
 function refreshRow() {
+  if (S.cloudHistory) S.cloudHistory.observe(S.cloudDocument);
   var row = document.querySelector('.fic-row-cloud');
   if (row) row.remove();
   insertRow();
 }
 
-function renderEmailPrompt(row) {
-  row.className = 'fic-row fic-row-cloud fic-row-cloud-auth';
-  row.innerHTML = '<span class="fic-label">Cloud</span>'
-    + '<form class="fic-cloud-auth-fields">'
-    + '<input class="fic-cloud-email" type="email" autocomplete="email" placeholder="you@example.com" aria-label="Email address" required>'
-    + '<button class="fic-cloud-send" type="submit">Email me a code</button>'
-    + '<button class="fic-cloud-cancel" type="button">Cancel</button></form>'
-    + '<button class="fic-copy fic-cloud-icon" type="button" title="Email me a code">' + CLOUD_UPLOAD_SVG + '</button>';
-  var form = row.querySelector('form');
-  var input = row.querySelector('input');
-  async function submit(event) {
-    event.preventDefault();
-    if (!input.checkValidity()) { input.reportValidity(); return; }
-    var button = row.querySelector('.fic-cloud-send');
-    button.disabled = true;
-    button.textContent = 'Sending...';
-    try {
-      var data = await jsonRequest('/api/cloud/auth/email/request', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: input.value.trim() }),
-      });
-      pendingChallenge = data.challenge_id;
-      renderCodePrompt(row, input.value.trim());
-    } catch (_) {
-      button.disabled = false;
-      button.textContent = 'Try again';
-    }
-  }
-  form.addEventListener('submit', submit);
-  row.querySelector('.fic-cloud-icon').addEventListener('click', submit);
-  row.querySelector('.fic-cloud-cancel').addEventListener('click', refreshRow);
-  setTimeout(function () { input.focus(); }, 0);
-}
-
-function renderCodePrompt(row, email) {
-  row.className = 'fic-row fic-row-cloud fic-row-cloud-auth';
-  row.innerHTML = '<span class="fic-label">Cloud</span>'
-    + '<form class="fic-cloud-auth-fields">'
-    + '<input class="fic-cloud-email" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="6-digit code" aria-label="Six-digit code" required>'
-    + '<button class="fic-cloud-send" type="submit">Verify</button>'
-    + '<button class="fic-cloud-cancel" type="button">Cancel</button></form>'
-    + '<button class="fic-copy fic-cloud-icon" type="button" title="Verify code">' + CLOUD_UPLOAD_SVG + '</button>';
-  var form = row.querySelector('form');
-  var input = row.querySelector('input');
-  async function verify(event) {
-    event.preventDefault();
-    if (!/^\d{6}$/.test(input.value)) { input.focus(); return; }
-    try {
-      await jsonRequest('/api/cloud/auth/email/verify', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ challenge_id: pendingChallenge, code: input.value,
-          return_to: location.pathname + location.search + location.hash }),
-      });
-      pendingChallenge = null;
-      refreshRow();
-      beginAdd(event);
-    } catch (_) {
-      input.setCustomValidity('That code is invalid or has expired.');
-      input.reportValidity();
-      input.setCustomValidity('');
-    }
-  }
-  form.addEventListener('submit', verify);
-  row.querySelector('.fic-cloud-icon').addEventListener('click', verify);
-  row.querySelector('.fic-cloud-cancel').addEventListener('click', refreshRow);
-  row.setAttribute('data-email', email);
-  setTimeout(function () { input.focus(); }, 0);
-}
-
 async function beginAdd(event, accountId) {
+  var generation = S.documentGeneration;
   if (event) {
     event.preventDefault();
     event.stopPropagation();
@@ -477,34 +507,46 @@ async function beginAdd(event, accountId) {
   cloudState.busy = true;
   try {
     var accountData = await loadAccountData(accountId || null);
+    if (S.documentGeneration !== generation) return;
     if (accountData.needs_selection) {
       openAccountChoice(accountData.accounts, accountData.user);
       return;
     }
     if (!accountData.account) {
-      location.href = '/cloud/checkout?return=' +
-        encodeURIComponent(location.pathname + location.search + location.hash);
+      location.href = '/cloud/start?return=' + encodeURIComponent(await S.documentReturnPath());
+      return;
+    }
+    if (!accountData.account.can_write && accountData.account.write_entitlement === true) {
+      openErrorDialog('You need editing access to add documents to this library.', 'Cannot add to this library');
       return;
     }
     if (!accountData.account.can_write) {
-      location.href = '/cloud/checkout?return=' +
-        encodeURIComponent(location.pathname + location.search + location.hash);
+      location.href = '/cloud/checkout?return=' + encodeURIComponent(await S.documentReturnPath());
       return;
     }
+    if (S.hasPendingWriteChanges && S.hasPendingWriteChanges()) S.flushWriteChanges();
+    var submittedMarkdown = currentMarkdown();
     var data = await jsonRequest('/api/cloud/v1/account/documents', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ account_id: accountData.account.id, filename: currentFilename(),
-        markdown: currentMarkdown(), idempotency_key: crypto.randomUUID() }),
+        markdown: submittedMarkdown, source_file: {
+          absolute_path: S.localMeta && S.localMeta.fullPath,
+          relative_path: S.localMeta && S.localMeta.path,
+        }, idempotency_key: crypto.randomUUID() }),
     });
+    if (S.documentGeneration !== generation) return;
     S.cloudDocument = data.document;
     S.cloudDocument.workspace_id = data.account.id;
     cloudState.account = Object.assign({}, accountData.account, data.account);
     cloudState.permission = data.permission;
-    cloudLastSavedMarkdown = currentMarkdown();
+    cloudLastSavedMarkdown = submittedMarkdown;
     cloudTargetRevisionId = data.document.current_revision_id;
     cloudTargetMarkdown = cloudLastSavedMarkdown;
     cloudRecoveryMarkdown = null;
     cloudSaveBlocked = false;
+    cloudPendingEditSession = null;
+    cloudDraftMergeBase = null;
+    cloudDeferredRichUpdate = null;
     if (S.refreshCommentIdentity) S.refreshCommentIdentity();
     clearLocalDocumentContext();
     // Rebuild the base rows now that Cloud owns the document. This removes
@@ -517,22 +559,23 @@ async function beginAdd(event, accountId) {
       refreshRow();
       return;
     }
+    if (S.hasPendingWriteChanges && S.hasPendingWriteChanges()) S.flushWriteChanges();
+    if (currentMarkdown() !== cloudLastSavedMarkdown) queueCloudSave('remote');
     cloudState.status = 'Added to Cloud.';
     refreshRow();
   } catch (error) {
     if (error.status === 401) {
-      var row = document.querySelector('.fic-row-cloud');
-      if (row) renderEmailPrompt(row);
+      S.signInFromDocument();
       return;
     }
     if (error.status === 402) {
-      location.href = '/cloud/checkout?return=' +
-        encodeURIComponent(location.pathname + location.search + location.hash);
+      location.href = '/cloud/checkout?return=' + encodeURIComponent(await S.documentReturnPath());
       return;
     }
     openErrorDialog('Cloud is temporarily unavailable.');
   } finally {
     cloudState.busy = false;
+    refreshRow();
   }
 }
 
@@ -541,8 +584,8 @@ function openAccountChoice(accounts, user) {
   var dialog = backdrop.querySelector('.sdoc-cloud-proto-dialog');
   backdrop.hidden = false;
   document.body.style.overflow = 'hidden';
-  dialog.innerHTML = shell('Choose an account',
-    'This document will be added to the account you select.',
+  dialog.innerHTML = shell('Choose a library',
+    'This document will be saved to the library you choose.',
     documentPreview() + '<div class="sdoc-cloud-proto-account-list"></div>'
     + '<div class="sdoc-cloud-proto-actions"><button class="sdoc-cloud-proto-btn" data-action="cancel" type="button">Cancel</button></div>');
   wireClose(dialog);
@@ -585,6 +628,9 @@ async function removeCloudDocument(event) {
     cloudTargetMarkdown = null;
     cloudRecoveryMarkdown = null;
     cloudSaveBlocked = false;
+    cloudPendingEditSession = null;
+    cloudDraftMergeBase = null;
+    cloudDeferredRichUpdate = null;
     cloudState.permission = null;
     if (S.refreshCommentIdentity) S.refreshCommentIdentity();
     closeCloudPanel();
@@ -643,10 +689,13 @@ function memberRow(member) {
   var checked = cloudState.permission && (cloudState.permission.mode === 'everyone' ||
     ids.indexOf(member.user_id) !== -1);
   var locked = member.is_you || !cloudState.permission || !cloudState.permission.can_manage;
+  var color = window.SDocsCloudAccountSelection.personColor(member.user_id,
+    member.is_you || cloudState.user && cloudState.user.id === member.user_id);
+  var icon = color ? USER_SVG.replace('<svg ', '<svg style="color:' + color + '" ') : USER_SVG;
   return '<label class="sdoc-cloud-lab-member' + (checked ? ' selected' : '') + '">'
     + '<input type="checkbox" data-cloud-member="' + escapeHtml(member.user_id) + '"'
     + (checked ? ' checked' : '') + (locked ? ' disabled' : '') + '>'
-    + '<span class="sdoc-cloud-lab-avatar">' + escapeHtml(member.initials) + '</span>'
+    + '<span class="sdoc-cloud-lab-avatar sdoc-cloud-lab-avatar-person">' + icon + '</span>'
     + '<span class="sdoc-cloud-lab-member-copy"><strong>' + escapeHtml(member.name)
     + (member.is_you ? ' <small>You</small>' : '') + '</strong><span>'
     + escapeHtml(member.email || '') + '</span></span>'
@@ -657,7 +706,7 @@ function accessPanelHtml() {
   var canManage = cloudState.permission && cloudState.permission.can_manage;
   var presets = '<button type="button" data-cloud-preset="only"' + (!canManage ? ' disabled' : '')
     + '>' + USER_SVG + 'Only you</button>';
-  if (cloudState.account && cloudState.account.kind === 'team') {
+  if (cloudState.account && (cloudState.singlePlan || cloudState.account.kind === 'team')) {
     presets += '<button type="button" data-cloud-preset="everyone"' + (!canManage ? ' disabled' : '')
       + '>' + USERS_SVG + 'Everyone</button>';
   }
@@ -715,18 +764,73 @@ function tagsPanelHtml() {
       + '<div class="sdoc-cloud-lab-suggestions">' + suggestions + '</div></section>';
 }
 
+function libraryPanelHtml() {
+  if (!librarySettings) return '<p class="sdoc-cloud-lab-help">Loading libraries...</p>';
+  var current = S.cloudDocument.workspace_id;
+  var choices = librarySettings.libraries.map(function (library) {
+    var chosen = (selectedLibrary || current) === library.id;
+    return '<button class="sdoc-cloud-lab-member' + (chosen ? ' selected' : '') + '" type="button" data-library-choice="' + escapeHtml(library.id) + '">'
+      + '<span class="sdoc-cloud-library-icon" style="color:' + window.SDocsCloudAccountSelection.color(library.id) + '">' + LIBRARY_SVG + '</span>'
+      + '<span class="sdoc-cloud-lab-member-copy"><strong>' + escapeHtml(library.name) + '</strong><span>' + (library.id === current ? 'Current library' : '') + '</span></span></button>';
+  }).join('');
+  var canMove = cloudState.permission && cloudState.permission.can_manage && selectedLibrary && selectedLibrary !== current;
+  var destination = librarySettings.libraries.find(function (library) { return library.id === selectedLibrary; });
+  var machines = librarySettings.machines.map(function (machine) {
+    return '<label class="sdoc-cloud-library-machine">' + escapeHtml(machine.display_name) + '<select data-library-machine="' + escapeHtml(machine.id) + '"><option value="">Ask when needed</option>'
+      + librarySettings.libraries.map(function (library) { return '<option value="' + escapeHtml(library.id) + '"' + (machine.default_library_id === library.id ? ' selected' : '') + '>' + escapeHtml(library.name) + '</option>'; }).join('') + '</select></label>';
+  }).join('');
+  return '<section class="sdoc-cloud-lab-section"><div class="sdoc-cloud-lab-section-title">This document</div><div class="sdoc-cloud-lab-members">' + choices + '</div>'
+    + (canMove ? '<p class="sdoc-cloud-lab-help">Move this document and its history to ' + escapeHtml(destination.name) + '. Its link stays the same. Access will be reset to Only you; people in the old library will lose access.</p><button type="button" class="sdoc-cloud-library-move">Move document</button>' : '')
+    + (!cloudState.permission || !cloudState.permission.can_manage ? '<p class="sdoc-cloud-lab-help">Only the person who created this document can move it.</p>' : '')
+    + '</section><section class="sdoc-cloud-lab-section"><div class="sdoc-cloud-lab-section-title">Default for new documents</div>'
+    + (machines || '<p class="sdoc-cloud-lab-help">Connect a computer to set its default library.</p>')
+    + '<p class="sdoc-cloud-lab-help">Applies to new documents from that computer. Existing documents stay in their libraries. A library specified by you or your project takes priority.</p></section>';
+}
+
 function renderCloudPanel() {
   var panel = ensureCloudPanel();
   panel.dataset.cloudPanel = cloudState.panel;
-  panel.querySelector('[data-cloud-panel-title]').textContent = cloudState.panel === 'tags' ? 'Tags' : 'Access';
+  panel.querySelector('[data-cloud-panel-title]').textContent = cloudState.panel === 'library' ? 'Library' : cloudState.panel === 'tags' ? 'Tags' : 'Access';
   var body = panel.querySelector('.sdoc-cloud-lab-panel-body');
-  body.innerHTML = (cloudState.panel === 'tags' ? tagsPanelHtml() : accessPanelHtml())
+  body.innerHTML = (cloudState.panel === 'library' ? libraryPanelHtml() : cloudState.panel === 'tags' ? tagsPanelHtml() : accessPanelHtml())
     + (cloudState.status ? '<p class="sdoc-cloud-lab-status" aria-live="polite">'
       + escapeHtml(cloudState.status) + '</p>' : '');
   wireCloudPanel(body);
 }
 
 function wireCloudPanel(body) {
+  body.querySelectorAll('[data-library-choice]').forEach(function (button) {
+    button.disabled = cloudState.busy;
+    button.addEventListener('click', function () { selectedLibrary = button.dataset.libraryChoice; renderCloudPanel(); });
+  });
+  body.querySelectorAll('[data-library-machine]').forEach(function (select) {
+    select.addEventListener('change', async function () {
+      select.disabled = true;
+      try {
+        await jsonRequest('/api/cloud/v1/cli/credentials/' + encodeURIComponent(select.dataset.libraryMachine) + '/library-default', {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ workspace_id: select.value || null }) });
+        librarySettings = await jsonRequest('/api/cloud/v1/library-settings');
+        cloudState.status = 'Default library updated.';
+      } catch (_) { cloudState.status = 'The default library could not be updated.'; }
+      renderCloudPanel();
+    });
+  });
+  var move = body.querySelector('.sdoc-cloud-library-move');
+  if (move) { move.disabled = cloudState.busy; move.addEventListener('click', async function () {
+    if (cloudState.busy) return;
+    cloudState.busy = true; renderCloudPanel();
+    try {
+      await flushCloudSave();
+      var moved = await jsonRequest('/api/cloud/v1/documents/' + encodeURIComponent(S.cloudDocument.id) + '/library', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ workspace_id: selectedLibrary, expected_head_revision_id: S.cloudDocument.current_revision_id }) });
+      S.cloudDocument = moved.document; cloudState.permission = moved.permission;
+      await loadAccountData(moved.document.workspace_id);
+      cloudState.status = 'Document moved. Access is Only you.';
+    } catch (_) { cloudState.status = 'The document could not be moved. Reload and try again.'; }
+    cloudState.busy = false; refreshRow(); renderCloudPanel();
+  }); }
+
   body.querySelectorAll('[data-cloud-preset]').forEach(function (button) {
     button.addEventListener('click', function () {
       var everyone = button.getAttribute('data-cloud-preset') === 'everyone';
@@ -791,23 +895,32 @@ async function saveTags(tags) {
   try {
     await flushCloudSave();
     var markdownBeforeTags = currentMarkdown();
+    var documentId = S.cloudDocument.id;
     var targetRevisionId = cloudTargetRevisionId || S.cloudDocument.current_revision_id;
     var data = await jsonRequest('/api/cloud/v1/documents/' + encodeURIComponent(S.cloudDocument.id)
       + '/tags', { method: 'PATCH', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tags: tags, filename: currentFilename(),
           target_revision_id: targetRevisionId, target_markdown: cloudTargetMarkdown,
           idempotency_key: crypto.randomUUID() }) });
+    if (!S.cloudDocument || S.cloudDocument.id !== documentId) return;
+    if (S.hasPendingWriteChanges && S.hasPendingWriteChanges()) S.flushWriteChanges();
     S.cloudDocument = Object.assign({}, S.cloudDocument, data.document);
+    if (S.cloudHistory) S.cloudHistory.observe(S.cloudDocument);
     var savedMarkdown = typeof data.document.markdown === 'string'
       ? data.document.markdown : null;
     if (currentMarkdown() === markdownBeforeTags && savedMarkdown) {
       applyCloudMarkdown(savedMarkdown, data.document.filename || currentFilename());
       cloudLastSavedMarkdown = currentMarkdown();
       cloudTargetMarkdown = cloudLastSavedMarkdown;
+      cloudDraftMergeBase = null;
     } else {
+      var base = SDocYaml.parseFrontMatter(markdownBeforeTags);
+      base.meta.tags = data.document.tags.slice();
+      cloudDraftMergeBase = SDocYaml.serializeFrontMatter(base.meta) + '\n' + base.body;
       if (!S.currentMeta) S.currentMeta = {};
       S.currentMeta.tags = data.document.tags.slice();
       cloudLastSavedMarkdown = savedMarkdown || currentMarkdown();
+      cloudTargetMarkdown = savedMarkdown || cloudTargetMarkdown;
       if (savedMarkdown && currentMarkdown() !== savedMarkdown) queueCloudSave('remote');
     }
     cloudTargetRevisionId = data.document.current_revision_id;
@@ -821,7 +934,13 @@ async function saveTags(tags) {
 }
 
 function openCloudPanel(kind) {
-  cloudState.panel = kind === 'tags' ? 'tags' : 'access';
+  if (S.currentMode === 'share' || S.currentMode === 'history') S.setMode('read');
+  cloudState.panel = kind === 'library' ? 'library' : kind === 'tags' ? 'tags' : 'access';
+  if (kind === 'library') {
+    selectedLibrary = S.cloudDocument && S.cloudDocument.workspace_id; librarySettings = null;
+    jsonRequest('/api/cloud/v1/library-settings').then(function (data) { librarySettings = data; if (cloudState.panel === 'library') renderCloudPanel(); })
+      .catch(function () { cloudState.status = 'Libraries could not be loaded.'; renderCloudPanel(); });
+  }
   cloudState.status = '';
   renderCloudPanel();
   document.body.classList.add('cloud-lab-mode', 'mobile-cloud-lab-open');
@@ -831,6 +950,7 @@ function closeCloudPanel() {
   cloudState.panel = null;
   document.body.classList.remove('cloud-lab-mode', 'mobile-cloud-lab-open');
 }
+S.closeCloudPanel = closeCloudPanel;
 
 function ensureDialog() {
   var existing = document.querySelector('.sdoc-cloud-proto-backdrop');
@@ -866,11 +986,11 @@ function wireClose(dialog) {
   dialog.querySelector('.sdoc-cloud-proto-close').addEventListener('click', closeDialog);
 }
 
-function openErrorDialog(message) {
+function openErrorDialog(message, title) {
   var backdrop = ensureDialog();
   var dialog = backdrop.querySelector('.sdoc-cloud-proto-dialog');
   backdrop.hidden = false;
-  dialog.innerHTML = shell('Cloud unavailable', message,
+  dialog.innerHTML = shell(title || 'Cloud unavailable', message,
     '<div class="sdoc-cloud-proto-actions"><button class="sdoc-cloud-proto-btn primary" data-action="done" type="button">Close</button></div>');
   wireClose(dialog);
   dialog.querySelector('[data-action="done"]').addEventListener('click', closeDialog);
@@ -945,6 +1065,7 @@ function closeDialog() {
 function start() {
   installCloudSaveHook();
   S.checkCloudNow = checkCloudDocument;
+  window.addEventListener('sdocs-rich-write-finish', function () { checkCloudDocument(); });
   if (!cloudPollTimer) {
     cloudPollTimer = setInterval(checkCloudDocument, 10000);
     window.addEventListener('focus', checkCloudDocument);
@@ -957,7 +1078,8 @@ function start() {
     new MutationObserver(function () { insertRow(); }).observe(card, { childList: true, subtree: true });
   }
   insertRow();
-  loadAccountData().catch(function () {});
+  var navigation=document.getElementById('_sd_sidebar');
+  if (!S.publicationSource || navigation && navigation.dataset.cloudAuthenticated === 'true') loadAccountData().catch(function () {});
   document.addEventListener('keydown', function (event) {
     if (event.key === 'Escape' && cloudState.panel) closeCloudPanel();
   });
@@ -986,7 +1108,7 @@ function waitForSubscription(workspaceId, attempt) {
       if (attempt < 9) {
         setTimeout(function () { waitForSubscription(workspaceId, attempt + 1); }, 1000);
       } else {
-        openErrorDialog('Payment was accepted, but Cloud access is still being activated. Try Add to Cloud again in a moment.');
+        openErrorDialog('Payment was accepted, but Cloud access is still being activated. Try Add to your library again in a moment.');
       }
     });
 }

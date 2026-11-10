@@ -40,3 +40,18 @@ test('sign-in never renders an arbitrary return URL as page copy', async ({ page
     document.documentElement.clientWidth);
   expect(overflow).toBe(0);
 });
+
+
+test('sign-in preserves typing even before the editor debounce has saved it', async ({ page }) => {
+  await page.goto('/docs#md=' + compressedDocument('# Latest draft\n\nOriginal paragraph.'));
+  await page.locator('#_sd_btn-write').click();
+  await page.evaluate(() => {
+    const paragraph = document.querySelector('#_sd_write p');
+    paragraph.textContent = 'The latest unsaved paragraph.';
+    paragraph.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText' }));
+    document.querySelector('[data-sdocs-sign-in-return]').click();
+  });
+  await expect(page).toHaveURL(/cloud\/sign-in\?return=/);
+  await page.goto('/docs?sdocs_resume=1');
+  await expect(page.locator('#_sd_rendered')).toContainText('The latest unsaved paragraph.');
+});

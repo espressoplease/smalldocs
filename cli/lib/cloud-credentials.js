@@ -3,6 +3,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { execFileSync, spawnSync } = require('child_process');
+const { withLockSync } = require('./file-lock');
 
 const KEYCHAIN_SERVICE = 'org.smalldocs.cloud';
 const KEYCHAIN_RECORD_VERSION = 2;
@@ -214,13 +215,15 @@ function keychainDelete(origin, operations) {
 }
 
 function removeFileCredential(origin) {
-  const values = readFileStore();
-  delete values[origin];
-  if (Object.keys(values).length) atomicWrite(credentialFile(), values);
-  else {
-    try { fs.unlinkSync(credentialFile()); }
-    catch (error) { if (!error || error.code !== 'ENOENT') throw error; }
-  }
+  return withLockSync(credentialFile(), () => {
+    const values = readFileStore();
+    delete values[origin];
+    if (Object.keys(values).length) atomicWrite(credentialFile(), values);
+    else {
+      try { fs.unlinkSync(credentialFile()); }
+      catch (error) { if (!error || error.code !== 'ENOENT') throw error; }
+    }
+  });
 }
 
 function retryFileCredentialCleanup(origin) {
@@ -340,17 +343,17 @@ function load(origin) {
 function save(origin, credential) {
   if (useKeychain()) return macSave(origin, credential);
   if (useDpapi()) return windowsSave(origin, credential);
-  const values = readFileStore();
-  values[origin] = credential;
-  atomicWrite(credentialFile(), values);
+  return withLockSync(credentialFile(), () => {
+    const values = readFileStore();
+    values[origin] = credential;
+    atomicWrite(credentialFile(), values);
+  });
 }
 
 function remove(origin) {
   if (useKeychain()) return macRemove(origin);
   if (useDpapi()) return windowsRemove(origin);
-  const values = readFileStore();
-  delete values[origin];
-  atomicWrite(credentialFile(), values);
+  return removeFileCredential(origin);
 }
 
 module.exports = {

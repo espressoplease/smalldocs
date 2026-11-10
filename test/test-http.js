@@ -61,6 +61,14 @@ module.exports = function(harness) {
     const teamsFormAddress = teamsFormServer.address();
     const teamsFormAction = 'http://127.0.0.1:' + teamsFormAddress.port +
       '/teams-interest-test';
+    const stripeSubscriptions = new Map();
+    const stripeServer = http.createServer((req, res) => {
+      const subscription = stripeSubscriptions.get(req.url.slice('/v1/subscriptions/'.length));
+      res.writeHead(subscription ? 200 : 404, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(subscription || { error: { code: 'resource_missing' } }));
+    });
+    await new Promise(resolve => stripeServer.listen(0, '127.0.0.1', resolve));
+    stripeServer.unref();
 
     let serverOutput = '';
     const server = spawn('node', [path.join(__dirname, '..', 'server.js')], {
@@ -73,6 +81,7 @@ module.exports = function(harness) {
         ANALYTICS_FLUSH_IMMEDIATE: '1',
         SHORT_LINKS_DB: testShortLinksDbPath,
         SMALLCRM_TEAMS_FORM_ACTION: teamsFormAction,
+        SMALLCRM_INSTALL_FORM_ACTION: teamsFormAction,
         CLOUD_AUTH_DB: testCloudAuthDbPath,
         CLOUD_PUBLIC_MODE: 'enabled',
         CLOUD_AUTH_PEPPER: 'http-test-cloud-auth-pepper-32-bytes',
@@ -93,6 +102,7 @@ module.exports = function(harness) {
         CLOUD_WORKSPACE_RESTORE_WINDOW_MS: '60000',
         CLOUD_DOCUMENT_RESTORE_WINDOW_MS: '60000',
         STRIPE_SECRET_KEY: 'sk_test_http',
+        SDOCS_STRIPE_TEST_API_BASE: 'http://127.0.0.1:' + stripeServer.address().port,
         STRIPE_WEBHOOK_SECRET: 'whsec_http_test',
         GOOGLE_OAUTH_CLIENT_ID: 'http-test-google-client',
         GOOGLE_OAUTH_CLIENT_SECRET: 'http-test-google-secret',
@@ -156,6 +166,7 @@ module.exports = function(harness) {
       });
     }
     function postStripeEvent(event) {
+      stripeSubscriptions.set(event.data.object.id, event.data.object);
       const crypto = require('crypto');
       const raw = Buffer.from(JSON.stringify(event));
       const timestamp = Math.floor(Date.now() / 1000);
@@ -192,8 +203,9 @@ module.exports = function(harness) {
       assert.ok(r.body.includes('https://smalldocs.org/agent-skills/standard/'));
       assert.ok(r.body.includes('https://smalldocs.org/cloud'));
       assert.ok(r.body.includes('https://smalldocs.org/agent-skills/cloud/'));
-      assert.ok(r.body.includes('https://smalldocs.org/developers/llms.txt'));
-      assert.ok(r.body.includes('https://smalldocs.org/developers/integration.md'));
+      assert.ok(r.body.includes('https://smalldocs.org/developers/authoring/slides.md'));
+      assert.ok(!r.body.includes('/sdk/'));
+      assert.ok(!r.body.includes('smalldocs-renderer'));
     });
 
     await testAsync('GET / returns 200', async () => {
@@ -210,7 +222,7 @@ module.exports = function(harness) {
       const r = await get(BASE + '/');
       assert.ok(r.body.includes('id="install"'),
         'root should contain the landing install section');
-      assert.ok(r.body.includes('var cloudAuthenticated = \'false\''),
+      assert.ok(r.body.includes('data-cloud-authenticated="false"'),
         'signed-out root should leave Cloud library routing disabled');
       assert.ok(r.body.includes('curl -fsSL https://smalldocs.org/install | sh'),
         'root should show the canonical install command');
@@ -247,161 +259,6 @@ module.exports = function(harness) {
       assert.strictEqual(r.headers.vary, 'Cookie');
     });
 
-    await testAsync('SDK 0.2.0 remains frozen and cross-origin cacheable', async () => {
-      const r = await get(BASE + '/sdk/0.2.0/smalldocs.js');
-      assert.strictEqual(r.status, 200);
-      assert.ok(r.headers['content-type'].includes('application/javascript'));
-      assert.strictEqual(r.headers['access-control-allow-origin'], '*');
-      assert.strictEqual(r.headers['cross-origin-resource-policy'], 'cross-origin');
-      assert.strictEqual(r.headers['x-content-type-options'], 'nosniff');
-      assert.ok(r.headers['cache-control'].includes('max-age=31536000'));
-      assert.ok(r.headers['cache-control'].includes('immutable'));
-      assert.ok(r.body.includes('export async function render'));
-      assert.ok(r.body.includes("from './core.js'"));
-      const core = await get(BASE + '/sdk/0.2.0/core.js');
-      assert.strictEqual(core.status, 200);
-      assert.ok(core.body.includes('smalldocs-document'));
-      assert.ok(core.body.includes("import('./features/"));
-      const runtime = await get(BASE + '/sdk/0.2.0/runtime.js');
-      assert.strictEqual(runtime.status, 200);
-      assert.ok(runtime.body.includes("POLICY_NAME = 'smalldocs-sdk-0.2.0'"));
-      const sanitizer = await get(BASE + '/sdk/0.2.0/vendor/purify.es.mjs');
-      assert.strictEqual(sanitizer.status, 200);
-      assert.ok(sanitizer.headers['content-type'].includes('application/javascript'));
-      assert.ok(sanitizer.headers['cache-control'].includes('immutable'));
-      assert.strictEqual(sanitizer.headers['access-control-allow-origin'], '*');
-      const css = await get(BASE + '/sdk/0.2.0/smalldocs.css');
-      assert.strictEqual(css.status, 200);
-      assert.ok(css.headers['content-type'].includes('text/css'));
-      assert.ok(css.body.includes('@layer smalldocs'));
-      const codeFeature = await get(BASE + '/sdk/0.2.0/features/code.js');
-      assert.strictEqual(codeFeature.status, 200);
-      assert.ok(codeFeature.body.includes("vendorAsset('sdocs-code-reader.js')"));
-      const appsFeature = await get(BASE + '/sdk/0.2.0/features/apps.js');
-      assert.strictEqual(appsFeature.status, 404);
-      const appsFrame = await get(BASE + '/sdk/0.2.0/vendor/sdocs-app-runner.html');
-      assert.strictEqual(appsFrame.status, 404);
-      const walkthroughFeature = await get(BASE + '/sdk/0.2.0/features/walkthrough.js');
-      assert.strictEqual(walkthroughFeature.status, 404);
-      const versionModule = await get(BASE + '/sdk/0.2.0/version.js');
-      assert.strictEqual(versionModule.status, 404);
-      const codeReader = await get(BASE + '/sdk/0.2.0/vendor/sdocs-code-reader.js');
-      assert.strictEqual(codeReader.status, 200);
-      assert.ok(codeReader.body.includes('window.SDocCodeReader'));
-      assert.ok(codeReader.headers['cache-control'].includes('immutable'));
-      const slideReader = await get(BASE + '/sdk/0.2.0/vendor/sdocs-slide-reader.js');
-      assert.strictEqual(slideReader.status, 200);
-      assert.ok(slideReader.body.includes('window.SDocSlideReader'));
-      assert.ok(slideReader.headers['cache-control'].includes('immutable'));
-      const slideCss = await get(BASE + '/sdk/0.2.0/slide-reader.css');
-      assert.strictEqual(slideCss.status, 200);
-      assert.ok(slideCss.body.includes("layer(smalldocs)"));
-      const codeFocus = await get(BASE + '/sdk/0.2.0/vendor/sdocs-code-focus.js');
-      assert.strictEqual(codeFocus.status, 200);
-      assert.ok(codeFocus.body.includes('createCodeFocus'));
-      const cellsEdit = await get(BASE + '/sdk/0.2.0/vendor/sdocs-cells-edit.js');
-      assert.strictEqual(cellsEdit.status, 200);
-      assert.ok(cellsEdit.body.includes('SDocCellsEdit'));
-      const cellsFocus = await get(BASE + '/sdk/0.2.0/vendor/sdocs-cells-focus.js');
-      assert.strictEqual(cellsFocus.status, 200);
-      assert.ok(cellsFocus.body.includes('SDocCellsFocus'));
-      const codeCss = await get(BASE + '/sdk/0.2.0/code-reader.css');
-      assert.strictEqual(codeCss.status, 200);
-      assert.ok(codeCss.body.includes("layer(smalldocs)"));
-      const mermaidFrame = await get(BASE + '/sdk/0.2.0/mermaid-renderer.html');
-      assert.strictEqual(mermaidFrame.status, 200);
-      assert.ok(mermaidFrame.headers['content-type'].includes('text/html'));
-      assert.ok(mermaidFrame.headers['content-security-policy'].includes('frame-ancestors *'));
-      assert.ok(mermaidFrame.body.includes('mermaid@10.9.1'));
-      assert.ok(mermaidFrame.body.includes('./vendor/sdocs-mermaid-worker.css'));
-      assert.ok(mermaidFrame.body.includes('./mermaid-renderer.js'));
-      const mermaidWorker = await get(BASE + '/sdk/0.2.0/mermaid-renderer.js');
-      assert.strictEqual(mermaidWorker.status, 200);
-      assert.ok(mermaidWorker.body.includes("request.type !== 'render'"));
-      const mermaidWorkerCss = await get(BASE + '/sdk/0.2.0/vendor/sdocs-mermaid-worker.css');
-      assert.strictEqual(mermaidWorkerCss.status, 200);
-      assert.ok(mermaidWorkerCss.body.includes('.edgeLabel foreignObject > div'));
-      const manifest = await get(BASE + '/sdk/0.2.0/release-manifest.json');
-      assert.strictEqual(manifest.status, 200);
-      assert.strictEqual(JSON.parse(manifest.body).version, '0.2.0');
-      const internalManifest = await get(BASE + '/sdk/0.2.0/vendor/reader-manifest.json');
-      assert.strictEqual(internalManifest.status, 404);
-    });
-
-    await testAsync('SDK 0.3.0 serves runnable HTML and walkthrough assets immutably', async () => {
-      const r = await get(BASE + '/sdk/0.3.0/smalldocs.js');
-      assert.strictEqual(r.status, 200);
-      assert.ok(r.headers['content-type'].includes('application/javascript'));
-      assert.ok(r.headers['cache-control'].includes('immutable'));
-      const version = await get(BASE + '/sdk/0.3.0/version.js');
-      assert.strictEqual(version.status, 200);
-      assert.ok(version.body.includes("SDK_VERSION = '0.3.0'"));
-      const core = await get(BASE + '/sdk/0.3.0/core.js');
-      assert.strictEqual(core.status, 200);
-      assert.ok(core.body.includes('runnableHtml: source.runnableHtml === true'));
-      assert.ok(core.body.includes("import('./features/walkthrough.js')"));
-      const appsFeature = await get(BASE + '/sdk/0.3.0/features/apps.js');
-      assert.strictEqual(appsFeature.status, 200);
-      assert.ok(appsFeature.body.includes("vendorAsset('sdocs-app-runner.html')"));
-      const appsReader = await get(BASE + '/sdk/0.3.0/vendor/sdocs-html-components.js');
-      assert.strictEqual(appsReader.status, 200);
-      assert.ok(appsReader.body.includes('window.SDocHtmlComponents'));
-      const appsCss = await get(BASE + '/sdk/0.3.0/vendor/sdocs-html-component-reader.css');
-      assert.strictEqual(appsCss.status, 200);
-      assert.ok(appsCss.body.includes('@layer smalldocs'));
-      const appsFrame = await get(BASE + '/sdk/0.3.0/vendor/sdocs-app-runner.html');
-      assert.strictEqual(appsFrame.status, 200);
-      assert.ok(appsFrame.headers['content-type'].includes('text/html'));
-      assert.strictEqual(appsFrame.headers['x-frame-options'], undefined);
-      assert.strictEqual(appsFrame.headers['cross-origin-resource-policy'], 'cross-origin');
-      const appsRunner = await get(BASE + '/sdk/0.3.0/vendor/sdocs-app-runner.js');
-      assert.strictEqual(appsRunner.status, 200);
-      assert.ok(appsRunner.body.includes("message.type !== 'sdocs-app-load'"));
-      const walkthroughFeature = await get(BASE + '/sdk/0.3.0/features/walkthrough.js');
-      assert.strictEqual(walkthroughFeature.status, 200);
-      assert.ok(walkthroughFeature.body.includes('resolveTarget'));
-      const walkthroughModel = await get(BASE + '/sdk/0.3.0/vendor/sdocs-docwalk.js');
-      assert.strictEqual(walkthroughModel.status, 200);
-      assert.ok(walkthroughModel.body.includes("'sdoc-app'"));
-      const walkthroughCss = await get(BASE + '/sdk/0.3.0/vendor/sdocs-walkthrough.css');
-      assert.strictEqual(walkthroughCss.status, 200);
-      assert.ok(walkthroughCss.body.includes('.sdoc-walkthrough-card.is-active'));
-      const manifest = await get(BASE + '/sdk/0.3.0/release-manifest.json');
-      assert.strictEqual(manifest.status, 200);
-      assert.strictEqual(JSON.parse(manifest.body).version, '0.3.0');
-    });
-
-    await testAsync('SDK 0.3.1 serves the runnable height patch immutably', async () => {
-      const entry = await get(BASE + '/sdk/0.3.1/smalldocs.js');
-      assert.strictEqual(entry.status, 200);
-      assert.ok(entry.headers['cache-control'].includes('immutable'));
-      const version = await get(BASE + '/sdk/0.3.1/version.js');
-      assert.strictEqual(version.status, 200);
-      assert.ok(version.body.includes("SDK_VERSION = '0.3.1'"));
-      const runner = await get(BASE + '/sdk/0.3.1/vendor/sdocs-app-runner.js');
-      assert.strictEqual(runner.status, 200);
-      assert.ok(runner.body.includes("'function measure(){var body=document.body"));
-      assert.ok(!runner.body.includes('var viewport=Math.max'));
-      const frame = await get(BASE + '/sdk/0.3.1/vendor/sdocs-app-runner.html');
-      assert.strictEqual(frame.status, 200);
-      assert.strictEqual(frame.headers['cross-origin-resource-policy'], 'cross-origin');
-      const manifest = await get(BASE + '/sdk/0.3.1/release-manifest.json');
-      assert.strictEqual(manifest.status, 200);
-      assert.strictEqual(JSON.parse(manifest.body).version, '0.3.1');
-    });
-
-    await testAsync('previous SDK contracts remain available', async () => {
-      const previous = await get(BASE + '/sdk/0.1.0/smalldocs.js');
-      assert.strictEqual(previous.status, 200);
-      const frozen = await get(BASE + '/sdk/0.1.1/smalldocs.js');
-      assert.strictEqual(frozen.status, 200);
-      assert.ok(!frozen.body.includes("message.type === 'sdocs:focus'"));
-      const previousContract = await get(BASE + '/sdk/0.1.2/smalldocs.js');
-      assert.strictEqual(previousContract.status, 200);
-      assert.ok(previousContract.body.includes("message.type === 'sdocs:focus'"));
-      assert.ok(!previousContract.body.includes("message.type === 'sdocs:navigate'"));
-    });
-
     await testAsync('runnable HTML frame assets are isolated and cacheable', async () => {
       const document = await get(BASE + '/new');
       assert.strictEqual(document.status, 200);
@@ -427,165 +284,36 @@ module.exports = function(harness) {
       assert.strictEqual(font.headers['cross-origin-resource-policy'], 'cross-origin');
     });
 
-    await testAsync('GET /developers serves the Markdown-driven SDK documentation shell', async () => {
-      const r = await get(BASE + '/developers');
-      assert.strictEqual(r.status, 200);
-      assert.ok(r.headers['content-type'].includes('text/html'));
-      assert.ok(r.body.includes('id="developer-document"'));
-      assert.ok(r.body.includes('/developers/authoring/slides'));
-      assert.ok(r.body.includes('/developers/authoring/slide-shapes'));
-      assert.ok(r.body.includes('id="agent-references"'));
-      assert.ok(r.body.includes('href="/developers/examples"'));
-      assert.ok(r.body.includes('class="topbar-brand">SmallDocs</a>'));
-      assert.ok(!r.body.includes('class="topbar-actions"'));
-      assert.ok(!r.body.includes('Developer documentation</div>'));
-      assert.ok(r.body.includes('rel="alternate" type="text/plain" href="/developers/llms.txt"'));
-      assert.ok(r.body.includes('/public/css/tokens.css?v='));
-      assert.ok(r.body.includes('/public/css/developers.css?v='));
-      assert.ok(r.body.includes('/public/developers.js?v='));
-      assert.ok(!r.body.includes('__SDOCS_'));
-      assert.strictEqual(r.headers['x-frame-options'], 'DENY');
-    });
-
-    await testAsync('GET /developers/example serves the customer SDK example', async () => {
-      const r = await get(BASE + '/developers/example');
-      assert.strictEqual(r.status, 200);
-      assert.ok(r.headers['content-type'].includes('text/html'));
-      assert.ok(r.body.includes('Meridian Research'));
-      assert.ok(r.body.includes('id="analysis-document"'));
-      assert.ok(r.body.includes('/public/css/developers-example.css?v='));
-      assert.ok(r.body.includes('/public/developers-example.js?v='));
-      assert.strictEqual(r.headers['x-frame-options'], 'DENY');
-
-      for (const slug of ['executive-summary', 'briefing', 'charts', 'model']) {
-        const markdown = await get(BASE + '/public/developers/example/' + slug + '.md');
-        assert.strictEqual(markdown.status, 200, 'example document: ' + slug);
-        assert.ok(markdown.body.includes('# Project Meridian'), 'example heading: ' + slug);
-      }
-      const walkthrough = await get(BASE + '/public/developers/example/walkthrough.md');
-      assert.strictEqual(walkthrough.status, 200);
-      assert.ok(walkthrough.body.includes('docwalk: true'));
-      assert.ok(walkthrough.body.includes('~~~sdoc-app'));
-    });
-
-    await testAsync('GET /developers/examples serves the SDK configuration gallery', async () => {
-      const r = await get(BASE + '/developers/examples');
-      assert.strictEqual(r.status, 200);
-      assert.ok(r.headers['content-type'].includes('text/html'));
-      assert.ok(r.body.includes('Northline Intelligence'));
-      assert.ok(r.body.includes('id="showcase-document"'));
-      assert.ok(r.body.includes('/public/css/developers-example.css?v='));
-      assert.ok(r.body.includes('/public/css/developers-showcase.css?v='));
-      assert.ok(r.body.includes('/public/developers-showcase.js?v='));
-      assert.strictEqual(r.headers['x-frame-options'], 'DENY');
-
-      for (const slug of ['complete-analysis', 'compact-answer', 'long-reference']) {
-        const markdown = await get(BASE + '/public/developers/showcase/' + slug + '.md');
-        assert.strictEqual(markdown.status, 200, 'showcase document: ' + slug);
-        assert.ok(/^# /m.test(markdown.body));
-      }
-    });
-
-    await testAsync('GET /developers/example/non-collapsible serves the styled SDK example', async () => {
-      const r = await get(BASE + '/developers/example/non-collapsible');
-      assert.strictEqual(r.status, 200);
-      assert.ok(r.headers['content-type'].includes('text/html'));
-      assert.ok(r.body.includes('Fieldwork'));
-      assert.ok(r.body.includes('id="field-report"'));
-      assert.ok(r.body.includes('/public/css/developers-style-demo.css?v='));
-      assert.ok(r.body.includes('/public/developers-style-demo.js?v='));
-      assert.strictEqual(r.headers['x-frame-options'], 'DENY');
-
-      const markdown = await get(BASE + '/public/developers/example/field-report.md');
-      assert.strictEqual(markdown.status, 200);
-      assert.ok(markdown.body.includes('# Streets that stay useful in the heat'));
-      assert.ok(markdown.body.includes('~~~mermaid'));
-      assert.ok(markdown.body.includes('~~~javascript'));
-    });
-
-    await testAsync('developer Markdown resources expose integration and authoring references', async () => {
-      const index = await get(BASE + '/developers/llms.txt');
-      assert.strictEqual(index.status, 200);
-      assert.ok(index.headers['content-type'].includes('text/plain'));
-      assert.ok(index.body.includes('/developers/integration.md'));
-      assert.ok(index.body.includes('/developers/authoring/slides.md'));
-      assert.ok(index.body.includes('/developers/authoring/slide-shapes.md'));
-      assert.ok(index.body.includes('/developers/authoring/apps.md'));
-      assert.ok(index.body.includes('/developers/authoring/walkthroughs.md'));
-
-      const guide = await get(BASE + '/developers/integration.md');
-      assert.strictEqual(guide.status, 200);
-      assert.ok(guide.headers['content-type'].includes('text/plain'));
-      assert.ok(guide.body.includes("import { render } from 'https://smalldocs.org/sdk/0.3.0/smalldocs.js'"));
-      assert.ok(guide.body.includes('The host does not parse fences'));
-      assert.ok(guide.body.includes('smalldocs-renderer'));
-      assert.ok(guide.body.includes('/developers/example'));
-
-      const full = await get(BASE + '/developers/llms-full.txt');
-      assert.strictEqual(full.status, 200);
-      assert.ok(full.body.includes(guide.body.trim()));
-      assert.ok(full.body.includes('# Custom slide shapes'));
-      assert.ok(full.body.includes('# Computed cells'));
-
-      const authoringSlugs = [
-        'markdown', 'code', 'math', 'diagrams', 'charts', 'cells',
-        'slides', 'slide-shapes', 'apps', 'walkthroughs', 'video', 'styles',
-      ];
-      for (const slug of authoringSlugs) {
+    await testAsync('authoring references use the normal reader and remain available as Markdown', async () => {
+      const slugs = ['markdown', 'code', 'math', 'diagrams', 'charts', 'cells',
+        'slides', 'slide-shapes', 'apps', 'walkthroughs', 'video', 'styles'];
+      for (const slug of slugs) {
         const page = await get(BASE + '/developers/authoring/' + slug);
-        assert.strictEqual(page.status, 200, 'human authoring route: ' + slug);
-        assert.ok(page.body.includes('id="developer-document"'));
+        assert.strictEqual(page.status, 200, 'authoring reader: ' + slug);
+        assert.ok(page.body.includes('/public/authoring/' + slug + '.md'));
+        assert.ok(page.body.includes('/public/sdocs-app.js?v='));
+        assert.strictEqual(page.headers['x-frame-options'], 'DENY');
         const markdown = await get(BASE + '/developers/authoring/' + slug + '.md');
-        assert.strictEqual(markdown.status, 200, 'raw authoring route: ' + slug);
+        assert.strictEqual(markdown.status, 200, 'authoring Markdown: ' + slug);
         assert.ok(markdown.headers['content-type'].includes('text/plain'));
-        assert.strictEqual(markdown.headers['access-control-allow-origin'], '*');
+        assert.ok(markdown.body.startsWith('# '));
       }
     });
 
-    await testAsync('well-known catalog publishes renderer and authoring skills', async () => {
-      const catalog = await get(BASE + '/.well-known/agent-skills/index.json');
-      assert.strictEqual(catalog.status, 200);
-      assert.ok(catalog.headers['content-type'].includes('application/json'));
-      assert.strictEqual(catalog.headers['access-control-allow-origin'], '*');
-      const parsed = JSON.parse(catalog.body);
-      assert.strictEqual(parsed.skills.length, 2);
-      assert.strictEqual(parsed.skills[0].name, 'smalldocs-renderer');
-      assert.deepStrictEqual(parsed.skills[0].files, ['SKILL.md', 'references/api.md']);
-      assert.strictEqual(parsed.skills[1].name, 'smalldocs-author');
-      assert.ok(parsed.skills[1].files.includes('references/slides.md'));
-      assert.ok(parsed.skills[1].files.includes('references/slide-shapes.md'));
-      assert.ok(parsed.skills[1].files.includes('references/apps.md'));
-      assert.ok(parsed.skills[1].files.includes('references/walkthroughs.md'));
+    await testAsync('retired SDK, developer demos and embed routes are unavailable', async () => {
+      const retired = ['/sdk/0.1.0/smalldocs.js', '/sdk/0.1.3/smalldocs.js',
+        '/sdk/0.2.0/core.js', '/sdk/0.3.0/smalldocs.js', '/sdk/0.3.1/vendor/sdocs-app-runner.html',
+        '/developers', '/developers/api.md', '/developers/example', '/developers/examples',
+        '/developers/example/non-collapsible', '/developers/llms.txt', '/developers/integration.md',
+        '/embed?parentOrigin=https%3A%2F%2Fcustomer.example&channel=test',
+        '/.well-known/agent-skills/index.json', '/.well-known/skills/index.json',
+        '/.well-known/agent-skills/smalldocs-renderer/SKILL.md',
+        '/.well-known/agent-skills/smalldocs-author/SKILL.md',
+        '/public/sdocs-embed.js', '/public/developers.js'];
+      for (const route of retired) assert.strictEqual((await get(BASE + route)).status, 404, route);
+    });
 
-      const legacy = await get(BASE + '/.well-known/skills/index.json');
-      assert.strictEqual(legacy.status, 200);
-      assert.deepStrictEqual(JSON.parse(legacy.body), parsed);
-
-      const skill = await get(BASE + '/.well-known/agent-skills/smalldocs-renderer/SKILL.md');
-      assert.strictEqual(skill.status, 200);
-      assert.strictEqual(skill.body, fs.readFileSync(path.join(__dirname, '..', '.agents', 'skills',
-        'smalldocs-renderer', 'SKILL.md'), 'utf8'));
-      assert.ok(skill.body.includes('description: ' + parsed.skills[0].description),
-        'catalog description should match the canonical skill front matter');
-
-      const reference = await get(BASE + '/.well-known/agent-skills/smalldocs-renderer/references/api.md');
-      assert.strictEqual(reference.status, 200);
-      assert.ok(reference.body.includes('## Security'));
-      assert.ok(reference.body.includes('direct-DOM SmallDocs reading surface'));
-
-      const authorSkill = await get(BASE + '/.well-known/agent-skills/smalldocs-author/SKILL.md');
-      assert.strictEqual(authorSkill.status, 200);
-      assert.ok(authorSkill.body.includes('internal status is not a reason'));
-      assert.ok(authorSkill.body.includes('references/slide-shapes.md'));
-      assert.ok(authorSkill.body.includes('references/apps.md'));
-      assert.ok(authorSkill.body.includes('references/walkthroughs.md'));
-
-      const slideReference = await get(
-        BASE + '/.well-known/agent-skills/smalldocs-author/references/slides.md'
-      );
-      assert.strictEqual(slideReference.status, 200);
-      assert.ok(slideReference.body.includes('Visual explanation is part of normal slide authoring'));
-
+    await testAsync('canonical CLI and Cloud agent skills remain available', async () => {
       const standardCatalog = await get(
         BASE + '/agent-skills/standard/.well-known/agent-skills/index.json');
       assert.strictEqual(standardCatalog.status, 200);
@@ -607,48 +335,10 @@ module.exports = function(harness) {
       assert.ok(cloudGlobal.body.includes('name: smalldocs'));
       assert.ok(cloudGlobal.body.includes('This user has enabled Cloud-first mode'));
       assert.ok(cloudGlobal.body.includes('sdoc cloud status --json'));
+      assert.ok(cloudGlobal.body.includes('Cloud service: http://localhost:3099'));
+      assert.ok(cloudGlobal.body.includes('http://localhost:3099/cloud-search'));
+      assert.ok(!cloudGlobal.body.includes('https://smalldocs.org'));
 
-      const appsReference = await get(
-        BASE + '/.well-known/agent-skills/smalldocs-author/references/apps.md'
-      );
-      assert.strictEqual(appsReference.status, 200);
-      assert.ok(appsReference.body.includes('The component starts inline'));
-
-      const walkthroughReference = await get(
-        BASE + '/.well-known/agent-skills/smalldocs-author/references/walkthroughs.md'
-      );
-      assert.strictEqual(walkthroughReference.status, 200);
-      assert.ok(walkthroughReference.body.includes('docwalk: true'));
-    });
-
-    await testAsync('embed shell allows only its declared customer origin to frame it', async () => {
-      const parentOrigin = 'https://customer.example';
-      const r = await get(BASE + '/embed?parentOrigin=' + encodeURIComponent(parentOrigin)
-        + '&channel=test-channel');
-      assert.strictEqual(r.status, 200);
-      assert.ok(r.headers['content-type'].includes('text/html'));
-      assert.ok(r.headers['content-security-policy'].includes('frame-ancestors ' + parentOrigin));
-      assert.strictEqual(r.headers['x-frame-options'], undefined);
-      assert.strictEqual(r.headers['cross-origin-resource-policy'], 'cross-origin');
-      assert.ok(r.body.includes('/public/css/embed.css'));
-      assert.ok(r.body.includes('/public/sdocs-embed.js'));
-      assert.ok(!r.body.includes('__CLOUD_UI_'));
-    });
-
-    await testAsync('embed shell rejects missing or malformed customer origins', async () => {
-      const missing = await get(BASE + '/embed?channel=test-channel');
-      assert.strictEqual(missing.status, 400);
-      const malformed = await get(BASE + '/embed?parentOrigin=javascript%3Aalert(1)&channel=test-channel');
-      assert.strictEqual(malformed.status, 400);
-    });
-
-    await testAsync('normal document reader does not load embed-only assets', async () => {
-      const r = await get(BASE + '/docs');
-      assert.strictEqual(r.status, 200);
-      assert.ok(!r.body.includes('/public/css/embed.css'));
-      assert.ok(!r.body.includes('/public/sdocs-embed.js'));
-      assert.ok(!r.body.includes('__EMBED_STYLES__'));
-      assert.ok(!r.body.includes('__EMBED_SCRIPT__'));
     });
 
     await testAsync('ordinary document pages remain unavailable to frames', async () => {
@@ -743,7 +433,7 @@ module.exports = function(harness) {
       const r = await get(BASE + '/home');
       assert.strictEqual(r.status, 200);
       assert.ok(r.body.includes('<title>SmallDocs - an office suite for coding agents</title>'));
-      assert.ok(r.body.includes("var explicitHomepage = location.pathname === '/home';"));
+      assert.ok(r.body.includes('/public/sdocs-home-entry.js?v='));
       assert.ok(r.body.includes("source = (sourceParams.get('src') || '').trim().toLowerCase();"),
         'homepage should lowercase the explicit source label');
       assert.ok(!r.body.includes("sourceParams.get('utm_source')"),
@@ -1127,12 +817,13 @@ module.exports = function(harness) {
       assert.ok(r.body.includes('SmallDocs Cloud'));
       assert.ok(r.body.includes('£4'));
       assert.ok(r.body.includes('$5 USD'));
-      assert.ok(r.body.includes('£7'));
-      assert.ok(r.body.includes('$9 USD'));
+      assert.ok(r.body.includes('data-cloud-plan="standard"'));
+      assert.ok(!r.body.includes('Subscribe to Team'));
+      assert.ok(r.body.includes('€5 EUR'));
       assert.ok(r.body.includes('not end-to-end encrypted'));
-      assert.ok(!r.body.toLowerCase().includes('trial'));
-      assert.ok(r.body.includes('/cloud/checkout?plan=personal'));
-      assert.ok(r.body.includes('/cloud/checkout?plan=team'));
+      assert.ok(r.body.includes('one free calendar month'));
+      assert.ok(r.body.includes('/cloud/subscribe'));
+      assert.ok(!r.body.includes('/cloud/checkout?plan='));
       assert.ok(r.body.includes('data-cloud-authenticated="false"'));
       assert.ok(!r.body.includes('href="/docs"'));
     });
@@ -1177,34 +868,11 @@ module.exports = function(harness) {
       await assertEveryAssetVersioned('/cloud/sign-in', v);
     });
 
-    await testAsync('GET /cloud/business-invite serves the private invitation page', async () => {
-      const r = await get(BASE + '/cloud/business-invite?preview=signin');
-      assert.strictEqual(r.status, 200);
-      assert.ok(r.body.includes('Welcome to SmallDocs'));
-      assert.ok(r.body.includes('Turn coding-agent work into documents your team can use'));
-      assert.ok(r.body.includes('Your free access'));
-      assert.ok(r.body.includes('We will be in touch'));
-      assert.ok(!r.body.includes('$18'));
-      assert.ok(r.body.includes('Accept your invitation'));
-      assert.ok(r.body.includes('Install SmallDocs Cloud'));
-      assert.ok(r.body.includes('Copy install prompt'));
-      assert.ok(r.body.includes('sdoc setup --cloud --yes'));
-      assert.ok(r.body.includes('sdoc FILE.md'));
-      assert.ok(r.body.includes('Open a few SmallDocs'));
-      assert.ok(r.body.includes('href="/developers"'));
-      assert.ok(!r.body.includes('__CLOUD_TERMS_VERSION__'));
-      assert.ok(!r.body.includes('__CLOUD_TERMS_LABEL__'));
-      assert.ok(r.body.includes('<a class="provider-button provider-link" data-provider="google"'));
-      assert.ok(r.body.includes('<a hidden class="provider-button provider-link" data-provider="github"'));
+    await testAsync('old business invitation URLs use the normal library invitation flow', async () => {
+      const r = await get(BASE + '/cloud/business-invite?token=old-token&preview=signin');
+      assert.strictEqual(r.status, 303);
+      assert.strictEqual(r.headers.location, '/cloud/invite?token=old-token');
       assert.strictEqual(r.headers['cache-control'], 'no-store');
-      assert.strictEqual(r.headers['x-robots-tag'], 'noindex, nofollow');
-      assert.strictEqual(r.headers['x-frame-options'], 'DENY');
-      assert.ok(r.headers['content-security-policy'].includes("default-src 'none'"));
-    });
-
-    await testAsync('asset-versioning: /cloud/business-invite is versioned', async () => {
-      const v = JSON.parse((await get(BASE + '/version-check')).body).version;
-      await assertEveryAssetVersioned('/cloud/business-invite?preview=signin', v);
     });
 
     let googleOAuthState;
@@ -1224,7 +892,7 @@ module.exports = function(harness) {
       assert.strictEqual(location.searchParams.get('client_id'), 'http-test-google-client');
       assert.strictEqual(location.searchParams.get('redirect_uri'),
         BASE + '/api/cloud/auth/oauth/google/callback');
-      assert.strictEqual(location.searchParams.get('scope'), 'openid email');
+      assert.strictEqual(location.searchParams.get('scope'), 'openid email profile');
       assert.strictEqual(location.searchParams.get('code_challenge_method'), 'S256');
       assert.ok(location.searchParams.get('code_challenge'));
       assert.ok(location.searchParams.get('nonce'));
@@ -1243,7 +911,7 @@ module.exports = function(harness) {
         encodeURIComponent(googleOAuthState) + '&error_description=' +
         encodeURIComponent('private provider detail'), { Cookie: googleOAuthCookie });
       assert.strictEqual(denied.status, 303);
-      assert.strictEqual(denied.headers.location, '/cloud/sign-in?error=oauth_denied');
+      assert.strictEqual(denied.headers.location, '/cloud/sign-in?error=oauth_denied&return=%2Fcloud%2Fadmin');
       assert.ok(!denied.headers.location.includes('private'));
       assert.ok(denied.headers['set-cookie'][0].includes('Max-Age=0'));
 
@@ -1341,7 +1009,7 @@ module.exports = function(harness) {
 
       const settings = await get(BASE + '/cloud/admin', { Cookie: cookie });
       assert.strictEqual(settings.status, 200);
-      assert.ok(settings.body.includes('Cloud settings'));
+      assert.ok(settings.body.includes('Account settings'));
       assert.ok(settings.body.includes('Connected machines'));
       assert.ok(settings.body.includes('/public/cloud-admin.js?v='));
       assert.ok(/script-src[^;]*'self'/.test(settings.headers['content-security-policy'] || ''));
@@ -1422,7 +1090,7 @@ module.exports = function(harness) {
       assert.strictEqual(homepage.status, 200);
       assert.strictEqual(homepage.headers['cache-control'], 'private, no-store');
       assert.strictEqual(homepage.headers.vary, 'Cookie');
-      assert.ok(homepage.body.includes('var cloudAuthenticated = \'true\''),
+      assert.ok(homepage.body.includes('data-cloud-authenticated="true"'),
         'signed-in root should route the browser to Cloud Library');
       assert.ok(homepage.body.includes('class="nav-link" href="/cloud"'),
         'signed-in users should retain the Cloud route in the product navigation');
@@ -1499,7 +1167,7 @@ module.exports = function(harness) {
       assert.ok(response.body.includes('Billing'));
       assert.ok(!response.body.includes('Agent access'));
       assert.ok(response.body.includes('Connected machines'));
-      assert.ok(response.body.includes('Cloud settings'));
+      assert.ok(response.body.includes('Account settings'));
       assert.ok(response.body.includes('data-sdocs-site-page="settings"'));
       assert.ok(response.body.includes('/public/css/site-sidebar.css'));
       assert.ok(response.body.includes('/public/sdocs-site-sidebar.js'));
@@ -1778,7 +1446,8 @@ module.exports = function(harness) {
 
       const reused = await post(BASE + '/api/cloud/v1/invitations/' + encodeURIComponent(token) + '/accept', {},
         { Origin: BASE, Cookie: cloudMemberCookie });
-      assert.strictEqual(reused.status, 404);
+      assert.strictEqual(reused.status, 200);
+      assert.strictEqual(JSON.parse(reused.body).workspace_id, cloudTeamWorkspace.workspaceId);
     });
 
     await testAsync('Cloud notifications batch documents without granting or inviting access', async () => {
@@ -2234,10 +1903,15 @@ module.exports = function(harness) {
       assert.strictEqual(head.status, 200);
       assert.deepStrictEqual(JSON.parse(head.body).document, {
         id: targetDocument.id,
+        workspace_id: cloudProject.workspaceId,
         current_revision_id: mergedDocument.current_revision_id,
         revision_number: mergedDocument.revision_number,
         updated_at: mergedDocument.updated_at,
+        activity: mergedDocument.activity,
       });
+      assert.strictEqual(mergedDocument.activity.latest.revision_id, mergedDocument.current_revision_id);
+      assert.strictEqual(mergedDocument.activity.latest.kind, 'browser');
+      assert.strictEqual(mergedDocument.activity.has_agent_edits, false);
 
       const tagged = await patch(BASE + '/api/cloud/v1/documents/' + targetDocument.id + '/tags', {
         target_revision_id: targetRevisionId,
@@ -2472,13 +2146,14 @@ module.exports = function(harness) {
     // ── Teams-interest endpoint ──
     await testAsync('POST /api/teams-interest relays a valid submission to SmallCRM', async () => {
       const r = await post(BASE + '/api/teams-interest', {
-        email: 'lead@example.com', company: 'Acme', message: 'We ship reports weekly.',
+        name: ' Alex Smith ', email: 'lead@example.com', company: 'Acme', message: 'We ship reports weekly.',
       });
       assert.strictEqual(r.status, 201);
       assert.strictEqual(teamsFormSubmissions.length, 1);
       const form = teamsFormSubmissions[0];
       assert.strictEqual(form.get('_scrm_form'), 'teams-interest-test');
       assert.strictEqual(form.get('inbound_leads.email'), 'lead@example.com');
+      assert.strictEqual(form.get('inbound_leads.name'), 'Alex Smith');
       assert.strictEqual(form.get('inbound_leads.company'), 'Acme');
       assert.strictEqual(form.get('inbound_leads.message'), 'We ship reports weekly.');
     });
@@ -2506,6 +2181,7 @@ module.exports = function(harness) {
       const form = teamsFormSubmissions[1];
       assert.strictEqual(form.get('inbound_leads.email'), 'solo@example.com');
       assert.strictEqual(form.has('inbound_leads.company'), false);
+      assert.strictEqual(form.has('inbound_leads.name'), false);
       assert.strictEqual(form.has('inbound_leads.message'), false);
     });
 
@@ -2515,6 +2191,29 @@ module.exports = function(harness) {
       teamsFormStatus = 200;
       assert.strictEqual(r.status, 502);
       assert.deepStrictEqual(JSON.parse(r.body), { error: 'submission_failed' });
+    });
+
+    await testAsync('install requests store their email and source in SmallCRM', async () => {
+      const before = teamsFormSubmissions.length;
+      const r = await post(BASE + '/api/install-interest', { email: 'install@example.com' });
+      assert.strictEqual(r.status, 201);
+      assert.strictEqual(teamsFormSubmissions.length, before + 1);
+      const form = teamsFormSubmissions.at(-1);
+      assert.strictEqual(form.get('inbound_leads.email'), 'install@example.com');
+      assert.strictEqual(form.get('inbound_leads.source'), 'homepage_install');
+      assert.strictEqual(form.get('inbound_leads.status'), 'new');
+    });
+    await testAsync('install requests reject invalid emails without storing a lead', async () => {
+      const before = teamsFormSubmissions.length;
+      const r = await post(BASE + '/api/install-interest', { email: 'invalid' });
+      assert.strictEqual(r.status, 400);
+      assert.strictEqual(teamsFormSubmissions.length, before);
+    });
+    await testAsync('install requests report receiver failures', async () => {
+      teamsFormStatus = 503;
+      const r = await post(BASE + '/api/install-interest', { email: 'failure@example.com' });
+      teamsFormStatus = 200;
+      assert.strictEqual(r.status, 502);
     });
 
     cloudBilling.close();
@@ -2534,6 +2233,7 @@ module.exports = function(harness) {
       const hiddenServer = spawn('node', [path.join(__dirname, '..', 'server.js')], {
         env: {
           PATH: process.env.PATH,
+          NODE_PATH: process.env.NODE_PATH,
           HOME: process.env.HOME,
           HOST: '127.0.0.1',
           PORT: String(hiddenPort),
@@ -2542,6 +2242,7 @@ module.exports = function(harness) {
           CLOUD_PUBLIC_MODE: 'hidden',
           SHORT_LINKS_DB: testShortLinksDbPath,
           SMALLCRM_TEAMS_FORM_ACTION: teamsFormAction,
+        SMALLCRM_INSTALL_FORM_ACTION: teamsFormAction,
           FEEDBACK_DB: testDbPath,
         },
         stdio: 'pipe',
@@ -2622,6 +2323,7 @@ module.exports = function(harness) {
     try { fs.unlinkSync(testShortLinksDbPath + '-wal'); } catch (_) {}
     try { fs.unlinkSync(testShortLinksDbPath + '-shm'); } catch (_) {}
     await new Promise(resolve => teamsFormServer.close(resolve));
+    await new Promise(resolve => stripeServer.close(resolve));
     try { fs.unlinkSync(testCloudAuthDbPath); } catch (_) {}
     try { fs.unlinkSync(testCloudAuthDbPath + '-wal'); } catch (_) {}
     try { fs.unlinkSync(testCloudAuthDbPath + '-shm'); } catch (_) {}

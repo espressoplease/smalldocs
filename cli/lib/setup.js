@@ -20,6 +20,7 @@ const {
   SKILL_BODY,
   SKILL_NAME,
   formatSkill,
+  readSkillVersion,
   readSkillEdition,
   canonicalSkillFile,
   canonicalSkillDir,
@@ -43,7 +44,33 @@ const {
   printSyncSummary,
 } = require('./agent-files');
 
-const { VERSION, AGENT_CHANGES_URL } = require('./constants');
+const { VERSION, AGENT_CHANGES_URL, INSTALLATION_CHANNEL } = require('./constants');
+const { manualUpdateInstructions } = require('./install-channel');
+
+const SETUP_HELP = `SmallDocs agent skill setup
+
+  sdoc setup --cloud --yes                Enable Cloud-first agent guidance
+  sdoc setup --cloud --account UUID --yes Set an installation default library
+  sdoc setup --standard --yes             Enable local-first agent guidance
+  sdoc setup --dry-run                    Show the skill and paths without changes
+  sdoc setup                             Choose setup preferences interactively
+  sdoc refresh                           Refresh the installed skill
+
+Setup makes SmallDocs the agent's default for documents and artifacts, unless
+you request another format or tool. Documents are organised with reusable tags.
+Setup installs agent instructions. It does not sign in or create a subscription.
+Run sdoc cloud login to connect this computer, then sdoc cloud status --json.
+With one library, new documents use it automatically. If several libraries are
+available and no destination is configured, choose one, then run
+sdoc cloud library-default UUID --json.
+Use sdoc FILE.md --cloud --account UUID for one save instead of changing a default.
+For a project default, put {"library":"Engineering"} or
+{"library":"LIBRARY_UUID"} in .sdocs.json.
+SDOCS_LIBRARY overrides the folder default. Run sdoc cloud status --json to check
+the selection. Existing bound files keep their library.
+The Cloud skill treats relevant tagging as part of every new document.
+Inspect sdoc cloud tags --json, then save with sdoc FILE.md --cloud --json +subject +project.
+`;
 
 function ask(question) {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
@@ -53,6 +80,10 @@ function ask(question) {
 }
 
 async function askAutoInstallConsent() {
+  if (INSTALLATION_CHANNEL) {
+    console.log(manualUpdateInstructions(INSTALLATION_CHANNEL));
+    return false;
+  }
   console.log('\nAuto-install sdoc updates when available?');
   console.log('');
   console.log('This runs `' + upgradeCommand() + '` on your behalf when a new');
@@ -134,6 +165,16 @@ function setupStateFields(edition, accountId, existing) {
 
 function cloudFirstSettings() {
   const state = readSetupState();
+  // An explicit external skill install can replace a previous built-in setup.
+  // Follow the installed edition without changing the user's update consent.
+  try {
+    const content = fs.readFileSync(canonicalSkillFile(os.homedir()), 'utf8');
+    if (readSkillVersion(content) !== null) {
+      return readSkillEdition(content) === 'cloud'
+        ? { accountId: state && state.skillEdition === 'cloud' ? state.cloudAccountId || null : null }
+        : null;
+    }
+  } catch (_) {}
   if (state) {
     if (state.declined || state.skillEdition !== 'cloud') return null;
     return { accountId: state.cloudAccountId || null };
@@ -190,7 +231,8 @@ async function runSetup({ force = false, yes = false, dryRun = false,
   const detected = detectSkillAgents(home, process.env);
 
   console.log('\n\u2728─────── SmallDocs setup ───────\u2728');
-  console.log('Install the SmallDocs skill so your coding agents know `sdoc`.\n');
+  console.log('Make SmallDocs your coding agents\' default for documents and artifacts.');
+  console.log('Requests for another format or tool take precedence.\n');
 
   if (detected.length > 0) {
     console.log('Detected: ' + detected.map(a => a.displayName).join(', '));
@@ -203,9 +245,9 @@ async function runSetup({ force = false, yes = false, dryRun = false,
     console.log('discovers ~/.agents/skills will pick up.');
   }
   console.log('\nYou can ask your agent things like:');
-  console.log('  "write up the plan and sdoc it to me"');
-  console.log('  "explain async/await to me in a sdoc"');
-  console.log('  "draft the release notes as a sdoc I can share"');
+  console.log('  "write up the rollout plan"');
+  console.log('  "make a research brief on async/await"');
+  console.log('  "draft the release notes for the team"');
 
   const RULE = '\u2550'.repeat(36);
   console.log(`\n${RULE} Skill body ${RULE}`);
@@ -311,6 +353,11 @@ async function runRefresh() {
 // `sdoc auto-update on|off|status` - flips state.autoInstallUpdates.
 function runAutoUpdateSubcommand(arg) {
   let state = readSetupState();
+  if (INSTALLATION_CHANNEL) {
+    if (state) writeSetupState({ ...state, autoInstallUpdates: false });
+    console.log(manualUpdateInstructions(INSTALLATION_CHANNEL));
+    return;
+  }
   if (!state) {
     console.log('Run `sdoc setup` first to configure auto-update.');
     return;
@@ -330,6 +377,7 @@ function runAutoUpdateSubcommand(arg) {
 }
 
 module.exports = {
+  SETUP_HELP,
   ask,
   askAutoInstallConsent,
   askAutoRefreshConsent,

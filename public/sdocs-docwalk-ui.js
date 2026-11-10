@@ -86,7 +86,7 @@ function plainInline(source) {
   if (!source) return '';
   try {
     var holder = document.createElement('div');
-    holder.innerHTML = DOMPurify.sanitize(marked.parseInline(source), { FORBID_ATTR: ['style'] });
+    holder.innerHTML = S.sanitizeMarkdownHtml(marked.parseInline(source));
     return (holder.textContent || '').replace(/\s+/g, ' ').trim();
   } catch (_) {
     return String(source).replace(/[*_`~\[\]]/g, '').trim();

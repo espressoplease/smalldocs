@@ -1,11 +1,11 @@
 ---
 title: SmallDocs Cancellation and Refund Policy
-description: How to cancel Cloud, request a refund, export documents, and understand deletion windows.
+description: How to cancel Cloud, request a refund, export documents, and understand access after cancellation.
 ---
 
 # Cancellation and Refund Policy
 
-**Last updated: 24 August 2026**
+**Last updated: 26 October 2026**
 
 ## Cancel a subscription
 
@@ -15,25 +15,25 @@ description: How to cancel Cloud, request a refund, export documents, and unders
 
 Cancellation stops the next renewal. You can keep editing until the end of the period already paid for. The account then becomes read-only, so you can open and export documents but cannot add or edit Cloud content.
 
-Cloud documents are scheduled for permanent deletion 30 days after the paid period ends. Restarting the subscription before that date restores paid access and stops the scheduled deletion.
+Cancellation does not automatically delete your Cloud documents. Restarting the subscription restores editing.
 
 ## Consumer refund window
 
-If your first Personal subscription was bought as a consumer, email [hi@smalldocs.org](mailto:hi@smalldocs.org) within 14 days of purchase to request a full refund. Include the email address used for the subscription. Do not send card details.
+If your first subscription was bought as a consumer, email [hi@smalldocs.org](mailto:hi@smalldocs.org) within 14 days of purchase to request a full refund. Include the email address used for the subscription. Do not send card details.
 
 This policy does not reduce any refund or cancellation right provided by law.
 
 ## Failed payment
 
-If a payment fails, editing remains available for 7 days while Stripe retries or the payment method is updated. The account then becomes read-only. Cloud documents are scheduled for permanent deletion 60 days after the failed payment unless payment is recovered.
+If a payment fails, editing remains available for 7 days while Stripe retries or the payment method is updated. The account then becomes read-only. Failed payment does not automatically delete your Cloud documents.
 
-SmallDocs sends notice when the payment fails, when access becomes read-only, and before scheduled deletion. Email delivery can fail, so the dates shown in Cloud settings remain the source of truth.
+SmallDocs sends notice when payment fails and when access becomes read-only. Check Billing for your access status.
 
 ## Export and account deletion
 
-Export important documents before a deletion date. Subscription cancellation does not immediately delete the account or its documents.
+You can open and export retained documents after cancellation.
 
-A Team owner can request Team deletion in Cloud settings. For a full account or personal-data deletion request, email [hi@smalldocs.org](mailto:hi@smalldocs.org). We may retain billing and transaction records where required for tax, accounting, fraud prevention, or legal claims.
+A library owner can request library deletion in Cloud settings. For a full account or personal-data deletion request, email [hi@smalldocs.org](mailto:hi@smalldocs.org). We may retain billing and transaction records where required for tax, accounting, fraud prevention, or legal claims.
 
 Deleted Cloud data may remain as encrypted ciphertext in backup archives until the backup retention cycle completes. Backup encryption keys and access are kept separate from the archive.
 

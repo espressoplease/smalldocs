@@ -228,6 +228,46 @@
   S.applyChromeTint = scheduleApply;
 })();
 
+// Reuse the document controls in the compact mobile header.
+(function () {
+  if (typeof window === 'undefined' || !window.document) return;
+  var tools = document.getElementById('_sd_document-tools');
+  var toolbar = document.getElementById('_sd_left-toolbar');
+  var header = document.getElementById('_sd_mobile-header');
+  var navigation = document.getElementById('_sd_mobile-navigation');
+  var brand = document.querySelector('.sdocs-mobile-toolbar-brand');
+  var scroller = document.querySelector('.sdocs-mobile-toolbar-scroll');
+  if (!tools || !toolbar || !header || !navigation || !brand || !scroller) return;
+  var home = tools.parentNode;
+  var next = tools.nextSibling;
+  var brandHome = brand.parentNode;
+  var mobile = window.matchMedia('(max-width: 768px)');
+  function placeControls() {
+    if (mobile.matches) {
+      navigation.appendChild(toolbar);
+      scroller.insertBefore(brand, scroller.firstChild);
+      header.appendChild(tools);
+    } else {
+      home.insertBefore(tools, next);
+      tools.insertBefore(toolbar, tools.firstChild);
+      brandHome.appendChild(brand);
+    }
+  }
+  if (mobile.addEventListener) mobile.addEventListener('change', placeControls);
+  else mobile.addListener(placeControls);
+  placeControls();
+})();
+
+// Match anchor scrolling to the complete tools surface, including wrapped pills.
+(function () {
+  if (typeof window === 'undefined' || !window.document) return;
+  var tools = document.getElementById('_sd_document-tools');
+  if (!tools || typeof ResizeObserver === 'undefined') return;
+  new ResizeObserver(function () {
+    document.documentElement.style.setProperty('--sdocs-document-tools-height', tools.getBoundingClientRect().height + 'px');
+  }).observe(tools);
+})();
+
 // Mobile top header -------------------------------------------------------
 (function () {
   if (typeof window === 'undefined' || !window.document) return;
@@ -246,6 +286,8 @@
     isPinned: function () {
       return document.body.classList.contains('sdocs-mobile-nav-open') ||
         document.body.classList.contains('style-mode') ||
+        document.body.classList.contains('share-mode') ||
+        document.body.classList.contains('history-mode') ||
         document.body.classList.contains('export-mode') ||
         document.body.classList.contains('info-mode');
     },

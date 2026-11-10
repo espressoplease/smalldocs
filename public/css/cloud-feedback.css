@@ -1,0 +1,10 @@
+.feedback-sender { align-items: flex-start; }
+.feedback-sender > div { min-width: 0; overflow-wrap: anywhere; }
+.feedback-sender time { flex: 0 0 auto; color: var(--text-2); font-size: 12px; }
+.feedback-message { margin: 0; padding: 16px; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.6; }
+.feedback-pagination { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 24px; }
+.feedback-pagination .btn, #feedback-refresh { border-radius: 999px; }
+.feedback-pagination .btn:disabled { cursor: default; color: var(--text-3); }
+@media (max-width: 600px) {
+  .feedback-sender { flex-direction: column; gap: 8px; }
+}

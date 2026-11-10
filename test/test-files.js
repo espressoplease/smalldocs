@@ -22,6 +22,7 @@ module.exports = function(harness) {
     const nginx = fs.readFileSync(path.join(__dirname, '..', 'ops', 'nginx',
       'smalldocs.conf'), 'utf8');
     assert.ok(env.includes('HOST=127.0.0.1'));
+    assert.ok(env.includes('TRUST_PROXY=1'));
     assert.ok(env.includes('CLOUD_MODE=off'));
     assert.ok(env.includes('CLOUD_PUBLIC_MODE=hidden'));
     assert.ok(unit.includes('User=smalldocs'));
@@ -157,7 +158,9 @@ module.exports = function(harness) {
   test('staging deploy publishes one exact commit and cannot switch production', () => {
     const deploy = fs.readFileSync(path.join(__dirname, '..', 'ops',
       'deploy-staging.sh'), 'utf8');
-    assert.ok(deploy.includes('refs/heads/main'));
+    assert.ok(deploy.includes('release_ref=refs/heads/${2:-main}'));
+    assert.ok(deploy.includes('git check-ref-format'));
+    assert.ok(deploy.includes('git ls-remote --heads origin "$release_ref"'));
     assert.ok(deploy.includes('/opt/smalldocs/staging-current'));
     assert.ok(deploy.includes('systemctl restart smalldocs-staging'));
     assert.ok(deploy.includes('http://127.0.0.1:3004/version-check'));
@@ -253,30 +256,21 @@ module.exports = function(harness) {
     const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf-8');
     const code = fs.readFileSync(path.join(__dirname, '..', 'public', 'sdocs-code-focus.js'), 'utf-8');
     const docs = fs.readFileSync(path.join(__dirname, '..', 'public', 'sdocs-docwalk-ui.js'), 'utf-8');
-    const sdkCss = fs.readFileSync(path.join(
-      __dirname, '..', 'sdk', 'browser', 'releases', '0.3.0', 'code-reader.css'
-    ), 'utf-8');
     assert.ok(html.includes('/public/css/walkthrough.css'));
     assert.ok(css.includes('.sdoc-walkthrough-card.is-active'));
     assert.ok(code.includes("card.classList.add('sdoc-walkthrough-card')"));
     assert.ok(docs.includes('sdoc-docwalk-card sdoc-walkthrough-card'));
-    assert.ok(sdkCss.includes("@import url('./vendor/sdocs-walkthrough.css')"));
   });
 
-  test('reader controls share dimensions and developer docs reuse the shared sidebar', () => {
+  test('reader panels reuse shared dimensions', () => {
     const cssDir = path.join(__dirname, '..', 'public', 'css');
     const tokens = fs.readFileSync(path.join(cssDir, 'tokens.css'), 'utf-8');
-    const layout = fs.readFileSync(path.join(cssDir, 'layout.css'), 'utf-8');
     const panel = fs.readFileSync(path.join(cssDir, 'panel.css'), 'utf-8');
     const sidebar = fs.readFileSync(path.join(cssDir, 'sidebar-shared.css'), 'utf-8');
-    const developers = fs.readFileSync(path.join(cssDir, 'developers.css'), 'utf-8');
     assert.ok(tokens.includes('--ui-toolbar-height: 40px'));
     assert.ok(tokens.includes('--ui-panel-width:    335px'));
-    assert.ok(layout.includes('height: var(--ui-toolbar-height)'));
     assert.ok(panel.includes('width: var(--ui-panel-width)'));
-    assert.ok(developers.includes('height: var(--ui-toolbar-height)'));
     assert.ok(sidebar.includes('--sdocs-sidebar-width: 224px'));
-    assert.ok(developers.includes('margin-left: var(--sdocs-sidebar-width)'));
   });
 
   test('index.html contains theme toggle button', () => {
@@ -409,7 +403,7 @@ module.exports = function(harness) {
     assert.ok(explainer.includes('<title>Interactive dependency map</title>'));
     assert.strictEqual((explainer.match(/\*\*Try this prompt:\*\*/g) || []).length, 3);
     assert.ok(!explainer.includes('How an agent should decide'));
-    assert.ok(explainer.includes('[Renderer SDK](/developers)'));
+    assert.ok(explainer.includes('[runnable component reference](/developers/authoring/apps)'));
   });
 
   test('cli/package.json has postinstall script and version 1.5.0+', () => {
@@ -438,34 +432,5 @@ module.exports = function(harness) {
     assert.ok(chartPalette > blocksStart && chartPalette < colorsEnd, 'chart palette should be inside Blocks sub-section');
   });
 
-  test('versioned SDK reader snapshot matches canonical production sources', () => {
-    const repo = path.join(__dirname, '..');
-    const releaseRoot = path.join(repo, 'sdk', 'browser', 'releases', '0.3.1');
-    const manifestPath = path.join(releaseRoot, 'vendor', 'reader-manifest.json');
-    const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
-    Object.keys(manifest).forEach((targetName) => {
-      const source = fs.readFileSync(path.join(repo, manifest[targetName].source));
-      const target = fs.readFileSync(path.join(releaseRoot, 'vendor', targetName));
-      if (!manifest[targetName].transform) {
-        assert.deepStrictEqual(target, source, targetName + ' must be regenerated from its canonical source');
-        return;
-      }
-      const crypto = require('crypto');
-      const hash = value => crypto.createHash('sha256').update(value).digest('hex');
-      assert.strictEqual(hash(source), manifest[targetName].sourceSha256,
-        targetName + ' canonical transform source has drifted');
-      assert.strictEqual(hash(target), manifest[targetName].sha256,
-        targetName + ' transformed SDK snapshot has drifted');
-      if (manifest[targetName].transform === 'manual-sdk-adapter') return;
-      assert.ok(target.toString('utf8').startsWith('@layer smalldocs {\n@scope (.smalldocs-sdk-view[data-smalldocs-sdk-version="0.3.1"]) {\n'),
-        targetName + ' must remain layered and scoped to the exact SDK version');
-      if (targetName === 'sdocs-cells.css') {
-        const css = target.toString('utf8');
-        assert.ok(css.includes('.sdoc-cells-focus-topbar'),
-          'cells focus descendant class names must survive the SDK scope transform');
-        assert.ok(!css.includes('data-smalldocs-sdk-version="0.3.1"]-topbar'),
-          'the SDK scope transform must not splice the version marker into class names');
-      }
-    });
-  });
+
 };

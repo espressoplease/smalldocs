@@ -1,0 +1,78 @@
+{
+  "audited_commit": "19da48521599730292f2cde9aca389a540b633e0",
+  "date": "2026-10-26",
+  "environment": "disposable local databases, real HTTP handlers, headless Chromium, simulated provider transport",
+  "application_changes": false,
+  "observations": [
+    {
+      "case": "concurrent_refresh",
+      "results": [
+        "login_required",
+        "login_required"
+      ],
+      "credential_revoked": true,
+      "saved_credential_exists": false
+    },
+    {
+      "case": "lost_refresh_reply_then_retry",
+      "results": [
+        "temporary_service_failure",
+        "login_required"
+      ],
+      "credential_revoked": true,
+      "saved_credential_exists": false
+    },
+    {
+      "case": "member_joins_while_checkout_open",
+      "expected_seats": 2,
+      "provider_quantity": 1,
+      "local_quantity": 1,
+      "member_covered": true,
+      "seat_update_requests": 0,
+      "pending_seat_sync_jobs": 0
+    },
+    {
+      "case": "failed_payment_notice",
+      "subscription_status": "past_due",
+      "phase": "active",
+      "notices": [],
+      "grace_deadline_in_summary": null,
+      "smallDocs_billing_email_jobs": 0
+    },
+    {
+      "case": "parallel_binding_updates",
+      "writers": 2,
+      "retained_bindings": 1,
+      "document_ids": [
+        "doc-b"
+      ]
+    },
+    {
+      "case": "checkout_after_31_minutes",
+      "message": "Sign in again before continuing to payment.",
+      "sign_in_links": 0
+    },
+    {
+      "case": "gmail_plus_verified_work_email",
+      "verified_email_count": 2,
+      "company_domain": null,
+      "join_status": 400,
+      "error": "invalid_request"
+    },
+    {
+      "case": "unpaid_incomplete_subscription_after_trial",
+      "before_status": 402,
+      "after_status": 200,
+      "markdown_returned": true,
+      "subscription_status": "read_only",
+      "phase": "uncovered"
+    }
+  ],
+  "explicitly_run_regression_tests": 189,
+  "previously_skipped_tests_run_explicitly": 84,
+  "live_google_consent_checked": false,
+  "real_stripe_payment_checked": false,
+  "production_database_accessed_in_this_audit": false,
+  "new_probe_scenarios": 8,
+  "flow_groups_mapped": 91
+}

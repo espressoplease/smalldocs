@@ -8,7 +8,7 @@
 // frames land per slide.
 const { test, expect } = require('@playwright/test');
 
-const BASE = 'http://localhost:3000/docs';
+const BASE = (process.env.SDOCS_TEST_BASE_URL || 'http://localhost:3000') + '/docs';
 
 function deck(blocks) {
   return '# Deck\n\n' + blocks.map((b) => '~~~slide\n' + b + '\n~~~').join('\n\n') + '\n';

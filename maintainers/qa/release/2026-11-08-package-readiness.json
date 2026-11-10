@@ -1,0 +1,44 @@
+{
+  "date": "2026-11-08",
+  "candidate_commit": "14a5043fd1316917adebd16e0a431f155b7f2507",
+  "package": "sdocs-dev",
+  "candidate_version": "1.20.0",
+  "registry_latest": "1.19.2",
+  "workflow": {
+    "url": "https://github.com/espressoplease/smalldocs/actions/runs/42531293225",
+    "conclusion": "success",
+    "dry_run": true,
+    "node_major": 24,
+    "npm_major": 11,
+    "linux_node_tests_passed": 2280,
+    "published": false,
+    "real_oidc_publication_verified": false,
+    "provenance_attestation_issued": false
+  },
+  "tarball": {
+    "files": 60,
+    "packed_kb_displayed": 284,
+    "unpacked_kb_displayed": 948.1,
+    "sha1": "454ff0ee57c077094d55ad2437825a1a9e65ce99"
+  },
+  "inactive_configuration": {
+    "google_oauth_prepared": true,
+    "single_plan_prepared": true,
+    "live_standard_price_prepared": true,
+    "feedback_admin_resolved_from_production": true,
+    "root_owned_mode_0600": true,
+    "active_environment_changed": false
+  },
+  "skill_review": {
+    "version": 54,
+    "cloud_document_url": "https://cloud-staging.smalldocs.org/docs?cloud-document=e216454f-0d2e-4dc0-88ab-1ac20c89558a",
+    "source_sha256": "046f9323b45663f425960bd304dc38543f5b99163a77e18398560e504e3a9d80",
+    "user_approval": "approved",
+    "supersedes_version": 53,
+    "note": "Updated after the package dry run at the user request to clarify knowledge-library intent, rich formats and relevant feature and Cloud administration guidance; installation and skill checks passed 96 checks.",
+    "approved_on": "2026-11-09",
+    "approval_context": "User approved the final skill wording and production launch after review in chat."
+  },
+  "production_release": "e5c705b24e8537dd5b2041fc3eb11801928af375",
+  "production_deployed": false
+}

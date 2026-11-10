@@ -9,13 +9,11 @@
   "scripts": {
     "start": "node server.js",
     "test": "node test/run.js",
-    "parity": "node scripts/sdocs-parity.js",
     "test:cloud-e2e": "playwright test --config=playwright.cloud.config.js",
+    "test:onboarding": "playwright test --config=playwright.onboarding.config.js",
     "email:preview": "node scripts/email-preview.js",
     "email:preview:stop": "docker compose -p smalldocs-email-preview -f test/mailpit.compose.yml down",
     "eval:skill": "node scripts/smalldocs-skill-eval.js",
-    "sdk:snapshot": "node scripts/build-sdk-reader-snapshot.js --version 0.3.1",
-    "sdk:check": "node scripts/build-sdk-reader-snapshot.js --version 0.3.1 --check && node scripts/build-sdk-release-manifest.js --version 0.2.0 --check && node scripts/build-sdk-release-manifest.js --version 0.3.0 --check && node scripts/build-sdk-release-manifest.js --version 0.3.1 --check",
     "cloud:jobs": "node scripts/cloud-job-status.js",
     "cloud:jobs:retry": "node scripts/cloud-job-retry.js",
     "cloud:kms:smoke": "node ops/kms-failure-smoke.js",
@@ -35,7 +33,8 @@
     "brotli": "^1.3.3",
     "brotli-dec-wasm": "^2.3.2",
     "brotli-wasm": "^3.0.1",
-    "marked": "^11.0.0"
+    "marked": "^11.0.0",
+    "playwright-core": "1.59.1"
   },
   "devDependencies": {
     "@playwright/test": "^1.59.1",

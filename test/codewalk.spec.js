@@ -245,7 +245,7 @@ test('a hostile filename cannot inject script into the tab strip or data-file', 
 test('the walkthrough file-info card offers a short link', async ({ page }) => {
   await openWalk(page, TWO_FILES, STEPS);
   await expect(page.locator('.sdoc-cf-fileinfo')).toBeVisible();
-  // The "Short URL — Generate" intro row (identical UI to the single-file card).
+  // The Share URL generation row matches the single-file card.
   await expect(page.locator('.sdoc-cf-shortintro')).toBeVisible();
   await expect(page.locator('.sdoc-cf-shortbtn[data-shorten]')).toBeVisible();
 });
@@ -259,7 +259,7 @@ test('a short link minted from a later tab reopens on the first step tab', async
 
   // Mint the link through the real card button (shortenGenerate → generateShortLink).
   await page.locator('.sdoc-cf-shortbtn[data-shorten]').first().click();
-  await expect(page.locator('.sdoc-cf-firow', { hasText: 'Short URL' })).toBeVisible();
+  await expect(page.locator('.sdoc-cf-firow:not(.sdoc-cf-shortintro)', { hasText: 'Share URL' })).toBeVisible();
   const shortUrl = await page.evaluate(() => window.SDocs.shortUrl);
   expect(shortUrl).toBeTruthy();
 

@@ -1,0 +1,92 @@
+{
+  "date": "2026-11-08",
+  "staging_release": "c81f0f2836128a74a74548012a22c98e47ea1357",
+  "production_release": "e5c705b24e8537dd5b2041fc3eb11801928af375",
+  "production_application_deployed": false,
+  "production_active_environment_changed": false,
+  "production_service_restarted": false,
+  "staging": {
+    "deployment_script": "ops/deploy-staging.sh",
+    "application_active": true,
+    "compiler_active": true,
+    "http": {
+      "docs": 200,
+      "retired_developer_portal": 404,
+      "retired_sdk_0_3_1": 404,
+      "retained_authoring_apps_markdown": 200,
+      "google_start": 303,
+      "google_redirect_host": "accounts.google.com"
+    },
+    "headless_browser": {
+      "authoring_reader": {
+        "http_status": 200,
+        "h1_count": 1,
+        "document_actions_visible": true
+      },
+      "existing_public_page": {
+        "http_status": 200,
+        "publication_ready": true,
+        "document_actions_visible": true,
+        "rendered_slides": 4
+      },
+      "page_errors": [],
+      "sdk_requests": 0
+    }
+  },
+  "google_oauth": {
+    "project": "smalldocs-production-2026",
+    "separate_from_staging": true,
+    "existing_staging_client_changed": false,
+    "client_name": "SmallDocs production web",
+    "client_id": "578646928115-p0b7sevfohv2u2ogemrs7qe5r3emrad6.apps.googleusercontent.com",
+    "client_type": "Web application",
+    "redirect_uris": [
+      "https://smalldocs.org/api/cloud/auth/oauth/google/callback"
+    ],
+    "javascript_origins": [],
+    "audience": "External",
+    "publishing_status": "In production",
+    "configured_scopes": [
+      "openid",
+      "https://www.googleapis.com/auth/userinfo.email",
+      "https://www.googleapis.com/auth/userinfo.profile"
+    ],
+    "sensitive_scopes": [],
+    "restricted_scopes": [],
+    "data_access_verification_required": false,
+    "branding": {
+      "app_name": "SmallDocs",
+      "homepage": "https://smalldocs.org/home",
+      "privacy": "https://smalldocs.org/privacy",
+      "terms": "https://smalldocs.org/legal",
+      "authorized_domains": ["smalldocs.org"],
+      "linked_pages_http_status": 200,
+      "custom_branding_verified": false,
+      "account_chooser_display_name": "smalldocs.org",
+      "logo_uploaded": false
+    },
+    "provider_preflight": {
+      "browser_reached_normal_account_chooser": true,
+      "client_and_exact_redirect_accepted": true,
+      "privacy_and_terms_links_correct": true,
+      "account_consent_completed": false,
+      "authorization_code_exchanged": false,
+      "production_session_created": false
+    },
+    "prepared_credential": {
+      "path_on_server": "/etc/smalldocs/google-oauth.prepared.env",
+      "owner": "root",
+      "mode": "0600",
+      "project_client_and_callback_validated": true,
+      "local_download_removed": true,
+      "loaded_by_production": false
+    },
+    "production_start_status_before_activation": 503,
+    "production_start_error_before_activation": "provider_not_configured"
+  },
+  "remaining_oauth_cutover_checks": [
+    "Merge the prepared environment values into the existing root-only production environment during the approved release",
+    "Verify a complete real Google sign-in and existing-email identity linking on the production origin",
+    "Remove the redundant prepared credential file after activation and verification"
+  ]
+}

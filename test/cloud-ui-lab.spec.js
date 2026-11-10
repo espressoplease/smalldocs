@@ -15,7 +15,7 @@ async function addToCloud(page) {
 test('Cloud UI lab uses the file-info add and saved states', async ({ page }) => {
   await openPrototype(page);
   const row = page.locator('.fic-row-cloud-lab');
-  await expect(row).toContainText('Add to Cloud');
+  await expect(row).toContainText('Add to your library');
   await expect(row).not.toContainText('Cloud revision');
   const upload = page.locator('.sdoc-cloud-lab-upload');
   await expect(upload).toBeVisible();
@@ -29,7 +29,7 @@ test('Cloud UI lab uses the file-info add and saved states', async ({ page }) =>
   await expect(saved).toHaveAttribute('aria-label', 'Remove from Cloud');
   await saved.click();
   await expect(row).toHaveAttribute('data-prototype-saved', 'false');
-  await expect(row).toContainText('Add to Cloud');
+  await expect(row).toContainText('Add to your library');
 });
 
 test('Cloud UI lab changes access without contacting Cloud APIs', async ({ page }) => {

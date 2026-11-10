@@ -19,10 +19,23 @@
   }
   #_sd_main { flex-direction: column; overflow: visible; }
   #_sd_left { overflow: visible; }
-  #_sd_content-area { overflow: visible; }
-  html { scroll-padding-top: 44px; }
-  html:has(body.write-mode),
-  html:has(body.comment-mode) { scroll-padding-top: 78px; }
+  #_sd_content-area { overflow: visible; --sdocs-content-top-space: 20px; --sdocs-tools-top-space: 12px; }
+  html { scroll-padding-top: calc(44px + var(--sdocs-document-tools-height, 0px) + 24px); }
+  #_sd_document-tools {
+    position: static;
+    padding-bottom: 0;
+    margin-bottom: 0;
+    transition: opacity .3s cubic-bezier(.4,0,.2,1),
+                visibility .3s cubic-bezier(.4,0,.2,1),
+                padding-bottom .3s cubic-bezier(.4,0,.2,1);
+  }
+  body:is(.write-mode, .comment-mode) #_sd_document-tools { padding-bottom: 8px; }
+  html.sdocs-cloud-document-loading :is(#_sd_left-toolbar, #_sd_document-tools) {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+  html.sdocs-cloud-document-error #_sd_left-toolbar { display: none; }
 
   body.sdocs-reader-shell::after {
     content: '';
@@ -42,7 +55,7 @@
     touch-action: none;
     transition-delay: 0s;
   }
-  body.sdocs-reader-shell:is(.style-mode, .export-mode, .info-mode)::after {
+  body.sdocs-reader-shell:is(.style-mode, .share-mode, .history-mode, .export-mode, .info-mode)::after {
     opacity: 1;
     visibility: visible;
     pointer-events: auto;
@@ -128,6 +141,7 @@
     left: 0;
     z-index: 101;
     width: 100%;
+    background: var(--sdocs-document-bg, var(--bg-input));
   }
   #_sd_mobile-header-spacer {
     display: none;
@@ -136,7 +150,8 @@
   body.sdocs-mobile-nav-open #_sd_comment-toolbar {
     display: none;
   }
-  #_sd_left-toolbar {
+  body.sdocs-mobile-nav-open #_sd_document-tools { padding-bottom: 0; }
+  #_sd_mobile-navigation {
     display: flex;
     position: relative;
     top: auto;
@@ -145,6 +160,7 @@
     width: 100%;
     height: 44px;
     padding: 0;
+    background: var(--bg-input);
     transform: none;
     justify-content: flex-start;
     border: 0;
@@ -155,6 +171,19 @@
     -webkit-backdrop-filter: none;
     overflow: hidden;
   }
+  #_sd_left-toolbar {
+    min-width: 0;
+    max-width: none;
+    width: auto;
+    height: 44px;
+    flex: 1 1 auto;
+    padding: 0;
+    transition: opacity .3s cubic-bezier(.4,0,.2,1), visibility .3s cubic-bezier(.4,0,.2,1);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    #_sd_document-tools, #_sd_left-toolbar { transition: none; }
+  }
+  .sdocs-mobile-brand-wrap { display: none; }
   .sdocs-mobile-toolbar-scroll {
     min-width: 0;
     flex: 1 1 auto;
@@ -216,10 +245,8 @@
   #_sd_sdocs-file-info {
     max-width: 100%;
     margin: 0;
-    padding: 20px 20px 0;
+    padding: var(--sdocs-content-top-space, 20px) 20px 0;
   }
-  /* ── Write toolbar: travels with the primary mobile header ── */
-  body.write-mode #_sd_write-toolbar { position: relative; top: auto; z-index: 98; justify-content: flex-start; }
 
   /* ── Status bar: hidden on mobile ── */
   #_sd_statusbar { display: none; }
@@ -242,7 +269,7 @@
     overflow: hidden;
   }
   /* Style mode: open the complete bottom sheet immediately. */
-  body.style-mode #_sd_right {
+  body:is(.style-mode, .share-mode, .history-mode) #_sd_right {
     display: flex;
     max-height: 70vh;
     opacity: 1;
@@ -252,7 +279,7 @@
   }
 
   /* ── Hide "Save as default styles" on mobile ── */
-  #_sd_right .panel-section:last-child { display: none; }
+  #_sd_right > .panel-section:last-child { display: none; }
 
   /* ── Export panel: bottom sheet overlay ── */
   #_sd_export-panel {
@@ -346,23 +373,6 @@
    TOOLBAR SCROLL FADE HINT (< 560px / < 342px)
    Right-edge gradient that fades out when scrolled
 ═══════════════════════════════════════════════════ */
-@media (max-width: 560px) {
-  body.write-mode #_sd_write-toolbar.has-overflow::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    right: 0;
-    width: 32px;
-    height: 100%;
-    background: linear-gradient(to right, transparent, var(--bg) 90%);
-    pointer-events: none;
-    opacity: 1;
-    transition: opacity .2s ease;
-  }
-  body.write-mode #_sd_write-toolbar.scrolled-end::after {
-    opacity: 0;
-  }
-}
 
 /* ═══════════════════════════════════════════════════
    NARROW MOBILE (< 366px)
@@ -384,7 +394,7 @@
     flex: 0 0 32px;
     margin-left: -32px;
     width: 32px;
-    height: 44px;
+    height: 100%;
     background: linear-gradient(to right, transparent, var(--bg) 90%);
     pointer-events: none;
     opacity: 1;

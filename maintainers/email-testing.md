@@ -33,8 +33,10 @@ running, then sends previews for:
 - a document notification containing three document links and a sender note;
 - a subscription confirmation with renewal, terms, cancellation, and refund information;
 - payment failure, payment received, and payment read-only states;
-- cancellation scheduled, cancellation removed, and cancellation effective states;
-- the final deletion warning.
+- cancellation scheduled, cancellation removed, and cancellation effective states.
+
+Current previews retain unpaid documents and do not include a deletion warning.
+The older deletion template remains covered by tests for legacy configurations.
 
 Open [http://127.0.0.1:8025](http://127.0.0.1:8025). Mailpit shows the rendered
 HTML, plain text, headers, raw MIME, link checks, and phone-sized previews.

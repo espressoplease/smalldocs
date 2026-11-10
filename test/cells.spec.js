@@ -5,10 +5,10 @@
 // rows, and is XSS-safe (cell text is plain text, never markup).
 //
 // BASE defaults to the playwright.config server (:3000); override with
-// SDOCS_TEST_BASE to run against a server on another port.
+// SDOCS_TEST_BASE (full URL) or SDOCS_TEST_BASE_URL (origin) for another port.
 const { test, expect } = require('@playwright/test');
 
-const BASE = process.env.SDOCS_TEST_BASE || 'http://localhost:3000/docs';
+const BASE = process.env.SDOCS_TEST_BASE || (process.env.SDOCS_TEST_BASE_URL || 'http://localhost:3000') + '/docs';
 
 async function loadDoc(page, markdown) {
   await page.goto(BASE);

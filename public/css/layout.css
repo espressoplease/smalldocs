@@ -38,6 +38,22 @@ body {
 .toolbar-brand-short { display: none; }
 .toolbar-brand-tiny { display: none; }
 
+/* Reveal the Cloud document and its controls as one surface after rendering. */
+#_sd_content-area {
+  transition: opacity .3s cubic-bezier(.4,0,.2,1), visibility .3s cubic-bezier(.4,0,.2,1);
+}
+html.sdocs-cloud-document-loading #_sd_content-area {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+html.sdocs-cloud-document-error :is(#_sd_document-tools, #_sd_sdocs-file-info) {
+  display: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  #_sd_content-area { transition: none; }
+}
+
 .btn {
   display: inline-flex;
   align-items: center;
@@ -179,12 +195,6 @@ html.sdocs-short-link-visit #_sd_sidebar .doc-site-action.sdocs-short-link-only 
   background: var(--bg-hover);
   color: var(--text);
 }
-.sdocs-sidebar-count {
-  margin-left: auto;
-  color: var(--text-3);
-  font-size: var(--sdocs-sidebar-font-size);
-  font-variant-numeric: tabular-nums;
-}
 .sdocs-sidebar-preview-label {
   margin: 8px 10px 3px;
   color: var(--text-3);
@@ -258,43 +268,6 @@ html.sdocs-short-link-visit #_sd_sidebar .doc-site-action.sdocs-short-link-only 
   padding-top: 4px;
   padding-bottom: 2px;
 }
-.sdocs-sidebar-library-subsection.is-expanded > .sdocs-sidebar-library-row {
-  background: transparent;
-  border-color: var(--border);
-  color: var(--text);
-}
-.sdocs-sidebar-library-toggle .sdocs-sidebar-count {
-  margin-left: auto;
-}
-.sdocs-sidebar-library-chevron {
-  flex: 0 0 auto;
-  color: var(--text-3);
-  transition: transform .18s cubic-bezier(.4,0,.2,1);
-}
-.sdocs-sidebar-library-subsection.is-expanded > .sdocs-sidebar-library-row .sdocs-sidebar-library-chevron {
-  transform: rotate(90deg);
-}
-.sdocs-sidebar-subsection-content {
-  display: grid;
-  grid-template-rows: 0fr;
-  opacity: 0;
-  transform: translateY(-2px);
-  pointer-events: none;
-  transition: grid-template-rows .3s cubic-bezier(.4,0,.2,1),
-              opacity .18s ease,
-              transform .3s cubic-bezier(.4,0,.2,1);
-}
-.sdocs-sidebar-library-subsection.is-expanded > .sdocs-sidebar-subsection-content {
-  grid-template-rows: 1fr;
-  opacity: 1;
-  transform: translateY(0);
-  pointer-events: auto;
-}
-.sdocs-sidebar-subsection-clip {
-  min-height: 0;
-  overflow: hidden;
-}
-.sdocs-sidebar-subsection-clip > :first-child { margin: 2px 0 5px; }
 .sdocs-sidebar-tags {
   display: flex;
   flex-wrap: wrap;
@@ -358,29 +331,55 @@ html.sdocs-short-link-visit #_sd_sidebar .doc-site-action.sdocs-short-link-only 
 }
 #_sd_mobile-header { display: contents; }
 #_sd_mobile-header-spacer { display: none; }
-/* Document actions sit in a quiet top rail above the scrolling page. */
+/* Keep document actions and their context pills together while scrolling. */
+#_sd_document-tools {
+  position: sticky;
+  /* Scroll away excess top padding when pinned, preserving the initial layout. */
+  top: -6px;
+  z-index: 7;
+  padding-bottom: 10px;
+  margin-bottom: -10px;
+  background: var(--sdocs-document-bg, #fff);
+}
+html[data-sdocs-publication] #_sd_sdocs-file-info[hidden] + #_sd_document-tools {
+  margin-top: calc(var(--sdocs-content-top-space) - var(--sdocs-tools-top-space));
+}
+html[data-theme="dark"] #_sd_document-tools {
+  background: var(--sdocs-document-bg, #2c2a26);
+}
+/* Document actions retain their alignment with the file info and title. */
 #_sd_left-toolbar {
   position: relative;
   z-index: 6;
   width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
   display: flex;
   align-items: center;
-  justify-content: center;
-  height: var(--ui-toolbar-height);
-  padding: 0 12px;
-  background: var(--bg-input);
-  border-bottom: 1px solid var(--border-subtle);
+  justify-content: flex-start;
+  padding: var(--sdocs-tools-top-space, 16px) 48px 0;
+  background: transparent;
   flex-shrink: 0;
   white-space: nowrap;
 }
 .sdocs-mobile-toolbar-scroll {
   min-width: 0;
+  flex: 1 1 auto;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
+.sdocs-mobile-toolbar-scroll::-webkit-scrollbar { display: none; }
+.sdocs-mobile-toolbar-scroll > .toggle-group { flex: 0 0 auto; }
+#_sd_document-tools ~ :is(#_sd_rendered, #_sd_write) { padding-top: 16px; }
+#_sd_mobile-navigation,
 .sdocs-mobile-toolbar-brand,
 .sdocs-mobile-menu-button { display: none; }
+
 
 .toggle-group {
   display: flex;
@@ -400,7 +399,7 @@ html.sdocs-short-link-visit #_sd_sidebar .doc-site-action.sdocs-short-link-only 
   background: transparent;
   padding: 0;
   border: 1px solid transparent;
-  color: var(--text-2);
+  color: var(--text);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -415,6 +414,22 @@ html.sdocs-short-link-visit #_sd_sidebar .doc-site-action.sdocs-short-link-only 
   background: var(--bg-hover);
   border-color: transparent;
   color: var(--text);
+}
+#_sd_left-toolbar .toggle-group .btn > svg,
+#_sd_left-toolbar .toggle-group .btn > svg [stroke-width] {
+  stroke-width: 1.5;
+}
+
+@media (min-width: 769px) {
+  #_sd_left-toolbar .toggle-group .btn {
+    width: 36px;
+    height: 36px;
+    flex-basis: 36px;
+  }
+  #_sd_left-toolbar .toggle-group .btn > svg {
+    width: 18px;
+    height: 18px;
+  }
 }
 
 /* Hamburger collapses the last few toggle-group buttons.
@@ -569,6 +584,8 @@ html.sdocs-short-link-visit #_sd_sidebar .doc-site-action.sdocs-short-link-only 
 }
 
 #_sd_content-area {
+  --sdocs-content-top-space: 74px;
+  --sdocs-tools-top-space: 16px;
   flex: 1;
   overflow: auto;
   position: relative;
@@ -627,45 +644,15 @@ html[data-theme="dark"] #_sd_content-area {
   transition: width .32s cubic-bezier(.4,0,.2,1);
 }
 body.style-mode #_sd_divider,
+body.share-mode #_sd_divider,
+body.history-mode #_sd_divider,
 body.export-mode #_sd_divider { width: 1px; }
 
-/* Shared toolbar tooltip. One element in <body>, JS-positioned per target,
-   so it escapes the toolbar's overflow:hidden clipping. Caret is the ::before
-   triangle pointing back at the icon above. */
-.sdoc-tooltip {
-  position: fixed;
-  top: 0;
-  left: 0;
-  z-index: 1000;
-  padding: 5px 9px;
-  font-family: var(--font-ui);
-  font-size: 11.5px;
-  font-weight: 500;
-  letter-spacing: -0.005em;
-  line-height: 1.4;
-  color: var(--bg-input);
-  background: var(--text);
-  border-radius: 5px;
-  max-width: 190px;
-  pointer-events: none;
-  opacity: 0;
-  transform: translateY(-2px);
-  transition: opacity .15s ease, transform .15s ease;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
-}
-.sdoc-tooltip.show {
-  opacity: 1;
-  transform: translateY(0);
-}
-.sdoc-tooltip::before {
-  content: '';
-  position: absolute;
-  top: -4px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 0;
-  height: 0;
-  border-style: solid;
-  border-width: 0 4px 4px;
-  border-color: transparent transparent var(--text);
-}
+#_sd_left-toolbar .toggle-group .btn.sdoc-history-button { flex: 0 0 auto; min-width: 36px; gap: 0; width: auto; padding-right: 8px; padding-left: 8px; transition: background .3s cubic-bezier(.4,0,.2,1), padding .3s cubic-bezier(.4,0,.2,1), border-color .3s cubic-bezier(.4,0,.2,1); }
+.sdoc-history-notice { max-width: 0; opacity: 0; overflow: hidden; white-space: nowrap; font: 12px var(--font-ui); transition: max-width .3s cubic-bezier(.4,0,.2,1), opacity .3s cubic-bezier(.4,0,.2,1), margin .3s cubic-bezier(.4,0,.2,1); }
+#_sd_left-toolbar .toggle-group .btn.sdoc-history-button.is-updated { background: var(--bg-hover); }
+.sdoc-history-button.is-updated .sdoc-history-notice { max-width: 150px; opacity: 1; margin-left: 7px; }
+@media (prefers-reduced-motion: reduce) { #_sd_left-toolbar .sdoc-history-button, .sdoc-history-notice { transition: none; } }
+
+#_sd_left-toolbar .toggle-group .btn.sdoc-history-button[hidden] { display: none; }
+@media (max-width: 768px) { #_sd_left-toolbar .toggle-group .btn.sdoc-history-button { min-width: 30px; } }

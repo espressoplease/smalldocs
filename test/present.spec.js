@@ -1,7 +1,7 @@
 // @ts-check
 const { test, expect } = require('@playwright/test');
 
-const BASE = 'http://localhost:3000';
+const BASE = process.env.SDOCS_TEST_BASE_URL || 'http://localhost:3000';
 
 async function loadDocWithSlides(page, slides) {
   var md = '# Test deck\n\n'
@@ -114,14 +114,13 @@ test.describe('presentation mode', () => {
     await expect(topbar.locator('.sdoc-present-counter')).toContainText('2 / 2');
   });
 
-  test('topbar matches main SDocs topbar height (40px)', async ({ page }) => {
+  test('presentation keeps its compact 40px topbar', async ({ page }) => {
     await loadDocWithSlides(page, [
       'grid 100 56.25\nr 10 10 80 40 | A',
     ]);
-    const mainTopbarH = await page.locator('#_sd_left-toolbar').evaluate(el => el.getBoundingClientRect().height);
     await page.locator('.sdoc-slide-present').first().click();
     const presentTopbarH = await page.locator('.sdoc-present-topbar').evaluate(el => el.getBoundingClientRect().height);
-    expect(presentTopbarH).toBe(mainTopbarH);
+    expect(presentTopbarH).toBe(40);
   });
 
   test('mobile layout: rail hidden, brand shortens, stage still fits', async ({ page }) => {
@@ -260,7 +259,7 @@ test.describe('presentation mode', () => {
 
     // Enter comment mode, open the whole-slide composer, focus its textarea.
     await page.locator('.sdoc-present-comment-btn').click();
-    await page.locator('.sdoc-slide-comment-btn').first().click({ force: true });
+    await page.locator('.sdoc-present .sdoc-slide-hit[data-shape-idx="0"]').click();
     const input = page.locator('.sdoc-card-input').first();
     await expect(input).toBeFocused();
 

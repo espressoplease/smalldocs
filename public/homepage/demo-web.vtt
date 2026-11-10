@@ -1,0 +1,622 @@
+WEBVTT
+
+00:00:00.000 --> 00:00:02.840
+All right, I'm gonna walk you through a demo of SmallDocs.
+
+00:00:02.840 --> 00:00:04.080
+Gonna start off with a little mini demo
+
+00:00:04.080 --> 00:00:08.360
+and explain why SmallDocs exists and how it works.
+
+00:00:08.360 --> 00:00:11.460
+Then I'm gonna show you some demos of regular usage,
+
+00:00:11.460 --> 00:00:13.160
+which show you how to create documents with your agents
+
+00:00:13.160 --> 00:00:15.440
+and also how to read code with your agents.
+
+00:00:15.440 --> 00:00:18.800
+And then I'm gonna explain why SmallDocs is private.
+
+00:00:18.800 --> 00:00:21.800
+And then I'm gonna show you some advanced demos
+
+00:00:21.800 --> 00:00:25.440
+for people who are enjoying the first part and wanna see the real full set
+
+00:00:25.440 --> 00:00:27.200
+of SmallDocs capabilities.
+
+00:00:28.240 --> 00:00:32.820
+So SmallDocs is a way for you to work with your agents
+
+00:00:32.820 --> 00:00:35.120
+to produce easy to read, easy to share documents.
+
+00:00:35.120 --> 00:00:40.760
+So here I just asked Claude to s.me@poem and it's opened the document in the browser
+
+00:00:40.760 --> 00:00:44.520
+and I can generate a little short link to share it.
+
+00:00:44.520 --> 00:00:48.280
+And even though it's in the browser, it's private and I'm gonna explain that later.
+
+00:00:49.760 --> 00:00:53.040
+So agents have really changed the way that we work.
+
+00:00:55.020 --> 00:00:57.200
+You can really tackle all different types of work
+
+00:00:57.200 --> 00:00:59.440
+with an agent and SmallDocs needs to handle
+
+00:00:59.440 --> 00:01:02.800
+that flexibility too and it's built to do that.
+
+00:01:02.800 --> 00:01:06.060
+So with SmallDocs, you can build presentations,
+
+00:01:07.480 --> 00:01:13.120
+which can be very, very complicated. You can do financial analysis
+
+00:01:13.120 --> 00:01:16.920
+and look at data in a really powerful way.
+
+00:01:16.920 --> 00:01:20.900
+For example, you can use the traditional calculations.
+
+00:01:23.200 --> 00:01:25.300
+You can build interactive charts
+
+00:01:26.840 --> 00:01:29.520
+and you can create these mermaid diagrams,
+
+00:01:29.520 --> 00:01:30.640
+but you don't create them, your agent does,
+
+00:01:30.640 --> 00:01:32.740
+but it's about your agent being able to express itself
+
+00:01:32.740 --> 00:01:38.740
+to handle the broad topic of topics of work that we now do with our agents
+
+00:01:38.740 --> 00:01:44.020
+because they are a great way to get analytical and creation work done.
+
+00:01:44.960 --> 00:01:46.320
+So how does this work?
+
+00:01:48.280 --> 00:01:51.560
+SmallDocs is actually a CLI. You just s.doc and then a path to a file
+
+00:01:51.560 --> 00:01:55.680
+and it's that that opens it in the browser.
+
+00:01:56.800 --> 00:01:59.780
+But typically you don't actually do this, normally your agents do it.
+
+00:01:59.780 --> 00:02:04.860
+And they're able to do it because when we install SmallDocs,
+
+00:02:04.860 --> 00:02:11.040
+when you install it via a CLI, we go through and we go into your root agent folder.
+
+00:02:11.040 --> 00:02:13.740
+So when you install Cloud Code, for example, you get a Cloud folder.
+
+00:02:13.740 --> 00:02:15.960
+When you install Codex, you get a Codex folder.
+
+00:02:15.960 --> 00:02:19.400
+Inside of that folder, there's a Cloud.md file
+
+00:02:19.400 --> 00:02:23.440
+in the Cloud folder and in the Codex folder, there's an agents.md file.
+
+00:02:23.440 --> 00:02:27.600
+And these files, if you put information in them, it's global context,
+
+00:02:27.600 --> 00:02:29.440
+which all of your agent sessions will use.
+
+00:02:29.440 --> 00:02:33.080
+And so here, if we look inside of the Cloud.md file,
+
+00:02:33.080 --> 00:02:35.480
+we can see we've added something about SmallDocs
+
+00:02:35.480 --> 00:02:38.240
+and the same is true for the agents.md file.
+
+00:02:38.240 --> 00:02:41.920
+And this means that all of those agent sessions understand that SmallDocs exist
+
+00:02:41.920 --> 00:02:43.640
+and they understand a bit about how to use it.
+
+00:02:43.640 --> 00:02:45.960
+And they also understand what commands they need to run
+
+00:02:45.960 --> 00:02:50.560
+if they're gonna use it to produce something powerful. So if they wanna build slides,
+
+00:02:50.560 --> 00:02:54.540
+they'll first run s.slides and that gives them the documentation
+
+00:02:54.540 --> 00:02:59.680
+that they need to build slides. So that documentation is not always in your,
+
+00:02:59.680 --> 00:03:03.760
+in those agent folders. That's just, they just know they need to run s.slides
+
+00:03:03.760 --> 00:03:05.880
+if they wanna get information on how to build slides
+
+00:03:05.880 --> 00:03:07.880
+that render in SmallDocs, for example.
+
+00:03:09.200 --> 00:03:10.040
+Okay.
+
+00:03:11.080 --> 00:03:13.400
+So let's look at some demos now of the kind of stuff
+
+00:03:13.400 --> 00:03:17.040
+that you can do and I do with SmallDocs.
+
+00:03:17.040 --> 00:03:21.960
+So I'm an engineer and SmallDocs is a great way for you to get your agent
+
+00:03:21.960 --> 00:03:25.200
+to teach you conceptual engineering things. So for example, here,
+
+00:03:25.200 --> 00:03:30.220
+I've downloaded the browser use repository and I wanna understand its architecture.
+
+00:03:30.220 --> 00:03:34.000
+And maybe for example, I wanna, I want to,
+
+00:03:34.000 --> 00:03:35.280
+I don't necessarily wanna do this in my computer
+
+00:03:35.280 --> 00:03:39.000
+and I wanna generate a short link to myself and go and read it on a park bench.
+
+00:03:39.000 --> 00:03:41.000
+But it allows the agent to explain things
+
+00:03:41.000 --> 00:03:43.560
+and for you to ingest things in a kind of more natural
+
+00:03:43.560 --> 00:03:47.400
+and calm and easy way than in a kind of narrow terminal window
+
+00:03:47.400 --> 00:03:50.020
+that isn't always great to work in.
+
+00:03:52.120 --> 00:03:56.560
+And, for example, you can use code to do financial analysis
+
+00:03:56.560 --> 00:03:58.480
+or data analysis and SmallDocs is really good for that.
+
+00:03:58.480 --> 00:04:03.720
+So here, I'm just looking at some dividend returns and it can pick up data
+
+00:04:03.720 --> 00:04:07.360
+and produce complex data analysis
+
+00:04:07.360 --> 00:04:12.360
+with sheets that I can then kind of work through my own time
+
+00:04:13.640 --> 00:04:15.640
+basically or share with someone on my team.
+
+00:04:18.440 --> 00:04:20.720
+So let's look at using it in codecs.
+
+00:04:22.480 --> 00:04:26.400
+So here, I've asked codecs to produce a presentation
+
+00:04:26.400 --> 00:04:29.000
+on the don't repeat yourself coding concept
+
+00:04:29.000 --> 00:04:33.440
+in Patagonia's branding just to show you some of the stuff that SmallDocs can do.
+
+00:04:33.440 --> 00:04:37.740
+And let's just wait for codecs to respond.
+
+00:04:37.740 --> 00:04:41.960
+And so here, it's opened up and created this document.
+
+00:04:41.960 --> 00:04:48.200
+And the cool thing is you can start off in inside of a Small Doc,
+
+00:04:48.200 --> 00:04:52.120
+but then you can actually export to the traditional formats you're used to.
+
+00:04:52.120 --> 00:04:54.680
+So it's a cool way to begin working on a slide deck.
+
+00:04:56.960 --> 00:04:59.880
+And so another thing that's changed with agents
+
+00:04:59.880 --> 00:05:03.360
+is that we, in a way we've left our IDEs behind.
+
+00:05:03.360 --> 00:05:08.360
+So if you're used to working with an agent in a terminal,
+
+00:05:08.480 --> 00:05:14.840
+just open your coding IDE much less than you did. And SmallDocs is there to step in
+
+00:05:14.840 --> 00:05:16.500
+if you need to read code files.
+
+00:05:16.500 --> 00:05:19.680
+So you can always just say to your agent s.me a code file
+
+00:05:19.680 --> 00:05:21.640
+and it will open nice in your browser
+
+00:05:21.640 --> 00:05:25.080
+and we have a little language specific summary functionality
+
+00:05:25.080 --> 00:05:28.240
+which collapses files, but still allows you to ingest
+
+00:05:28.240 --> 00:05:30.800
+kind of what's the headline structure of this file.
+
+00:05:32.960 --> 00:05:37.480
+And we can also do things like get your agent can also annotate code
+
+00:05:37.480 --> 00:05:39.480
+and it can create a pathway through some code.
+
+00:05:39.480 --> 00:05:45.360
+So for example, I wanna create a code walkthrough of how we rate limit a request.
+
+00:05:45.360 --> 00:05:50.180
+And here it's opened two files, the API and the rate limiter.
+
+00:05:51.540 --> 00:05:56.560
+And it's given me some steps that I can follow starting off in one file,
+
+00:05:56.560 --> 00:06:00.560
+now jumping to the rate limiter file and jumping back to the API file.
+
+00:06:00.560 --> 00:06:03.840
+So it's a way for me to, for you and your agent
+
+00:06:03.840 --> 00:06:06.440
+to kind of teach each other stuff and understand code.
+
+00:06:08.600 --> 00:06:10.600
+So the files that I'm talking about
+
+00:06:10.600 --> 00:06:13.040
+are actually like the most private files you have.
+
+00:06:14.040 --> 00:06:15.200
+Markdown files that you're working on,
+
+00:06:15.200 --> 00:06:16.760
+they might contain live information about a bug
+
+00:06:16.760 --> 00:06:19.340
+and obviously your coding files are highly sensitive.
+
+00:06:19.340 --> 00:06:22.380
+So privacy is paramount with SmallDocs.
+
+00:06:23.640 --> 00:06:26.480
+And we achieve that by using something called
+
+00:06:26.480 --> 00:06:30.880
+the URL fragment, which is this little hash that you can see here.
+
+00:06:30.880 --> 00:06:35.000
+And so you'll see that there's this hash and then there's a big long string of text.
+
+00:06:35.000 --> 00:06:37.880
+This long string of text is actually your underlying document
+
+00:06:37.880 --> 00:06:41.840
+effectively basically encoded, which is what the CLI does
+
+00:06:41.840 --> 00:06:46.120
+and put into the URL beyond this little hash which is the URL fragment.
+
+00:06:46.120 --> 00:06:51.120
+And the UI fragment, it is not sent to the server basically.
+
+00:06:51.440 --> 00:06:56.000
+So this is MDN docs, it's processed by the client,
+
+00:06:56.000 --> 00:07:00.280
+the browser after the resource is received. So when you make a request, the SmallDocs
+
+00:07:00.280 --> 00:07:04.160
+we're actually doing is just fetching a JavaScript rendering engine,
+
+00:07:04.160 --> 00:07:10.440
+which knows how to kind of decompress these strings and render them as files,
+
+00:07:10.440 --> 00:07:13.620
+as things you can actually interpret basically.
+
+00:07:13.620 --> 00:07:16.920
+So we're not, this data isn't being sent to SmallDocs.
+
+00:07:16.920 --> 00:07:21.440
+SmallDocs is just rendering whatever is in this hidden URL fragment.
+
+00:07:21.440 --> 00:07:25.440
+We take privacy very seriously and we have a little verified check,
+
+00:07:25.440 --> 00:07:28.480
+which checks that the code that you're actually receiving
+
+00:07:28.480 --> 00:07:30.280
+is the code that's in our open source repository.
+
+00:07:30.280 --> 00:07:35.240
+So you know that we're not doing anything spooky behind the scenes.
+
+00:07:35.240 --> 00:07:37.240
+And if you create a short link,
+
+00:07:37.240 --> 00:07:39.200
+to create a short link that doesn't have your full document
+
+00:07:39.200 --> 00:07:41.280
+in it, we do need to send something to our server.
+
+00:07:41.280 --> 00:07:46.600
+But to ensure this is extremely secure, we, on your clients, on the browser,
+
+00:07:46.600 --> 00:07:51.180
+we encrypt your document and we get a decryption key,
+
+00:07:51.180 --> 00:07:56.840
+which is this little key K here, basically. This is the decryption key.
+
+00:07:58.280 --> 00:08:01.360
+The data that the ciphertext, so the encrypted text is sent to our server,
+
+00:08:01.360 --> 00:08:05.000
+which is saved under this ID. But it's only legible if it's combined
+
+00:08:05.000 --> 00:08:10.100
+with this decryption key, which stays behind the URL fragment.
+
+00:08:10.100 --> 00:08:12.100
+So we're using that same concept twice,
+
+00:08:12.100 --> 00:08:14.480
+once with the full document, which is the standard usage,
+
+00:08:14.480 --> 00:08:16.200
+and then once with the decryption key,
+
+00:08:16.200 --> 00:08:18.660
+which is how we allow you to create short links.
+
+00:08:20.680 --> 00:08:24.960
+So time to look at some more advanced features of SmallDocs now.
+
+00:08:26.560 --> 00:08:28.760
+So the file that we've been working with,
+
+00:08:28.760 --> 00:08:31.200
+even though they're pointing at a local file in our computer,
+
+00:08:31.200 --> 00:08:33.760
+we're not actually doing a live sync between the two.
+
+00:08:33.760 --> 00:08:36.520
+So if I was to edit this file here in SmallDocs,
+
+00:08:36.520 --> 00:08:39.320
+it would not actually edit the underlying file
+
+00:08:39.320 --> 00:08:44.520
+on the computer, but you can create a bridge between your local machine and the file.
+
+00:08:44.520 --> 00:08:48.000
+So the key word that your agent is looking for, in that case, is the word bridge.
+
+00:08:48.000 --> 00:08:54.540
+So here I can say sdocme, a launch brief with a bridge, and it's gonna open up.
+
+00:08:58.580 --> 00:09:01.920
+And you can see here that it says local sync is enabled, basically.
+
+00:09:02.780 --> 00:09:08.040
+And what that means is, so for example here, this is me catting this file.
+
+00:09:08.040 --> 00:09:11.640
+So you can see that the H1 is Q3 launch brief, which you can see here.
+
+00:09:11.640 --> 00:09:18.520
+But if I edit this and change it to Q4 launch brief, and I now cat this again,
+
+00:09:18.520 --> 00:09:20.880
+you can see that that change has flowed back to the document.
+
+00:09:20.880 --> 00:09:26.720
+So we're working on things together. So let me go back to read mode.
+
+00:09:26.720 --> 00:09:29.800
+And this also means we have a little comment functionality,
+
+00:09:29.800 --> 00:09:33.360
+which is a nice way to give feedback on things.
+
+00:09:33.360 --> 00:09:36.680
+So you can either leave comments like this or inline comments.
+
+00:09:39.040 --> 00:09:44.040
+And so, for example, you can do things like change to read.
+
+00:09:47.880 --> 00:09:52.460
+And I can tell the agent I've left some comments.
+
+00:09:53.760 --> 00:09:57.880
+And it can then pick up those comments in the file
+
+00:09:57.880 --> 00:09:59.840
+in a live way because we're sharing data
+
+00:09:59.840 --> 00:10:02.280
+and those comments add information to the file.
+
+00:10:02.280 --> 00:10:07.280
+So here it's reading that and it will make a change.
+
+00:10:08.800 --> 00:10:10.600
+So you can see it's making a change.
+
+00:10:12.320 --> 00:10:15.200
+And you can see that's come through now.
+
+00:10:15.200 --> 00:10:17.560
+So we're kind of working together on a document.
+
+00:10:18.960 --> 00:10:20.720
+You can, if you wanna just leave comments,
+
+00:10:20.720 --> 00:10:23.640
+another way you can give comments to the agent is,
+
+00:10:23.640 --> 00:10:28.640
+say, for example, if I wanted to delete this paragraph,
+
+00:10:31.360 --> 00:10:34.920
+you can then just copy with comments. For example, if I haven't got a bridge open
+
+00:10:34.920 --> 00:10:39.040
+and paste that into the document and it comes with your comment there
+
+00:10:39.040 --> 00:10:42.000
+and the agent will then act on that as well.
+
+00:10:44.960 --> 00:10:48.540
+So that's comments in a bridge. And now feedback.
+
+00:10:51.480 --> 00:10:52.960
+Another thing you can do is your agent
+
+00:10:52.960 --> 00:10:57.240
+can create an interactive HTML form in a small doc
+
+00:10:57.240 --> 00:11:01.200
+and then run a process in the background that's waiting for you to give it feedback.
+
+00:11:01.200 --> 00:11:04.440
+So it's a way of, if you wanna scope out something quite complicated with your agent,
+
+00:11:04.440 --> 00:11:08.640
+it can do it in a way that's more flexible than doing so in the browser.
+
+00:11:08.640 --> 00:11:11.360
+For here, for example, we wanna s.feedback
+
+00:11:11.360 --> 00:11:14.620
+the table of content sidebar feature plan with me. So coming up with some feature.
+
+00:11:18.120 --> 00:11:22.640
+It's then gonna open that. And you can see here that it's given us
+
+00:11:22.640 --> 00:11:27.200
+an interactive HTML form to give feedback on
+
+00:11:27.200 --> 00:11:30.840
+and it's running a process in the background. So it's waiting for us to submit this
+
+00:11:30.840 --> 00:11:33.720
+and that's gonna kill the process and give the data back to the agent.
+
+00:11:33.720 --> 00:11:41.080
+So I think I'm gonna do this. I'll move it to the left and build it in red.
+
+00:11:42.440 --> 00:11:47.480
+And then I've sent that back. The session has ended and you can see now
+
+00:11:47.480 --> 00:11:52.140
+it's picked up the scope that we have given it basically.
+
+00:11:54.440 --> 00:11:57.800
+So yeah, you can see it built in red. So it's got that feedback from us.
+
+00:11:59.960 --> 00:12:05.000
+And the final thing is that we create so much markdown these days that,
+
+00:12:05.000 --> 00:12:06.960
+and SmallDocs is opening all these markdown files for you
+
+00:12:06.960 --> 00:12:10.320
+'cause it's a nice way to read them, but it also comes with a markdown library.
+
+00:12:11.160 --> 00:12:13.920
+And this allows you to, for example,
+
+00:12:13.920 --> 00:12:18.920
+filter things by project, search for things like brief.
+
+00:12:22.120 --> 00:12:26.160
+And you can tag things if you want and filter by date and star files.
+
+00:12:26.160 --> 00:12:27.880
+And we also have a little thing called a rescued,
+
+00:12:27.880 --> 00:12:31.440
+which is basically when your Mac creates a markdown file
+
+00:12:31.440 --> 00:12:33.600
+in a folder or when your agent creates a markdown file
+
+00:12:33.600 --> 00:12:35.920
+in like a temp folder that's gonna delete itself,
+
+00:12:35.920 --> 00:12:41.720
+we add it to like a local kind of directory in SmallDocs on your computer,
+
+00:12:41.720 --> 00:12:45.640
+which means that if it's been s-docked to be opened, which means that it's not lost.
+
+00:12:45.640 --> 00:12:49.000
+So you won't go back and be like, ah, that was written in my temp folder, that plan,
+
+00:12:49.000 --> 00:12:51.080
+and now it's gone, we've saved it for you.
+
+00:12:52.520 --> 00:12:58.720
+So that is SmallDocs in its current form. It's open source on GitHub.
+
+00:12:59.640 --> 00:13:04.880
+Please check out the repo. And if you wanna build features, make a pull request,
+
+00:13:04.880 --> 00:13:10.220
+and we also have a Discord that you can join and we'd love to talk with you.
+
+00:13:10.220 --> 00:13:15.020
+For businesses, it's totally free to use for individuals.
+
+00:13:15.020 --> 00:13:20.080
+You can install it and get going with it. For businesses, get in touch
+
+00:13:20.080 --> 00:13:26.900
+and we can do interesting things like cloud shared libraries
+
+00:13:27.480 --> 00:13:30.800
+and doing things on custom domains and custom branding and stuff like that.
+
+00:13:32.480 --> 00:13:36.440
+So yeah, enjoy using SmallDocs and thanks for listening.

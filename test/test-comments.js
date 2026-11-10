@@ -367,13 +367,14 @@ module.exports = function (harness) {
     assert.ok(out.indexOf('[^c1]: j - note') !== -1, 'footnote definition appended');
   });
 
-  test('serializeFootnotes: falls back to quote-only when prefix/suffix does not match', () => {
+  test('serializeFootnotes: preserves an unplaced note when its context no longer matches', () => {
     const meta = { comments: [
       { id: 'c1', kind: 'inline', quote: 'codehere', prefix: 'nonexistent ', suffix: ' text', author: 'j', text: 'x' },
     ] };
     const body = 'Before codehere after.\n';
     const out = SDC.serializeFootnotes(meta, body);
-    assert.ok(out.indexOf('[codehere][^c1]') !== -1);
+    assert.ok(out.indexOf('[codehere][^c1]') === -1);
+    assert.ok(out.indexOf('[^c1]: j - x') !== -1);
   });
 
   test('serializeFootnotes: multiple comments all land', () => {
@@ -775,5 +776,73 @@ module.exports = function (harness) {
     assert.strictEqual(block.kind, 'block');
     assert.strictEqual(block.block, 'p:1');
     assert.strictEqual(block.text, 'too long');
+  });
+
+  test('portable feedback retains fingerprints, code targets, replies, and thread identity', () => {
+    const comments = [
+      { id: 'c1', kind: 'block', block: 'p:1', block_text: 'A "quoted" target', text: 'clarify',
+        uid: 'cm_one', author_user_id: 'usr_one', updated_at: '2026-10-28T12:00:00Z', resolved: true,
+        resolved_at: '2026-10-28T12:00:00Z', replies: [{ id: 'rp_one', author: 'agent', at: '2026-10-28T12:00:00Z', text: 'done' }] },
+      { id: 'c2', kind: 'token', block: 'pre:0', block_text: 'call(target)', line: 0, anchorText: 'call(target)',
+        quote: 'target', quote_prefix: 'call(', quote_suffix: ')', text: 'rename' },
+      { id: 'c3', kind: 'slide', slide: 1, shape: 2, slide_text: 'Say "hello"', slide_source: 'source',
+        shape_texts: ['Say "hello"'], text: 'rewrite' },
+    ];
+    const body = 'Intro\n\nA "quoted" target\n\n```js\ncall(target)\n```\n';
+    const parsed = SDC.parseFootnotes(SDC.serializeFootnotes({ comments }, body));
+    comments.forEach((comment, index) => {
+      Object.keys(comment).forEach(key => assert.deepStrictEqual(parsed.comments[index][key], comment[key], key));
+    });
+    assert.strictEqual(parsed.body.trim(), body.trim());
+  });
+
+  test('plain footnote import preserves the selected occurrence through context', () => {
+    const parsed = SDC.parseFootnotes('first target.\n\nsecond [target][^c1].\n\n[^c1]: u - fix\n');
+    assert.strictEqual(parsed.comments[0].prefix, 'second ');
+    assert.strictEqual(parsed.comments[0].suffix, '.');
+  });
+
+  test('footnote examples inside code fences stay literal', () => {
+    const body = '```md\n[example][^c1]\n[^c1]: literal definition\n```\n';
+    const parsed = SDC.parseFootnotes(body);
+    assert.strictEqual(parsed.body, body);
+    assert.deepStrictEqual(parsed.comments, []);
+  });
+
+  test('normalization preserves thread fields when replies arrive as a YAML JSON scalar', () => {
+    const reply = { id: 'rp_one', author: 'agent', author_user_id: 'usr_one', at: '2026-10-28T12:00:00Z', text: 'done' };
+    const note = SDC.normalizeComment({ id: 'c1', kind: 'inline', quote: 'target', text: 'fix', uid: 'cm_one',
+      author_user_id: 'usr_one', updated_at: 'now', resolved_at: 'later', replies: JSON.stringify([reply]) });
+    assert.deepStrictEqual(note.replies, [reply]);
+    assert.strictEqual(note.uid, 'cm_one');
+    assert.strictEqual(note.updated_at, 'now');
+    assert.strictEqual(note.resolved_at, 'later');
+  });
+
+  test('multi-shape slide targets survive YAML inline JSON scalars', () => {
+    const note = SDC.normalizeComment({ id: 'c1', kind: 'slide', slide: 0, shapes: '[1,3]',
+      shape_texts: '["first","second"]', slide_source: 'grid 100 56.25', text: 'move both' });
+    assert.deepStrictEqual(note.shapes, [1, 3]);
+    assert.deepStrictEqual(note.shape_texts, ['first', 'second']);
+    assert.strictEqual(note.slide_source, 'grid 100 56.25');
+  });
+
+  test('visible footnote edits override copied text without losing thread metadata', () => {
+    const comment = { id: 'c1', kind: 'inline', quote: 'target', uid: 'cm_one', text: 'old note', author: 'reader' };
+    const copied = SDC.serializeFootnotes({ comments: [comment] }, 'A target.\n');
+    const parsed = SDC.parseFootnotes(copied.replace('[^c1]: reader - old note', '[^c1]: reader - revised note'));
+    assert.strictEqual(parsed.comments[0].text, 'revised note');
+    assert.strictEqual(parsed.comments[0].uid, 'cm_one');
+  });
+  test('CRLF footnote imports keep literal fenced examples and Markdown hard line breaks', () => {
+    const body = '# Review\r\n\r\nA [target][^c1].  \r\nNext line.\r\n\r\n```md\r\n[^c9]: literal example\r\n```\r\n\r\n[^c1]: Ana - Check it.\r\n';
+    const parsed = SDC.parseFootnotes(body);
+    assert.deepStrictEqual(parsed.comments.map(comment => comment.id), ['c1']);
+    assert.strictEqual(parsed.comments[0].prefix, 'A ');
+    assert.strictEqual(parsed.comments[0].author, 'Ana');
+    assert.ok(parsed.body.includes('A target.  \r\nNext line.'));
+    assert.ok(parsed.body.includes('```md\r\n[^c9]: literal example\r\n```'));
+    const literal = '```md\r\n[^c9]: literal example\r\n```\r\n';
+    assert.strictEqual(SDC.parseFootnotes(literal).body, literal);
   });
 };

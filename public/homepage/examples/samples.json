@@ -1,0 +1,77 @@
+[
+  {
+    "category": "Engineering",
+    "title": "Designing an order API that survives retries",
+    "length": "Medium",
+    "prompt": "sdoc me an idempotent order API design",
+    "source": "idempotent-order-api.md",
+    "background": "#FFFFFF",
+    "standardStyle": true
+  },
+  {
+    "category": "Engineering",
+    "title": "Bug report: the due date moves back one day",
+    "length": "Short",
+    "prompt": "sdoc me a bug report for a date picker showing the wrong day",
+    "source": "date-picker-bug-report.md",
+    "background": "#F1F5FA"
+  },
+  {
+    "category": "Engineering",
+    "title": "Retries multiply: a reproducible failure study",
+    "length": "Long",
+    "prompt": "sdoc me a study of retry amplification with a working model",
+    "source": "retry-amplification-study.md",
+    "background": "#EFF5F6"
+  },
+  {
+    "category": "Science",
+    "title": "Palmer penguins: body mass, flipper length and species",
+    "prompt": "sdoc me a scientific analysis of the Palmer penguins dataset",
+    "url": "https://smalldocs.org/s/YrJDCfCD8-6j_uRE0pNCbI#k=odJRxWOIySVVS6QezFq_Kup8Hqw1j2s5lecv1xC_KQ0",
+    "background": "#F7F8F4"
+  },
+  {
+    "category": "Science",
+    "title": "AlphaFold 3: capabilities, evidence and limits",
+    "prompt": "sdoc me an evidence review of AlphaFold 3",
+    "background": "#FFFFFF",
+    "standardStyle": true,
+    "source": "alphafold3-benchmark-audit.md"
+  },
+  {
+    "category": "Science",
+    "title": "LLMs as a cognitive virus: the paper in five slides",
+    "prompt": "sdoc me a visual explanation of the LLMs as a Cognitive Virus paper",
+    "url": "https://smalldocs.org/s/3PsKm-OLGfJzZISD6bd5Dd#k=LPC2tAzfdFzj-Juho89eHe5KeQPpwcLKrt9zC9_YQc4",
+    "background": "#F7F5EF"
+  },
+  {
+    "category": "Finance",
+    "title": "Costco's cash engine: an analysis of audited 2025 accounts",
+    "prompt": "sdoc me an analysis of Costco's cash flow with an editable model",
+    "source": "costco-cash-engine.md",
+    "background": "#FAF5EB"
+  },
+  {
+    "category": "Finance",
+    "title": "Profitable growth can run out of cash",
+    "prompt": "sdoc me a visual guide to working capital with a model",
+    "source": "working-capital-in-five-slides.md",
+    "background": "#F6F0EC"
+  },
+  {
+    "category": "Mathematics",
+    "title": "Simpson's paradox: when two correct comparisons disagree",
+    "prompt": "sdoc me a worked proof of Simpson's paradox with an editable model",
+    "source": "simpsons-paradox.md",
+    "background": "#F2F6EE"
+  },
+  {
+    "category": "Mathematics",
+    "title": "Newton's method: a proof and a counterexample",
+    "prompt": "sdoc me a proof of quadratic convergence for Newton's square-root method and a failure case",
+    "source": "newton-convergence.md",
+    "background": "#F5F1F8"
+  }
+]

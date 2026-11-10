@@ -83,6 +83,16 @@ module.exports = function (harness) {
   // the other notices.
   const SOURCE_BYTE_CAP = 64 * 1024;
 
+  test('hardening: Mermaid uses the patched 10.x backport', () => {
+    const src = require('fs').readFileSync(
+      require('path').join(__dirname, '..', 'public', 'sdocs-mermaid.js'), 'utf8');
+    const match = /MERMAID_VERSION\s*=\s*'([^']+)'/.exec(src);
+    assert.ok(match, 'expected a pinned Mermaid version');
+    // 10.9.8 includes the Gantt/XY layout and configuration/CSS fixes.
+    // https://github.com/mermaid-js/mermaid/security/advisories/GHSA-2v8p-3f2j-5mp7
+    assert.strictEqual(match[1], '10.9.8');
+  });
+
   test('size cap: 64 KB constant matches sdocs-mermaid.js', () => {
     const fs = require('fs');
     const src = fs.readFileSync(

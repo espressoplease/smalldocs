@@ -1,0 +1,77 @@
+{
+  "date": "2026-11-09",
+  "source": "Isolated copies of production databases and real AWS KMS, fresh browser context through SSH tunnel",
+  "baseline_commit": "d55bb439c82c0879bf189b20b9167d221e34c42e",
+  "documents": 188,
+  "page_size": 60,
+  "tag_labels": 245,
+  "backend_ms": {
+    "cold_library_names": 87,
+    "cold_project_keys": 24,
+    "first_page": 28,
+    "warm_page": 22,
+    "all_tags": 37
+  },
+  "browser_ms": {
+    "baseline_first_visible": 656,
+    "baseline_reload_visible": 255,
+    "candidate_first_visible": 592,
+    "candidate_reload_visible": 243
+  },
+  "account_requests_per_load": {
+    "before": 1,
+    "after": 0
+  },
+  "provenance_notes": [
+    "These are individual diagnostic runs, not percentile measurements or production network SLA.",
+    "The prior multi-minute wait was not reproduced.",
+    "The isolated server used copied authentication/content/billing databases, production encryption context, no background jobs, and no email or Stripe credentials."
+  ],
+  "changes": [
+    "Cloud-first library starts documents and eager tag/member loading without a redundant account-status round trip.",
+    "Document request is issued before the independent filter requests.",
+    "Browsing uses authorized document rows and encrypted page metadata without requiring text-index readiness.",
+    "Permission, revision, subscription and key-version rechecks remain in place."
+  ],
+  "tests": {
+    "node_passed": 2290,
+    "browser_unique_passed": 28,
+    "search_and_isolation_subset_passed": 56,
+    "missing_index_browse_does_not_read_bodies_or_rebuild": true,
+    "tags_are_eager_and_independent": true,
+    "empty_library_completes": true,
+    "expired_trial_paywall_before_document_request": true
+  },
+  "pricing": {
+    "verified_live": true,
+    "price_id": "price_1UXlb30bIITqEUvtb3MW00ii",
+    "GBP": {
+      "amount": 4,
+      "tax": "inclusive"
+    },
+    "USD": {
+      "amount": 5,
+      "tax": "exclusive"
+    },
+    "EUR": {
+      "amount": 5,
+      "tax": "inclusive"
+    },
+    "homepage": "Existing locale-dependent pricing matches the configured currency options; no price or homepage copy change."
+  },
+  "deployment": {
+    "production_commit": "c6eaac514b70ebacb069c788f6a2998a70dd7996",
+    "staging_commit": "c6eaac514b70ebacb069c788f6a2998a70dd7996",
+    "production_public_asset_commit_verified": true,
+    "production_application_and_compiler_active": true,
+    "production_monitor": "success",
+    "failed_systemd_units": 0,
+    "predeployment_coordinated_backup": true,
+    "isolated_copies_and_session_removed": true,
+    "staging_cli_search": {
+      "ok": true,
+      "page_documents": 60,
+      "total_documents": 98
+    }
+  }
+}

@@ -108,12 +108,20 @@
       text: sanitizeText(c.text || ''),
     };
     if (typeof c.block === 'string' && c.block) out.block = c.block;
+    ['block_text', 'line_prefix', 'line_suffix', 'quote_prefix', 'quote_suffix', 'document_hash'].forEach(function (key) {
+      if (typeof c[key] === 'string') out[key] = c[key];
+    });
+    if (toInt(c.quote_offset, -1) >= 0) out.quote_offset = toInt(c.quote_offset, -1);
+    if (c.anchor_status === 'orphaned' || c.anchor_status === 'ambiguous') out.anchor_status = c.anchor_status;
     if (kind === 'method') {
       var end = toInt(c.endLine, line);
       out.endLine = end < line ? line : end;
     }
     if (kind === 'token') out.quote = quote;
     if (c.resolved === true || c.resolved === 'true') out.resolved = true;
+    var threads = typeof module !== 'undefined' && module.exports
+      ? require('../cli/shared/sdocs-comment-data') : window.SDocsCommentData;
+    if (threads && threads.normalizeThreadFields) threads.normalizeThreadFields(c, out);
     return out;
   }
 
@@ -125,14 +133,24 @@
     }
     var arr = getComments(list);
     var id = nextId(arr);
+    var threads = typeof module !== 'undefined' && module.exports
+      ? require('../cli/shared/sdocs-comment-data') : window.SDocsCommentData;
     var c = normalize({
       id: id,
+      uid: threads && threads.newId ? threads.newId('cm') : undefined,
       kind: anchor.kind,
       block: anchor.block,
       line: anchor.line,
       endLine: anchor.endLine,
       quote: anchor.quote,
       anchorText: anchor.anchorText,
+      block_text: anchor.block_text,
+      line_prefix: anchor.line_prefix,
+      line_suffix: anchor.line_suffix,
+      quote_prefix: anchor.quote_prefix,
+      quote_suffix: anchor.quote_suffix,
+      quote_offset: anchor.quote_offset,
+      document_hash: anchor.document_hash,
       author: (note || {}).author,
       color: (note || {}).color,
       at: (note || {}).at,
@@ -154,38 +172,97 @@
     var arr = getComments(list).map(function (c) {
       if (c.id !== id) return c;
       changed = true;
-      return normalize(Object.assign({}, c, patch || {}));
+      var threads = typeof module !== 'undefined' && module.exports
+        ? require('../cli/shared/sdocs-comment-data') : window.SDocsCommentData;
+      return normalize(Object.assign({}, c, patch || {}, {
+        uid: c.uid || (threads && threads.newId ? threads.newId('cm') : undefined),
+        updated_at: new Date().toISOString(),
+      }));
     }).filter(Boolean);
     return changed ? arr : list;
   }
 
   // ── Anchor resolution ─────────────────────────────────────────────────────
 
-  // Re-find a comment's line in the current source. The stored index is the
-  // first guess; if the line there no longer matches the saved anchorText (the
-  // file was edited upstream), search outward for the nearest line whose trimmed
-  // text equals anchorText. Returns the resolved 0-based index, or -1 if the
-  // anchor is lost (the comment is then shown as orphaned).
-  //
-  // Empty anchorText can't be matched by text, so it trusts the stored index as
-  // long as it is still in range.
+  // Re-find the saved text, using neighboring lines to distinguish repeated
+  // source. Ambiguous or missing targets stay unplaced instead of taking the
+  // nearest ordinal, which may now refer to different code.
   function resolveLine(comment, srcLines) {
-    if (!comment || !Array.isArray(srcLines) || !srcLines.length) return -1;
+    return resolveLineTarget(comment, srcLines).line;
+  }
+
+  function resolveLineTarget(comment, srcLines) {
+    if (!comment || !Array.isArray(srcLines) || !srcLines.length) return { line: -1, status: 'orphaned', candidates: [] };
+    if (comment.anchor_status === 'orphaned' || comment.anchor_status === 'ambiguous') return { line: -1, status: comment.anchor_status, candidates: [] };
     var want = String(comment.anchorText || '').trim();
     var at = toInt(comment.line, -1);
-    if (!want) return (at >= 0 && at < srcLines.length) ? at : -1;
-    if (at >= 0 && at < srcLines.length && srcLines[at].trim() === want) return at;
-    // Spiral outward from the stored index so the nearest identical line wins
-    // when the anchor text is not unique.
-    var n = srcLines.length;
-    for (var d = 1; d < n; d++) {
-      var lo = at - d, hi = at + d;
-      if (lo >= 0 && lo < n && srcLines[lo].trim() === want) return lo;
-      if (hi >= 0 && hi < n && srcLines[hi].trim() === want) return hi;
+    if (comment.block_text && String(comment.block_text).trim() === srcLines.join('\n').trim() &&
+        at >= 0 && at < srcLines.length && srcLines[at].trim() === want) {
+      if (comment.kind !== 'token' || resolveQuote(comment, srcLines[at]).start >= 0) {
+        return { line: at, status: 'attached', candidates: [at] };
+      }
     }
-    // Stored index out of range entirely: fall back to a forward scan.
-    for (var i = 0; i < n; i++) if (srcLines[i].trim() === want) return i;
-    return -1;
+    var hits = [];
+    for (var i = 0; i < srcLines.length; i++) {
+      if (srcLines[i].trim() === want && (want || i === at ||
+          typeof comment.line_prefix === 'string' || typeof comment.line_suffix === 'string')) hits.push(i);
+    }
+    var context = hits.filter(function (line) {
+      return (typeof comment.line_prefix !== 'string' || srcLines.slice(Math.max(0, line - 2), line).join('\n') === comment.line_prefix)
+        && (typeof comment.line_suffix !== 'string' || srcLines.slice(line + 1, line + 3).join('\n') === comment.line_suffix);
+    });
+    var hasContext = typeof comment.line_prefix === 'string' || typeof comment.line_suffix === 'string';
+    var surviving = hits.filter(function (line) {
+      return (comment.line_prefix && srcLines.slice(Math.max(0, line - 2), line).join('\n') === comment.line_prefix) ||
+        (comment.line_suffix && srcLines.slice(line + 1, line + 3).join('\n') === comment.line_suffix);
+    });
+    var choices = context.length ? context : (surviving.length ? surviving : (hasContext ? [] : hits));
+    if (choices.length !== 1) return { line: -1, status: choices.length ? 'ambiguous' : 'orphaned', candidates: choices };
+    var line = choices[0];
+    if (comment.kind === 'token' && comment.quote) {
+      var token = resolveQuote(comment, srcLines[line]);
+      if (token.start < 0) return { line: -1, status: token.status, candidates: [line] };
+    }
+    return { line: line, status: 'attached', candidates: choices };
+  }
+
+  function resolveQuote(comment, text) {
+    var quote = String(comment.quote || '');
+    var hits = [], from = 0, at;
+    if (!quote) return { start: -1, status: 'orphaned' };
+    var offset = toInt(comment.quote_offset, -1);
+    if (offset >= 0 && text.trim() === String(comment.anchorText || '').trim() && text.slice(offset, offset + quote.length) === quote) {
+      return { start: offset, status: 'attached' };
+    }
+    while ((at = text.indexOf(quote, from)) >= 0) { hits.push(at); from = at + quote.length; }
+    var context = hits.filter(function (pos) {
+      return (!comment.quote_prefix || text.slice(Math.max(0, pos - comment.quote_prefix.length), pos) === comment.quote_prefix)
+        && (!comment.quote_suffix || text.slice(pos + quote.length, pos + quote.length + comment.quote_suffix.length) === comment.quote_suffix);
+    });
+    var choices = context.length ? context : hits;
+    return choices.length === 1 ? { start: choices[0], status: 'attached' }
+      : { start: -1, status: choices.length ? 'ambiguous' : 'orphaned' };
+  }
+
+  // A block ordinal is a navigation hint. Text and line context determine which
+  // current fence owns a note after fences are inserted, moved, or removed.
+  function resolveBlock(comment, blocks) {
+    if (!comment || !Array.isArray(blocks)) return { index: -1, status: 'orphaned' };
+    if (comment.anchor_status === 'orphaned' || comment.anchor_status === 'ambiguous') return { index: -1, status: comment.anchor_status };
+    var exact = [];
+    if (comment.block_text) blocks.forEach(function (text, index) {
+      if (String(text).trim() === comment.block_text) exact.push(index);
+    });
+    if (exact.length === 1) return { index: exact[0], status: 'attached' };
+    if (exact.length > 1) return { index: -1, status: 'ambiguous' };
+    var candidates = [], ambiguous = false;
+    blocks.forEach(function (text, index) {
+      var target = resolveLineTarget(comment, String(text).replace(/\n$/, '').split('\n'));
+      if (target.line >= 0) candidates.push(index);
+      if (target.status === 'ambiguous') ambiguous = true;
+    });
+    if (candidates.length === 1) return { index: candidates[0], status: 'attached' };
+    return { index: -1, status: candidates.length || ambiguous ? 'ambiguous' : 'orphaned' };
   }
 
   // ── Copy with comments ────────────────────────────────────────────────────
@@ -247,12 +324,18 @@
   // comment to -1 (it covers the whole block, not a single line).
   function resolveAnyLine(c, srcLines) {
     if (!c || !Array.isArray(srcLines)) return -1;
+    if (c.anchor_status === 'orphaned' || c.anchor_status === 'ambiguous') return -1;
     if (c.kind === 'block') return -1;
     if (c.kind === 'inline' || (c.kind === 'token' && toInt(c.line, -1) < 0)) {
-      var q = String(c.quote || '').trim();
+      var q = String(c.quote || '');
       if (!q) return -1;
-      for (var i = 0; i < srcLines.length; i++) if (srcLines[i].indexOf(q) >= 0) return i;
-      return -1;
+      var source = srcLines.join('\n');
+      var needle = (c.prefix || '') + q + (c.suffix || '');
+      var at = source.indexOf(needle), length = needle.length;
+      if (at < 0 && !c.prefix && !c.suffix) { at = source.indexOf(q); needle = q; length = q.length; }
+      if (at < 0 || source.indexOf(needle, at + length) >= 0) return -1;
+      var start = at + (needle === q ? 0 : (c.prefix || '').length);
+      return source.slice(0, start).split('\n').length - 1;
     }
     return resolveLine(c, srcLines);
   }
@@ -270,10 +353,7 @@
     if (off < 0) off = 0;
     var resolved = getComments(list).map(function (c) {
       return { c: c, ln: resolveAnyLine(c, lines) };
-    }).filter(function (r) {
-      if (!r.c || !sanitizeText(r.c.text || '').trim()) return false;
-      return r.c.kind === 'block' || r.ln >= 0; // block always kept; others need a line
-    });
+    }).filter(function (r) { return r.c && sanitizeText(r.c.text || '').trim(); });
     resolved.sort(function (a, b) {
       var la = a.ln < 0 ? Infinity : a.ln, lb = b.ln < 0 ? Infinity : b.ln;
       return la - lb || idNum(a.c) - idNum(b.c);
@@ -287,8 +367,10 @@
       var author = sanitizeText(c.author || 'user');
       var text = sanitizeText(c.text || '').replace(/\n+/g, ' ');
       var loc;
-      if (c.kind === 'block' || ln < 0) {
+      if (c.kind === 'block') {
         loc = 'whole block';
+      } else if (ln < 0) {
+        loc = 'anchor missing or ambiguous' + (c.anchorText ? ' `' + sanitizeText(c.anchorText) + '`' : '');
       } else if (c.kind === 'method') {
         var end = ln + (toInt(c.endLine, ln) - toInt(c.line, ln));
         if (end < ln) end = ln;
@@ -298,6 +380,10 @@
         loc = 'line ' + (ln + 1 + off) + ' `' + (lines[ln] || '').trim() + '`';
       }
       out += '[' + (i + 1) + '] ' + loc + ' - ' + author + ': ' + text + '\n';
+      if (c.resolved) out += '    Resolved\n';
+      (Array.isArray(c.replies) ? c.replies : []).forEach(function (reply) {
+        out += '    Reply - ' + sanitizeText(reply.author || 'user') + ': ' + sanitizeText(reply.text || '').replace(/\n+/g, ' ') + '\n';
+      });
     });
     return out;
   }
@@ -332,6 +418,9 @@
   exports.removeComment  = removeComment;
   exports.updateComment  = updateComment;
   exports.resolveLine    = resolveLine;
+  exports.resolveLineTarget = resolveLineTarget;
+  exports.resolveQuote = resolveQuote;
+  exports.resolveBlock = resolveBlock;
   exports.serialize      = serialize;
   exports.parse          = parse;
   exports.serializeAnnotations = serializeAnnotations;

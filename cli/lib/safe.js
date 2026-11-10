@@ -16,7 +16,7 @@ const https  = require('https');
 const http   = require('http');
 const crypto = require('crypto');
 
-const { DEFAULT_URL } = require('./constants');
+const { resolveBaseUrl } = require('./constants');
 
 // Server-side files an auditor needs to read to review what `sdoc safe`
 // cannot prove by hashing. Kept small on purpose.
@@ -67,7 +67,7 @@ function fetchBuffer(url) {
 }
 
 async function runSafe(opts) {
-  const base = (opts.url || process.env.SDOCS_URL || DEFAULT_URL).replace(/\/$/, '');
+  const base = (resolveBaseUrl(opts.url)).replace(/\/$/, '');
   const jsonOut = !!opts.jsonFlag;
   const audit = !!opts.auditFlag;
   const rawBase = (opts.rawBase || process.env.SDOCS_TRUST_RAW || TRUST_RAW_BASE).replace(/\/$/, '');

@@ -18,6 +18,7 @@ const libScan    = require('./library-scan');
 const autostart  = require('./library-autostart');
 const url        = require('./url');
 const { startBridge } = require('../bin/sdocs-bridge');
+const { INSTALLATION_CHANNEL } = require('./constants');
 
 // The CLI version this agent ships with. The library page reads it
 // from /api/library/health and /api/library/data so it can flag stale
@@ -77,6 +78,7 @@ const DEFAULT_PORT = 47843;
 // own callers, other local tools) are allowed - the agent's bind to
 // 127.0.0.1 is the same-machine boundary for those.
 function defaultAllowedOrigins() {
+  if (INSTALLATION_CHANNEL) return new Set([INSTALLATION_CHANNEL.origin]);
   const set = new Set([
     'https://sdocs.dev',
     'https://smalldocs.org',

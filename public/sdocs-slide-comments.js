@@ -19,6 +19,19 @@
 (function (global) {
 'use strict';
 
+function shapeIdentity(shape) {
+  function stable(value) {
+    if (!value || typeof value !== 'object') return value;
+    if (Array.isArray(value)) return value.map(stable);
+    var copy = {};
+    Object.keys(value).sort().forEach(function (key) {
+      if (key !== 'lineNumber') copy[key] = stable(value[key]);
+    });
+    return copy;
+  }
+  return JSON.stringify(stable(shape));
+}
+
 // ── Pure geometry ───────────────────────────────────────────────────────
 //
 // Map a slide's DSL to a list of hit rectangles in PERCENT of the slide wrap,
@@ -50,11 +63,13 @@ function computeHitRects(dsl, shapesLib) {
     var text = shapeText(s);
     rects.push({
       shapeIdx: i,
+      sourceLine: s.lineNumber,
       leftPct: (x / gw) * 100,
       topPct: (y / gh) * 100,
       wPct: (w / gw) * 100,
       hPct: (h / gh) * 100,
       text: text,
+      identity: shapeIdentity(s),
       // A human-readable anchor for the note: the shape's own text when it
       // has any, else its kind + ordinal ("1st arrow") so a text-less
       // decorative shape still reads clearly in the copied feedback and UI.
@@ -103,11 +118,57 @@ function slideLeadText(rects) {
   return '';
 }
 
+function resolveSlideEntries(c, entries, documentMatches, shapesLib) {
+  if (c.anchor_status === 'orphaned' || c.anchor_status === 'ambiguous') return { index: -1, status: c.anchor_status };
+  if (documentMatches) {
+    var original = entries.filter(function (entry) { return entry.index === c.slide; })[0];
+    if (original && shapesOf(c).every(function (shape) { return original.rects.some(function (rect) { return rect.shapeIdx === shape; }); })) {
+      return { index: original.index, shapes: shapesOf(c), status: 'attached' };
+    }
+  }
+  var exact = c.slide_source ? entries.filter(function (entry) { return entry.source === c.slide_source; }) : [];
+  // The complete slide source identifies unchanged elements, including two
+  // elements with the same visible label, after slides have moved.
+  if (exact.length === 1 && shapesOf(c).every(function (shape) {
+    return exact[0].rects.some(function (rect) { return rect.shapeIdx === shape; });
+  })) return { index: exact[0].index, shapes: shapesOf(c), status: 'attached' };
+  var candidates = exact.length ? exact : entries;
+  var wanted = Array.isArray(c.shape_texts) && c.shape_texts.length ? c.shape_texts
+    : (shapesOf(c).length === 1 && c.slide_text ? [c.slide_text] : []);
+  var originalRects = c.slide_source ? computeHitRects(c.slide_source, shapesLib) : [];
+  var found = [], ambiguous = exact.length > 1;
+  candidates.forEach(function (entry) {
+    if (wanted.length) {
+      var indices = [];
+      for (var i = 0; i < wanted.length; i++) {
+        var original = originalRects.filter(function (rect) { return rect.shapeIdx === shapesOf(c)[i]; })[0];
+        var matches = original ? entry.rects.filter(function (rect) { return rect.identity === original.identity; }) : [];
+        // A generated ordinal such as "1st arrow" changes after inserting
+        // another arrow. Only use label fallback for actual visible text.
+        if (!matches.length && (!original || original.text)) {
+          matches = entry.rects.filter(function (rect) { return rect.label === wanted[i]; });
+        }
+        if (matches.length !== 1) { if (matches.length > 1) ambiguous = true; return; }
+        indices.push(matches[0].shapeIdx);
+      }
+      found.push({ index: entry.index, shapes: indices });
+    } else if (exact.length || (c.slide_text && slideLeadText(entry.rects) === c.slide_text) ||
+        (!c.slide_source && !c.slide_text && entry.index === c.slide)) {
+      var indices = shapesOf(c);
+      if (indices.every(function (index) { return entry.rects.some(function (rect) { return rect.shapeIdx === index; }); })) {
+        found.push({ index: entry.index, shapes: indices });
+      }
+    }
+  });
+  return found.length === 1 ? Object.assign({ status: 'attached' }, found[0])
+    : { index: -1, status: found.length > 1 || ambiguous ? 'ambiguous' : 'orphaned' };
+}
+
 // Everything below this point is browser-only. Bail cleanly in Node so the
 // pure helpers above can still be required by tests.
 if (typeof document === 'undefined') {
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { computeHitRects: computeHitRects, shapeText: shapeText };
+    module.exports = { computeHitRects: computeHitRects, shapeText: shapeText, resolveEntries: resolveSlideEntries };
   }
   return;
 }
@@ -134,7 +195,27 @@ function slideComments(slideIndex) {
   if (!sdc) return [];
   return sdc.getComments((S() && S().currentMeta) || {})
     .map(sdc.normalizeComment)
-    .filter(function (c) { return c && c.kind === 'slide' && c.slide === slideIndex; });
+    .filter(function (c) { return c && c.kind === 'slide'; })
+    .map(function (c) {
+      var target = resolveSlideTarget(c);
+      if (target.index !== slideIndex) return null;
+      var copy = Object.assign({}, c);
+      copy.slide = target.index;
+      if (target.shapes && target.shapes.length === 1) { copy.shape = target.shapes[0]; delete copy.shapes; }
+      else if (target.shapes && target.shapes.length) { copy.shapes = target.shapes; delete copy.shape; }
+      return copy;
+    }).filter(Boolean);
+}
+
+function resolveSlideTarget(c) {
+  if (c.anchor_status === 'orphaned' || c.anchor_status === 'ambiguous') return { index: -1, status: c.anchor_status };
+  var root = S() && S().renderedEl;
+  var slides = root ? Array.prototype.slice.call(root.querySelectorAll('.sdoc-slide[data-dsl]')) : [];
+  var entries = slides.map(function (el) {
+    return { source: el.getAttribute('data-dsl'), rects: computeHitRects(el.getAttribute('data-dsl')),
+      index: parseInt(el.getAttribute('data-slide-index'), 10) };
+  });
+  return resolveSlideEntries(c, entries, c.document_hash && c.document_hash === SDC().documentFingerprint(S().currentBody));
 }
 
 function iconBtn(svg, label, cls, onClick) {
@@ -190,6 +271,10 @@ function makeSlideCard(c, ordinal, ctx) {
     if (S().syncAll) S().syncAll('comment');
   });
   card.appendChild(del);
+  var ui = S() && S().commentsUi;
+  if (ui && ui.appendThreadDetails) ui.appendThreadDetails(card, c, {
+    onChange: function () { if (ctx && ctx.wrap) afterChange(ctx); },
+  });
 
   card.addEventListener('click', function (e) {
     if (e.target.closest('.sdoc-icon-btn')) return;
@@ -294,6 +379,9 @@ function labelMap(dsl) {
 // A click on an element overlay. Shift extends/toggles a multi-element
 // selection; a plain click is a single-element note (and clears any group).
 function handleHitClick(ctx, rect, additive) {
+  var existing = activeComposer();
+  var draft = pending && sameCtx(pending.ctx, ctx) && existing
+    ? existing.querySelector('.sdoc-card-input').value : '';
   if (additive) {
     if (!pending || !sameCtx(pending.ctx, ctx)) pending = { ctx: ctx, idxs: [] };
     var at = pending.idxs.indexOf(rect.shapeIdx);
@@ -308,13 +396,13 @@ function handleHitClick(ctx, rect, additive) {
     if (pending.idxs.length === 1) {
       // Dropped back to one element - reuse the single-element composer.
       var only = computeHitRects(ctx.dsl).filter(function (r) { return r.shapeIdx === pending.idxs[0]; })[0];
-      openElementComposer(ctx, only || rect);
+      openElementComposer(ctx, only || rect, draft);
       return;
     }
-    openGroupComposer(ctx, pending.idxs.slice());
+    openGroupComposer(ctx, pending.idxs.slice(), draft);
     return;
   }
-  pending = null;
+  pending = { ctx: ctx, idxs: [rect.shapeIdx] };
   openElementComposer(ctx, rect);
 }
 
@@ -330,7 +418,7 @@ function highlightShapes(wrap, idxs, color) {
   });
 }
 
-function openGroupComposer(ctx, idxs) {
+function openGroupComposer(ctx, idxs, draft) {
   var existing = activeComposer();
   if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
   var p = prefs();
@@ -340,10 +428,13 @@ function openGroupComposer(ctx, idxs) {
   var composer = makeComposerCard({
     color: p.color,
     author: p.author,
+    text: draft,
     targetLabel: idxs.length + ' elements · ' + joined,
     onSave: function (text) {
       var res = SDC().addSlideComment(S().currentMeta || {}, {
-        slide: ctx.slideIndex, shapes: idxs, slide_text: joined,
+        slide: ctx.slideIndex, shapes: idxs, slide_text: joined, slide_source: ctx.dsl,
+        shape_texts: idxs.map(function (index) { return lm[index] || ('element ' + index); }),
+        document_hash: SDC().documentFingerprint(S().currentBody),
       }, { author: p.author, color: p.color, at: new Date().toISOString(), text: text });
       S().currentMeta = res.meta;
       pending = null;
@@ -392,8 +483,10 @@ function buildLayer(ctx) {
     hit.style.width = r.wPct + '%';
     hit.style.height = r.hPct + '%';
     hit.title = r.text ? 'Comment on “' + r.text + '”' : 'Comment on this element';
+    hit.setAttribute('aria-label', hit.title);
     if (ordinalOfShape[r.shapeIdx] != null) {
       hit.classList.add('is-commented');
+      if (colorOfShape[r.shapeIdx]) hit.style.setProperty('--sdoc-anchor-color', colorOfShape[r.shapeIdx]);
       var dot = document.createElement('span');
       dot.className = 'sdoc-slide-hit-dot';
       dot.textContent = ordinalOfShape[r.shapeIdx];
@@ -411,16 +504,16 @@ function buildLayer(ctx) {
 
   wrap.appendChild(layer);
 
-  // Whole-slide comment button (top-left, away from the present button).
+  // Keep the whole-slide action on the right, after the present action.
   var wsBtn = document.createElement('button');
   wsBtn.type = 'button';
-  wsBtn.className = 'sdoc-slide-comment-btn';
+  wsBtn.className = 'sdoc-slide-comment-btn sdoc-rich-comment-btn';
   wsBtn.innerHTML = COMMENT_ICON;
   wsBtn.title = 'Comment on the whole slide';
   wsBtn.setAttribute('aria-label', 'Comment on the whole slide');
-  if (comments.some(function (c) { return typeof c.shape !== 'number'; })) {
+  if (comments.some(function (c) { return !shapesOf(c).length; })) {
     wsBtn.classList.add('has-comment');
-    var wholeOwner = comments.find(function (c) { return typeof c.shape !== 'number'; });
+    var wholeOwner = comments.find(function (c) { return !shapesOf(c).length; });
     if (wholeOwner) wsBtn.style.setProperty('--sdoc-anchor-color', wholeOwner.color || prefs().color);
   }
   wsBtn.addEventListener('click', function (e) {
@@ -505,7 +598,7 @@ function placeComposer(ctx, composer) {
   (ctx.cardParent || document.body).appendChild(composer);
 }
 
-function openElementComposer(ctx, rect) {
+function openElementComposer(ctx, rect, draft) {
   var existing = activeComposer();
   if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
   var p = prefs();
@@ -513,10 +606,13 @@ function openElementComposer(ctx, rect) {
   var composer = makeComposerCard({
     color: p.color,
     author: p.author,
+    text: draft,
     targetLabel: '“' + (rect.label || ('element ' + rect.shapeIdx)) + '”',
     onSave: function (text) {
       var res = SDC().addSlideComment(S().currentMeta || {}, {
         slide: ctx.slideIndex, shape: rect.shapeIdx, slide_text: rect.label,
+        slide_source: ctx.dsl, shape_texts: [rect.label],
+        document_hash: SDC().documentFingerprint(S().currentBody),
       }, { author: p.author, color: p.color, at: new Date().toISOString(), text: text });
       S().currentMeta = res.meta;
       afterChange(ctx);
@@ -527,6 +623,7 @@ function openElementComposer(ctx, rect) {
 }
 
 function openSlideComposer(ctx, rects) {
+  pending = null;
   var existing = activeComposer();
   if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
   var p = prefs();
@@ -537,7 +634,8 @@ function openSlideComposer(ctx, rects) {
     targetLabel: 'whole slide',
     onSave: function (text) {
       var res = SDC().addSlideComment(S().currentMeta || {}, {
-        slide: ctx.slideIndex, slide_text: slideLeadText(rects || computeHitRects(ctx.dsl)),
+        slide: ctx.slideIndex, slide_text: slideLeadText(rects || computeHitRects(ctx.dsl)), slide_source: ctx.dsl,
+        document_hash: SDC().documentFingerprint(S().currentBody),
       }, { author: p.author, color: p.color, at: new Date().toISOString(), text: text });
       S().currentMeta = res.meta;
       afterChange(ctx);
@@ -552,6 +650,7 @@ function openSlideComposer(ctx, rects) {
 // rebuilds its overlay in place, so the composer it portaled into the panel
 // won't be torn down by a re-render - remove it explicitly first.
 function afterChange(ctx) {
+  pending = null;
   var open = activeComposer();
   if (open && open.parentNode) open.parentNode.removeChild(open);
   // Inline gets a full re-render (fresh slide DOM), but the present stage
@@ -607,12 +706,22 @@ function renderInline() {
     var ctx = inlineCtxFor(slideEl);
     if (ctx) buildLayer(ctx);
   });
+  var comments = SDC().getComments(S().currentMeta || {}).filter(function (c) { return c && c.kind === 'slide'; });
+  comments.forEach(function (raw, ordinal) {
+    var c = SDC().normalizeComment(raw), target = c && resolveSlideTarget(c);
+    if (!target || target.index >= 0) return;
+    var card = makeSlideCard(c, ordinal + 1, null);
+    card.classList.add('sdoc-card-orphaned', 'sdoc-slide-orphan');
+    var badge = document.createElement('span'); badge.className = 'sdoc-card-orphan-badge';
+    badge.textContent = target.status === 'ambiguous' ? 'anchor ambiguous' : 'anchor lost';
+    card.appendChild(badge); S().renderedEl.appendChild(card);
+  });
 }
 
 function stripInline() {
   if (!S() || !S().renderedEl) return;
   var root = S().renderedEl;
-  root.querySelectorAll('.sdoc-slide-hit-layer, .sdoc-slide-comment-btn, .sdoc-slide-comment-list').forEach(function (n) {
+  root.querySelectorAll('.sdoc-slide-hit-layer, .sdoc-slide-comment-btn, .sdoc-slide-comment-list, .sdoc-slide-orphan').forEach(function (n) {
     if (n.parentNode) n.parentNode.removeChild(n);
   });
   // Any open composer that lives between slides.
@@ -632,7 +741,22 @@ function render() { renderInline(); }
 // slide's cards render in a panel docked to the right of the stage. State
 // lives here; present.js just calls the hooks below.
 
-var presentState = { commenting: false, modal: null, btn: null, panel: null };
+var presentState = { commenting: false, modal: null, btn: null, panel: null, drafts: {} };
+
+function keepPresentDraft() {
+  var st = presentState, ctx = presentCtx();
+  var composer = st.panel && st.panel.querySelector('.sdoc-slide-card.sdoc-card-edit');
+  if (!composer || !ctx || !ctx.wrap) return;
+  st.drafts[ctx.slideIndex] = {
+    dsl: ctx.dsl, node: composer,
+    shapes: pending && sameCtx(pending.ctx, ctx) ? pending.idxs.slice() : Array.prototype.map.call(ctx.wrap.querySelectorAll('.sdoc-slide-hit.is-composing'), function (hit) {
+      return parseInt(hit.getAttribute('data-shape-idx'), 10);
+    }),
+    whole: ctx.wrap.classList.contains('sdoc-slide-whole-hot'),
+  };
+  composer.parentNode.removeChild(composer);
+  pending = null;
+}
 
 function presentCtx() {
   var st = presentState;
@@ -663,6 +787,7 @@ function presentCtx() {
 
 // Called by present.js after each renderActive (slide change / open).
 function onPresentRender(modal, slideIndex, dsl) {
+  if (presentState.slideIndex !== slideIndex || presentState.dsl !== dsl) keepPresentDraft();
   presentState.modal = modal;
   presentState.slideIndex = slideIndex;
   presentState.dsl = dsl;
@@ -673,7 +798,19 @@ function presentRender() {
   ensurePresentPanel();
   var ctx = presentCtx();
   if (!ctx || !ctx.wrap) return;
+  // The panel belongs to the current slide, not every slide visited so far.
+  presentState.panel.querySelectorAll('.sdoc-slide-comment-list').forEach(function (list) {
+    if (list.getAttribute('data-for') !== String(ctx.slideIndex)) list.parentNode.removeChild(list);
+  });
   buildLayer(ctx);
+  var draft = presentState.drafts[ctx.slideIndex];
+  if (draft && draft.dsl === ctx.dsl && !activeComposer()) {
+    delete presentState.drafts[ctx.slideIndex];
+    presentState.panel.insertBefore(draft.node, presentState.panel.firstChild);
+    highlightShapes(ctx.wrap, draft.shapes, prefs().color);
+    if (draft.whole) ctx.wrap.classList.add('sdoc-slide-whole-hot');
+    if (draft.shapes.length) pending = { ctx: ctx, idxs: draft.shapes };
+  }
 }
 
 function ensurePresentPanel() {
@@ -700,6 +837,7 @@ function ensurePresentPanel() {
 
 // present.js gives us its toggle button so we can reflect active state on it.
 function presentToggle(btn) {
+  if (presentState.commenting) keepPresentDraft();
   presentState.btn = btn || presentState.btn;
   presentState.commenting = !presentState.commenting;
   if (presentState.btn) presentState.btn.classList.toggle('active', presentState.commenting);
@@ -750,6 +888,8 @@ function presentTeardown() {
   presentState.panel = null;
   presentState.modal = null;
   presentState.btn = null;
+  presentState.drafts = {};
+  pending = null;
 }
 
 // ── Public API ─────────────────────────────────────────────────────────────
@@ -757,6 +897,7 @@ function presentTeardown() {
 var api = {
   computeHitRects: computeHitRects,
   shapeText: shapeText,
+  resolveTarget: resolveSlideTarget,
   enter: enter,
   exit: exit,
   render: render,

@@ -52,6 +52,8 @@ function writePrefs(p) {
 
 function strip() {
   if (!S.renderedEl) return;
+  if (S.cellsComments) S.cellsComments.clear();
+  if (S.diagramComments) S.diagramComments.clear();
   // Unwrap highlight spans
   S.renderedEl.querySelectorAll('span.sdoc-anchor').forEach(function (span) {
     var parent = span.parentNode;
@@ -129,6 +131,7 @@ function listTopBlocks(root) {
   var blocks = [];
   var byType = {};
   root.querySelectorAll(TOP_BLOCK_SEL).forEach(function (block) {
+    if (block.closest('.sdoc-card, .sdoc-slide, .sdoc-cells, .sdoc-mermaid')) return;
     var ancestor = block.parentElement;
     while (ancestor && ancestor !== root) {
       if (ancestor.matches && ancestor.matches(TOP_BLOCK_SEL)) return;
@@ -168,6 +171,14 @@ function containingTopBlock(node, root) {
 function findBlockById(id, root, blockText) {
   if (!root) return null;
   var idx = listTopBlocks(root);
+  if (blockText) {
+    var type = id && id.split(':')[0];
+    var matches = idx.blocks.filter(function (entry) {
+      return (!type || entry.type === type) && cleanAnchorText(entry.el).replace(/\s+/g, ' ').trim()
+        .indexOf(String(blockText).replace(/\s+/g, ' ').trim()) === 0;
+    });
+    return matches.length === 1 ? matches[0].el : null;
+  }
   // 1. Try the exact index first.
   if (id) {
     var parts = id.split(':');
@@ -178,18 +189,12 @@ function findBlockById(id, root, blockText) {
       var hit = list[n] || null;
       // If we have a survival hint and the indexed block doesn't match it,
       // the index has likely drifted - fall through to text search.
-      if (hit && (!blockText || (hit.textContent || '').trim().indexOf(blockText) === 0)) {
+      if (hit) {
         return hit;
       }
     }
   }
   // 2. Fallback: scan all top blocks for one whose start matches blockText.
-  if (blockText) {
-    for (var i = 0; i < idx.blocks.length; i++) {
-      var b = idx.blocks[i].el;
-      if ((b.textContent || '').trim().indexOf(blockText) === 0) return b;
-    }
-  }
   return null;
 }
 
@@ -245,45 +250,33 @@ function walkElementPath(block, path) {
 
 function findElementTarget(c, root) {
   if (!c || !c.block || !c.element) return null;
-  // Prefer the current block ordinal without requiring its full text to stay
-  // unchanged. Inserting an item into a list changes the list's text but should
-  // not invalidate a comment on an existing item.
-  var block = findBlockById(c.block, root, null);
-  var found = findElementInBlock(c, block);
-  if (found) return found;
-
-  // If the top-level block itself moved, use its text hint, then scan sibling
-  // blocks of the same type for the element fingerprint.
+  if (sourceUnchanged(c)) return walkElementPath(findBlockById(c.block, root, null), c.element);
   var hinted = findBlockById(c.block, root, c.block_text);
-  if (hinted && hinted !== block) {
-    found = findElementInBlock(c, hinted);
-    if (found) return found;
-  }
+  var found = hinted && c.block_text ? findElementInBlock(c, hinted) : null;
+  if (found) return found;
   var type = c.block.split(':')[0];
   var candidates = listTopBlocks(root).byType[type] || [];
+  var matches = [];
   for (var i = 0; i < candidates.length; i++) {
-    if (candidates[i] === block || candidates[i] === hinted) continue;
     found = findElementInBlock(c, candidates[i]);
-    if (found) return found;
+    if (found) matches.push(found);
   }
-  return null;
+  return matches.length === 1 ? matches[0] : null;
 }
 
 function findElementInBlock(c, block) {
   if (!block) return null;
   var exact = walkElementPath(block, c.element);
-  if (exact && (!c.element_text || elementOwnText(exact).indexOf(c.element_text) === 0)) {
-    return exact;
-  }
   if (!c.element_text) return exact;
   var last = c.element.split('/').pop();
   var match = ELEMENT_SEGMENT.exec(last);
   if (!match) return null;
   var elements = block.querySelectorAll(match[1]);
+  var matches = [];
   for (var i = 0; i < elements.length; i++) {
-    if (elementOwnText(elements[i]).indexOf(c.element_text) === 0) return elements[i];
+    if (elementOwnText(elements[i]).indexOf(c.element_text) === 0) matches.push(elements[i]);
   }
-  return null;
+  return matches.length === 1 ? matches[0] : null;
 }
 
 function cleanTableText(element) {
@@ -318,22 +311,21 @@ function tableRowText(row) {
 
 function tableRowMatches(row, hint) {
   if (!row || !hint) return false;
-  if (tableRowText(row).indexOf(hint) === 0) return true;
+  if (tableRowText(row) === hint) return true;
   return Array.prototype.some.call(row.children, function (cell) {
-    return cleanTableText(cell).indexOf(hint) === 0;
+    return cleanTableText(cell) === hint;
   });
 }
 
 function findTableRow(c, table) {
   var rows = tableBodyRows(table);
   var exact = rows[c.table_row] || null;
-  if (exact && (!c.row_text || tableRowMatches(exact, c.row_text))) {
-    return exact;
-  }
   if (c.row_text) {
-    for (var i = 0; i < rows.length; i++) {
-      if (tableRowMatches(rows[i], c.row_text)) return rows[i];
-    }
+    var matches = rows.filter(function (row) { return tableRowMatches(row, c.row_text); });
+    if (matches.length > 1 && c.row_cells) matches = matches.filter(function (row) {
+      return JSON.stringify(Array.prototype.map.call(row.children, cleanTableText)) === JSON.stringify(c.row_cells);
+    });
+    return matches.length === 1 ? matches[0] : null;
   }
   return c.row_text ? null : exact;
 }
@@ -341,13 +333,9 @@ function findTableRow(c, table) {
 function findTableColumn(c, table) {
   var headers = tableHeaders(table);
   var exact = headers[c.table_column] || null;
-  if (exact && (!c.column_text || cleanTableText(exact).indexOf(c.column_text) === 0)) {
-    return exact;
-  }
   if (c.column_text) {
-    for (var i = 0; i < headers.length; i++) {
-      if (cleanTableText(headers[i]).indexOf(c.column_text) === 0) return headers[i];
-    }
+    var matches = headers.filter(function (header) { return cleanTableText(header) === c.column_text; });
+    return matches.length === 1 ? matches[0] : null;
   }
   return c.column_text ? null : exact;
 }
@@ -372,34 +360,57 @@ function findTableTargetInBlock(c, table) {
   return target;
 }
 
+function tableSignature(table) {
+  return SDC.documentFingerprint(JSON.stringify([tableHeaders(table).map(cleanTableText)].concat(
+    tableBodyRows(table).map(function (row) { return Array.prototype.map.call(row.children, cleanTableText); }))));
+}
+
 function findTableTarget(c, root) {
   if (!c || c.kind !== 'table' || !c.block) return null;
-  var block = findBlockById(c.block, root, null);
-  var target = findTableTargetInBlock(c, block);
-  if (target) return target;
+  if (sourceUnchanged(c)) return findTableTargetInBlock(Object.assign({}, c, { row_text: '', column_text: '' }), findBlockById(c.block, root, null));
+  if (c.table_signature) {
+    var sameTables = (listTopBlocks(root).byType.table || []).filter(function (table) { return tableSignature(table) === c.table_signature; });
+    if (sameTables.length === 1) return findTableTargetInBlock(Object.assign({}, c, { row_text: '', column_text: '' }), sameTables[0]);
+    if (sameTables.length > 1) return null;
+  }
   var hinted = findBlockById(c.block, root, c.block_text);
-  if (hinted && hinted !== block) {
-    target = findTableTargetInBlock(c, hinted);
-    if (target) return target;
-  }
+  var target = hinted && c.block_text ? findTableTargetInBlock(c, hinted) : null;
+  if (target) return target;
+  if (c.table_scope === 'table' && c.block_text) return null;
   var candidates = listTopBlocks(root).byType.table || [];
+  var matches = [];
   for (var i = 0; i < candidates.length; i++) {
-    if (candidates[i] === block || candidates[i] === hinted) continue;
     target = findTableTargetInBlock(c, candidates[i]);
-    if (target) return target;
+    if (target) matches.push(target);
   }
-  return null;
+  return matches.length === 1 ? matches[0] : null;
 }
 
 // Given a container and a cumulative character offset into container.textContent,
 // build a DOM Range [startOffset, endOffset).
+function anchorTextWalker(container) {
+  return document.createTreeWalker(container, NodeFilter.SHOW_TEXT, {
+    acceptNode: function (node) {
+      return node.parentElement && node.parentElement.closest('.sdoc-card, button, .pre-tools')
+        ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT;
+    },
+  });
+}
+
+function cleanAnchorText(container) {
+  if (!container) return '';
+  var walker = anchorTextWalker(container), text = '', node;
+  while ((node = walker.nextNode())) text += node.nodeValue;
+  return text;
+}
+
 function rangeFromCharOffsets(container, startOffset, endOffset) {
-  var walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, null);
+  var walker = anchorTextWalker(container);
   var pos = 0, startNode = null, startInNode = 0, endNode = null, endInNode = 0;
   var n;
   while ((n = walker.nextNode()) !== null) {
     var len = n.nodeValue.length;
-    if (startNode === null && pos + len >= startOffset) {
+    if (startNode === null && pos + len > startOffset) {
       startNode = n;
       startInNode = startOffset - pos;
     }
@@ -425,16 +436,55 @@ function rangeFromCharOffsets(container, startOffset, endOffset) {
 // is to try a smaller leaf in that case so the wrap stays inside a
 // single element).
 function findAnchorRange(container, prefix, quote, suffix) {
-  if (!container || !quote) return null;
-  var text = container.textContent || '';
+  var ranges = findAnchorRanges(container, prefix, quote, suffix);
+  return ranges.length === 1 ? ranges[0] : null;
+}
+
+function findAnchorRanges(container, prefix, quote, suffix) {
+  if (!container || !quote) return [];
+  var text = cleanAnchorText(container);
   var needle = (prefix || '') + quote + (suffix || '');
-  var idx = text.indexOf(needle);
-  if (idx === -1) return null;
-  var start = idx + (prefix || '').length;
-  var end = start + quote.length;
-  var range = rangeFromCharOffsets(container, start, end);
-  if (!range) return null;
-  return range;
+  var ranges = [], from = 0, idx;
+  while ((idx = text.indexOf(needle, from)) >= 0) {
+    var start = idx + (prefix || '').length;
+    var range = rangeFromCharOffsets(container, start, start + quote.length);
+    if (range) ranges.push(range);
+    // Two distinct matches establish ambiguity. Include overlapping contexts
+    // without constructing a DOM Range for every occurrence in a long list.
+    if (ranges.length === 2) break;
+    from = idx + 1;
+  }
+  if (!ranges.length) {
+    var normalized = text.replace(/\s+/g, ' ').trim();
+    var normalizedNeedle = needle.replace(/\s+/g, ' ').trim();
+    var before = (prefix || '').replace(/\s+/g, ' ').trimStart();
+    var quoteStart = before.length - (/ $/.test(before) && /^\s/.test(quote) ? 1 : 0);
+    var quoteEnd = ((prefix || '') + quote).replace(/\s+/g, ' ').trimStart().length;
+    from = 0;
+    while (normalizedNeedle && (idx = normalized.indexOf(normalizedNeedle, from)) >= 0) {
+      var mapped = rangeFromNormalizedOffsets(container, text, idx + quoteStart, idx + Math.min(quoteEnd, normalizedNeedle.length));
+      if (mapped) ranges.push(mapped);
+      if (ranges.length === 2) break;
+      from = idx + 1;
+    }
+  }
+  return ranges;
+}
+
+// Server source projections collapse structural whitespace. Translate those
+// positions back to the browser's text stream without changing the document.
+function rangeFromNormalizedOffsets(container, text, start, end) {
+  var raw = 0, at = 0, first = null, last = null;
+  while (raw < text.length && /\s/.test(text[raw])) raw++;
+  while (raw <= text.length) {
+    if (at === start) first = raw;
+    if (at === end) { last = raw; break; }
+    if (raw === text.length) break;
+    if (/\s/.test(text[raw])) while (raw < text.length && /\s/.test(text[raw])) raw++;
+    else raw++;
+    at++;
+  }
+  return first !== null && last !== null ? rangeFromCharOffsets(container, first, last) : null;
 }
 
 // "Anchor leaves" = elements where a quote lives entirely within the
@@ -447,6 +497,7 @@ function listAnchorLeaves(root) {
   if (!root) return [];
   var out = [];
   root.querySelectorAll(ANCHOR_LEAF_SEL).forEach(function (el) {
+    if (el.closest('.sdoc-card')) return;
     // Exclude an element whose children include another LEAF (e.g. a
     // <blockquote> wrapping a <p> - the inner <p> is the leaf).
     var innerIsLeaf = false;
@@ -461,42 +512,62 @@ function listAnchorLeaves(root) {
   return out;
 }
 
-// Three-tier fallback:
-//   Tier 1: block-scoped via c.block hint (try block itself, then its leaves)
-//   Tier 2: walk all anchor-leaves, prefer prefix+quote+suffix match
-//   Tier 3: walk all anchor-leaves, quote-only (last resort)
+// Preserve exact positions while the document is unchanged. After edits use
+// unique block fingerprints or complete saved quote context. Failed context
+// stays unplaced, even if the same quote survives somewhere else.
 // Searching per-leaf (rather than per-top-block) avoids ranges that
 // cross sibling elements (e.g. across <li>s in a <ul>).
 function resolveAnchor(c, root) {
   if (c.kind !== 'inline' || !c.quote) return null;
-  // Tier 1: named block hint
-  if (c.block) {
+  if (c.anchor_status === 'orphaned' || c.anchor_status === 'ambiguous') return { range: null, status: c.anchor_status };
+  if (sourceUnchanged(c) && typeof c.quote_offset === 'number') {
+    var original = findBlockById(c.block, root, null);
+    if (original && c.quote_offset_basis === 'normalized') {
+      var originalText = cleanAnchorText(original), normalizedText = originalText.replace(/\s+/g, ' ').trim();
+      var normalizedQuote = c.quote.replace(/\s+/g, ' ').trim();
+      if (normalizedText.slice(c.quote_offset, c.quote_offset + normalizedQuote.length) === normalizedQuote) {
+        return { range: rangeFromNormalizedOffsets(original, originalText, c.quote_offset, c.quote_offset + normalizedQuote.length), tier: 1, status: 'attached' };
+      }
+    }
+    if (original && c.quote_offset_basis !== 'normalized' && cleanAnchorText(original).slice(c.quote_offset, c.quote_offset + c.quote.length) === c.quote) {
+      return { range: rangeFromCharOffsets(original, c.quote_offset, c.quote_offset + c.quote.length), tier: 1, status: 'attached' };
+    }
+  }
+  // A text fingerprint can identify a moved block. Ordinals alone cannot
+  // distinguish repeated text after an insertion.
+  if (c.block && c.block_text) {
     var hint = findBlockById(c.block, root, c.block_text);
     if (hint) {
       var r = findAnchorRange(hint, c.prefix, c.quote, c.suffix);
-      if (r) return { range: r, tier: 1 };
-      // Block was a container (ul/table); drop to its leaves.
-      var hintLeaves = listAnchorLeaves(hint);
-      for (var k = 0; k < hintLeaves.length; k++) {
-        var rh = findAnchorRange(hintLeaves[k], c.prefix, c.quote, c.suffix);
-        if (rh) return { range: rh, tier: 1 };
-      }
+      if (r) return { range: r, tier: 1, status: 'attached' };
+      // A container may contain several identical matches. Never select the
+      // first individually unique leaf after the complete block was ambiguous.
     }
   }
   var leaves = listAnchorLeaves(root);
   // Tier 2
-  for (var i = 0; i < leaves.length; i++) {
-    var r2 = findAnchorRange(leaves[i], c.prefix, c.quote, c.suffix);
-    if (r2) return { range: r2, tier: 2 };
-  }
-  // Tier 3
-  if (c.prefix || c.suffix) {
-    for (var j = 0; j < leaves.length; j++) {
-      var r3 = findAnchorRange(leaves[j], '', c.quote, '');
-      if (r3) return { range: r3, tier: 3 };
-    }
-  }
+  var exact = [];
+  for (var i = 0; i < leaves.length; i++) exact = exact.concat(findAnchorRanges(leaves[i], c.prefix, c.quote, c.suffix));
+  // List context can include sibling items. Search the same complete text
+  // stream used by captureContext after a list fingerprint changes.
+  exact = exact.concat(findAnchorRanges(root, c.prefix, c.quote, c.suffix));
+  exact = uniqueAnchorRanges(exact);
+  if (exact.length === 1) return { range: exact[0], tier: 2, status: 'attached' };
+  if (exact.length > 1) return { range: null, status: 'ambiguous' };
   return null;
+}
+
+function uniqueAnchorRanges(ranges) {
+  return ranges.filter(function (range, index) {
+    return !ranges.slice(0, index).some(function (other) {
+      return other.startContainer === range.startContainer && other.startOffset === range.startOffset &&
+        other.endContainer === range.endContainer && other.endOffset === range.endOffset;
+    });
+  });
+}
+
+function sourceUnchanged(c) {
+  return !c.anchor_status && !!c.document_hash && c.document_hash === SDC.documentFingerprint(S.currentBody);
 }
 
 // ── Relative time ────────────────────────────────────────────────────────
@@ -521,20 +592,38 @@ function formatRelativeTime(iso) {
 // ── Anchor span ─────────────────────────────────────────────────────────
 
 function wrapRange(range, id, color) {
-  var span = document.createElement('span');
-  span.className = 'sdoc-anchor';
-  span.setAttribute('data-c', id);
-  if (color) span.style.setProperty('--sdoc-anchor-color', color);
-  try {
-    range.surroundContents(span);
-  } catch (_) {
-    try {
-      var frag = range.extractContents();
-      span.appendChild(frag);
-      range.insertNode(span);
-    } catch (__) { return null; }
+  function mark() {
+    var span = document.createElement('span');
+    span.className = 'sdoc-anchor';
+    if (id) span.setAttribute('data-c', id);
+    if (color) span.style.setProperty('--sdoc-anchor-color', color);
+    return span;
   }
-  return span;
+  // A whole inline range can share a single highlight. Never extract a
+  // partially selected ancestor: Range.extractContents clones li/p/pre and
+  // changes numbering, paragraph boundaries and code structure.
+  var structural = 'p, li, ul, ol, pre, blockquote, table, thead, tbody, tfoot, tr, td, th, div, h1, h2, h3, h4, h5, h6, .sdoc-card, button, .pre-tools';
+  if (!range.cloneContents().querySelector(structural)) {
+    var single = mark();
+    try { range.surroundContents(single); return [single]; } catch (_) {}
+  }
+  var container = range.commonAncestorContainer;
+  var walker = anchorTextWalker(container), slices = [], node;
+  while ((node = walker.nextNode())) {
+    if (!range.intersectsNode(node) || node.parentElement.matches('ul, ol, table, thead, tbody, tfoot, tr')) continue;
+    var start = node === range.startContainer ? range.startOffset : 0;
+    var end = node === range.endContainer ? range.endOffset : node.nodeValue.length;
+    if (end > start) slices.push({ node: node, start: start, end: end });
+  }
+  var spans = [];
+  // Capture first, then split from the end so offsets remain stable.
+  for (var i = slices.length - 1; i >= 0; i--) {
+    var slice = slices[i], part = document.createRange(), span = mark();
+    part.setStart(slice.node, slice.start); part.setEnd(slice.node, slice.end);
+    part.surroundContents(span);
+    spans.unshift(span);
+  }
+  return spans;
 }
 
 // ── Cards ───────────────────────────────────────────────────────────────
@@ -633,7 +722,7 @@ function makeCardElement(c, opts) {
     if (opts.orphaned) {
       var badge = document.createElement('span');
       badge.className = 'sdoc-card-orphan-badge';
-      badge.textContent = 'anchor lost';
+      badge.textContent = opts.anchorStatus === 'ambiguous' ? 'anchor ambiguous' : 'anchor lost';
       card.appendChild(badge);
     }
 
@@ -702,22 +791,83 @@ function makeCardElement(c, opts) {
     setTimeout(function () { inputEl.focus(); if (c && c.text) inputEl.select(); }, 0);
   }
 
+  if (mode === 'view') appendThreadDetails(card, c);
+
   return card;
+}
+
+function appendThreadDetails(card, c, options) {
+  options = options || {};
+  if (!card || !c) return;
+  card.classList.toggle('sdoc-thread-resolved', !!c.resolved);
+  var details = document.createElement('span');
+  details.className = 'sdoc-thread-details';
+  details.addEventListener('click', function (event) { event.stopPropagation(); });
+  if (c.resolved) {
+    var status = document.createElement('span');
+    status.className = 'sdoc-thread-status';
+    status.textContent = 'Resolved';
+    if (c.resolved_at) status.title = c.resolved_at;
+    details.appendChild(status);
+  }
+  (Array.isArray(c.replies) ? c.replies : []).forEach(function (reply) {
+    var item = document.createElement('span'); item.className = 'sdoc-thread-reply';
+    var who = document.createElement('span'); who.className = 'sdoc-card-author';
+    who.textContent = reply.author || 'user'; if (reply.at) who.title = reply.at;
+    var text = document.createElement('span'); text.className = 'sdoc-thread-reply-text'; text.textContent = reply.text || '';
+    item.appendChild(who); item.appendChild(text); details.appendChild(item);
+  });
+  var helper = window.SDocsCommentData;
+  if (helper && helper.updateThread && options.readonly !== true) {
+    var actions = document.createElement('span'); actions.className = 'sdoc-thread-actions';
+    function change(action, text) {
+      var author = S.cloudCommentIdentity && S.cloudCommentIdentity() || options.author || readPrefs().author;
+      S.currentMeta = helper.updateThread(S.currentMeta || {}, c.id, {
+        action: action, text: text, actor: { display_name: author || 'user' },
+      });
+      if (S.syncAll) S.syncAll('comment');
+      if (options.onChange) options.onChange();
+    }
+    var reply = iconBtn('<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 10-5 5 5 5"/><path d="M4 15h11a5 5 0 0 0 0-10h-3"/></svg>', 'Reply', function () {
+      if (details.querySelector('.sdoc-thread-composer')) return;
+      var composer = document.createElement('span'); composer.className = 'sdoc-card sdoc-card-edit sdoc-thread-composer';
+      var input = document.createElement('textarea'); input.className = 'sdoc-card-input'; input.placeholder = 'Add a reply...'; input.rows = 2;
+      var save = iconBtn(TICK_SVG, 'Save reply', function () {
+        var text = input.value.trim(); if (!text) { input.focus(); return; }
+        composer.remove(); change('reply', text);
+      });
+      var cancel = iconBtn(X_SVG, 'Cancel reply', function () { composer.remove(); });
+      composer.appendChild(input); composer.appendChild(save); composer.appendChild(cancel);
+      details.appendChild(composer); input.focus();
+      input.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); composer.remove(); }
+        if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) { event.preventDefault(); save.click(); }
+      });
+    });
+    var resolve = iconBtn(TICK_SVG, c.resolved ? 'Reopen comment' : 'Resolve comment', function () {
+      change(c.resolved ? 'reopen' : 'resolve');
+    });
+    resolve.setAttribute('aria-pressed', c.resolved ? 'true' : 'false');
+    actions.appendChild(reply); actions.appendChild(resolve); details.appendChild(actions);
+  }
+  card.appendChild(details);
 }
 
 function replaceWithEdit(viewCard, c, shape) {
   var editCard = makeCardElement(c, {
     shape: shape,
     mode: 'edit',
-    targetLabel: tableTargetLabel(c),
+    targetLabel: viewCard.querySelector('.sdoc-table-target-label')?.textContent || tableTargetLabel(c),
     onSave: function (text) {
       if (text === (c.text || '')) { revert(); return; }
       S.currentMeta = SDC.updateComment(S.currentMeta || {}, c.id, { text: text });
+      editCard.remove();
       if (S.syncAll) S.syncAll('comment');
     },
     onCancel: revert,
   });
   function revert() {
+    editCard.remove();
     if (S.syncAll) S.syncAll('comment');
   }
   if (viewCard.parentNode) viewCard.parentNode.replaceChild(editCard, viewCard);
@@ -735,6 +885,12 @@ function replaceWithEdit(viewCard, c, shape) {
 // In both cases place the card as a sibling right after the ancestor.
 function inlineCardInsertPoint(span) {
   if (!span) return null;
+  var pre = span.closest('pre');
+  if (pre && pre.parentNode) {
+    var after = pre.nextSibling;
+    while (after && after.nodeType === 1 && after.classList.contains('sdoc-card')) after = after.nextSibling;
+    return { parent: pre.parentNode, before: after };
+  }
   var table = span.closest('table');
   if (table) {
     var tableHost = table.closest('.sdoc-table-host');
@@ -793,18 +949,25 @@ function insertTableCard(table, card) {
 }
 
 function renderComment(c) {
+  if (c.anchor_status === 'orphaned' || c.anchor_status === 'ambiguous') {
+    S.renderedEl.appendChild(makeCardElement(c, { shape: 'sidecar', mode: 'view', orphaned: true,
+      anchorStatus: c.anchor_status, targetLabel: tableTargetLabel(c) }));
+    return true;
+  }
   if (c.kind === 'inline') {
     var resolved = resolveAnchor(c, S.renderedEl);
-    if (resolved) {
-      var span = wrapRange(resolved.range, c.id, c.color);
+    if (resolved && resolved.range) {
+      var spans = wrapRange(resolved.range, c.id, c.color);
+      var span = spans[spans.length - 1];
       if (span) {
-        var pill = makeCardElement(c, { shape: 'pill', mode: 'view' });
+        var pill = makeCardElement(c, { shape: span.closest('pre') ? 'sidecar' : 'pill', mode: 'view' });
         var at = inlineCardInsertPoint(span);
         if (at) at.parent.insertBefore(pill, at.before);
         return false;
       }
     }
-    var orphan = makeCardElement(c, { shape: 'sidecar', mode: 'view', orphaned: true });
+    var orphan = makeCardElement(c, { shape: 'sidecar', mode: 'view', orphaned: true,
+      anchorStatus: resolved && resolved.status });
     S.renderedEl.appendChild(orphan);
     return true;
   }
@@ -840,7 +1003,7 @@ function renderComment(c) {
     return true;
   }
   // kind === 'block'
-  var block = findBlockById(c.block, S.renderedEl, c.block_text);
+  var block = findBlockById(c.block, S.renderedEl, sourceUnchanged(c) ? null : c.block_text);
   if (block) {
     // Whole-table block comments from older documents now use the table's
     // top-left control and card stack.
@@ -897,19 +1060,44 @@ function renderCodeComments() {
     var raw = all[i];
     if (!raw || (raw.kind !== 'line' && raw.kind !== 'method' && raw.kind !== 'token')) continue;
     var c = CC.normalize(raw);
-    if (!c || !c.block) continue;
-    var block = findBlockById(c.block, S.renderedEl, null);
-    if (!block) continue;
-    var quote = codeQuoteFor(block, c);
-    if (!quote) continue;
-    var range = findAnchorRange(block, '', quote, '');
-    if (!range) continue;
-    var span = wrapRange(range, c.id, c.color);
+    if (!c) continue;
+    var target = resolveCodeBlock(c);
+    var block = target.block;
+    var lineTarget = block ? CC.resolveLineTarget(c, target.lines) : null;
+    var range = null;
+    if (lineTarget && lineTarget.line >= 0) {
+      var line = lineTarget.line, text = target.lines[line];
+      var start = target.lines.slice(0, line).join('\n').length + (line ? 1 : 0);
+      var quote = c.kind === 'token' ? c.quote : text.trim();
+      var within = c.kind === 'token' ? CC.resolveQuote(c, text).start : text.indexOf(quote);
+      if (within >= 0 && quote) range = rangeFromCharOffsets(block, start + within, start + within + quote.length);
+    }
+    if (!range) {
+      S.renderedEl.appendChild(makeCardElement(c, { shape: 'sidecar', mode: 'view', readonly: true,
+        orphaned: true, anchorStatus: (lineTarget && lineTarget.status) || target.status }));
+      continue;
+    }
+    var spans = wrapRange(range, c.id, c.color);
+    var span = spans[spans.length - 1];
     if (!span) continue;
-    var pill = makeCardElement(c, { shape: 'pill', mode: 'view', readonly: true });
+    var pill = makeCardElement(c, { shape: 'sidecar', mode: 'view', readonly: true });
     var at = inlineCardInsertPoint(span);
     if (at) at.parent.insertBefore(pill, at.before);
   }
+}
+
+function resolveCodeBlock(c) {
+  if (c.anchor_status === 'orphaned' || c.anchor_status === 'ambiguous') return { block: null, index: -1, status: c.anchor_status, lines: [] };
+  var pres = Array.prototype.slice.call(S.renderedEl.querySelectorAll('pre'));
+  var sources = pres.map(function (pre) { return cleanAnchorText(pre).replace(/\n$/, ''); });
+  var result;
+  if (sourceUnchanged(c) && /^pre:\d+$/.test(c.block || '')) {
+    var ordinal = Number(c.block.slice(4));
+    if (pres[ordinal]) result = { index: ordinal, status: 'attached' };
+  }
+  if (!result) result = window.SDocsCodeComments.resolveBlock(c, sources);
+  return { block: result.index >= 0 ? pres[result.index] : null, index: result.index,
+    status: result.status, lines: result.index >= 0 ? sources[result.index].split('\n') : [] };
 }
 
 // The phrase to highlight for a code comment in the reader: the selection for a
@@ -939,7 +1127,7 @@ function makeGutterBtn(targetBlock) {
 
 function injectGutterButtons() {
   S.renderedEl.querySelectorAll(TOP_BLOCK_SEL).forEach(function (block) {
-    if (block.closest('.sdoc-card')) return;
+    if (block.closest('.sdoc-card, .sdoc-slide, .sdoc-cells, .sdoc-mermaid')) return;
     // Lists use per-item controls. A second control for the whole list makes
     // the target ambiguous and adds a choice that comment mode does not need.
     if (block.tagName === 'UL' || block.tagName === 'OL' || block.tagName === 'TABLE') return;
@@ -977,7 +1165,7 @@ function makeElementBtn(targetElement) {
 
 function injectElementButtons() {
   S.renderedEl.querySelectorAll('ul li, ol li').forEach(function (item) {
-    if (item.closest('.sdoc-card') || item.querySelector(':scope > .sdoc-element-host')) return;
+    if (item.closest('.sdoc-card, .sdoc-slide, .sdoc-cells, .sdoc-mermaid') || item.querySelector(':scope > .sdoc-element-host')) return;
     var host = document.createElement('div');
     host.className = 'sdoc-element-host';
     item.insertBefore(host, item.firstChild);
@@ -988,6 +1176,27 @@ function injectElementButtons() {
              (host.nextSibling.tagName === 'UL' || host.nextSibling.tagName === 'OL'))) {
       host.appendChild(host.nextSibling);
     }
+    // A loose item may resume its own paragraphs or code after a nested list.
+    // Reuse a host for every such run, leaving list containers in place so
+    // structural element paths and browser counters retain their meaning.
+    var sibling = host.nextSibling;
+    while (sibling) {
+      if (sibling.nodeType === 1 && (sibling.tagName === 'UL' || sibling.tagName === 'OL')) {
+        sibling = sibling.nextSibling;
+      } else {
+        var run = [];
+        while (sibling && !(sibling.nodeType === 1 && (sibling.tagName === 'UL' || sibling.tagName === 'OL'))) {
+          run.push(sibling);
+          sibling = sibling.nextSibling;
+        }
+        if (run.some(function (node) { return node.nodeType === 1 || node.textContent.trim(); })) {
+          var continuation = document.createElement('div');
+          continuation.className = 'sdoc-element-host';
+          item.insertBefore(continuation, run[0]);
+          run.forEach(function (node) { continuation.appendChild(node); });
+        }
+      }
+    }
     item.classList.add('sdoc-element-commentable');
     host.appendChild(makeElementBtn(item));
   });
@@ -996,7 +1205,7 @@ function injectElementButtons() {
 function tableAddButton(scope, target) {
   var btn = document.createElement('button');
   btn.type = 'button';
-  btn.className = 'sdoc-table-add sdoc-table-' + scope + '-add';
+  btn.className = 'sdoc-table-target-control sdoc-table-control-' + scope + ' sdoc-table-add sdoc-table-' + scope + '-add';
   var labels = {
     table: 'Add comment on this table',
     row: 'Add comment on this row',
@@ -1068,7 +1277,7 @@ function setTableTargetPreview(target, owner) {
 
 function injectTableButtons() {
   S.renderedEl.querySelectorAll('table').forEach(function (table) {
-    if (table.closest('.sdoc-card') || table.closest('.sdoc-table-host')) return;
+    if (table.closest('.sdoc-card, .sdoc-slide, .sdoc-cells, .sdoc-mermaid') || table.closest('.sdoc-table-host')) return;
     var scroll = table.parentElement && table.parentElement.classList.contains('md-table-scroll')
       ? table.parentElement : table;
     var host = document.createElement('div');
@@ -1171,15 +1380,17 @@ function handleSelectionChange() {
   // overlap. Desktop keeps the original above-right placement.
   var isMobile = window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
   if (isMobile) {
-    pop.style.top  = (rect.bottom + 8) + 'px';
+    var top = rect.bottom + 8;
   } else {
-    pop.style.top  = (rect.top - 42) + 'px';
+    top = rect.top - 42;
   }
-  pop.style.left = (rect.right - 15) + 'px';
+  pop.style.top = Math.max(8, Math.min(top, window.innerHeight - pop.offsetHeight - 8)) + 'px';
+  pop.style.left = Math.max(8, Math.min(rect.right - 15, window.innerWidth - pop.offsetWidth - 8)) + 'px';
 }
 
 function nearestSelectionScope(node) {
   var el = node.nodeType === 1 ? node : node.parentNode;
+  if (el && el.closest('.sdoc-card, button, .pre-tools, .sdoc-slide, .sdoc-cells, .sdoc-mermaid')) return null;
   while (el && el !== S.renderedEl && el !== document.body) {
     if (el.matches && el.matches('li, td, th')) return el;
     if (el.matches && el.matches(TOP_BLOCK_SEL)) return el;
@@ -1211,7 +1422,7 @@ function openBlockComposer(block) {
   if (!blockId) return;
   // Capture a survival hint: the block's leading text, so the comment can
   // re-anchor if the index drifts after a future edit.
-  var blockText = (block.textContent || '').slice(0, 60).trim();
+  var blockText = cleanAnchorText(block).trim().slice(0, 240);
   var host = block.parentNode && block.parentNode.classList &&
              block.parentNode.classList.contains('sdoc-block-host')
     ? block.parentNode
@@ -1231,6 +1442,7 @@ function openBlockComposer(block) {
       var res = SDC.addBlockComment(S.currentMeta || {}, {
         block: blockId,
         block_text: blockText,
+        document_hash: SDC.documentFingerprint(S.currentBody),
       }, {
         author: prefs.author, color: prefs.color,
         at: new Date().toISOString(), text: text,
@@ -1264,7 +1476,8 @@ function insertElementCard(element, card, scope) {
     element.appendChild(card);
     return;
   }
-  var host = element.querySelector(':scope > .sdoc-element-host');
+  var hosts = element.querySelectorAll(':scope > .sdoc-element-host');
+  var host = hosts[hosts.length - 1];
   if (host) {
     host.appendChild(card);
     return;
@@ -1282,7 +1495,7 @@ function openElementComposer(element) {
   var blockId = computeBlockId(block, S.renderedEl);
   var elementPath = computeElementPath(element, block);
   if (!blockId || !elementPath) return;
-  var blockText = (block.textContent || '').slice(0, 60).trim();
+  var blockText = cleanAnchorText(block).trim().slice(0, 240);
   var elementText = elementOwnText(element).slice(0, 60);
   markElementCommented(element, prefs.color, 'self');
 
@@ -1297,6 +1510,7 @@ function openElementComposer(element) {
         element: elementPath,
         element_text: elementText,
         element_scope: 'self',
+        document_hash: SDC.documentFingerprint(S.currentBody),
       }, {
         author: prefs.author, color: prefs.color,
         at: new Date().toISOString(), text: text,
@@ -1328,17 +1542,20 @@ function tableAnchorFromTarget(target) {
     block: computeBlockId(table, S.renderedEl),
     block_text: cleanTableText(table).slice(0, 60),
     table_scope: target.scope,
+    table_signature: tableSignature(table),
+    document_hash: SDC.documentFingerprint(S.currentBody),
   };
   if (!anchor.block) return null;
   if (target.scope === 'row' || target.scope === 'cell') {
     anchor.table_row = rows.indexOf(target.row);
     if (anchor.table_row < 0) return null;
-    anchor.row_text = cleanTableText(target.row.children[0]).slice(0, 60);
+    anchor.row_text = cleanTableText(target.row.children[0]);
+    anchor.row_cells = Array.prototype.map.call(target.row.children, cleanTableText);
   }
   if (target.scope === 'column' || target.scope === 'cell') {
     anchor.table_column = headers.indexOf(target.column);
     if (anchor.table_column < 0) return null;
-    anchor.column_text = cleanTableText(target.column).slice(0, 60);
+    anchor.column_text = cleanTableText(target.column);
   }
   if (target.scope === 'cell') {
     anchor.cell_text = cleanTableText(target.cell).slice(0, 60);
@@ -1454,51 +1671,44 @@ function captureContext(range, block) {
   var preRange = document.createRange();
   preRange.selectNodeContents(block);
   preRange.setEnd(range.startContainer, range.startOffset);
-  var beforeAll = preRange.toString();
+  var beforeAll = cleanAnchorText(preRange.cloneContents());
   preRange.setStart(range.endContainer, range.endOffset);
   preRange.setEnd(block, block.childNodes.length);
-  var afterAll = preRange.toString();
+  var afterAll = cleanAnchorText(preRange.cloneContents());
   return {
     prefix: beforeAll.slice(Math.max(0, beforeAll.length - CONTEXT_LEN)),
     suffix: afterAll.slice(0, CONTEXT_LEN),
+    quote_offset: beforeAll.length,
   };
 }
 
 function openSelectionComposerFromSelection(range) {
   hideComposer();
   var prefs = readPrefs();
-  var quote = range.toString();
+  var quote = cleanAnchorText(range.cloneContents());
   if (!quote) return;
   var block = containingTopBlock(range.startContainer, S.renderedEl);
   if (!block) return;
   var ctx = captureContext(range, block);
   var blockId = computeBlockId(block, S.renderedEl);
 
-  var pendingSpan = document.createElement('span');
-  pendingSpan.className = 'sdoc-anchor';
-  pendingSpan.style.setProperty('--sdoc-anchor-color', prefs.color);
-  try {
-    range.surroundContents(pendingSpan);
-  } catch (_) {
-    try {
-      var frag = range.extractContents();
-      pendingSpan.appendChild(frag);
-      range.insertNode(pendingSpan);
-    } catch (__) { pendingSpan = null; }
-  }
+  var pendingSpans = wrapRange(range, null, prefs.color);
+  var pendingSpan = pendingSpans[pendingSpans.length - 1];
   function clearPending() {
-    if (pendingSpan && pendingSpan.parentNode) {
-      var parent = pendingSpan.parentNode;
-      while (pendingSpan.firstChild) parent.insertBefore(pendingSpan.firstChild, pendingSpan);
-      parent.removeChild(pendingSpan);
+    pendingSpans.forEach(function (span) {
+      if (!span.parentNode) return;
+      var parent = span.parentNode;
+      while (span.firstChild) parent.insertBefore(span.firstChild, span);
+      parent.removeChild(span);
       parent.normalize();
-    }
+    });
+    pendingSpans = [];
     pendingSpan = null;
   }
 
   var draft = { color: prefs.color, author: prefs.author };
   var composer = makeCardElement(draft, {
-    shape: 'pill',
+    shape: pendingSpan && pendingSpan.closest('pre') ? 'sidecar' : 'pill',
     mode: 'compose',
     onSave: function (text) {
       hideComposer();
@@ -1507,6 +1717,8 @@ function openSelectionComposerFromSelection(range) {
       // error here.
       var res = SDC.addSelectionComment(S.currentMeta || {}, {
         quote: quote, prefix: ctx.prefix, suffix: ctx.suffix, block: blockId,
+        block_text: cleanAnchorText(block).trim().slice(0, 240),
+        document_hash: SDC.documentFingerprint(S.currentBody), quote_offset: ctx.quote_offset,
       }, {
         author: prefs.author, color: prefs.color,
         at: new Date().toISOString(), text: text,
@@ -1614,6 +1826,7 @@ function navigateRelative(delta) {
 
 function focusComment(id) {
   focusedId = id;
+  if (S.cellsComments) S.cellsComments.reveal(id);
   var card = S.renderedEl.querySelector('.sdoc-card[data-c="' + id + '"]');
   if (!card) { paintToolbar(); return; }
 
@@ -1828,6 +2041,10 @@ function extractSectionSource(headingEl) {
     return false;
   }
   var inSection = all.filter(function (c) {
+    if (isCodeComment(c)) {
+      var codeTarget = resolveCodeBlock(c);
+      return codeTarget.block && inBlocks(codeTarget.block);
+    }
     if (c.kind === 'inline' && c.quote) {
       // Prefer the rendered anchor span (already resolved by render()).
       // If render hasn't placed it (e.g. orphan), fall back to a fresh
@@ -1854,12 +2071,18 @@ function extractSectionSource(headingEl) {
       var tTarget = findTableTarget(c, S.renderedEl);
       return tTarget && inBlocks(tTarget.table);
     }
+    if (c.kind === 'cells' || c.kind === 'diagram') {
+      var richCard = S.renderedEl.querySelector('.sdoc-card[data-c="' + c.id + '"]');
+      return slideElInSection(richCard, headingEl, level);
+    }
     if (c.kind === 'slide' && typeof c.slide === 'number') {
       // A slide note is in-section when its rendered .sdoc-slide sits inside
       // the heading's section. .sdoc-slide isn't a TOP_BLOCK_SEL block, so it
       // never lands in blocksInSection - test containment directly.
+      var slideTarget = S.slideComments && S.slideComments.resolveTarget(c);
+      var slideIndex = slideTarget ? slideTarget.index : c.slide;
       var slideEl = S.renderedEl && S.renderedEl.querySelector(
-        '.sdoc-slide[data-slide-index="' + c.slide + '"]');
+        '.sdoc-slide[data-slide-index="' + slideIndex + '"]');
       return slideElInSection(slideEl, headingEl, level);
     }
     return false;
@@ -2102,7 +2325,12 @@ function render() {
   // Keep an active composer in place during that repaint; its target DOM is
   // still connected, and stripping it would discard text while the user types.
   if ((composerEl && composerEl.isConnected) ||
+      (S.cellsComments && S.cellsComments.hasDraft()) ||
+      (S.diagramComments && S.diagramComments.hasDraft()) ||
       S.renderedEl.querySelector('.sdoc-card-edit')) return;
+  var selection = window.getSelection();
+  if (selection && !selection.isCollapsed && selection.rangeCount &&
+      S.renderedEl.contains(selection.getRangeAt(0).commonAncestorContainer)) return;
   strip();
   // Inject hosts BEFORE rendering comments so block-level renders can
   // attach the sidecar inside the host (and apply .sdoc-host-commented).
@@ -2117,7 +2345,7 @@ function render() {
   // Slide-anchored comments don't live in body text - sdocs-slide-comments.js
   // owns their rendering (hit-layer overlays + cards on the slide). Keep them
   // out of the text path so they aren't mistaken for orphaned block comments.
-  var textComments = comments.filter(function (c) { return c.kind !== 'slide'; });
+  var textComments = comments.filter(function (c) { return c.kind !== 'slide' && c.kind !== 'cells' && c.kind !== 'diagram'; });
   textComments.forEach(function (c) { renderComment(c); });
   renderCodeComments();
   paintDescendantCommentHints(textComments);
@@ -2127,7 +2355,14 @@ function render() {
   // still gets the "with comments" companion - a slide note is just another
   // trigger for the existing per-section copy button.
   if (S.slideComments) S.slideComments.render();
-  paintHeadingCopyWithComments(comments);
+  if (S.cellsComments) S.cellsComments.render();
+  if (S.diagramComments) S.diagramComments.render();
+  paintToolbar();
+  paintHeadingCopyWithComments(SDC.getComments(S.currentMeta));
+  if (SDC.isValidId(focusedId)) {
+    var focused = S.renderedEl.querySelector('.sdoc-card[data-c="' + focusedId + '"]');
+    if (focused) focused.classList.add('sdoc-card-focus');
+  }
 }
 
 // Push the user's pref colour onto <body> as --sdoc-anchor-color so
@@ -2174,6 +2409,7 @@ function wirePrefsInputs() {
   if (!nameInput || !colorInput) return;
   var prefs = readPrefs();
   nameInput.value  = prefs.author;
+  nameInput.title = prefs.author;
   nameInput.readOnly = prefs.lockedAuthor;
   nameInput.classList.toggle('cloud-comment-author', prefs.lockedAuthor);
   colorInput.value = prefs.color;
@@ -2193,14 +2429,45 @@ function refreshCommentIdentity() {
   if (!nameInput || !colorInput) return;
   var prefs = readPrefs();
   nameInput.value = prefs.author;
+  nameInput.title = prefs.author;
   nameInput.readOnly = prefs.lockedAuthor;
   nameInput.classList.toggle('cloud-comment-author', prefs.lockedAuthor);
 }
 
 S.refreshCommentIdentity = refreshCommentIdentity;
 
+function hasDraft() {
+  return Boolean(document.querySelector('.sdoc-card-edit .sdoc-card-input, textarea.sdoc-cc-input'));
+}
+
+var requestedCommentFocused = false;
+var requestedCommentPending = false;
+// URL normalization removes transient query parameters while loading a local
+// or Cloud document. Keep its original focus request until it can be applied.
+var initialCommentRequest = new URLSearchParams(location.search).get('comment');
 function onHostRender() {
   if (document.body.classList.contains('comment-mode')) render();
+  var requested = new URLSearchParams(location.search).get('comment') || initialCommentRequest;
+  if (!requestedCommentFocused && !requestedCommentPending && SDC.isValidId(requested) &&
+      SDC.getComments(S.currentMeta).some(function (c) { return c && c.id === requested; })) {
+    requestedCommentPending = true;
+    var requestedDocument = S.cloudDocument && S.cloudDocument.id;
+    function focusWhenReady() {
+      var currentRequest = new URLSearchParams(location.search).get('comment');
+      if ((currentRequest && currentRequest !== requested) ||
+          (requestedDocument && (!S.cloudDocument || S.cloudDocument.id !== requestedDocument)) ||
+          !SDC.getComments(S.currentMeta).some(function (c) { return c && c.id === requested; })) {
+        requestedCommentPending = false; return;
+      }
+      // Initial hash and Cloud loading restore their own mode after rendering.
+      // Apply the requested focus once that document load has finished.
+      if (!S._appReady || S._loadingDocument) { requestAnimationFrame(focusWhenReady); return; }
+      requestedCommentPending = false; requestedCommentFocused = true;
+      if (!document.body.classList.contains('comment-mode') && S.setMode) S.setMode('comment');
+      focusComment(requested);
+    }
+    requestAnimationFrame(focusWhenReady);
+  }
 }
 
 // Toolbar comment-button dot: lit whenever the doc carries any comments,
@@ -2230,20 +2497,25 @@ S.commentsUi = {
   exit: exit,
   render: render,
   onHostRender: onHostRender,
+  hasDraft: hasDraft,
   navigate: navigateRelative,
   focusComment: focusComment,
+  makeCardElement: makeCardElement,
   readPrefs: readPrefs,
   writePrefs: writePrefs,
   // Exposed so sdocs-slide-comments.js can reuse the exact same whole-doc /
   // section copy-with-comments path (a slide note is just another trigger).
   copyWithComments: copyWithComments,
   flashCopyTick: flashCopyTick,
+  appendThreadDetails: appendThreadDetails,
   // Exposed for tests.
   _computeBlockId: computeBlockId,
   _findBlockById: findBlockById,
   _computeElementPath: computeElementPath,
   _findElementTarget: findElementTarget,
   _resolveAnchor: resolveAnchor,
+  _resolveCodeBlock: resolveCodeBlock,
+  _cleanAnchorText: cleanAnchorText,
 };
 
 function init() { wireToolbar(); wirePrefsInputs(); }

@@ -10,6 +10,28 @@ const { test, expect } = require('@playwright/test');
 
 const DOC = '```ruby\nclass A\n  def run\n    1\n  end\nend\n```\n';
 
+test('whole-block notes and multiline prose notes remain editable in the code viewer', async ({ page }) => {
+  await page.goto('/docs');
+  await page.waitForFunction(() => window.SDocs?.codeFocus && window.SDocComments);
+  await page.evaluate(() => {
+    const S = window.SDocs;
+    S.currentBody = '```js\nbefore()\ntarget()\nafter()\n```\n';
+    S.currentMeta = { comments: [
+      { id: 'c1', kind: 'block', block: 'pre:0', block_text: 'before()', text: 'whole file note' },
+      { id: 'c2', kind: 'inline', block: 'pre:0', quote: 'target()\nafter()', text: 'two source lines' },
+    ] };
+    S.render(); S.codeFocus.open(S.renderedEl.querySelector('pre'), { comment: true });
+  });
+  await expect(page.locator('.sdoc-cc-thread[data-c="c1"]')).toContainText('whole file note');
+  await expect(page.locator('.sdoc-cc-token-mark[data-c="c2"]')).toHaveCount(2);
+  await expect(page.locator('.sdoc-cc-count')).toHaveText('2 notes');
+  await page.locator('.sdoc-cc-thread[data-c="c1"] .sdoc-cc-card-body').click();
+  await page.locator('.sdoc-cc-input').fill('updated whole file note');
+  await page.locator('.sdoc-cc-composer [data-cc="save"]').click();
+  const saved = await page.evaluate(() => window.SDocs.currentMeta.comments.find(comment => comment.id === 'c1'));
+  expect(saved.kind).toBe('block'); expect(saved.text).toBe('updated whole file note');
+});
+
 test.beforeEach(async ({ page }) => {
   await page.goto('/docs');
   await page.waitForFunction(() => window.SDocs && window.SDocs.codeFocus && window.SDocComments);

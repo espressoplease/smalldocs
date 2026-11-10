@@ -379,6 +379,38 @@ module.exports = function(harness) {
     assert.strictEqual(S.colorControlRole('_sd_ctrl-code-bg'), 'background');
   });
 
+  test('colorControlRole: table and quotation borders have their own painted role', () => {
+    assert.strictEqual(S.colorControlRole('_sd_ctrl-table-border'), 'border');
+    assert.strictEqual(S.colorControlRole('_sd_ctrl-bq-border-color'), 'border');
+  });
+
+  test('dark borders retain the relative strength of light borders', () => {
+    const contrast = require('../cli/shared/sdocs-contrast');
+    const colors = ['#eeeeee', '#dddddd', '#cccccc', '#999999', '#444444', '#111111', '#000000'];
+    const strength = colors.map(color => contrast.contrastRatio(
+      S.invertLightness(color, 'border'), '#2c2a26'));
+    for (let i = 1; i < strength.length; i++) assert.ok(strength[i] > strength[i - 1]);
+    assert.notStrictEqual(S.invertLightness('#111111', 'border'), '#111111');
+  });
+
+  test('border conversion keeps a pale outline distinct from a dark page', () => {
+    const contrast = require('../cli/shared/sdocs-contrast');
+    const border = S.invertLightness('#e2ddd6', 'border');
+    const fill = S.invertLightness('#e2ddd6', 'background');
+    assert.ok(contrast.contrastRatio(border, '#2c2a26') > 1.7);
+    assert.ok(contrast.contrastRatio(border, '#2c2a26') > contrast.contrastRatio(fill, '#2c2a26'));
+    assert.strictEqual(S.invertLightness('transparent', 'border'), 'transparent');
+  });
+
+  test('coloured borders retain their hue when adapted', () => {
+    for (const color of ['#2563eb', '#b42318', '#15803d']) {
+      const before = S.hexToHsl(color), after = S.hexToHsl(S.invertLightness(color, 'border'));
+      const distance = Math.abs(before[0] - after[0]);
+      assert.ok(Math.min(distance, 360 - distance) < 2);
+      assert.ok(after[1] > 0);
+    }
+  });
+
   test('stylesToControls: top-level colors are light mode', () => {
     const styles = { fontFamily: 'Inter', color: '#ff0000', h1: { color: '#0000ff' } };
     const result = S.stylesToControls(styles);

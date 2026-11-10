@@ -51,6 +51,12 @@
     loadCore: loadCore,
     ensureLanguage: ensureLanguage,
     applyHTML: applyHTML,
+    isNodeActive: function (element) {
+      if (!element.isConnected || (S.commentsUi && S.commentsUi.hasDraft())) return false;
+      var selection = window.getSelection();
+      return !selection || selection.isCollapsed || !selection.rangeCount ||
+        !selection.getRangeAt(0).intersectsNode(element);
+    },
   });
 
   S.processHighlight = renderer.processHighlight;

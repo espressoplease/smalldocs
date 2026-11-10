@@ -221,3 +221,6 @@ module.exports = function(harness) {
     });
   };
 };
+
+module.exports.startCaptureServer = startCaptureServer;
+module.exports.decodeMimeParts = decodeMimeParts;

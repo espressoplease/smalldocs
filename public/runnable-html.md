@@ -634,4 +634,4 @@ Select a service to separate what it depends on from what depends on it. The hig
 
 Runnable components stay inside a sandboxed frame. They cannot read the SmallDocs page, account controls, cookies, or storage. Network requests can still leave the browser.
 
-To make your own, describe what should move, what you want to change, and what the result should show. Developers embedding SmallDocs can use the [Renderer SDK](/developers); the [runnable component reference](/developers/authoring/apps) covers the HTML format.
+To make your own, describe what should move, what you want to change, and what the result should show. The [runnable component reference](/developers/authoring/apps) covers the HTML format.

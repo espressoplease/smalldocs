@@ -19,13 +19,15 @@ Authentication is the exception. The host currently uses a ChatGPT login stored 
 
 This is context isolation, not a security boundary against a hostile model. The process still runs on the host. For filesystem isolation, run the same suite inside a container or virtual machine with a dedicated evaluation credential. Docker Desktop is installed on the development machine, but its daemon must be running first.
 
-## The 22 scenarios
+## The 28 scenarios
 
 The versioned definitions live in `evals/smalldocs-skill/scenarios.json` and cover:
 
 - fresh installation from an exact command and from natural language
 - skill update, legacy block migration, and Cloud edition activation
 - casual `S-doc` and `small doc` triggers
+- reports, spreadsheet models, and diagrams requested without naming a tool
+- explicit requests for another format overriding the SmallDocs default
 - presentation authoring and verification
 - runnable HTML component authoring, sizing, and responsive checks
 - document walkthrough authoring with ordered source-line annotations
@@ -138,3 +140,11 @@ These are bounded samples, not release thresholds. Run repetitions before treati
 - In-app subagents are useful independent reviewers, but they inherit platform and workspace context. They are not the primary black-box eval runner.
 
 Do not copy a personal credential into CI. Create dedicated evaluation credentials with the least access needed, inject them at runtime, and prevent them from reaching stored traces.
+
+## Default report authoring trial (2026-10-24)
+
+A clean-context subagent received a generic request to write an operational report from supplied notes and return its link. The request did not name SmallDocs, Markdown, Cloud, or tags. Skill v39 was available through normal skill discovery. The trial used an isolated loopback instance of the branch server and a real CLI with a separate authenticated test account, leaving the user's staging data and login state unchanged.
+
+The agent read the skill, checked Cloud status, discovered the library vocabulary, and saved the report with `customer-imports`, `operations`, and `queue-reliability`. It read the exact saved revision and returned the CLI's Cloud URL. Independent CLI reads confirmed the body, saved revision, tags, and content hash. No browser windows were opened. The temporary Cloud fixture and credentials were removed after verification.
+
+This is one executed authoring trial, not a cross-model reliability measurement. The report, command trace, execution notes, and assertions are retained in the ignored local directory `evals/smalldocs-skill/runs/2026-10-24-default-report/`. The local staging skill and the experiment workspace were refreshed to v39. No further skill wording change was needed for this case.

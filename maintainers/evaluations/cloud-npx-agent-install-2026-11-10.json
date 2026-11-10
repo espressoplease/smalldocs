@@ -1,0 +1,454 @@
+{
+  "date": "2026-11-10",
+  "cli_version": "1.20.2",
+  "skill_version": 54,
+  "codex_cli_version": "0.147.0",
+  "installer": "skills@1.8.0 via real npx skills@latest",
+  "environment": {
+    "fresh_home_per_case": true,
+    "fresh_codex_home_per_case": true,
+    "only_model_authentication_copied": true,
+    "production_cloud_credentials_used": false,
+    "production_cloud_data_used": false,
+    "bundled_skills_enabled": false,
+    "host_config_plugins_rules_or_sessions_copied": false,
+    "project_AGENT_instructions": false,
+    "skill_body_generated_or_seeded": false,
+    "installation": "npx --yes skills@latest add <isolated-cloud-origin>/agent-skills/cloud --global --yes",
+    "cloud": "real isolated HTTP server and CLI, disposable SQLite databases, fixture identities"
+  },
+  "cases": [
+    {
+      "batch": "initial",
+      "id": "report",
+      "prompt": "Write an operations report from these notes and return a link: on 7 November, checkout errors affected 240 of 12,000 requests between 09:10 and 09:34; stale cache entries caused the failures; rollback restored service; Mei owns the invalidation fix by 14 November. Include impact, cause, response and follow-up.",
+      "duration_seconds": 24,
+      "skill_version": 54,
+      "skill_sha256": "3ef13402274d4052ac3732f24593abb3cdccd8841712c67e9af07e74014adc7e",
+      "discovered_skills": [
+        {
+          "name": "smalldocs",
+          "scope": "user",
+          "enabled": true
+        }
+      ],
+      "grade": {
+        "pass": true,
+        "checks": {
+          "clean_skill_inventory": true,
+          "agent_completed": true,
+          "source_documents_preserved": true,
+          "one_cloud_document": true,
+          "looked_up_existing_tags": true,
+          "saved_tags": true,
+          "real_link_returned": true,
+          "correct_incident_figures": true,
+          "reused_relevant_tags": true
+        }
+      }
+    },
+    {
+      "batch": "initial",
+      "id": "artifact",
+      "prompt": "Create an artifact explaining our checkout incident for the service review. On 7 November, stale cache entries caused 240 failed requests out of 12,000 between 09:10 and 09:34. A rollback restored service. Mei owns the invalidation fix, due 14 November. Include impact, the timeline and an action list. Give me the link.",
+      "duration_seconds": 28,
+      "skill_version": 54,
+      "skill_sha256": "3ef13402274d4052ac3732f24593abb3cdccd8841712c67e9af07e74014adc7e",
+      "discovered_skills": [
+        {
+          "name": "smalldocs",
+          "scope": "user",
+          "enabled": true
+        }
+      ],
+      "grade": {
+        "pass": true,
+        "checks": {
+          "clean_skill_inventory": true,
+          "agent_completed": true,
+          "source_documents_preserved": true,
+          "one_cloud_document": true,
+          "looked_up_existing_tags": true,
+          "saved_tags": true,
+          "real_link_returned": true,
+          "correct_incident_figures": true,
+          "reused_relevant_tags": true
+        }
+      }
+    },
+    {
+      "batch": "initial",
+      "id": "budget",
+      "prompt": "Build a hiring budget we can check and adjust. Starting cash is GBP 180,000. Revenue is GBP 40,000 each month. Current monthly costs are GBP 55,000. Two hires add GBP 6,000 each monthly from February. Show January to March cash movement, totals, a chart and a short interpretation. Return a link.",
+      "duration_seconds": 91,
+      "skill_version": 54,
+      "skill_sha256": "3ef13402274d4052ac3732f24593abb3cdccd8841712c67e9af07e74014adc7e",
+      "discovered_skills": [
+        {
+          "name": "smalldocs",
+          "scope": "user",
+          "enabled": true
+        }
+      ],
+      "grade": {
+        "pass": true,
+        "checks": {
+          "clean_skill_inventory": true,
+          "agent_completed": true,
+          "source_documents_preserved": true,
+          "one_cloud_document": true,
+          "looked_up_existing_tags": true,
+          "saved_tags": true,
+          "real_link_returned": true,
+          "live_formulas_calculate_correctly": true,
+          "chart_present": true,
+          "agent_checked_workbook": true
+        }
+      }
+    },
+    {
+      "batch": "initial",
+      "id": "slides",
+      "prompt": "Prepare a five-slide briefing for the service review. On 7 November, checkout errors affected 240 of 12,000 requests between 09:10 and 09:34; stale cache entries caused the failures; rollback restored service. Mei owns the invalidation fix by 14 November. Cover impact, timeline, cause, corrective work and decisions needed. Return something I can present.",
+      "duration_seconds": 52,
+      "skill_version": 54,
+      "skill_sha256": "3ef13402274d4052ac3732f24593abb3cdccd8841712c67e9af07e74014adc7e",
+      "discovered_skills": [
+        {
+          "name": "smalldocs",
+          "scope": "user",
+          "enabled": true
+        }
+      ],
+      "grade": {
+        "pass": true,
+        "checks": {
+          "clean_skill_inventory": true,
+          "agent_completed": true,
+          "source_documents_preserved": true,
+          "one_cloud_document": true,
+          "looked_up_existing_tags": true,
+          "saved_tags": true,
+          "real_link_returned": true,
+          "five_valid_slides": true,
+          "agent_verified_slides": true,
+          "agent_invoked_presentation": true
+        }
+      }
+    },
+    {
+      "batch": "initial",
+      "id": "calculator",
+      "prompt": "Make a calculator to explore how support staffing changes response capacity. Inputs: agents, productive hours per day and minutes per ticket. Start with 6 agents, 6 hours and 12 minutes. Show daily capacity and whether it meets demand of 200 tickets. Explain the assumptions. Return a link.",
+      "duration_seconds": 53,
+      "skill_version": 54,
+      "skill_sha256": "3ef13402274d4052ac3732f24593abb3cdccd8841712c67e9af07e74014adc7e",
+      "discovered_skills": [
+        {
+          "name": "smalldocs",
+          "scope": "user",
+          "enabled": true
+        }
+      ],
+      "grade": {
+        "pass": true,
+        "checks": {
+          "clean_skill_inventory": true,
+          "agent_completed": true,
+          "source_documents_preserved": true,
+          "one_cloud_document": true,
+          "looked_up_existing_tags": true,
+          "saved_tags": true,
+          "real_link_returned": true,
+          "runnable_component": true
+        }
+      }
+    },
+    {
+      "batch": "initial",
+      "id": "feedback",
+      "prompt": "Update <fixture-document-url>. Address Priya's open launch-date correction using the date approved in the earlier review. Preserve the current retry timeout, the resolved discussion and everything unrelated. Leave unclear feedback open. Return the updated link and say what changed.",
+      "duration_seconds": 43,
+      "skill_version": 54,
+      "skill_sha256": "3ef13402274d4052ac3732f24593abb3cdccd8841712c67e9af07e74014adc7e",
+      "discovered_skills": [
+        {
+          "name": "smalldocs",
+          "scope": "user",
+          "enabled": true
+        }
+      ],
+      "grade": {
+        "pass": true,
+        "checks": {
+          "clean_skill_inventory": true,
+          "agent_completed": true,
+          "source_documents_preserved": true,
+          "correct_historical_repair": true,
+          "addressed_feedback_closed_others_preserved": true,
+          "preserved_tags": true,
+          "reason_recorded": true,
+          "same_document_returned": true
+        }
+      }
+    },
+    {
+      "batch": "initial",
+      "id": "folder",
+      "prompt": "Write a short rollout checklist from these notes and return a link: confirm the rollback owner, rehearse rollback, check error rates, release to 10 percent, then expand after 30 minutes without errors.",
+      "duration_seconds": 22,
+      "skill_version": 54,
+      "skill_sha256": "3ef13402274d4052ac3732f24593abb3cdccd8841712c67e9af07e74014adc7e",
+      "discovered_skills": [
+        {
+          "name": "smalldocs",
+          "scope": "user",
+          "enabled": true
+        }
+      ],
+      "grade": {
+        "pass": true,
+        "checks": {
+          "clean_skill_inventory": true,
+          "agent_completed": true,
+          "source_documents_preserved": true,
+          "one_cloud_document": true,
+          "looked_up_existing_tags": true,
+          "saved_tags": true,
+          "real_link_returned": true,
+          "folder_library_respected": true
+        }
+      }
+    },
+    {
+      "batch": "initial",
+      "id": "ambiguous",
+      "prompt": "Write a short rollout checklist from these notes and return a link: confirm the rollback owner, rehearse rollback, check error rates, release to 10 percent, then expand after 30 minutes without errors.",
+      "duration_seconds": 16,
+      "skill_version": 54,
+      "skill_sha256": "3ef13402274d4052ac3732f24593abb3cdccd8841712c67e9af07e74014adc7e",
+      "discovered_skills": [
+        {
+          "name": "smalldocs",
+          "scope": "user",
+          "enabled": true
+        }
+      ],
+      "grade": {
+        "pass": true,
+        "checks": {
+          "clean_skill_inventory": true,
+          "agent_completed": true,
+          "source_documents_preserved": true,
+          "no_guessed_destination": true,
+          "asks_for_library": true
+        }
+      }
+    },
+    {
+      "batch": "initial",
+      "id": "csv",
+      "prompt": "Create a CSV named quarterly-sales.csv, and return that file only. Columns: month,revenue,cost. January 12000,8000; February 14000,9000; March 17000,10000.",
+      "duration_seconds": 18,
+      "skill_version": 54,
+      "skill_sha256": "3ef13402274d4052ac3732f24593abb3cdccd8841712c67e9af07e74014adc7e",
+      "discovered_skills": [
+        {
+          "name": "smalldocs",
+          "scope": "user",
+          "enabled": true
+        }
+      ],
+      "grade": {
+        "pass": true,
+        "checks": {
+          "clean_skill_inventory": true,
+          "agent_completed": true,
+          "source_documents_preserved": true,
+          "no_cloud_upload": true,
+          "requested_csv": true
+        }
+      }
+    },
+    {
+      "batch": "initial",
+      "id": "signed-out",
+      "prompt": "Write an operations report from these notes and return a link: on 7 November, checkout errors affected 240 of 12,000 requests between 09:10 and 09:34; stale cache entries caused the failures; rollback restored service; Mei owns the invalidation fix by 14 November. Include impact, cause, response and follow-up.",
+      "duration_seconds": 28,
+      "skill_version": 54,
+      "skill_sha256": "3ef13402274d4052ac3732f24593abb3cdccd8841712c67e9af07e74014adc7e",
+      "discovered_skills": [
+        {
+          "name": "smalldocs",
+          "scope": "user",
+          "enabled": true
+        }
+      ],
+      "grade": {
+        "pass": true,
+        "checks": {
+          "clean_skill_inventory": true,
+          "agent_completed": true,
+          "source_documents_preserved": true,
+          "no_cloud_upload": true,
+          "real_auth_failure_observed": true,
+          "no_fabricated_link": true
+        }
+      }
+    },
+    {
+      "batch": "repeat",
+      "id": "report",
+      "prompt": "Write an operations report from these notes and return a link: on 7 November, checkout errors affected 240 of 12,000 requests between 09:10 and 09:34; stale cache entries caused the failures; rollback restored service; Mei owns the invalidation fix by 14 November. Include impact, cause, response and follow-up.",
+      "duration_seconds": 26,
+      "skill_version": 54,
+      "skill_sha256": "eb324ee076dbe1c419b16d03c9f7f0f272383283eb3cfa047a573bc433d05c07",
+      "discovered_skills": [
+        {
+          "name": "smalldocs",
+          "scope": "user",
+          "enabled": true
+        }
+      ],
+      "grade": {
+        "pass": true,
+        "checks": {
+          "clean_skill_inventory": true,
+          "agent_completed": true,
+          "source_documents_preserved": true,
+          "one_cloud_document": true,
+          "looked_up_existing_tags": true,
+          "saved_tags": true,
+          "real_link_returned": true,
+          "correct_incident_figures": true,
+          "reused_relevant_tags": true
+        }
+      }
+    },
+    {
+      "batch": "repeat",
+      "id": "ambiguous",
+      "prompt": "Write a short rollout checklist from these notes and return a link: confirm the rollback owner, rehearse rollback, check error rates, release to 10 percent, then expand after 30 minutes without errors.",
+      "duration_seconds": 14,
+      "skill_version": 54,
+      "skill_sha256": "eb324ee076dbe1c419b16d03c9f7f0f272383283eb3cfa047a573bc433d05c07",
+      "discovered_skills": [
+        {
+          "name": "smalldocs",
+          "scope": "user",
+          "enabled": true
+        }
+      ],
+      "grade": {
+        "pass": true,
+        "checks": {
+          "clean_skill_inventory": true,
+          "agent_completed": true,
+          "source_documents_preserved": true,
+          "no_guessed_destination": true,
+          "asks_for_library": true,
+          "clarification_saved_to_requested_library": true
+        }
+      },
+      "follow_up": {
+        "prompt": "Use Engineering.",
+        "pass": true,
+        "documents_created": 1
+      }
+    },
+    {
+      "batch": "repeat",
+      "id": "signed-out",
+      "prompt": "Write an operations report from these notes and return a link: on 7 November, checkout errors affected 240 of 12,000 requests between 09:10 and 09:34; stale cache entries caused the failures; rollback restored service; Mei owns the invalidation fix by 14 November. Include impact, cause, response and follow-up.",
+      "duration_seconds": 39,
+      "skill_version": 54,
+      "skill_sha256": "eb324ee076dbe1c419b16d03c9f7f0f272383283eb3cfa047a573bc433d05c07",
+      "discovered_skills": [
+        {
+          "name": "smalldocs",
+          "scope": "user",
+          "enabled": true
+        }
+      ],
+      "grade": {
+        "pass": true,
+        "checks": {
+          "clean_skill_inventory": true,
+          "agent_completed": true,
+          "source_documents_preserved": true,
+          "no_cloud_upload": true,
+          "real_auth_failure_observed": true,
+          "no_fabricated_link": true
+        }
+      }
+    }
+  ],
+  "pass": true,
+  "browser_verification": {
+    "ok": true,
+    "checks": [
+      {
+        "feature": "calculator",
+        "width": 390,
+        "theme": "light",
+        "initial": 180,
+        "edited": 240,
+        "fullscreen_and_return_state": 210,
+        "no_horizontal_overflow": true
+      },
+      {
+        "feature": "calculator",
+        "width": 390,
+        "theme": "dark",
+        "initial": 180,
+        "edited": 240,
+        "fullscreen_and_return_state": 210,
+        "no_horizontal_overflow": true
+      },
+      {
+        "feature": "calculator",
+        "width": 1440,
+        "theme": "light",
+        "initial": 180,
+        "edited": 240,
+        "fullscreen_and_return_state": 210,
+        "no_horizontal_overflow": true
+      },
+      {
+        "feature": "calculator",
+        "width": 1440,
+        "theme": "dark",
+        "initial": 180,
+        "edited": 240,
+        "fullscreen_and_return_state": 210,
+        "no_horizontal_overflow": true
+      },
+      {
+        "feature": "budget",
+        "closing_cash": [
+          165000,
+          138000,
+          111000
+        ],
+        "no_hires_march_cash": 135000,
+        "chart_points": 3
+      }
+    ]
+  },
+  "other_validation": {
+    "node_checks": 2331,
+    "onboarding_browser_checks": 16,
+    "real_installer_agents": [
+      "Claude Code",
+      "Codex",
+      "Gemini CLI"
+    ]
+  },
+  "limitations": [
+    "Behavior trials used Codex. Claude Code and Gemini CLI installation coverage was verified, not their model behavior.",
+    "The isolated Cloud service uses fixture email identities and a local encryption key provider, not live production signup or KMS.",
+    "Model behavior is sampled, not guaranteed for every future task or model.",
+    "Calculator behavior and geometry were independently tested headlessly; this was not a full visual audit of every generated artifact.",
+    "Authoring agents did not execute their own browser inspections. Invoking sdoc present is not proof that an agent observed a rendered presentation."
+  ]
+}

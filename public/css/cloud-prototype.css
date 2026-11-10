@@ -12,44 +12,6 @@
   color: #23834b;
 }
 
-#_sd_sdocs-file-info .fic-row-cloud-auth {
-  align-items: center;
-  animation: sdoc-cloud-row-in .3s cubic-bezier(.4,0,.2,1);
-}
-
-@keyframes sdoc-cloud-row-in {
-  from { opacity: 0; transform: translateY(-4px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-#_sd_sdocs-file-info .fic-cloud-auth-fields {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-#_sd_sdocs-file-info .fic-cloud-email {
-  width: min(260px, 100%);
-  min-width: 140px;
-  box-sizing: border-box;
-  border: 1px solid color-mix(in srgb, var(--fic-muted) 48%, transparent);
-  border-radius: 5px;
-  background: transparent;
-  color: var(--md-p-color);
-  font: inherit;
-  padding: 5px 8px;
-}
-
-#_sd_sdocs-file-info .fic-cloud-email:focus {
-  outline: none;
-  border-color: color-mix(in srgb, var(--accent) 58%, var(--fic-muted));
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 10%, transparent);
-}
-
-#_sd_sdocs-file-info .fic-cloud-send,
-#_sd_sdocs-file-info .fic-cloud-cancel,
 #_sd_sdocs-file-info .fic-cloud-demo-link {
   flex: 0 0 auto;
   border: 0;
@@ -61,24 +23,6 @@
   text-decoration: underline dotted;
   text-underline-offset: 3px;
   text-decoration-color: color-mix(in srgb, var(--md-p-color) 45%, transparent);
-}
-
-#_sd_sdocs-file-info .fic-cloud-cancel {
-  color: var(--fic-muted);
-}
-
-#_sd_sdocs-file-info .fic-cloud-sent-copy {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  color: var(--fic-muted);
-  font-size: 12px;
-}
-
-#_sd_sdocs-file-info .fic-cloud-sent-copy strong {
-  color: var(--md-p-color);
-  font-weight: 500;
 }
 
 .sdoc-cloud-proto-backdrop {
@@ -317,19 +261,6 @@
 .sdoc-cloud-revision-row span { display: block; margin-top: 3px; color: var(--text-3); font-size: 11px; }
 
 @media (max-width: 600px) {
-  #_sd_sdocs-file-info .fic-row-cloud-auth {
-    align-items: flex-start;
-  }
-  #_sd_sdocs-file-info .fic-cloud-auth-fields {
-    flex-wrap: wrap;
-  }
-  #_sd_sdocs-file-info .fic-cloud-email {
-    width: 100%;
-    flex: 1 0 100%;
-  }
-  #_sd_sdocs-file-info .fic-cloud-email-sent {
-    flex-wrap: wrap;
-  }
   .sdoc-cloud-proto-backdrop { align-items: end; padding: 0; }
   .sdoc-cloud-proto-dialog {
     width: 100%;

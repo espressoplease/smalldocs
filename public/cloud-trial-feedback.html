@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Your SmallDocs feedback</title>
+<link rel="stylesheet" href="/public/css/cloud-sign-in.css">
+</head>
+<body>
+<header class="header"><a class="brand" href="/">SmallDocs</a><span class="nav-sep">/</span><span class="nav-label">Feedback</span></header>
+<main class="auth-shell"><section class="auth-card" aria-labelledby="feedback-title">
+<div class="auth-heading"><div class="auth-mark" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a4 4 0 0 1-4 4H7l-4 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></svg></div>
+<h1 id="feedback-title">How has SmallDocs worked for you?</h1><p>Your feedback goes to the SmallDocs team.</p></div>
+<form id="trial-feedback-form" class="profile-form">
+<div class="field"><label for="feedback-rating">Your experience (optional)</label><select class="text-input" id="feedback-rating" name="rating"><option value="">Choose a rating</option><option value="1">1 - Poor</option><option value="2">2 - Fair</option><option value="3">3 - Good</option><option value="4">4 - Very good</option><option value="5">5 - Excellent</option></select></div>
+<div class="field"><label for="feedback-comment">What worked, and what could be better?</label><textarea class="text-input" id="feedback-comment" name="comment" rows="6" maxlength="10000" required></textarea></div>
+<button class="primary-button" type="submit">Send feedback</button>
+<p id="feedback-status" class="auth-status" role="status" aria-live="polite"></p>
+</form>
+<p class="auth-footer"><a href="/cloud/subscribe">Subscription options</a> · <a href="/cloud/admin?panel=billing">Back to settings</a></p>
+</section></main>
+<script src="/public/cloud-trial-feedback.js" defer></script>
+</body></html>

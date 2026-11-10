@@ -10,16 +10,17 @@
 //   4. Mermaid itself is loaded lazily from jsDelivr on first use.
 //
 // Security:
-//   - mermaid.initialize: securityLevel: 'strict', htmlLabels: false on
-//     flowchart and sequence (so labels don't emit <foreignObject>).
+//   - mermaid.initialize: securityLevel: 'strict', htmlLabels: true on
+//     flowchart and sequence, with foreignObject labels sanitised below.
 //   - %%{init: ...}%% directives are stripped from source before render -
 //     they can otherwise flip securityLevel back to 'loose' at parse time.
 //   - Per-diagram source-size cap (64 KB) and per-document block cap (50).
-//   - Per-render timeout (5s); Mermaid's layout can hang on adversarial input.
+//   - Per-render timeout (5s) reports asynchronous failures. It cannot
+//     interrupt synchronous layout work on the browser's main thread.
 //   - Mermaid's SVG output is inserted via innerHTML, which routes around
 //     the main DOMPurify pass. We run a tight SVG-profile sanitize on the
-//     SVG string before insertion. Forbids foreignObject / script / use /
-//     iframe / set / animate. Mirrors the KaTeX render-after-sanitize order
+//     SVG string before insertion. Keeps foreignObject labels and forbids
+//     script / use / iframe / set / animate. Mirrors the render order
 //     in sdocs-math.js but with explicit post-sanitize because Mermaid SVG
 //     has a wider attack surface than KaTeX's MathML/HTML.
 (function (exports) {
@@ -54,7 +55,7 @@
     return scopeSource || document;
   }
 
-  var MERMAID_VERSION = '10.9.1';
+  var MERMAID_VERSION = '10.9.8';
   var MERMAID_JS = 'https://cdn.jsdelivr.net/npm/mermaid@' + MERMAID_VERSION + '/dist/mermaid.min.js';
 
   var SOURCE_BYTE_CAP = 64 * 1024;
@@ -67,6 +68,8 @@
 
   var mermaidReady = null;
   var diagramCounter = 0;
+  var renderIdPrefix = 'sdoc-mermaid-' + (window.crypto && window.crypto.randomUUID
+    ? window.crypto.randomUUID() : Math.random().toString(36).slice(2)) + '-';
 
   function cssVar(name) {
     var rendered = readerRoot();
@@ -203,10 +206,9 @@
         // emits <foreignObject> elements containing HTML; the post-sanitize
         // (sanitizeSvg) allows the foreignObject element but strips dangerous
         // children (script/iframe/style/form/object/embed) and dangerous
-        // attributes (on*/srcdoc/formaction/javascript:). Combined with
-        // securityLevel:'strict' and the %%{init}%% directive strip, the
-        // bounded XSS surface inside SDocs (no cookies / sessions / accounts)
-        // makes this an acceptable trade for the agent-default ergonomics.
+        // attributes (on*/srcdoc/formaction/javascript:). This supplements
+        // Mermaid's patched renderer, securityLevel:'strict', and the
+        // %%{init}%% directive strip.
         htmlLabels: true,
         nodeSpacing: 60,
         rankSpacing: 70,
@@ -335,9 +337,9 @@
     var root = doc.documentElement;
     if (!root || root.tagName.toLowerCase() !== 'svg') return '';
 
-    // Walk every descendant. Iterate in reverse so removals don't shift
-    // unvisited indices.
-    var all = Array.prototype.slice.call(root.querySelectorAll('*'));
+    // Apply the same policy to the root and every descendant. Iterate in
+    // reverse so removals don't shift unvisited indices.
+    var all = [root].concat(Array.prototype.slice.call(root.querySelectorAll('*')));
     for (var i = all.length - 1; i >= 0; i--) {
       var el = all[i];
       var tag = (el.tagName || '').toLowerCase();
@@ -631,6 +633,28 @@
     }
   }
 
+  // Authored node fills do not change with the document theme. Keep their
+  // labels readable when Mermaid inherits a foreground for another surface.
+  function contrastNodeLabels(svg, themeVars) {
+    var contrast = window.SDocContrast;
+    if (!contrast) return;
+    svg.querySelectorAll('g.node').forEach(function (node) {
+      var surface = node.querySelector(':scope > rect, :scope > polygon, :scope > circle, :scope > ellipse, :scope > path');
+      if (!surface) return;
+      var bg = getComputedStyle(surface).fill;
+      if (!contrast.hexToRgb(bg)) bg = themeVars.background;
+      node.querySelectorAll('.nodeLabel, .nodeLabel *, text, tspan').forEach(function (label) {
+        var cs = getComputedStyle(label);
+        var svgText = label.localName === 'text' || label.localName === 'tspan';
+        var fg = svgText ? cs.fill : cs.color;
+        if (!contrast.hexToRgb(fg) || !contrast.hexToRgb(bg) || contrast.contrastRatio(fg, bg) >= 4.5) return;
+        var readable = contrast.readableColor(fg, bg);
+        label.style.color = readable;
+        if (svgText) label.style.fill = readable;
+      });
+    });
+  }
+
   // Render mermaid source into an existing .sdoc-mermaid wrapper/stage.
   // Shared by the initial pass and the theme re-render. The source is
   // stashed on the wrapper so a later theme toggle can regenerate the SVG
@@ -638,6 +662,9 @@
   // render time, so swapping CSS variables alone leaves stale fills behind.
   function renderSourceIntoWrapper(mermaid, wrapper, stage, rawSrc, themeVars) {
     wrapper._sdMermaidSource = rawSrc;
+    wrapper._sdMermaidOwner = renderIdPrefix;
+    var version = (wrapper._sdMermaidRenderVersion || 0) + 1;
+    wrapper._sdMermaidRenderVersion = version;
 
     if (rawSrc.length > SOURCE_BYTE_CAP) {
       renderError(wrapper, 'Diagram source exceeds ' + (SOURCE_BYTE_CAP / 1024) + ' KB cap');
@@ -646,7 +673,7 @@
 
     var src = stripDirectives(rawSrc);
     diagramCounter += 1;
-    var id = 'sdoc-mermaid-' + diagramCounter;
+    var id = renderIdPrefix + diagramCounter;
 
     var p;
     try { p = mermaid.render(id, src); }
@@ -658,7 +685,7 @@
 
     return withTimeout(p, RENDER_TIMEOUT_MS)
       .then(function (out) {
-        if (!isActive() || destroyed || !isNodeActive(wrapper)) return;
+        if (!isActive() || destroyed || !isNodeActive(wrapper) || version !== wrapper._sdMermaidRenderVersion) return;
         var svg = (out && out.svg) || '';
         setSvgHTML(stage, sanitizeSvg(svg));
         // Stamp a class on the rendered <svg> so polish rules in
@@ -671,6 +698,7 @@
           svgEl.classList.add('sdoc-mermaid-svg');
           try { applyClusterTints(svgEl, themeVars.background); } catch (_) {}
           try { fixClusterTitleOverlap(svgEl); } catch (_) {}
+          contrastNodeLabels(svgEl, themeVars);
         }
         // Per-diagram source-copy and fullscreen buttons
         // (sdocs-mermaid-focus.js). Optional, and guarded so a theme
@@ -679,8 +707,10 @@
             !wrapper.querySelector('.sdoc-mermaid-tools')) {
           wrapper.appendChild(S.SDocMermaidFocus.buildTools(wrapper));
         }
+        if (S.SDocMermaidFocus && S.SDocMermaidFocus.refreshTheme) S.SDocMermaidFocus.refreshTheme(wrapper);
       })
       .catch(function (err) {
+        if (version !== wrapper._sdMermaidRenderVersion) return;
         renderError(wrapper, (err && err.message) || 'Mermaid render error');
       })
       .then(function () { cleanupRenderOrphan(id); });
@@ -754,7 +784,7 @@
       Array.prototype.push.apply(wrappers, inner);
     });
 
-    wrappers = wrappers.filter(function (w) { return w._sdMermaidSource; });
+    wrappers = wrappers.filter(function (w) { return w._sdMermaidSource && (!w._sdMermaidOwner || w._sdMermaidOwner === renderIdPrefix); });
     if (!wrappers.length) return Promise.resolve();
 
     return loadMermaid().then(function (mermaid) {

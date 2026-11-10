@@ -1,5 +1,6 @@
 // @ts-check
 const { test, expect } = require('@playwright/test');
+const yaml = require('../cli/shared/sdocs-yaml');
 
 const BASE = 'http://localhost:3000';
 
@@ -43,7 +44,7 @@ async function openFreshShortLink(page) {
   return link;
 }
 
-test('a loaded short link populates shortUrl / shortLinkId and the card row', async ({ page }) => {
+test('a loaded short link populates shortUrl / shortLinkId and the sharing panel', async ({ page }) => {
   const link = await openFreshShortLink(page);
 
   // A new short link mints a long (22-char) id.
@@ -55,7 +56,64 @@ test('a loaded short link populates shortUrl / shortLinkId and the card row', as
   }));
   expect(state.shortUrl).toBeTruthy();
   expect(state.shortLinkId).toBe(link.id);
-  expect(await page.locator('.fic-row-short').count()).toBeGreaterThan(0);
+  await page.getByRole('button',{name:'Share document',exact:true}).click();
+  await page.getByRole('button',{name:'Private link',exact:true}).click();
+  await expect(page.getByRole('textbox',{name:'Private URL',exact:true})).toHaveValue(state.shortUrl);
+});
+
+const taggedCopy = '---\ntitle: Shared field notes\ndescription: Notes for review\ntags:\n  - private-project\n  - internal-topic\n---\n# Shared field notes\n\nKeep the literal #private-project phrase in the body.';
+
+test('browser private links omit library tags without changing the source document', async ({ page }) => {
+  await page.goto(BASE + '/docs');
+  await page.waitForFunction(() => window.SDocs && window.SDocs.generateShortLink);
+  const result = await page.evaluate(async markdown => {
+    const S = window.SDocs;
+    S.loadText(markdown);
+    const link = await S.generateShortLink();
+    const payload = await S.shortLink.load(link.id, new URL(link.url).hash.slice(3));
+    return { link, payload, sourceTags: S.currentMeta.tags, currentUrl: S.shortUrl };
+  }, taggedCopy);
+  expect(result.sourceTags).toEqual(['private-project', 'internal-topic']);
+  expect(result.currentUrl).toBe(result.link.url);
+  expect(result.payload).not.toMatch(/^tags:/m);
+  expect(yaml.parseFrontMatter(result.payload).meta.title).toBe('Shared field notes');
+  expect(yaml.parseFrontMatter(result.payload).meta.description).toBe('Notes for review');
+  expect(result.payload).toContain('literal #private-project phrase');
+  await page.goto(result.link.url);
+  await page.waitForFunction(() => window.SDocs && window.SDocs.shortLinkId);
+  await expect(page.locator('.fic-row-tags')).toHaveCount(0);
+  expect(await page.evaluate(() => window.SDocs.currentMeta.tags)).toBeUndefined();
+});
+
+test('CLI private links omit library tags from their encrypted payload', async ({ page }) => {
+  const { buildShortUrl } = require('../cli/lib/short-link');
+  const url = await buildShortUrl(taggedCopy, { url: BASE });
+  await page.goto(url);
+  await page.waitForFunction(() => window.SDocs && window.SDocs.shortLinkId);
+  const payload = await page.evaluate(async () => window.SDocs.shortLink.load(
+    window.SDocs.shortLinkId, new URL(location.href).hash.slice(3)));
+  expect(payload).not.toMatch(/^tags:/m);
+  expect(yaml.parseFrontMatter(payload).meta.title).toBe('Shared field notes');
+  expect(payload).toContain('literal #private-project phrase');
+  await expect(page.locator('.fic-row-tags')).toHaveCount(0);
+});
+
+test('older encrypted copies with library tags open without tags', async ({ page }) => {
+  await page.goto(BASE + '/docs');
+  await page.waitForFunction(() => window.SDocs && window.SDocs.shortLink);
+  const url = await page.evaluate(async markdown => {
+    const key = await window.SDocs.shortLink.generateKey();
+    const ciphertext = await window.SDocs.shortLink.seal(markdown, key);
+    const response = await fetch('/api/short', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ciphertext }) });
+    const { id } = await response.json();
+    const encodedKey = btoa(String.fromCharCode(...key)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    return location.origin + '/s/' + id + '#k=' + encodedKey;
+  }, taggedCopy);
+  await page.goto(url);
+  await page.waitForFunction(() => window.SDocs && window.SDocs.shortLinkId);
+  await expect(page.locator('.fic-row-tags')).toHaveCount(0);
+  expect(await page.evaluate(() => window.SDocs.currentMeta.tags)).toBeUndefined();
+  expect(await page.evaluate(() => window.SDocs.currentBody)).toContain('literal #private-project phrase');
 });
 
 test('expand all clicked while a short link is loading is applied after render', async ({ page }) => {
@@ -112,7 +170,7 @@ test('expand all clicked while a short link is loading is applied after render',
   await expect(foldButton).toHaveAttribute('aria-label', 'Expand all');
 });
 
-test('editing a loaded short link clears the stale short URL from the card', async ({ page }) => {
+test('editing a loaded short link clears the stale private URL', async ({ page }) => {
   await openFreshShortLink(page);
 
   // Edit through the raw textarea, the same path a real edit takes:
@@ -130,7 +188,9 @@ test('editing a loaded short link clears the stale short URL from the card', asy
   }));
   expect(state.shortUrl).toBeNull();
   expect(state.shortLinkId).toBeNull();
-  expect(await page.locator('.fic-row-short').count()).toBe(0);
+  await page.getByRole('button',{name:'Share document',exact:true}).click();
+  await page.getByRole('button',{name:'Private link',exact:true}).click();
+  await expect(page.getByRole('textbox',{name:'Private URL',exact:true})).toHaveCount(0);
 });
 
 test('adding a comment through the real composer clears the short link', async ({ page }) => {
@@ -156,12 +216,13 @@ test('adding a comment through the real composer clears the short link', async (
     shortUrl: window.SDocs.shortUrl,
     shortLinkId: window.SDocs.shortLinkId,
     snapshot: window.SDocs.shortLinkSnapshot,
-    rows: document.querySelectorAll('.fic-row-short').length,
   }));
   expect(state.shortUrl).toBeNull();
   expect(state.shortLinkId).toBeNull();
   expect(state.snapshot).toBeNull();
-  expect(state.rows).toBe(0);
+  await page.getByRole('button',{name:'Share document',exact:true}).click();
+  await page.getByRole('button',{name:'Private link',exact:true}).click();
+  await expect(page.getByRole('textbox',{name:'Private URL',exact:true})).toHaveCount(0);
 });
 
 test('a sync that does not change the document keeps the short link', async ({ page }) => {
@@ -181,11 +242,12 @@ test('a sync that does not change the document keeps the short link', async ({ p
   const state = await page.evaluate(() => ({
     shortUrl: window.SDocs.shortUrl,
     shortLinkId: window.SDocs.shortLinkId,
-    rows: document.querySelectorAll('.fic-row-short').length,
   }));
   expect(state.shortUrl).toBeTruthy();
   expect(state.shortLinkId).toBeTruthy();
-  expect(state.rows).toBeGreaterThan(0);
+  await page.getByRole('button',{name:'Share document',exact:true}).click();
+  await page.getByRole('button',{name:'Private link',exact:true}).click();
+  await expect(page.getByRole('textbox',{name:'Private URL',exact:true})).toHaveValue(state.shortUrl);
 });
 
 test('toggling theme keeps the short link - it is a viewer preference', async ({ page }) => {
@@ -202,5 +264,7 @@ test('toggling theme keeps the short link - it is a viewer preference', async ({
   }));
   expect(state.shortUrl).toBeTruthy();
   expect(state.shortLinkId).toBeTruthy();
-  expect(await page.locator('.fic-row-short').count()).toBeGreaterThan(0);
+  await page.getByRole('button',{name:'Share document',exact:true}).click();
+  await page.getByRole('button',{name:'Private link',exact:true}).click();
+  await expect(page.getByRole('textbox',{name:'Private URL',exact:true})).toHaveValue(state.shortUrl);
 });

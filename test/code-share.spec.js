@@ -31,7 +31,7 @@ test('the code menu orders icons: wrap, fold, copy, comment, download | theme', 
   expect(order).toEqual(['wrap', 'foldall', 'copy', 'comment', 'download', 'sep', 'theme']);
 });
 
-test('the file-info card generates a short link into a copyable Short URL row', async ({ page }) => {
+test('the file-info card generates a short link into a copyable Share URL row', async ({ page }) => {
   // stub the short-link endpoint + the clipboard
   await page.evaluate(() => {
     window.__copies = [];
@@ -49,12 +49,12 @@ test('the file-info card generates a short link into a copyable Short URL row', 
   const gen = page.locator('.sdoc-code-focus .sdoc-cf-shortbtn').first();
   await expect(gen).toBeVisible();
   await gen.click();
-  // after generate: the Short URL appears in a copyable row, Generate is gone
-  const urlVal = page.locator('.sdoc-code-focus .sdoc-cf-firow', { hasText: 'Short URL' }).locator('.sdoc-cf-fival');
+  // after generate: the Share URL appears in a copyable row, Generate is gone
+  const urlVal = page.locator('.sdoc-code-focus .sdoc-cf-firow', { hasText: 'Share URL' }).locator('.sdoc-cf-fival');
   await expect(urlVal).toContainText('/s/abc123#k=');
   await expect(page.locator('.sdoc-code-focus .sdoc-cf-shortbtn')).toHaveCount(0);
   // clicking the row copies the URL (same affordance as the other file rows)
-  await page.locator('.sdoc-code-focus .sdoc-cf-firow', { hasText: 'Short URL' }).locator('.sdoc-cf-ficopy').click();
+  await page.locator('.sdoc-code-focus .sdoc-cf-firow', { hasText: 'Share URL' }).locator('.sdoc-cf-ficopy').click();
   const copied = await page.evaluate(() => window.__copies[window.__copies.length - 1] || '');
   expect(copied).toContain('/s/abc123#k=');
 });
@@ -72,7 +72,7 @@ test('clicking the link icon also generates the short link', async ({ page }) =>
   await openCodeFile(page);
   // click the link ICON (not the Generate text) - same reaction as Generate
   await page.locator('.sdoc-code-focus .sdoc-cf-shortintro .sdoc-cf-ficopy').click();
-  const urlVal = page.locator('.sdoc-code-focus .sdoc-cf-firow', { hasText: 'Short URL' }).locator('.sdoc-cf-fival');
+  const urlVal = page.locator('.sdoc-code-focus .sdoc-cf-firow', { hasText: 'Share URL' }).locator('.sdoc-cf-fival');
   await expect(urlVal).toContainText('/s/xyz789#k=');
 });
 
@@ -121,7 +121,7 @@ test('a code block expanded from a mixed prose+code doc hides the short-link row
   await expect(page.locator('.sdoc-code-focus')).toBeVisible();
   // no short-link row, and the local path rows + footer note follow the same gate
   await expect(page.locator('.sdoc-code-focus .sdoc-cf-shortintro')).toHaveCount(0);
-  await expect(page.locator('.sdoc-code-focus .sdoc-cf-firow', { hasText: 'Short URL' })).toHaveCount(0);
+  await expect(page.locator('.sdoc-code-focus .sdoc-cf-firow', { hasText: 'Share URL' })).toHaveCount(0);
   await expect(page.locator('.sdoc-code-focus .sdoc-cf-localtag')).toHaveCount(0);
   await expect(page.locator('.sdoc-code-focus .sdoc-cf-privacy')).toHaveCount(0);
 });

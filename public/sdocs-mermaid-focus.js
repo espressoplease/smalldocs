@@ -435,29 +435,15 @@
   }
 
   // ── Modal lifecycle ───────────────────────────────────
-  function open(sourceWrapper) {
-    if (modal) close();
-    var otherFocus = document[ACTIVE_FOCUS];
-    if (otherFocus && otherFocus !== api && typeof otherFocus.close === 'function') otherFocus.close('superseded');
-    var srcSvg = sourceWrapper.querySelector('svg');
-    if (!srcSvg) return;
-
-    prevFocus = document.activeElement;
-    activeSourceWrapper = sourceWrapper;
-
-    modal = document.createElement('div');
-    modal.className = 'sdoc-mermaid-focus';
-    modal.setAttribute('role', 'dialog');
-    modal.setAttribute('aria-modal', 'true');
-    modal.setAttribute('aria-label', 'Diagram fullscreen view');
-
+  function refreshPalette() {
+    if (!modal) return;
     // Pull the bg/fg colours from the source wrapper (computed style) so the
     // modal feels like a magnified version of the block. Falls back to
     // theme-aware defaults if the cascade isn't reachable.
     var rendered = typeof themeSource === 'function'
       ? themeSource()
       : themeSource || document.getElementById('_sd_rendered');
-    var probe = sourceWrapper || rendered;
+    var probe = activeSourceWrapper || rendered;
     var cs = probe ? getComputedStyle(probe) : null;
     var blockBg = (cs && cs.backgroundColor) || '';
     // Inside a slide shape the .sdoc-mermaid wrapper is intentionally
@@ -485,6 +471,39 @@
     // modal too - the modal is appended to <body>, not inside #_sd_rendered,
     // so the variable wouldn't otherwise cascade.
     if (blockBg) modal.style.setProperty('--md-block-bg', blockBg);
+
+  }
+
+  function refreshTheme(wrapper) {
+    if (!modal || (wrapper && wrapper !== activeSourceWrapper)) return;
+    refreshPalette();
+    var source = activeSourceWrapper && activeSourceWrapper.querySelector('.sdoc-mermaid-stage > svg');
+    if (!source || !svgWrap) return;
+    var clone = source.cloneNode(true);
+    clone.removeAttribute('style'); clone.style.maxWidth = 'none';
+    var vb = (clone.getAttribute('viewBox') || '').split(/[ ,]+/).map(Number);
+    if (vb[2] && vb[3]) { clone.setAttribute('width', vb[2]); clone.setAttribute('height', vb[3]); }
+    var old = svgWrap.querySelector('svg');
+    if (old) old.replaceWith(clone);
+  }
+
+  function open(sourceWrapper) {
+    if (modal) close();
+    var otherFocus = document[ACTIVE_FOCUS];
+    if (otherFocus && otherFocus !== api && typeof otherFocus.close === 'function') otherFocus.close('superseded');
+    var srcSvg = sourceWrapper.querySelector('svg');
+    if (!srcSvg) return;
+
+    prevFocus = document.activeElement;
+    activeSourceWrapper = sourceWrapper;
+
+    modal = document.createElement('div');
+    modal.className = 'sdoc-mermaid-focus';
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-label', 'Diagram fullscreen view');
+
+    refreshPalette();
 
     var topbar = document.createElement('div');
     topbar.className = 'sdoc-mermaid-focus-topbar';
@@ -560,6 +579,7 @@
       document.body.appendChild(modal);
       document.body.classList.add('sdoc-mermaid-focus-open');
     }
+    if (!mountSurface && S.diagramComments) S.diagramComments.attachFocus(sourceWrapper, modal, svgWrap, topbar, close);
     document[ACTIVE_FOCUS] = api;
     if (S.syncEmbedFocus) S.syncEmbedFocus();
 
@@ -611,6 +631,7 @@
     if (resizeHandler) window.removeEventListener('resize', resizeHandler);
     keyHandler = null;
     resizeHandler = null;
+    if (!mountSurface && S.diagramComments) S.diagramComments.detachFocus();
     if (!fromLease) modal.remove();
     modal = null; stageEl = null; svgWrap = null; topbarEl = null;
     activeSourceWrapper = null;
@@ -958,6 +979,7 @@
     open: open,
     close: close,
     buildTools: buildTools,
+    refreshTheme: refreshTheme,
     buildZoomButton: buildZoomButton,
     destroy: function () { close('destroy'); }
   };

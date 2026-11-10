@@ -1,0 +1,37 @@
+{
+  "run": "831bfc8e8d66",
+  "staging_release": "c81f0f2836128a74a74548012a22c98e47ea1357",
+  "sandbox": true,
+  "hosted_checkout_completed": true,
+  "real_webhook_activated_access": true,
+  "paid_read_and_save": true,
+  "invoice_status": "paid",
+  "invoice_id": "in_1UZeau0RfTbC6JQXr87EONSU",
+  "amount_paid": 400,
+  "currency": "gbp",
+  "referral_before_payment_person_months": 1,
+  "referral_after_payment_person_months": 3,
+  "referral_paid_invoice_matches": true,
+  "billing_portal_link_created": true,
+  "test_card": "Stripe published UK Visa test card",
+  "real_customer_charges": false,
+  "signup_and_session": "Seeded disposable test identities; this check does not test email or Google login",
+  "return_page": "Chrome held a different staging user session, so the returned page showed that user. Paid access was verified through the fixture account API.",
+  "cleanup": {
+    "subscription_canceled": true,
+    "cancellation_webhook_processed": true,
+    "stripe_customer_deleted": true,
+    "fixture_documents_soft_deleted": true,
+    "fixture_sessions_revoked": true,
+    "fixture_cli_revoked": true,
+    "fixture_users_disabled": true,
+    "stripe_cli_context_unchanged": true
+  },
+  "date": "2026-11-08",
+  "production_changed": false,
+  "npm_authentication": {
+    "verified": true,
+    "username": "sdocs-dev",
+    "published": false
+  }
+}
