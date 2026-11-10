@@ -5,7 +5,7 @@ file: agent-changes.md
 
 # SmallDocs agent skill changelog
 
-## v29 (CLI 1.19.1)
+## v29 (CLI 1.19.2)
 
 **Reason:** The Cloud edition now treats ordinary sdoc opens as automatic Cloud creates or updates and keeps tags in Cloud.
 

@@ -6,7 +6,7 @@ test.use({ serviceWorkers: 'block' });
 function invitePath(fields) {
   const url = new URL(createInviteLink(Object.assign({
     origin: 'http://localhost:3000',
-    name: 'Dex',
+    name: 'Dexter',
     first_name: 'Dexter',
     last_name: 'Horthy',
     email: 'dexter@humanlayer.dev',
@@ -29,7 +29,7 @@ test('encrypted fragment personalizes the narrow invitation without exposing det
   const previewUrl = invitePath({ preview: 'signin' });
   await page.goto(previewUrl);
 
-  await expect(page.getByRole('heading', { name: 'Welcome to SmallDocs, Dex' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Welcome to SmallDocs, Dexter' })).toBeVisible();
   await expect(page.getByText('Joshua invited you to try SmallDocs with HumanLayer')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Accept your invitation' })).toBeVisible();
   await expect(page.getByLabel('Email address')).toHaveValue('dexter@humanlayer.dev');
