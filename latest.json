@@ -1,6 +1,6 @@
 {
-  "commit": "134ef4889d73d08af7e3935bb5850feee3d79692",
-  "builtAt": "2026-11-10T22:10:23Z",
+  "commit": "bed9ec3b89e8a08603081d860b61459b4e751fd6",
+  "builtAt": "2026-11-10T22:15:28Z",
   "repo": "https://github.com/espressoplease/smalldocs",
   "files": [
     {
@@ -132,11 +132,6 @@
       "path": "/cloud-authorize.js",
       "sha256": "ef881f9c999311e1c20d0ec4f74318c4694f8bcdae260f369a0f88ba93ddea02",
       "bytes": 2223
-    },
-    {
-      "path": "/cloud-feedback-admin.html",
-      "sha256": "5788b5f7f3fb10ed701e7ad399f5471aeeeaf19b7571d67326ec3531604a4acf",
-      "bytes": 1793
     },
     {
       "path": "/cloud-feedback-admin.js",
