@@ -1,9 +1,19 @@
 {
-  "checkedAt": "2026-11-10T17:44:35.535Z",
+  "checkedAt": "2026-11-10T22:10:23.378Z",
   "base": "https://smalldocs.org",
-  "commit": "8767bc7f5a9de8790b623db0f64268601bd1750b",
-  "commitShort": "8767bc7",
-  "result": "pending",
-  "error": "No manifest published on GitHub for this commit yet.",
-  "manifestUrl": "https://raw.githubusercontent.com/espressoplease/smalldocs/trust-manifests/8767bc7f5a9de8790b623db0f64268601bd1750b.json"
+  "commit": "344005c61db268e0b1321885d41e8f1494eee293",
+  "commitShort": "344005c",
+  "result": "mismatch",
+  "totalFiles": 240,
+  "matched": 239,
+  "mismatches": [
+    {
+      "path": "/cloud-feedback-admin.html",
+      "expected": "5788b5f7f3fb10ed701e7ad399f5471aeeeaf19b7571d67326ec3531604a4acf",
+      "got": "2799c0e1da49622b01969bb293bcf78e54af70c314873b2a51dabcf2df9b21ec",
+      "expectedBytes": 1793,
+      "gotBytes": 6816
+    }
+  ],
+  "manifestUrl": "https://raw.githubusercontent.com/espressoplease/smalldocs/trust-manifests/344005c61db268e0b1321885d41e8f1494eee293.json"
 }
