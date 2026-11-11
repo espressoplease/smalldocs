@@ -109,7 +109,10 @@
         var date = node('time', new Date(item.created_at).toLocaleString(undefined, { timeZone: 'UTC', dateStyle: 'medium', timeStyle: 'short' }));
         date.dateTime = item.created_at;
         var created = node('td'); created.append(date);
-        row.append(email, created, node('td', item.disabled ? 'Disabled' : 'Enabled'), node('td', item.profile_complete ? 'Complete' : 'Incomplete'));
+        var subscription = item.subscribed == null ? 'Not available' : item.subscribed ? 'Subscribed'
+          : item.paid_coverage ? 'Sponsored' : item.manual_access ? 'Free access' : 'Not paid';
+        row.append(email, created, node('td', item.disabled ? 'Disabled' : 'Enabled'), node('td', item.profile_complete ? 'Complete' : 'Incomplete'),
+          node('td', item.agent_connected ? 'Yes' : 'No'), node('td', item.document_created ? 'Yes' : 'No'), node('td', subscription));
         userRows.append(row);
       });
       userPage = index; userNextCursor = value.next_cursor;

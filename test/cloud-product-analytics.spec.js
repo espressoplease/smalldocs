@@ -93,6 +93,22 @@ test('the account list has stable pagination and rejects invalid cursors', async
   expect((await f.api('bob', '/api/cloud/v1/admin/users?after=missing')).status).toBe(400);
 });
 
+test('account columns show agent and document progress and distinguish subscriptions from free access', async ({ page }) => {
+  await f.api('bob', '/api/cloud/v1/onboarding/complete', 'POST', {});
+  const setup = await f.api('josh', '/api/cloud/v1/onboarding/complete', 'POST', {});
+  const account = setup.data.workspaces[0].id;
+  f.billing.upsertSubscription({ workspaceId: account, plan: 'team', provider: 'stripe', status: 'active', providerSubscriptionId: 'sub_account_columns' });
+  f.auth._createCliCredential(f.users.josh.id, 'Connected agent', Date.now());
+  expect((await f.api('josh', '/api/cloud/v1/account/documents', 'POST', { account_id: account, filename: 'progress.md',
+    markdown: '---\ntags: [planning]\n---\n# Progress', idempotency_key: 'progress-columns' })).status).toBe(201);
+  await signIn(page, 'bob'); await page.goto(f.origin + '/cloud/overview');
+  const payer = page.locator('[data-product-users] tr').filter({ hasText: f.users.josh.email });
+  await expect(payer.locator('td').nth(4)).toHaveText('Yes');
+  await expect(payer.locator('td').nth(5)).toHaveText('Yes');
+  await expect(payer.locator('td').nth(6)).toHaveText('Subscribed');
+  await expect(page.locator('[data-product-users] tr').filter({ hasText: f.users.bob.email }).locator('td').nth(6)).toHaveText('Free access');
+});
+
 test('account rows render email text safely, handle removed addresses and paginate in the browser', async ({ page }) => {
   const injected = '<img src=x onerror="window.emailInjected=true">@example.test';
   f.auth.db.prepare('UPDATE cloud_auth_identities SET verified_email=? WHERE user_id=?').run(injected, f.users.member.id);

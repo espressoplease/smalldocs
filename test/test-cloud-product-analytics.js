@@ -118,7 +118,7 @@ module.exports = function ({ test, assert }) {
     assert.strictEqual(new Set([...one.items, ...two.items].map(item => item.id)).size, 55);
     assert.deepStrictEqual(one.items[0].emails, ['alias@example.test', 'primary@example.test']);
     assert.strictEqual(two.next_cursor, null);
-    assert.deepStrictEqual(Object.keys(one.items[0]).sort(), ['created_at', 'disabled', 'emails', 'id', 'profile_complete']);
+    assert.deepStrictEqual(Object.keys(one.items[0]).sort(), ['agent_connected', 'created_at', 'disabled', 'document_created', 'emails', 'id', 'manual_access', 'paid_coverage', 'profile_complete', 'subscribed']);
     for (const cursor of ['', 'missing', 'x'.repeat(129), {}, "' OR 1=1 --"]) {
       assert.throws(() => f.analytics.users('admin', cursor), error => error.code === 'invalid_request');
     }
@@ -136,6 +136,25 @@ module.exports = function ({ test, assert }) {
     for (const cache of [f.analytics.publicCache, f.analytics.privateCache]) assert.ok(!JSON.stringify(cache).includes('@example.test'));
     f.analytics.admins.clear();
     assert.throws(() => f.analytics.users('admin'), error => error.code === 'resource_unavailable');
+  }));
+
+  test('account progress distinguishes paid owners, sponsored members, free grants and historical agent/document actions', () => fixture(f => {
+    for (const id of ['payer', 'sponsored', 'free', 'new', 'pending', 'disabled']) f.add(id, f.now, id === 'disabled' ? f.now : null);
+    f.auth.exec("INSERT INTO cloud_cli_credentials VALUES ('payer',1,2)");
+    f.store.exec("INSERT INTO cloud_document_activation_events VALUES ('payer'); INSERT INTO cloud_workspaces VALUES ('team','team',NULL); INSERT INTO cloud_workspace_memberships VALUES ('team','sponsored','active'),('team','disabled','active')");
+    f.billing.exec(`INSERT INTO cloud_single_accounts VALUES ('paid','payer'),('manual','free'),('pending','pending');
+      INSERT INTO cloud_single_libraries VALUES ('team','paid');
+      INSERT INTO cloud_single_sponsors VALUES ('sponsored','paid'),('disabled','paid');
+      INSERT INTO cloud_billing_subscriptions VALUES ('paid','stripe','active',0,1,3),('manual','manual','active',0,1,1),('pending','stripe','past_due',1,NULL,1)`);
+    const rows = new Map(f.analytics.users('admin').items.map(row => [row.id, row]));
+    assert.strictEqual(rows.get('payer').agent_connected, true);
+    assert.strictEqual(rows.get('payer').document_created, true);
+    assert.strictEqual(rows.get('payer').subscribed, true);
+    assert.strictEqual(rows.get('sponsored').subscribed, false); assert.strictEqual(rows.get('sponsored').paid_coverage, true);
+    assert.strictEqual(rows.get('free').manual_access, true); assert.strictEqual(rows.get('free').paid_coverage, false);
+    assert.strictEqual(rows.get('new').subscribed, false); assert.strictEqual(rows.get('new').agent_connected, false);
+    assert.strictEqual(rows.get('pending').subscribed, false); assert.strictEqual(rows.get('disabled').paid_coverage, false);
+    assert.strictEqual([...rows.values()].filter(row => row.paid_coverage).length, f.analytics.overview('admin').totals.paid_people);
   }));
 
   test('empty deployments return zero totals without fabricating billing or content availability', () => fixture(f => {

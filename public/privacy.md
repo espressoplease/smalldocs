@@ -61,7 +61,7 @@ The public application records a cohort week, current week, coarse device catego
 
 The analytics page also publishes daily totals of new Cloud accounts, without names, email addresses or account IDs. These totals come from account creation records and are separate from visit tracking. Private product statistics show designated SmallDocs administrators aggregate setup, agent authorization, document creation and subscription counts. Producing these statistics does not open document content or link your account to your visit history.
 
-The private admin overview also lists each account's retained verified email addresses, signup date, enabled or disabled status, and profile completion.
+The private admin overview also lists each account's retained verified email addresses, signup date, enabled or disabled status, profile completion, agent authorization, document creation and current subscription coverage.
 
 The public reader stores the cohort value and application preferences in browser storage. Cloud uses a Secure, HttpOnly, SameSite session cookie after sign-in. The cookie contains an opaque credential, not a document.
 
