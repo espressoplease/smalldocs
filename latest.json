@@ -1,6 +1,6 @@
 {
-  "commit": "885ed2028b13a53a0447b072a72679fcf514421c",
-  "builtAt": "2026-11-11T16:21:04Z",
+  "commit": "8489eaf755251b247e6e810662794988ec19e403",
+  "builtAt": "2026-11-11T16:35:14Z",
   "repo": "https://github.com/espressoplease/smalldocs",
   "files": [
     {
@@ -290,8 +290,8 @@
     },
     {
       "path": "/css/cli-setup.css",
-      "sha256": "60d716e4a39f93cba98259c82a8e53a4d7c2f4a6a6cb1c7fe661ca8d63fbd38e",
-      "bytes": 3589
+      "sha256": "d3caf2c0655417a2b4650c1306cf1562b5387c5b57bb22787a7553a7154994f8",
+      "bytes": 4165
     },
     {
       "path": "/css/cloud-admin.css",
@@ -360,8 +360,8 @@
     },
     {
       "path": "/css/homepage-next.css",
-      "sha256": "ae7132bf63c89ff901762ed45615d825490c8164c60f8d7757ac3eb77aefae95",
-      "bytes": 10292
+      "sha256": "14575b947a747022514879060e663034429ccb77b0690c50bec42a04af8e427b",
+      "bytes": 10164
     },
     {
       "path": "/css/homepage-video.css",
@@ -570,8 +570,8 @@
     },
     {
       "path": "/homepage-next.html",
-      "sha256": "adee6bd4923e6b4ab239495c3074f460920c5a96f928ce426c4aa9b3c2428dd0",
-      "bytes": 78548
+      "sha256": "c605ffa39ccad0d53b0f502e1bfd31adfb2f8ca16e1c25742e28a3051d78c0cf",
+      "bytes": 79223
     },
     {
       "path": "/homepage-next.js",
@@ -775,8 +775,8 @@
     },
     {
       "path": "/sdocs-cli-setup.js",
-      "sha256": "9230032ebef4336fba878b08cae541598dea2bec137357894584ccfcb5b55adb",
-      "bytes": 19771
+      "sha256": "9ce717429e35420c609fe5622fa13390c75f84654f9b8729981bd99fd8c9b1c2",
+      "bytes": 20065
     },
     {
       "path": "/sdocs-cloud-account-selection.js",
