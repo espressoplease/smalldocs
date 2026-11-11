@@ -686,29 +686,6 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
 }
 
 /* ── FOOTER (minimal hairline) ───────────────────────── */
-footer {
-  margin-top: 66px;
-  border-top: 1px solid var(--line);
-  padding: 28px 0 36px;
-}
-.foot-fine {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 14px;
-  /* Matches the hero's "Works with ..." line. */
-  font-size: var(--t-label);
-  letter-spacing: 0.01em;
-  color: var(--ink-3);
-}
-.foot-fine a {
-  color: var(--ink-2);
-  text-decoration: none;
-  transition: color .14s;
-}
-.foot-fine a:hover { color: var(--ink); }
-.foot-fine .dot { color: var(--line-2); padding: 0 4px; }
 
 /* ── PRAISE (Hacker News comment wall) ────────────────
    Reuses .install-panel for the outer shell so the page reads as
@@ -845,7 +822,18 @@ footer {
   </div></div>
 </nav><main class="hero"><div class="wrap"><div class="homepage-column">
 __HOME_REFERRAL_NOTICE__
-<div class="hero-visual homepage-small-video"><div class="videocard teaser" id="videocard" data-expand-on-play><video class="vid" id="intro-video" playsinline preload="none" src="https://pub-2f643f8894234288bc4ec244aec40c51.r2.dev/homepage/demo-web.mp4" poster="/public/homepage/demo-poster.jpg" aria-label="SmallDocs demo"><track kind="captions" src="/public/homepage/demo-web.vtt" srclang="en" label="English" default></video><video class="vid-teaser" id="heroTeaser" muted autoplay playsinline preload="metadata" src="https://pub-2f643f8894234288bc4ec244aec40c51.r2.dev/homepage/demo-teaser.mp4" aria-hidden="true"></video><button class="vid-play intro-play" id="playOverlay" type="button" aria-label="Play the SmallDocs demo"><span><svg width="24" height="24" viewBox="0 0 16 16" aria-hidden="true"><path d="M5 3.1l8 4.9-8 4.9z" fill="#1B1815"/></svg></span><em>Watch the demo</em></button></div></div><h1 class="hero-display">SmallDocs is a document format and library for coding agents.</h1><p class="lead homepage-copy">You use it when you want to escape the limits of your chat interface or save an agent’s thinking at a given point in time. Your agents can use it on their own: a remote agent can write a SmallDoc and notify you.</p><p class="lead homepage-copy">A single SmallDoc can include slides, a multi-tab spreadsheet, charts, code, an HTML widget and text to link it all together.</p><p class="lead homepage-copy">After installation, ask your agent: <em>“write me a sdoc about (topic)”</em>. Open it in your browser, including on mobile, or share it with other people.</p><p class="lead homepage-copy">SmallDocs are built for human-agent feedback loops. Speed up your iteration with targeted features: easy ways to copy precise chunks of text, tables, code and charts, and the ability to leave comments on a document for your agent to pick up.</p><p class="lead homepage-copy">SmallDocs are automatically saved to an encrypted cloud library. This library is accessible to humans (on the web, including mobile) and agents (via the SmallDocs command line tool).</p><p class="lead homepage-copy">SmallDocs are agent agnostic, meaning teams using AI from a range of providers can all create and save documents in a standardized way.</p><p class="lead homepage-copy">Over 4,000 developers, financiers and scientists use SmallDocs. To join them, sign up:</p><div class="homepage-start" id="start"><a class="homepage-google" href="/api/cloud/auth/oauth/google?return_to=%2Fcloud%2Fprofile"><svg class="homepage-google-icon" viewBox="0 0 18 18" aria-hidden="true">
+<div class="homepage-intro">
+<div class="homepage-stickers">
+<p class="homepage-sticker">
+  <span class="homepage-sticker-copy">Used by over <strong>4,000</strong> developers,<br>financiers and<br>scientists</span>
+</p>
+<p class="homepage-sticker homepage-sticker-github">
+  <span class="homepage-sticker-copy"><strong>200+</strong> stars on<br><a href="https://github.com/espressoplease/smalldocs" target="_blank" rel="noopener" aria-label="GitHub (opens in a new tab)">GitHub</a></span>
+</p>
+</div>
+<div class="hero-visual homepage-small-video"><div class="videocard teaser" id="videocard" data-expand-on-play><video class="vid" id="intro-video" playsinline preload="none" src="https://pub-2f643f8894234288bc4ec244aec40c51.r2.dev/homepage/demo-web.mp4" poster="/public/homepage/demo-poster.jpg" aria-label="SmallDocs demo"><track kind="captions" src="/public/homepage/demo-web.vtt" srclang="en" label="English" default></video><video class="vid-teaser" id="heroTeaser" muted autoplay playsinline preload="metadata" src="https://pub-2f643f8894234288bc4ec244aec40c51.r2.dev/homepage/demo-teaser.mp4" aria-hidden="true"></video><button class="vid-play intro-play" id="playOverlay" type="button" aria-label="Play the SmallDocs demo"><span><svg width="24" height="24" viewBox="0 0 16 16" aria-hidden="true"><path d="M5 3.1l8 4.9-8 4.9z" fill="#1B1815"/></svg></span><em>Watch the demo</em></button></div></div>
+</div>
+<h1 class="hero-display">SmallDocs keeps your mind clear in a world of fast-moving agents</h1><p class="lead homepage-copy">You use it when you want to escape the limits of your chat interface or save an agent’s thinking at a given point in time. Simply ask your agent: <em>“write me a doc about (topic)”</em>.</p><p class="lead homepage-copy">Agents handle all your tasks, but the document formats you're familiar with are siloed. SmallDocs are uniquely flexible. One SmallDoc can combine text, code, slides, spreadsheets, charts, diagrams, and interactive HTML and JavaScript components.</p><p class="lead homepage-copy">SmallDocs are built for human-agent feedback loops. Speed up your iteration with targeted features: easy ways to copy precise chunks of text, tables, code and charts, and the ability to leave comments on a document for your agent to pick up. SmallDocs have version history built in.</p><p class="lead homepage-copy">Using SmallDocs automatically builds an agent-friendly knowledge base. SmallDocs are saved to an encrypted cloud library. Your agent smartly tags every document. This library is accessible to humans (on the web, including mobile) and agents (via the SmallDocs command line tool).</p><p class="lead homepage-copy">SmallDocs are agent agnostic, meaning teams using AI from a range of providers can all create and save documents in a standardized way. Agents can use it on their own: a remote agent can write a SmallDoc and notify you.</p><p class="lead homepage-copy">Sign up:</p><div class="homepage-start" id="start"><a class="homepage-google" href="/api/cloud/auth/oauth/google?return_to=%2Fcloud%2Fprofile"><svg class="homepage-google-icon" viewBox="0 0 18 18" aria-hidden="true">
             <path fill="#4285F4" d="M17.64 9.205c0-.638-.057-1.252-.164-1.841H9v3.481h4.844a4.14 4.14 0 0 1-1.797 2.716v2.258h2.909c1.703-1.568 2.684-3.878 2.684-6.614Z"/>
             <path fill="#34A853" d="M9 18c2.43 0 4.468-.806 5.956-2.181l-2.909-2.258c-.806.54-1.836.859-3.047.859-2.344 0-4.328-1.585-5.037-3.714H.957v2.332A9 9 0 0 0 9 18Z"/>
             <path fill="#FBBC05" d="M3.963 10.706A5.41 5.41 0 0 1 3.681 9c0-.592.102-1.168.282-1.706V4.962H.957A9 9 0 0 0 0 9c0 1.452.347 2.827.957 4.038l3.006-2.332Z"/>
@@ -1017,22 +1005,36 @@ __HOME_REFERRAL_NOTICE__
   </div>
 </section></main><footer>
   <div class="wrap">
-    <p class="foot-fine">
-      <span>smalldocs.org</span>
-      <span>
-        <a href="/docs">Docs</a><span class="dot">&middot;</span>
-        <a href="/blogs/new-home">What's new</a><span class="dot">&middot;</span>
-        <a href="/privacy">Privacy</a><span class="dot">&middot;</span>
-        <a href="/trust">Trust</a><span class="dot">&middot;</span>
-        <a href="/analytics">Analytics</a><span class="dot">&middot;</span>
-        <a href="/legal">Terms</a><span class="dot">&middot;</span>
-        <a href="/acceptable-use">Acceptable use</a><span class="dot">&middot;</span>
-        <a href="/cancellation">Cancellation</a><span class="dot">&middot;</span>
-        <a href="/service-closure">Service closure</a><span class="dot">&middot;</span>
-        <a href="/subprocessors">Service providers</a><span class="dot">&middot;</span>
-        <a href="https://github.com/espressoplease/smalldocs" target="_blank" rel="noopener">Open source on GitHub</a>
-      </span>
-    </p>
-    <p class="foot-fine">Odd Solutions Ltd, registered in England and Wales, company number 16186575. Registered office: 98 Downhills Park Road, London, United Kingdom, N17 6PA.</p>
+    <div class="homepage-column homepage-footer-inner">
+      <nav class="homepage-footer-links" aria-label="Footer">
+        <section aria-labelledby="footer-product">
+          <h2 id="footer-product">SmallDocs</h2>
+          <ul>
+            <li><a href="/docs">Docs</a></li>
+            <li><a href="/blogs/new-home">What's new</a></li>
+            <li><a href="/analytics">Analytics</a></li>
+            <li><a href="https://github.com/espressoplease/smalldocs" target="_blank" rel="noopener">Open source on GitHub</a></li>
+          </ul>
+        </section>
+        <section aria-labelledby="footer-privacy">
+          <h2 id="footer-privacy">Privacy and security</h2>
+          <ul>
+            <li><a href="/privacy">Privacy</a></li>
+            <li><a href="/trust">Trust</a></li>
+            <li><a href="/subprocessors">Service providers</a></li>
+          </ul>
+        </section>
+        <section aria-labelledby="footer-legal">
+          <h2 id="footer-legal">Legal</h2>
+          <ul>
+            <li><a href="/legal">Terms</a></li>
+            <li><a href="/acceptable-use">Acceptable use</a></li>
+            <li><a href="/cancellation">Cancellation</a></li>
+            <li><a href="/service-closure">Service closure</a></li>
+          </ul>
+        </section>
+      </nav>
+      <p class="homepage-footer-company">Odd Solutions Ltd. Registered in England and Wales, company number 16186575.</p>
+    </div>
   </div>
 </footer><script src="/public/sdocs-cli-setup.js"></script><script src="/public/sdocs-scroll-header.js"></script><script src="/public/cloud-pricing.js"></script><script src="/public/homepage-video-legacy.js"></script><script src="/public/homepage-video.js"></script><script src="/public/homepage-next.js"></script></body></html>

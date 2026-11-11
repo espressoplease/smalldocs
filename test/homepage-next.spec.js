@@ -12,8 +12,8 @@ for (const width of [390, 1440]) {
     }));
     await page.goto('/home-next');
     expect(await page.evaluate(() => window.loginAtLoad.visibility)).toBe('hidden');
-    await expect(page.locator('nav a')).toHaveCount(1);
-    await expect(page.locator('nav details, nav button')).toHaveCount(0);
+    await expect(page.locator('.homepage-login-nav a')).toHaveCount(1);
+    await expect(page.locator('.homepage-login-nav details, .homepage-login-nav button')).toHaveCount(0);
     const login = page.getByRole('link', { name: 'Log in', exact: true });
     await expect(login).toHaveAttribute('href', '/cloud/sign-in?return=%2Flibrary%3Fscope%3Dcloud');
     await expect.poll(() => login.evaluate(el => getComputedStyle(el).opacity)).toBe('1');
@@ -76,7 +76,7 @@ for (const width of [390, 1440]) {
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
     await page.goto('/home-next');
-    await expect(page.getByRole('heading', { level: 1 })).toContainText('document format and library');
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('keeps your mind clear');
     await expect(page.locator('#learn .learn-item')).toHaveCount(10);
     await expect(page.locator('#learn [data-sample]')).toHaveCount(10);
     expect(await page.locator('.sample-group-heading').allTextContents()).toEqual(['For engineers:', 'For scientists:', 'For financiers:', 'For mathematicians:']);
@@ -124,17 +124,16 @@ test('the introduction retains the production recording with captions and chapte
 test('homepage experiment preserves the supplied copy and vertical order', async ({ page }) => {
   await page.goto('/home-next');
   const expected = [
-    'You use it when you want to escape the limits of your chat interface or save an agent’s thinking at a given point in time. Your agents can use it on their own: a remote agent can write a SmallDoc and notify you.',
-    'A single SmallDoc can include slides, a multi-tab spreadsheet, charts, code, an HTML widget and text to link it all together.',
-    'After installation, ask your agent: “write me a sdoc about (topic)”. Open it in your browser, including on mobile, or share it with other people.',
-    'SmallDocs are built for human-agent feedback loops. Speed up your iteration with targeted features: easy ways to copy precise chunks of text, tables, code and charts, and the ability to leave comments on a document for your agent to pick up.',
-    'SmallDocs are automatically saved to an encrypted cloud library. This library is accessible to humans (on the web, including mobile) and agents (via the SmallDocs command line tool).',
-    'SmallDocs are agent agnostic, meaning teams using AI from a range of providers can all create and save documents in a standardized way.',
-    'Over 4,000 developers, financiers and scientists use SmallDocs. To join them, sign up:',
+    "You use it when you want to escape the limits of your chat interface or save an agent’s thinking at a given point in time. Simply ask your agent: “write me a doc about (topic)”.",
+    "Agents handle all your tasks, but the document formats you're familiar with are siloed. SmallDocs are uniquely flexible. One SmallDoc can combine text, code, slides, spreadsheets, charts, diagrams, and interactive HTML and JavaScript components.",
+    'SmallDocs are built for human-agent feedback loops. Speed up your iteration with targeted features: easy ways to copy precise chunks of text, tables, code and charts, and the ability to leave comments on a document for your agent to pick up. SmallDocs have version history built in.',
+    "Using SmallDocs automatically builds an agent-friendly knowledge base. SmallDocs are saved to an encrypted cloud library. Your agent smartly tags every document. This library is accessible to humans (on the web, including mobile) and agents (via the SmallDocs command line tool).",
+    "SmallDocs are agent agnostic, meaning teams using AI from a range of providers can all create and save documents in a standardized way. Agents can use it on their own: a remote agent can write a SmallDoc and notify you.",
+    'Sign up:',
     'SmallDocs is free for a month, then £4/user/month.',
   ];
   expect(await page.locator('.homepage-copy').allTextContents()).toEqual(expected);
-  await expect(page.locator('h1')).toHaveText('SmallDocs is a document format and library for coding agents.');
+  await expect(page.locator('h1')).toHaveText('SmallDocs keeps your mind clear in a world of fast-moving agents');
   expect(await page.locator('[data-install-form] button').allTextContents())
     .toEqual(Array(3).fill('Continue with email'));
   const positions = await page.evaluate(() => ['.homepage-small-video','h1','.homepage-copy','#start','#samples','#praise']

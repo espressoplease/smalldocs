@@ -12,6 +12,7 @@ for (const width of [320, 390, 768, 1440]) {
     const play = page.getByRole('button', { name: 'Play the SmallDocs demo', exact: true });
     const before = await preview.boundingBox();
     const headingTop = await page.locator('h1').evaluate(el => el.getBoundingClientRect().top);
+    const introHeight = await page.locator('.homepage-intro').evaluate(el => el.getBoundingClientRect().height);
     expect(before.width).toBeLessThanOrEqual(360);
     expect(await page.locator('#heroTeaser').evaluate(video => video.muted)).toBe(true);
     await expect.poll(() => page.locator('#heroTeaser').evaluate(video =>
@@ -34,7 +35,7 @@ for (const width of [320, 390, 768, 1440]) {
     const heading = await page.locator('h1').boundingBox();
     expect(expanded.x).toBeCloseTo(heading.x, 0);
     expect(expanded.width).toBeCloseTo(heading.width, 0);
-    expect(heading.y - headingTop).toBeCloseTo(expanded.height - before.height, 0);
+    expect(heading.y - headingTop).toBeCloseTo(await page.locator('.homepage-intro').evaluate(el => el.getBoundingClientRect().height) - introHeight, 0);
     await expect(page.getByRole('dialog')).toHaveCount(0);
     await expect.poll(() => page.locator('#intro-video').evaluate(video => !video.paused && video.currentTime > 0)).toBe(true);
     expect(await page.locator('#intro-video').evaluate(video => video.muted)).toBe(false);
