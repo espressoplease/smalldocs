@@ -437,8 +437,8 @@ function cloudRow() {
     var many = cloudState.permission && (cloudState.permission.mode === 'everyone' ||
       (cloudState.permission.member_user_ids || []).length > 1);
     row.innerHTML = '<span class="fic-label">Library</span><div class="sdoc-cloud-lab-row-main"><div class="sdoc-cloud-lab-pills">'
-      + (cloudState.accounts.length > 1 ? '<button class="sdoc-cloud-lab-access sdoc-cloud-library-pill" type="button" data-cloud-open="library" aria-label="Library: '
-        + escapeHtml(cloudState.account && cloudState.account.name || 'Library') + '"><span class="sdoc-cloud-library-icon" style="color:' + window.SDocsCloudAccountSelection.color(S.cloudDocument.workspace_id) + '">' + LIBRARY_SVG + '</span><span>' + escapeHtml(cloudState.account && cloudState.account.name || 'Library') + '</span></button>' : '')
+      + '<button class="sdoc-cloud-lab-access sdoc-cloud-library-pill" type="button" data-cloud-open="library" aria-label="Library: '
+        + escapeHtml(cloudState.account && cloudState.account.name || 'Library') + '"><span class="sdoc-cloud-library-icon" style="color:' + window.SDocsCloudAccountSelection.color(S.cloudDocument.workspace_id) + '">' + LIBRARY_SVG + '</span><span>' + escapeHtml(cloudState.account && cloudState.account.name || 'Library') + '</span></button>'
       + '<button class="sdoc-cloud-lab-access" type="button" data-cloud-open="access"'
       + ' title="' + escapeHtml(permissionNames()) + '">' + (many ? USERS_SVG : USER_SVG)
       + '<span>' + escapeHtml(permissionLabel()) + '</span></button>'
@@ -782,7 +782,9 @@ function libraryPanelHtml() {
   return '<section class="sdoc-cloud-lab-section"><div class="sdoc-cloud-lab-section-title">This document</div><div class="sdoc-cloud-lab-members">' + choices + '</div>'
     + (canMove ? '<p class="sdoc-cloud-lab-help">Move this document and its history to ' + escapeHtml(destination.name) + '. Its link stays the same. Access will be reset to Only you; people in the old library will lose access.</p><button type="button" class="sdoc-cloud-library-move">Move document</button>' : '')
     + (!cloudState.permission || !cloudState.permission.can_manage ? '<p class="sdoc-cloud-lab-help">Only the person who created this document can move it.</p>' : '')
-    + '</section><section class="sdoc-cloud-lab-section"><div class="sdoc-cloud-lab-section-title">Default for new documents</div>'
+    + '</section><section class="sdoc-cloud-lab-section"><a class="sdoc-panel-action" href="/library/settings?panel=libraries&amp;workspace=' + encodeURIComponent(current) + '">'
+    + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg><span>Create team library</span></a></section>'
+    + '<section class="sdoc-cloud-lab-section"><div class="sdoc-cloud-lab-section-title">Default for new documents</div>'
     + (machines || '<p class="sdoc-cloud-lab-help">Connect a computer to set its default library.</p>')
     + '<p class="sdoc-cloud-lab-help">Applies to new documents from that computer. Existing documents stay in their libraries. A library specified by you or your project takes priority.</p></section>';
 }
