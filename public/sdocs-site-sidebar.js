@@ -27,11 +27,12 @@
     termsAccepted: termsAccepted,
     returnTo: location.pathname + location.search,
     active: active,
+    brandHref: page === 'library' ? '/home' : '/',
   });
 
   var mobile = document.createElement('div');
   mobile.className = 'sdocs-site-mobilebar';
-  mobile.innerHTML = '<div class="sdocs-site-mobilebar-scroll"><a class="sdocs-site-mobilebar-brand" href="/">' +
+  mobile.innerHTML = '<div class="sdocs-site-mobilebar-scroll"><a class="sdocs-site-mobilebar-brand" href="' + (page === 'library' ? '/home' : '/') + '">' +
     '<span class="sdocs-site-mobilebar-brand-full">SmallDocs</span>' +
     '<span class="sdocs-site-mobilebar-brand-short">SDocs</span>' +
     '<span class="sdocs-site-mobilebar-brand-tiny">SD</span></a></div>' +

@@ -29,7 +29,7 @@ for (const width of [1440, 390]) {
       await page.getByRole('button', { name: 'Learn', exact: true }).click();
       const panel = page.locator('[data-learn-panel]');
       await expect(panel).toContainText('Choose a feature to copy its prompt.');
-      await expect(panel.getByRole('link')).toHaveCount(0);
+      await expect(panel.getByRole('link', { name: 'Open homepage', exact: true })).toHaveAttribute('href', '/home');
       const before = page.url();
       for (const [label, instruction] of Object.entries(topics)) {
         const button = panel.getByRole('button', { name: label, exact: true });
@@ -85,6 +85,8 @@ test('Learn prompt buttons work from the keyboard', async ({ page, context }) =>
   await page.keyboard.press('Enter');
   const first = page.getByRole('button', { name: 'Getting started', exact: true });
   await expect(first).toBeVisible();
+  await page.keyboard.press('Tab');
+  await expect(page.getByRole('link', { name: 'Open homepage', exact: true })).toBeFocused();
   await page.keyboard.press('Tab');
   await expect(first).toBeFocused();
   await page.keyboard.press('Space');
