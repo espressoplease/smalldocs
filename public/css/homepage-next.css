@@ -92,7 +92,8 @@
 .homepage-small-video .intro-play[hidden] { display: none; }
 .home-next .hero-display { max-width: 100%; font-size: 25px; }
 .home-next .lead { font-size: 16px; }
-.home-next .homepage-copy { margin-top: 9px; font-size: 18px; }
+.home-next .homepage-copy, .home-next .homepage-subheading { margin-top: 9px; font-size: 18px; }
+.home-next .homepage-subheading { font-weight: 500; letter-spacing: 0; }
 .homepage-start { margin-top: 13px; margin-bottom: 12px; width: 100%; }
 .homepage-direct { margin-top: 0; }
 .homepage-direct > summary { list-style: none; }
