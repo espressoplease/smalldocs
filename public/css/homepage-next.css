@@ -31,6 +31,8 @@
   right: 0;
   width: var(--homepage-sticker-size);
   height: var(--homepage-sticker-size);
+  border-radius: 50%;
+  background: var(--accent);
   color: #fff;
   font-size: clamp(11px, 1.5vw, 16px);
   line-height: 1.25;
@@ -39,7 +41,6 @@
   filter: drop-shadow(0 4px 5px rgb(27 24 21 / 12%));
   transition: opacity .3s cubic-bezier(.4,0,.2,1), visibility .3s, transform .3s cubic-bezier(.4,0,.2,1);
 }
-.homepage-sticker-paper { position: absolute; inset: 0; width: 100%; height: 100%; }
 .homepage-sticker-copy { position: relative; display: block; padding: 18% 14% 20%; }
 .homepage-sticker-copy strong { display: block; margin: 2px 0 4px; font-size: 2em; font-weight: 600; line-height: 1.1; letter-spacing: -.04em; }
 .homepage-intro:has(.is-expanded) .homepage-sticker { opacity: 0; visibility: hidden; transform: rotate(12deg) scale(.94); }
