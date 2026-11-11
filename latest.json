@@ -1,6 +1,6 @@
 {
-  "commit": "20e9e59fa6aba81a27106ec0020e71048275bc6a",
-  "builtAt": "2026-11-11T08:34:57Z",
+  "commit": "80f316e4acc187eea27372a85589705483fcbc47",
+  "builtAt": "2026-11-11T12:57:13Z",
   "repo": "https://github.com/espressoplease/smalldocs",
   "files": [
     {
@@ -15,8 +15,8 @@
     },
     {
       "path": "/agent-changes.md",
-      "sha256": "3ce8a8f9517d4369dc7bd7efe3632bce03a9ded56bba26ebd53809b1951571cc",
-      "bytes": 1137903
+      "sha256": "d9625396cc911f3be78fe4ec37a8d6a46173afdb537dadd524ac70bb3a8eba88",
+      "bytes": 1187977
     },
     {
       "path": "/authoring/apps.md",
@@ -115,28 +115,38 @@
     },
     {
       "path": "/cloud-admin.html",
-      "sha256": "657c4384030c1ed657d578cb5e748beb7baa4d375078230dbfa11daeca0e52d4",
-      "bytes": 15486
+      "sha256": "e6842b4d91403f770aba63e321d50a7c1cdd6d178aab0c6ab3a2a70cdbf006b3",
+      "bytes": 14708
     },
     {
       "path": "/cloud-admin.js",
-      "sha256": "c8c718cf66f6f446f3c7b983b0cbd97dc214dba2a7f2fefe1bc49f5ccce5fdc6",
-      "bytes": 54048
+      "sha256": "7ce88b83a336b0088daad0016a9c81ae51877b85b828aadbf11c4d983f2e3dee",
+      "bytes": 54050
     },
     {
       "path": "/cloud-authorize.html",
-      "sha256": "7b64a0d7327f3daaf3edea8cb8a2865b8f759bf8d9963303ad55f722e59a8380",
-      "bytes": 1982
+      "sha256": "a60806b785eee554bb91e277e52a50b7036a4e57784100581bb9e6a3a771c7ce",
+      "bytes": 2135
     },
     {
       "path": "/cloud-authorize.js",
-      "sha256": "ef881f9c999311e1c20d0ec4f74318c4694f8bcdae260f369a0f88ba93ddea02",
-      "bytes": 2223
+      "sha256": "24d2212a49a6b9c70e24bbc8e165d428ad27df4a813d5d05e81345a29dac16df",
+      "bytes": 2233
     },
     {
       "path": "/cloud-feedback-admin.js",
       "sha256": "b14c6c237d9c8deb91607df8e70cd5069ce8b93887db1a61d2b9b0d71b4ba84b",
       "bytes": 3633
+    },
+    {
+      "path": "/cloud-install.html",
+      "sha256": "c00f6ded453820178da7f354e2bb1778a7759e26716eafcebe3c2a401fd29b7a",
+      "bytes": 1340
+    },
+    {
+      "path": "/cloud-install.js",
+      "sha256": "83692c44ff1aecba0fee3e9a8e80a5a716532e0388067cb1689aee74abcb8545",
+      "bytes": 394
     },
     {
       "path": "/cloud-invite.html",
@@ -200,13 +210,13 @@
     },
     {
       "path": "/cloud-sign-in.html",
-      "sha256": "65e49976c6a9e23173bce4042e5c461d256c97fd094224bac53b5e3dc14e3d9d",
-      "bytes": 6881
+      "sha256": "aaacbf3a59990c0308be9cf220c0de185b0820cce0afdbd488abbc4592925953",
+      "bytes": 7083
     },
     {
       "path": "/cloud-sign-in.js",
-      "sha256": "a1e5551112010b01041a61cd1e6b71b112c0025b080605288f6dfc2df75aed3d",
-      "bytes": 6524
+      "sha256": "62ba57db7cb2eb52ccdc5e08324497c6006eb43480ede23f8c72c5dc02e8a5da",
+      "bytes": 6953
     },
     {
       "path": "/cloud-subscribe.html",
@@ -279,6 +289,11 @@
       "bytes": 4578
     },
     {
+      "path": "/css/cli-setup.css",
+      "sha256": "60d716e4a39f93cba98259c82a8e53a4d7c2f4a6a6cb1c7fe661ca8d63fbd38e",
+      "bytes": 3589
+    },
+    {
       "path": "/css/cloud-admin.css",
       "sha256": "9c6c7b4a6f2221ba71f0b4769299dc7c13a850d396ba4f090a23cbd2fcedcae9",
       "bytes": 17726
@@ -345,8 +360,8 @@
     },
     {
       "path": "/css/homepage-next.css",
-      "sha256": "9686739b2876b9a9c6800a1d1abcbd3485ef2e570a9971f7364a8ac261e78cc5",
-      "bytes": 5380
+      "sha256": "d91d40a71fd2534e50b41934a0762ecfbacb7b52d93211d69ccaa3d76364c12b",
+      "bytes": 6336
     },
     {
       "path": "/css/homepage-video.css",
@@ -442,6 +457,11 @@
       "path": "/feedback.html",
       "sha256": "1018a3f4fa8d64ff38ee072d7ee5fbaccb08368d184b101f05c4ac10b4bb1027",
       "bytes": 9595
+    },
+    {
+      "path": "/getting-started.md",
+      "sha256": "272e7490d2fb8f97b6e0bda195f91ae54f883086c922a632fd94eb24815554e0",
+      "bytes": 5931
     },
     {
       "path": "/homepage/demo-poster.jpg",
@@ -550,13 +570,13 @@
     },
     {
       "path": "/homepage-next.html",
-      "sha256": "6bee0cd6164581e4eafbc7216d8e1c71ff38a2fbdd61c916cfdbc5c8bd057aba",
-      "bytes": 77571
+      "sha256": "4ef92cbc0c133141ff861631fe1764b297f820b4a5f940d7d3e2ecdf7459edde",
+      "bytes": 78264
     },
     {
       "path": "/homepage-next.js",
-      "sha256": "f28f8a07c21c417fbf061d856962327e4a5d8f6dcc0e4304340c6a8423b58d71",
-      "bytes": 4276
+      "sha256": "870b9bdd2541915345aeac95b75aacd0117b44b3508bfab325be47563fd1e769",
+      "bytes": 5070
     },
     {
       "path": "/homepage-video-legacy.js",
@@ -675,8 +695,8 @@
     },
     {
       "path": "/sdoc.md",
-      "sha256": "8c5491c753e99bcbc9701af330e3f5b23fe238a1fe535a4cf44ea1eb27a9116f",
-      "bytes": 76518
+      "sha256": "6ded76c2ef19caaf9814c4697a96dbc166dc29e90153f077031410df97be310f",
+      "bytes": 77421
     },
     {
       "path": "/sdocs-app-runner.html",
@@ -755,8 +775,8 @@
     },
     {
       "path": "/sdocs-cli-setup.js",
-      "sha256": "cd1a2f36be04f0b570420c909c694b7855f56145e7e053a71b10e243dc08fc70",
-      "bytes": 16019
+      "sha256": "9230032ebef4336fba878b08cae541598dea2bec137357894584ccfcb5b55adb",
+      "bytes": 19771
     },
     {
       "path": "/sdocs-cloud-account-selection.js",
