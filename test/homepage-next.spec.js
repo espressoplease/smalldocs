@@ -76,7 +76,7 @@ for (const width of [390, 1440]) {
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
     await page.goto('/home-next');
-    await expect(page.getByRole('heading', { level: 1 })).toContainText('document format and library');
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('keeps your mind clear');
     await expect(page.locator('#learn .learn-item')).toHaveCount(10);
     await expect(page.locator('#learn [data-sample]')).toHaveCount(10);
     expect(await page.locator('.sample-group-heading').allTextContents()).toEqual(['For engineers:', 'For scientists:', 'For financiers:', 'For mathematicians:']);
@@ -130,11 +130,11 @@ test('homepage experiment preserves the supplied copy and vertical order', async
     'SmallDocs are built for human-agent feedback loops. Speed up your iteration with targeted features: easy ways to copy precise chunks of text, tables, code and charts, and the ability to leave comments on a document for your agent to pick up.',
     'SmallDocs are automatically saved to an encrypted cloud library. This library is accessible to humans (on the web, including mobile) and agents (via the SmallDocs command line tool).',
     'SmallDocs are agent agnostic, meaning teams using AI from a range of providers can all create and save documents in a standardized way.',
-    'Over 4,000 developers, financiers and scientists use SmallDocs. To join them, sign up:',
+    'Sign up:',
     'SmallDocs is free for a month, then £4/user/month.',
   ];
   expect(await page.locator('.homepage-copy').allTextContents()).toEqual(expected);
-  await expect(page.locator('h1')).toHaveText('SmallDocs is a document format and library for coding agents.');
+  await expect(page.locator('h1')).toHaveText('SmallDocs keeps your mind clear in a world of fast-moving agents');
   expect(await page.locator('[data-install-form] button').allTextContents())
     .toEqual(Array(3).fill('Continue with email'));
   const positions = await page.evaluate(() => ['.homepage-small-video','h1','.homepage-copy','#start','#samples','#praise']
