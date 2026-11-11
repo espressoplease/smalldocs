@@ -76,7 +76,7 @@ for (const width of [390, 1440]) {
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
     await page.goto('/home-next');
-    await expect(page.getByRole('heading', { level: 1 })).toContainText('keeps your mind clear');
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('the hyper flexible document format for the agentic era.');
     await expect(page.locator('#learn .learn-item')).toHaveCount(10);
     await expect(page.locator('#learn [data-sample]')).toHaveCount(10);
     expect(await page.locator('.sample-group-heading').allTextContents()).toEqual(['For engineers:', 'For scientists:', 'For financiers:', 'For mathematicians:']);
@@ -133,7 +133,7 @@ test('homepage experiment preserves the supplied copy and vertical order', async
     'SmallDocs is free for a month, then £4/user/month.',
   ];
   expect(await page.locator('.homepage-copy').allTextContents()).toEqual(expected);
-  await expect(page.locator('h1')).toHaveText('SmallDocs keeps your mind clear in a world of fast-moving agents');
+  await expect(page.locator('h1')).toHaveText('SmallDocs are the hyper flexible document format for the agentic era.');
   expect(await page.locator('[data-install-form] button').allTextContents())
     .toEqual(Array(3).fill('Continue with email'));
   const positions = await page.evaluate(() => ['.homepage-small-video','h1','.homepage-copy','#start','#samples','#praise']

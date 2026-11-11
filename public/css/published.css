@@ -1,0 +1,18 @@
+body { background: var(--sdocs-document-bg, var(--bg)); }
+.published-library { margin-left: auto; color: var(--accent); text-decoration: none; }
+.published-index { width: min(100%, 960px); margin: 0 auto; padding: 56px 24px; }
+.published-index h1 { font-size: 25px; font-weight: 600; }
+.published-intro { margin: 12px 0 32px; font-size: 16px; line-height: 1.6; color: var(--text-2); }
+.published-index .day-label { font-size: 15px; }
+.published-index .res { padding: 16px; text-decoration: none; }
+.published-index .res-title { font-size: 16px; overflow-wrap: anywhere; }
+.published-description { margin-top: 6px; font-size: 14px; line-height: 1.5; color: var(--text-2); overflow-wrap: anywhere; }
+.published-views { font-size: 13px; color: var(--text-2); white-space: nowrap; }
+.published-pagination { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 28px 0; font-size: 15px; }
+.published-pagination a, .published-footer a { color: var(--accent); }
+.published-note { margin-top: 28px; color: var(--text-2); font-size: 13px; line-height: 1.6; }
+.published-footer { display: flex; gap: 24px; margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border); font-size: 13px; }
+@media (max-width: 600px) {
+  .published-index { padding: 32px 22px; }
+  .published-index .res { grid-template-columns: 1fr; gap: 8px; }
+}
