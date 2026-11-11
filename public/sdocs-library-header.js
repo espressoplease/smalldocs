@@ -70,11 +70,15 @@
         item.addEventListener('click', function () { close(); options.onSelect(library); });
         menu.appendChild(item);
       });
+      var create = document.createElement('a'); create.className = 'workspace-menu-link'; create.setAttribute('role', 'menuitem');
+      create.href = settingsUrl(workspace && workspace.id, 'libraries');
+      create.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg><span>Create team library</span>';
+      var createSeparator = document.createElement('div'); createSeparator.className = 'workspace-menu-sep';
+      menu.append(createSeparator, create);
       if (workspace) {
-        var separator = document.createElement('div'); separator.className = 'workspace-menu-sep';
         var settings = document.createElement('a'); settings.className = 'workspace-menu-link'; settings.href = settingsUrl(workspace.id);
         settings.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/></svg><span>Library settings</span>';
-        menu.append(separator, settings);
+        menu.appendChild(settings);
       }
       root.querySelector('#cloud-library-actions').hidden = options.workspaces.length === 0;
       close();

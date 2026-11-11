@@ -29,6 +29,12 @@ links retain the selected library. Switching libraries from settings retains the
 current section, except that Personal opens its private settings rather than
 Members. Library selection does not move documents or change a machine default.
 
+Saved Cloud documents always show their destination library in the file-info
+pill, including when Personal is the only library. The document's Library panel
+and the shared library dropdown both link to Create team library. Creation opens
+the existing library management form and leaves the current document in its
+original library with its existing access.
+
 `/cloud/admin` now opens account Billing. Account settings has no global library
 switcher. Install has a destination selector scoped to that installation prompt,
 including an explicit destination returned from an invitation. Selecting it does
