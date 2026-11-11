@@ -17,6 +17,8 @@ test('Library and supporting text pages share the desktop navigation shell', asy
   for (const [url, activeLabel] of surfaces) {
     await page.goto(url);
     await expect(page.locator('#_sd_site_sidebar')).toBeVisible();
+    await expect(page.locator('#_sd_site_sidebar .sdocs-sidebar-brand')).toHaveAttribute('href',
+      url.startsWith('/public/library/library.html') ? '/home' : '/');
     if (activeLabel) {
       await expect(page.locator('.sdocs-site-sidebar-row.is-active')).toContainText(activeLabel);
     }

@@ -768,7 +768,7 @@ test('desktop document shell uses a sidebar and full-width action rail', async (
   await expect(page.locator('#_sd_toolbar-brand .sdocs-sidebar-mark')).toBeHidden();
   await expect(page.locator('#_sd_toolbar-brand .toolbar-brand-full')).toBeVisible();
   await expect(page.locator('#_sd_toolbar-brand .toolbar-brand-full')).toHaveCSS('color', 'rgb(37, 99, 235)');
-  await expect(page.locator('#_sd_toolbar-brand')).toHaveAttribute('href', '/');
+  await expect(page.locator('#_sd_toolbar-brand')).toHaveAttribute('href', '/library');
   expect((await page.locator('#_sd_toolbar-brand').boundingBox()).width).toBeLessThan(100);
   await page.locator('#_sd_toolbar-brand').hover();
   await expect(page.locator('#_sd_toolbar-brand')).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');

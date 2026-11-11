@@ -103,6 +103,7 @@
     return sectionHtml({ id: 'learn', idPrefix: prefix, rowClass: options.rowClass,
       label: 'Learn', icon: icons.learn,
       content: '<div class="sdocs-sidebar-preview" data-learn-panel>' +
+        '<a class="sdocs-sidebar-library-row sdocs-sidebar-library-open" href="/home" target="_blank" rel="noopener"><span>Open homepage</span>' + icons.external + '</a>' +
         '<p class="sdocs-sidebar-explainer" data-learn-status role="status" aria-atomic="true" id="' + prefix + '_learn_status">Choose a feature to copy its prompt. Paste it into your agent for an explanation and a demo.</p>' +
         '<textarea class="sdocs-sidebar-copy-field" data-learn-prompt aria-label="Prompt to copy" rows="6" readonly hidden></textarea>' +
         learnTopics.map(function (topic) {
@@ -295,6 +296,9 @@
     var reader = document.getElementById('_sd_sidebar');
     if (reader) {
       reader.dataset.legacyLibrary = legacy ? 'true' : 'false';
+      document.querySelectorAll('#_sd_toolbar-brand, .sdocs-mobile-toolbar-brand').forEach(function (brand) {
+        brand.setAttribute('href', legacy ? '/library' : '/library?scope=cloud');
+      });
       var local = reader.querySelector('[data-sidebar-section="library"]');
       if (local) local.hidden = !legacy;
       var cloud = reader.querySelector('[data-sidebar-section="cloud"] > .sdocs-sidebar-top-row');
@@ -399,7 +403,7 @@
         '<span class="toolbar-brand-text toolbar-brand-tiny">SD</span>'
       : '<span>SmallDocs</span>';
     return '<a' + (options.id ? ' id="' + options.id + '"' : '') +
-      ' class="sdocs-sidebar-brand" href="/" title="SmallDocs homepage">' + text + '</a>';
+      ' class="sdocs-sidebar-brand" href="' + (options.href || '/') + '" title="' + (options.title || 'SmallDocs homepage') + '">' + text + '</a>';
   }
 
   var tooltipsBound = false;
@@ -504,6 +508,8 @@
     element.innerHTML = '<div class="sdocs-sidebar-main"><div class="sdocs-sidebar-header">' + brandHtml({
       id: options.brandId,
       responsive: options.responsiveBrand,
+      href: options.brandHref,
+      title: options.brandTitle,
     }) + '<button class="sdocs-sidebar-collapse-toggle" type="button" aria-label="Collapse sidebar" aria-expanded="true">' +
       '<span class="sdocs-sidebar-rail-mark" aria-hidden="true">SD</span>' +
       '<svg class="sdocs-sidebar-collapse-icon" viewBox="0 0 24 24" aria-hidden="true">' +
@@ -721,6 +727,8 @@
         navClass: element.getAttribute('data-nav-class') || '',
         brandId: element.getAttribute('data-brand-id') || '',
         responsiveBrand: element.hasAttribute('data-responsive-brand'),
+        brandHref: element.getAttribute('data-brand-href') || '/',
+        brandTitle: element.getAttribute('data-brand-title') || 'SmallDocs homepage',
         primaryHtml: template ? template.innerHTML : '',
         statusId: element.getAttribute('data-status-id') || '',
         authenticated: element.getAttribute('data-cloud-authenticated') === 'true',
