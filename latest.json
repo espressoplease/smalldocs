@@ -1,6 +1,6 @@
 {
-  "commit": "df021066f670ccc53b4aaa6fb4376966d641a71c",
-  "builtAt": "2026-11-11T17:20:48Z",
+  "commit": "2a0de0c1953c763a7baa3584519063a990ee2949",
+  "builtAt": "2026-11-11T22:06:46Z",
   "repo": "https://github.com/espressoplease/smalldocs",
   "files": [
     {
@@ -360,8 +360,8 @@
     },
     {
       "path": "/css/homepage-next.css",
-      "sha256": "7c60e55b4a3e901ece8ef95161187a4e6c0c76d84528c0f9e0bf6386db2b079f",
-      "bytes": 10343
+      "sha256": "a47ca232c1e8dffb0eefc13436fc3ed1616e1fca3437872d2af717f3416b235d",
+      "bytes": 10521
     },
     {
       "path": "/css/homepage-video.css",
@@ -380,8 +380,8 @@
     },
     {
       "path": "/css/layout.css",
-      "sha256": "b2895e45a6138f395b6f08b8829880b5cbd5541a04523490bc271aeeab55031b",
-      "bytes": 19898
+      "sha256": "97d1372b63279fd889b254dfa08e6bdcf40c77fd5333659fa4969990e618042e",
+      "bytes": 20186
     },
     {
       "path": "/css/math-reader.css",
@@ -407,6 +407,11 @@
       "path": "/css/prose-reader.css",
       "sha256": "d4f2899b9b857507b29b735ec646ad1b1f8881182d7ae867439812031e88d394",
       "bytes": 17993
+    },
+    {
+      "path": "/css/published.css",
+      "sha256": "6b1fb6f747bbb1e027a68c6d685e507da77327b73b0d52f74cc864de7ade8fd1",
+      "bytes": 1361
     },
     {
       "path": "/css/rendered.css",
@@ -570,8 +575,8 @@
     },
     {
       "path": "/homepage-next.html",
-      "sha256": "0b82bef55d3a59d8a1b9577129a6d2fd941d19006d9b26e45f49ec86b751d9c1",
-      "bytes": 79178
+      "sha256": "444b49c128629ec32f5251d941de0360e6b8d7737ad964c122a5e6273d361fe4",
+      "bytes": 79521
     },
     {
       "path": "/homepage-next.js",
@@ -640,8 +645,8 @@
     },
     {
       "path": "/library/library-analytics.js",
-      "sha256": "40fe4449207c250fa575d127c69461607ea23cccd83dc9881464ddf70825833d",
-      "bytes": 1366
+      "sha256": "b791b7fe5a699466849ca8a7017afff6e688993b5fc5001bd48114d737dc9bd2",
+      "bytes": 1514
     },
     {
       "path": "/library/library-menu.js",
@@ -685,8 +690,13 @@
     },
     {
       "path": "/privacy.md",
-      "sha256": "2fd2933f63413fcac4a1530e85564c879da4cc547b90644d222469569ab5a997",
-      "bytes": 17479
+      "sha256": "feb7789d07bab881467d723d1e189ac56e8196fe6f6f8d620205ace46c784fa0",
+      "bytes": 17783
+    },
+    {
+      "path": "/published.html",
+      "sha256": "28a21bd3877adeb0c3c15b3848757de179868c64fc3837961af95a1ac51892d0",
+      "bytes": 1305
     },
     {
       "path": "/runnable-html.md",
@@ -695,8 +705,8 @@
     },
     {
       "path": "/sdoc.md",
-      "sha256": "6ded76c2ef19caaf9814c4697a96dbc166dc29e90153f077031410df97be310f",
-      "bytes": 77421
+      "sha256": "e4545739391f6763df5a9017bf1c4c3d3732723012983d37f4cff4024275f3e3",
+      "bytes": 78149
     },
     {
       "path": "/sdocs-app-runner.html",
