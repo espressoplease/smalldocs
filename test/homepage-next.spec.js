@@ -76,7 +76,7 @@ for (const width of [390, 1440]) {
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
     await page.goto('/home-next');
-    await expect(page.getByRole('heading', { level: 1 })).toContainText('the flexible document format for the agentic era.');
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('the hyper flexible document format for the agentic era.');
     await expect(page.locator('#learn .learn-item')).toHaveCount(10);
     await expect(page.locator('#learn [data-sample]')).toHaveCount(10);
     expect(await page.locator('.sample-group-heading').allTextContents()).toEqual(['For engineers:', 'For scientists:', 'For financiers:', 'For mathematicians:']);
