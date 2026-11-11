@@ -96,12 +96,14 @@
 .homepage-direct { margin-top: 0; }
 .homepage-direct > summary { list-style: none; }
 .homepage-direct > summary::-webkit-details-marker { display: none; }
-.homepage-direct > summary::after { content: ''; width: 7px; height: 7px; margin-left: 3px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(45deg); transition: transform .3s cubic-bezier(.4,0,.2,1); }
-.homepage-direct[open] > summary::after { transform: rotate(225deg); }
+.homepage-direct[open] > summary .sdoc-install-chevron { transform: rotate(90deg); }
 .homepage-direct-panel { margin-top: 12px; border: 1px solid var(--line); }
+@media (min-width: 901px) {
+  .homepage-direct-panel { padding-top: 42px; }
+}
 .homepage-google, .homepage-direct > summary { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; min-height: 42px; padding: 10px 12px; background: #fff; border: 1px solid var(--line-2); border-radius: var(--r); color: #1f1f1f; font-size: 14px; font-weight: 500; line-height: 20px; text-decoration: none; cursor: pointer; transition: background .15s; }
 .homepage-google:hover, .homepage-direct > summary:hover { background: #f2f2f2; }
-.homepage-direct > summary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.homepage-direct > summary { justify-content: space-between; background: var(--accent); border-color: var(--accent); color: #fff; }
 .homepage-direct > summary:hover { background: color-mix(in srgb, var(--accent) 90%, #000); border-color: color-mix(in srgb, var(--accent) 90%, #000); }
 .homepage-google:focus-visible, .homepage-direct > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 .homepage-google-icon { width: 20px; height: 20px; flex-shrink: 0; }

@@ -8,8 +8,13 @@
   font-size: 14px;
   min-width: 0;
 }
-.sdoc-install-method { border: 1px solid var(--install-line); border-radius: 10px; margin: 0 0 10px; }
-.sdoc-install-method > summary { padding: 12px 14px; cursor: pointer; font-weight: 500; }
+.sdoc-install-method { border: 1px solid var(--install-line); border-radius: 10px; margin: 0; }
+.sdoc-install-method + .sdoc-install-method { margin-top: 10px; }
+.sdoc-install-method > summary { display: flex; align-items: center; gap: 10px; padding: 12px 14px; cursor: pointer; font-weight: 500; list-style: none; }
+.sdoc-install-method > summary::-webkit-details-marker { display: none; }
+.sdoc-install-chevron { flex: 0 0 auto; margin-left: auto; transition: transform .18s cubic-bezier(.4,0,.2,1); }
+.sdoc-install-method > summary .sdoc-install-chevron { color: var(--install-muted); }
+.sdoc-install-method[open] > summary .sdoc-install-chevron { transform: rotate(90deg); }
 .sdoc-install-content { padding: 0 12px 12px; min-width: 0; }
 .sdoc-install-command { display: flex; align-items: flex-start; gap: 12px; background: var(--install-surface); border-radius: 8px; padding: 8px; }
 .sdoc-install-command + .sdoc-install-command { margin-top: 8px; }
@@ -39,3 +44,6 @@
 .sdoc-install .sdoc-install-copy-primary.done { color: #fff; }
 .sdoc-install-onboarding > .sdoc-install-content > .sdoc-install-prompt { margin: 12px 0 18px; }
 .sdoc-install-onboarding > .sdoc-install-content > .sdoc-install-prompt pre { padding: 12px 14px; max-height: 150px; }
+@media (prefers-reduced-motion: reduce) {
+  .sdoc-install-chevron { transition: none; }
+}

@@ -27,10 +27,21 @@ for (const width of [390, 1440]) {
         const framing = await area.locator('.homepage-direct-panel').evaluate(panel => {
           const reference = getComputedStyle(document.querySelector('#learn .install-panel'));
           const style = getComputedStyle(panel);
-          return [style.backgroundColor === reference.backgroundColor, style.padding === reference.padding];
+          return [style.backgroundColor === reference.backgroundColor,
+            style.paddingLeft === reference.paddingLeft && style.paddingRight === reference.paddingRight,
+            style.paddingTop === style.paddingBottom];
         });
-        expect(framing).toEqual([true, true]);
+        expect(framing).toEqual([true, true, true]);
         const card = area.locator('[data-home-install]');
+        await expect(card.locator('details[open]')).toHaveCount(0);
+        await expect(card.locator('[data-home-prompt]')).not.toBeVisible();
+        const spacing = await area.locator('.homepage-direct-panel').evaluate(panel => {
+          const box = panel.getBoundingClientRect();
+          const first = panel.querySelector('[data-install-method="prompt"]').getBoundingClientRect();
+          const last = panel.querySelector('[data-install-method="manual"]').getBoundingClientRect();
+          return { above: first.top - box.top, below: box.bottom - last.bottom };
+        });
+        expect(spacing.above).toBeCloseTo(spacing.below, 0);
         await card.getByText('Install yourself', { exact: true }).click();
         const cli = await card.locator('[data-home-cli]').textContent();
         expect(cli).toBe(windows ? 'npm i -g sdocs-dev' : 'curl -fsSL https://smalldocs.org/install | sh');
@@ -42,6 +53,7 @@ for (const width of [390, 1440]) {
         await card.getByRole('button', { name: 'Copy skill command', exact: true }).click();
         expect(await page.evaluate(() => window.copiedText)).toBe(skill);
 
+        await card.getByText('Use install prompt', { exact: true }).click();
         await card.getByRole('button', { name: 'Copy setup prompt', exact: true }).click();
         const prompt = await card.locator('[data-home-prompt]').textContent();
         expect(await page.evaluate(() => window.copiedText)).toBe(prompt);
@@ -64,18 +76,20 @@ test('clipboard failure keeps selectable prompt text and does not show a success
   await page.getByText('Install directly', { exact: true }).first().click();
   const card = page.locator('[data-home-install]').first();
 
+  await card.getByText('Use install prompt', { exact: true }).click();
   await card.getByRole('button', { name: 'Copy setup prompt', exact: true }).click();
   await expect(card.locator('[data-install-copy-status]')).toContainText('Select the text and copy it');
   await expect(card.locator('[data-home-prompt]')).toBeVisible();
   await expect(card.locator('.done')).toHaveCount(0);
 });
 
-test('commands remain readable when JavaScript is unavailable', async ({ browser }) => {
-  const context = await browser.newContext({ javaScriptEnabled: false });
+test('commands remain readable when JavaScript is unavailable', async ({ browser, baseURL }) => {
+  const context = await browser.newContext({ javaScriptEnabled: false, baseURL });
   try {
-    const page = await context.newPage(); await page.goto('http://localhost:3000/home-next');
+    const page = await context.newPage(); await page.goto('/home-next');
     await expect(page.locator('[data-home-cli]')).toHaveCount(3);
     await page.getByText('Install directly', { exact: true }).first().click();
+    await expect(page.locator('[data-home-install]').first().locator('details[open]')).toHaveCount(0);
     await page.getByText('Install yourself', { exact: true }).first().click();
     await expect(page.locator('[data-home-cli]').first()).toBeVisible();
     await expect(page.locator('[data-home-cli]').first()).toContainText('curl -fsSL');
