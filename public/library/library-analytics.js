@@ -1,6 +1,5 @@
-// Record an aggregate Library page visit through the same first-party endpoint
-// used by the reader. The Library does not start the reader update flow, so it
-// makes one background request when the shell loads.
+// Record one aggregate homepage or Library visit through the reader's
+// first-party endpoint, without starting the reader update flow.
 (function () {
   'use strict';
 
@@ -25,11 +24,13 @@
       if (cohort === 'opt-out') cohort = '';
     } catch (e) {}
 
-    var scope = new URLSearchParams(window.location.search).get('scope');
-    var loadType = scope === 'cloud' ? 'cloud-library' : 'library';
+    var params = new URLSearchParams(window.location.search);
+    var loadType = document.currentScript && document.currentScript.dataset.loadType === 'home'
+      ? 'home' : params.get('scope') === 'cloud' ? 'cloud-library' : 'library';
     var now = new Date();
     var query = '?cohort=' + encodeURIComponent(cohort) + '&lt=' + loadType
       + '&lh=' + now.getHours() + '&ld=' + now.getDay();
+    if (loadType === 'home' && params.get('src')) query += '&src=' + encodeURIComponent(params.get('src').trim().toLowerCase());
     fetch('/version-check' + query, { credentials: 'same-origin' }).catch(function () {});
   } catch (e) {}
 })();

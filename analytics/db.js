@@ -18,6 +18,8 @@ let db = null;
 let insertStmt = null;
 let buffer = [];
 let flushTimer = null;
+let publicationViewStmt = null;
+let publicationViewsStmt = null;
 
 const FLUSH_INTERVAL = 15 * 60 * 1000; // 15 minutes
 
@@ -49,6 +51,11 @@ function init(dbPath) {
     );
     CREATE INDEX IF NOT EXISTS idx_visits_cohort ON visits(cohort_week, visit_week);
     CREATE INDEX IF NOT EXISTS idx_visits_week ON visits(visit_week);
+    CREATE TABLE IF NOT EXISTS publication_views (
+      slug TEXT PRIMARY KEY,
+      views INTEGER NOT NULL DEFAULT 0,
+      last_view_at_ms INTEGER NOT NULL
+    );
   `);
 
   // Add columns if upgrading from older schema
@@ -82,6 +89,9 @@ function init(dbPath) {
   try { db.exec("ALTER TABLE visits DROP COLUMN ip_hash"); } catch (e) {}
 
   insertStmt = db.prepare('INSERT INTO visits (cohort_week, visit_week, device, browser, referer, local_hour, local_dow, load_type, traffic_source, placement_id, short_link_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+  publicationViewStmt = db.prepare(`INSERT INTO publication_views(slug,views,last_view_at_ms) VALUES(?,1,?)
+    ON CONFLICT(slug) DO UPDATE SET views=views+1,last_view_at_ms=excluded.last_view_at_ms RETURNING views`);
+  publicationViewsStmt = db.prepare('SELECT slug,views FROM publication_views WHERE slug IN (SELECT value FROM json_each(?))');
 
   flushTimer = setInterval(flush, FLUSH_INTERVAL);
   if (flushTimer.unref) flushTimer.unref();
@@ -196,10 +206,22 @@ function bufferSize() {
   return buffer.length;
 }
 
+function recordPublicationView(slug) {
+  if (!db) init();
+  return publicationViewStmt.get(slug, Date.now()).views;
+}
+
+function publicationViews(slugs) {
+  if (!slugs.length) return new Map();
+  if (!db) init();
+  return new Map(publicationViewsStmt.all(JSON.stringify(slugs)).map(row => [row.slug, row.views]));
+}
+
 function close() {
   if (flushTimer) { clearInterval(flushTimer); flushTimer = null; }
   flush();
-  if (db) { db.close(); db = null; insertStmt = null; }
+  if (db) { db.close(); db = null; insertStmt = null; publicationViewStmt = null; publicationViewsStmt = null; }
 }
 
-module.exports = { init, logVisit, flush, getDB, close, bufferSize, normPlacementId, normShortLinkId };
+module.exports = { init, logVisit, flush, getDB, close, bufferSize, normPlacementId, normShortLinkId,
+  recordPublicationView, publicationViews };

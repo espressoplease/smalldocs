@@ -124,6 +124,22 @@ module.exports = function ({ test, assert }) {
     }
   }));
 
+  test('private account list uses a constant query budget for one or fifty accounts', () => fixture(f => {
+    f.add('one');
+    const prepare = f.analytics.db.prepare;
+    let queries = 0;
+    f.analytics.db.prepare = function (sql) { queries++; return prepare.call(this, sql); };
+    try {
+      f.analytics.users('admin'); const single = queries;
+      for (let i = 0; i < 55; i++) f.add('extra-' + i);
+      queries = 0; f.analytics.users('admin');
+      assert.strictEqual(queries, single); assert.strictEqual(queries, 3);
+      queries = 0;
+      assert.throws(() => f.analytics.users('not-admin'), error => error.code === 'resource_unavailable');
+      assert.strictEqual(queries, 0);
+    } finally { f.analytics.db.prepare = prepare; }
+  }));
+
   test('email rows are uncached and never enter either aggregate cache', () => fixture(f => {
     f.add('one'); f.add('disabled', f.now - DAY_MS, f.now);
     f.auth.exec("INSERT INTO cloud_auth_identities VALUES ('one','email','first@example.test')");

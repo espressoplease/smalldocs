@@ -1124,7 +1124,7 @@ module.exports = function(harness) {
       assert.strictEqual(library.headers.vary, 'Cookie');
       assert.ok(library.body.includes('<title>SmallDocs - Library</title>'));
       assert.ok(library.body.includes('data-cloud-terms-accepted="true"'));
-      assert.ok(library.body.includes('class="brand" href="/" aria-label="SmallDocs home"'));
+      assert.ok(library.body.includes('class="brand" href="/home" aria-label="SmallDocs home"'));
       assert.ok(library.body.includes('href="/cloud/admin" role="menuitem"'));
       assert.ok(library.body.includes('href="/docs" role="menuitem"'));
       assert.ok(library.body.includes('action="/api/cloud/auth/logout"'));

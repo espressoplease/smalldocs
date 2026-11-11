@@ -2276,14 +2276,11 @@ async function handleCloudApi(req, res, url) {
     }
     const workspaceMembersMatch = pathname.match(/^\/api\/cloud\/v1\/workspaces\/([^/]+)\/members$/);
     if (workspaceMembersMatch && req.method === 'GET') {
-      const members = cloudStore.listWorkspaceMembers({
+      const rows = cloudStore.listWorkspaceMembers({
         userId: user.id, workspaceId: workspaceMembersMatch[1],
-      }).map((member) => {
-        let account = null;
-        try { account = cloudAuth.getUser(member.user_id); } catch (_) {}
-        const identity = account && account.identities.find((item) => item.verifiedEmail);
-        return { ...member, email: identity ? identity.verifiedEmail : null };
       });
+      const accounts = cloudAuth.getUserSummaries(rows.map(member => member.user_id));
+      const members = rows.map(member => ({ ...member, email: accounts.get(member.user_id)?.email || null }));
       sendJson(res, 200, { ok: true, members });
       return;
     }
@@ -2628,14 +2625,10 @@ async function handleCloudApi(req, res, url) {
       const page = searchable.length ? await cloudStore.searchPage({ ...search, userId: user.id, workspaceIds: searchable, after, beforeReturn })
         : { documents: [], total_count: 0, facets: {}, nextPosition: null, has_more: false };
       // Author labels are disclosed only for authors of authorized matching documents.
-      const people = new Map();
-      const person = id => {
-        if (!people.has(id)) {
-          const author = cloudAuth.getUser(id);
-          people.set(id, { user_id: id, name: author ? [author.firstName, author.lastName].filter(Boolean).join(' ') || null : null });
-        }
-        return people.get(id);
-      };
+      const authorIds = page.documents.flatMap(document => [document.created_by_user_id, document.updated_by_user_id])
+        .concat((page.facets.authors || []).map(author => author.user_id));
+      const people = cloudAuth.getUserSummaries(authorIds);
+      const person = id => ({ user_id: id, name: people.get(id)?.name || null });
       const libraries = new Map(visibleWorkspaces.map(workspace => [workspace.id, workspace.name]));
       const documents = page.documents.map(document => ({ ...document,
         url: CLOUD_AUTH_PUBLIC_ORIGIN + '/docs?cloud-document=' + encodeURIComponent(document.id),
@@ -3016,13 +3009,9 @@ async function handleCloudApi(req, res, url) {
       const page = cloudStore.listDocumentHistory({ userId: user.id, documentId,
         limit: url.searchParams.get('limit'), after });
       page.entries = await cloudStore.withRevisionReasons({ userId: user.id, documentId }, page.entries);
-      const names = new Map();
+      const names = cloudAuth.getUserSummaries(page.entries.map(entry => entry.actor_user_id));
       for (const entry of page.entries) {
-        if (!names.has(entry.actor_user_id)) {
-          const actor = cloudAuth.getUser(entry.actor_user_id);
-          names.set(entry.actor_user_id, actor ? [actor.firstName, actor.lastName].filter(Boolean).join(' ') : '');
-        }
-        entry.actor_name = names.get(entry.actor_user_id) || 'Library member';
+        entry.actor_name = names.get(entry.actor_user_id)?.name || 'Library member';
         entry.is_you = entry.actor_user_id === user.id;
       }
       sendJson(res, 200, { ok: true, entries: page.entries,
@@ -3613,8 +3602,17 @@ function servePublicPublication(req, res, slug) {
   }
   const nonce = crypto.randomBytes(16).toString('base64');
   const shell = require('./lib/publication-shell');
-  const body = shell.renderPublicationShell({source:shell.publicationSource(publication,CLOUD_AUTH_PUBLIC_ORIGIN),
-    rootHtml:shell.documentRoot(publication),renderedStyles:JSON.parse(publication.rendered_styles || '{}'),substitutions:documentShellSubstitutions(req,nonce,'/public/sdoc.md')});
+  const source = shell.publicationSource(publication,CLOUD_AUTH_PUBLIC_ORIGIN);
+  const renderedStyles = JSON.parse(publication.rendered_styles || '{}');
+  let viewCount;
+  if (analytics) {
+    try {
+      viewCount = req.method === 'GET' ? analytics.recordPublicationView(publication.slug)
+        : analytics.publicationViews([publication.slug]).get(publication.slug) || 0;
+    } catch (_) { /* Counting must not prevent reading a published page. */ }
+  }
+  const body = shell.renderPublicationShell({source, viewCount,
+    rootHtml:shell.documentRoot(publication),renderedStyles,substitutions:documentShellSubstitutions(req,nonce,'/public/sdoc.md')});
   res.writeHead(200, { ...headers, 'Content-Type': 'text/html; charset=utf-8',
     'Content-Security-Policy': documentCsp(nonce), 'Vary':'Cookie',
     'X-Frame-Options':'DENY', 'Referrer-Policy': 'strict-origin-when-cross-origin' });
@@ -3638,13 +3636,48 @@ const server = http.createServer((req, res) => {
     servePublicPublication(req, res, pathname.slice(3));
     return;
   }
+  if ((req.method === 'GET' || req.method === 'HEAD') && pathname === '/published') {
+    const directory = require('./lib/publication-directory');
+    const page = directory.pageNumber(url.searchParams.get('page'));
+    if (!page) { res.writeHead(404, { 'Cache-Control': 'no-store' }); res.end(); return; }
+    if (url.searchParams.get('page') === '1') {
+      res.writeHead(301, { Location: '/published', 'Cache-Control': 'no-store' }); res.end(); return;
+    }
+    const entries = cloudPublications ? cloudPublications.listPublicPage({ page })
+      : { page, items: [], has_next: false, has_previous: false };
+    if (page > 1 && !entries.items.length) { res.writeHead(404, { 'Cache-Control': 'no-store' }); res.end(); return; }
+    let views = null;
+    if (analytics) {
+      try { views = analytics.publicationViews(entries.items.map(item => item.slug)); } catch (_) {}
+    }
+    const body = directory.renderDirectory({ ...entries, origin: CLOUD_AUTH_PUBLIC_ORIGIN, views });
+    const nonce = crypto.randomBytes(16).toString('base64');
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store',
+      'Content-Security-Policy': documentCsp(nonce), 'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'DENY', ...publicationRobotsHeaders(req) });
+    res.end(req.method === 'HEAD' ? '' : rewriteAssets(body)); return;
+  }
   if ((req.method === 'GET' || req.method === 'HEAD') && pathname === '/publications-sitemap.xml') {
     const escapeXml = value => String(value).replace(/[&<>"']/g, character =>
       ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' })[character]);
-    const entries = cloudPublications ? cloudPublications.listPublic() : [];
-    const body = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' +
-      entries.map(entry => '<url><loc>' + escapeXml(CLOUD_AUTH_PUBLIC_ORIGIN + '/p/' + entry.slug) + '</loc><lastmod>' +
-        new Date(entry.updated_at_ms).toISOString() + '</lastmod></url>').join('') + '</urlset>';
+    const directory = require('./lib/publication-directory');
+    const requested = url.searchParams.has('page');
+    const page = directory.pageNumber(url.searchParams.get('page'));
+    const total = cloudPublications ? cloudPublications.publicCount() : 0;
+    const pages = Math.max(1, Math.ceil(total / 50000));
+    if (!page || page > pages) { res.writeHead(404, { 'Cache-Control': 'no-store' }); res.end(); return; }
+    const prefix = '<?xml version="1.0" encoding="UTF-8"?>\n';
+    let body;
+    if (!requested && pages > 1) {
+      body = prefix + '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' +
+        Array.from({ length: pages }, (_, index) => '<sitemap><loc>' + escapeXml(CLOUD_AUTH_PUBLIC_ORIGIN +
+          '/publications-sitemap.xml?page=' + (index + 1)) + '</loc></sitemap>').join('') + '</sitemapindex>';
+    } else {
+      const entries = cloudPublications ? cloudPublications.listPublic({ limit: 50000, offset: (page - 1) * 50000 }) : [];
+      body = prefix + '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' +
+        entries.map(entry => '<url><loc>' + escapeXml(CLOUD_AUTH_PUBLIC_ORIGIN + '/p/' + entry.slug) + '</loc><lastmod>' +
+          new Date(entry.updated_at_ms).toISOString() + '</lastmod></url>').join('') + '</urlset>';
+    }
     res.writeHead(200, { 'Content-Type': 'application/xml; charset=utf-8', 'Cache-Control': 'no-store',
       ...publicationRobotsHeaders(req) });
     res.end(req.method === 'HEAD' ? '' : body);
@@ -4738,8 +4771,7 @@ async function startServer() {
     console.log(`sdocs-dev running at http://${HOST}:${PORT}`);
     if(cloudPublications && process.env.SDOCS_PUBLICATION_COMPILER_SOCKET) {
       (async()=>{
-        for(const publication of cloudPublications.listPublic()) {
-          if(cloudPublications.getPublic(publication.slug).renderer_version===RUNNING_COMMIT) continue;
+        for(const publication of cloudPublications.listPublic({ rendererVersion: RUNNING_COMMIT })) {
           try { await cloudPublications.rebuildPublished(publication.slug); }
           catch (_) { console.error('Public snapshot refresh deferred: publication_compile_failed'); }
         }

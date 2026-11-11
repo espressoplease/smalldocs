@@ -617,6 +617,22 @@ module.exports = function (harness) {
     legacy.close();
   });
 
+  test('published page counters use an atomic write and a single batched lookup', () => {
+    analyticsDb.close(); analyticsDb.init(':memory:');
+    assert.strictEqual(analyticsDb.recordPublicationView('guide-one'), 1);
+    assert.strictEqual(analyticsDb.recordPublicationView('guide-one'), 2);
+    for (let i = 0; i < 50; i++) analyticsDb.recordPublicationView('guide-' + i);
+    const db = analyticsDb.getDB(), prepare = db.prepare;
+    db.prepare = () => { throw Error('Per-entry query preparation is forbidden'); };
+    try {
+      const values = analyticsDb.publicationViews(['guide-one', ...Array.from({ length: 50 }, (_, i) => 'guide-' + i)]);
+      assert.strictEqual(values.size, 51); assert.strictEqual(values.get('guide-one'), 2);
+      assert.strictEqual(values.get('guide-49'), 1);
+      assert.deepStrictEqual(analyticsDb.publicationViews([]), new Map());
+    } finally { db.prepare = prepare; }
+    assert.strictEqual(db.prepare('SELECT COUNT(*) AS n FROM visits').get().n, 0);
+  });
+
   // Clean up
   analyticsDb.close();
 };
