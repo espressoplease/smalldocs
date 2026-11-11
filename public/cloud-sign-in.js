@@ -22,6 +22,7 @@
   }
 
   function returnLabel(path) {
+    if (path.indexOf('/cloud/install') === 0) return 'SmallDocs installation';
     if (path.indexOf('/library') === 0) return 'Cloud library';
     if (path.indexOf('/cloud/admin') === 0) return 'Cloud settings';
     if (path.indexOf('/cloud/checkout') === 0) return 'checkout';
@@ -35,6 +36,11 @@
 
   var returnPath = safeReturnPath(params.get('return'));
   var label = returnLabel(returnPath);
+  if (new URL(returnPath, location.origin).pathname === '/cloud/authorize') {
+    document.getElementById('auth-title').textContent = 'Connect your agent';
+    document.getElementById('auth-introduction').textContent = 'Sign in so your agent can save documents to your library.';
+    document.getElementById('agent-library-note').hidden = false;
+  }
   var choiceView = document.getElementById('choice-view');
   var codeView = document.getElementById('code-view');
   var emailForm = document.getElementById('email-form');

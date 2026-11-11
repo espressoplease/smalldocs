@@ -28,8 +28,8 @@ for (const width of [390, 1440]) {
     await expect(page).toHaveURL(f.origin + target);
     await expect(page.getByLabel('Authorization code')).toHaveValue(authorization.userCode);
     await expect(page.locator('#authorization-detail')).toContainText('Fresh laptop');
-    await page.getByRole('button', { name: 'Authorize CLI', exact: true }).click();
-    await expect(page.locator('#authorization-result')).toHaveText('CLI authorized. You can return to the terminal.');
+    await page.getByRole('button', { name: 'Connect agent', exact: true }).click();
+    await expect(page.locator('#authorization-result')).toHaveText('Agent connected. You can return to your chat or terminal.');
     const token = f.auth.pollDeviceAuthorization({ deviceCode: authorization.deviceCode });
     expect(token.ok).toBe(true);
     const headers = { Authorization: 'Bearer ' + token.accessToken };
@@ -46,10 +46,10 @@ for (const width of [390, 1440]) {
 }
 
 test('email signup verifies the delivered code, captures a profile and reaches Install with one library', async ({ page }) => {
-  await page.goto(f.origin + '/');
+  await page.goto(f.origin + '/home-next');
   const form = page.locator('[data-install-form]').first();
   await form.locator('input[type=email]').fill('new-human@example.com');
-  await form.getByRole('button', { name: 'Get install prompt' }).click();
+  await form.getByRole('button', { name: 'Continue with email' }).click();
   await expect(page).toHaveURL(/cloud\/sign-in/);
   await expect(page.locator('#code-view')).toBeVisible();
   await expect.poll(() => mail.messages.length).toBe(1);
@@ -64,16 +64,16 @@ test('email signup verifies the delivered code, captures a profile and reaches I
   await page.getByLabel('First name').fill('Robin');
   await page.getByLabel('Last name').fill('Walker');
   await page.getByRole('button', { name: 'Continue', exact: true }).click();
-  await expect(page).toHaveURL(/cloud\/admin\?panel=install/);
-  await expect(page.locator('body')).toContainText('Robin Walker');
+  await expect(page).toHaveURL(/cloud\/install/);
+  await expect(page.locator('.settings-nav, .sdocs-site-sidebar')).toHaveCount(0);
   await expect(page.locator('#install-prompt')).toContainText('My library is "Personal".');
-  await expect(page.locator('#install-prompt')).toContainText('Create one short getting-started document');
-  await expect(page.locator('#install-prompt')).toContainText('where I complete cancellation');
+  await expect(page.locator('#install-prompt')).toContainText('Create one getting-started document');
+  await expect(page.locator('#install-prompt')).toContainText('First setup and tour');
   const response = await page.request.get(f.origin + '/api/cloud/v1/workspaces');
   const data = await response.json();
   expect(data.workspaces).toHaveLength(1);
   await page.goto(f.origin + '/cloud/start');
-  await expect(page).toHaveURL(/cloud\/admin\?panel=install/);
+  await expect(page).toHaveURL(/cloud\/install/);
   const again = await page.request.get(f.origin + '/api/cloud/v1/workspaces');
   expect((await again.json()).workspaces).toHaveLength(1);
   await expect(page.locator('body')).not.toContainText('Preview only');

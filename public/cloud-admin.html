@@ -12,6 +12,7 @@
 <link rel="stylesheet" href="/public/css/info.css">
 __CLOUD_SETTINGS_LIBRARY_STYLES__
 <link rel="stylesheet" href="/public/css/cloud-admin.css">
+<link rel="stylesheet" href="/public/css/cli-setup.css">
 <link rel="stylesheet" href="/public/css/cloud-product-analytics.css">
 </head>
 <body class="sdocs-site-shell" data-legacy-library="__CLOUD_LEGACY_LIBRARY__" data-sdocs-site-page="settings" data-settings-scope="__CLOUD_SETTINGS_SCOPE__" data-cloud-authenticated="true" data-cloud-terms-accepted="true">
@@ -53,15 +54,11 @@ __CLOUD_SETTINGS_LIBRARY_STYLES__
       <input class="field" id="library-request-url" aria-label="Your request link" readonly hidden></form></div>
     </section>
     <section class="panel" id="panel-install" hidden>
-      <div class="page-head"><div><h2>Install SmallDocs</h2><p class="description">Connect your coding agent to SmallDocs Cloud.</p></div></div>
-      <div class="card"><div class="card-head"><div><h2>Install with your agent</h2><p>Copy this prompt into your coding agent to connect this computer and create your first tagged document.</p></div></div>
-        <div class="install-content"><pre id="install-prompt"></pre><button class="btn" type="button" data-install-copy="install-prompt">Copy install prompt</button></div></div>
-      <div class="card"><div class="card-head"><div><h2>Install manually</h2><p>Run these commands in your terminal.</p></div></div>
-        <div class="install-content"><pre id="install-command"></pre><button class="btn" type="button" data-install-copy="install-command">Copy commands</button>
-        <p class="description">Approve the machine in your browser when prompted. Then ask your agent to create a SmallDoc.</p><p class="description" id="install-destination-note"></p></div></div>
-      <div class="install-content" id="install-destination-choice" hidden><label for="install-destination">Save new documents to</label><select class="field" id="install-destination"><option value="">Choose a library</option></select></div>
-      <p id="install-copy-status" role="status"></p>
-      <p><a id="install-machines-link" href="/cloud/admin?panel=machines">View connected machines</a> · <a id="install-library-link" href="/library?scope=cloud">Open library</a> · <a id="install-team-link" href="/cloud/start?choose=1">Join or create a team</a></p>
+      <div class="page-head"><div><h2>Install SmallDocs</h2><p class="description">Connect your coding agent to your library.</p></div><a id="install-library-link" href="/library?scope=cloud">Skip to library</a></div>
+      <div class="install-content" id="install-destination-choice" hidden><label for="install-destination">Library for setup</label><select class="field" id="install-destination"><option value="">Choose a library</option></select></div>
+      <div id="install-methods"></div>
+      <p class="description" id="install-destination-note"></p>
+      <p><a id="install-machines-link" href="/cloud/admin?panel=machines">View connected machines</a> · <a id="install-team-link" href="/cloud/start?choose=1">Join or create a team</a></p>
     </section>
     <section class="panel" id="panel-account" hidden>
       <div class="page-head"><div><h2>Account</h2><p class="description">Manage your sign-in methods and browser session.</p></div></div>

@@ -28,8 +28,8 @@ const path = require('path');
 const { SETUP_CACHE, INSTALLATION_CHANNEL } = require('./constants');
 
 // ── Skill model ────────────────────────────────────────────
-const SKILL_VERSION = 54;
-const SKILL_REASON  = 'Introduce useful rich document features and Cloud administration in context, including interactive HTML and JavaScript.';
+const SKILL_VERSION = 55;
+const SKILL_REASON  = 'Install before sign-in and introduce the tagged knowledge library with one working rich-format tour.';
 const SKILL_NAME    = 'smalldocs';
 
 // Always-in-context preamble. Concise trigger text; the full reference lives
@@ -113,6 +113,12 @@ For a presentation request, follow this sequence rather than treating it as an o
 const CLOUD_SKILL_SECTION = `### SmallDocs Cloud for agents
 
 This user has enabled Cloud-first mode. Treat Cloud as the normal destination for SmallDocs Markdown. Write or update the local Markdown working copy, choose relevant tags, then run \`sdoc FILE.md --cloud --json +subject +project\`. The CLI creates a Cloud document for an unbound file or pushes a revision for a bound file before it opens the browser. If the Cloud write fails, stop and report the error instead of presenting the local copy as saved.
+
+### First setup and tour
+
+The CLI and this Cloud skill can be installed before the human has an account. If a macOS/Linux installation is not on the current process's PATH, use \`~/.sdocs/bin/sdoc\` or add \`$HOME/.sdocs/bin\` to that process's PATH. On \`login_required\`, run \`sdoc cloud login\` and let the human sign in or create an account, review the Terms and authorize the agent in their browser. Keep the login process running while they do this. Then check \`sdoc cloud status --json\`; a new account has a private Personal library ready for documents. A referred setup prompt may supply \`--referral-code CODE\` for the login command, which carries the introduction to that sign-in.
+
+When the user asks to set up SmallDocs or see a first-use tour, create one tagged Cloud document using https://smalldocs.org/public/getting-started.md as the starting Markdown. Read it and preserve the opening explanation of the tagged knowledge base, Personal and Team libraries, and working examples of Mermaid, computed cells, slides, a chart and an interactive HTML and JavaScript component. Adapt examples to the user's work when useful. Read the matching CLI references before changing a rich block, and verify its cells and slides. Look up existing library tags, save with meaningful tags and confirm the saved tags and Cloud URL. Open the document and keep the chat reply short. Explain member and subscription management without performing those actions as part of a tour. For an ordinary document request, make the requested document rather than substituting the tour.
 
 ### Explain Cloud updates
 

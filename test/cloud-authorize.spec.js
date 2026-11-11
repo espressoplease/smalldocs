@@ -29,8 +29,8 @@ test('authorization page formats the code and approves the named machine', async
   expect(style.borderRadius).toBe('6px');
   expect(style.fontFamily).toContain('monospace');
 
-  await page.getByRole('button', { name: 'Authorize CLI' }).click();
-  await expect(page.getByText('CLI authorized. You can return to the terminal.')).toBeVisible();
+  await page.getByRole('button', { name: 'Connect agent' }).click();
+  await expect(page.getByText('Agent connected. You can return to your chat or terminal.')).toBeVisible();
   expect(calls.some(call => call.method === 'POST' && call.path === 'approve' &&
     call.body.user_code === 'ABCD2345')).toBe(true);
 });

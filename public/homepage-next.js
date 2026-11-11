@@ -40,6 +40,17 @@
       button.disabled = false;
     }
   }));
+  document.querySelectorAll('.homepage-sales-link a[href="#talk-to-sales"]').forEach(link => link.addEventListener('click', event => {
+    event.preventDefault();
+    if (location.hash !== '#talk-to-sales') history.pushState(null, '', '#talk-to-sales');
+    document.getElementById('talk-to-sales').scrollIntoView({ block: 'start',
+      behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+  }));
+  document.querySelectorAll('[data-home-install]').forEach(card => {
+    card.outerHTML = window.SDocCliSetup.cloudInstallMarkup({ origin: location.origin,
+      windows: window.SDocCliSetup.isWindows(), referralCode: document.body.dataset.referralCode });
+  });
+  document.querySelectorAll('[data-home-install]').forEach(window.SDocCliSetup.bindInstallCopy);
 })();
 
 /* Teams interest form: the same-origin endpoint validates and relays the

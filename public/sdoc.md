@@ -32,13 +32,13 @@ From personal experience, SmallDocs is great for sharing agent debugging reports
 
 #### Set up your coding agent
 
-Install the CLI, connect your account, then install the Cloud skill for your coding agents:
+Install the CLI and Cloud skill before signing up. Both commands are available on the [homepage](/home), along with a setup prompt you can copy into your coding agent:
 
 ```bash
 curl -fsSL https://smalldocs.org/install | sh
 export PATH="$HOME/.sdocs/bin:$PATH"
-sdoc cloud login
 npx --yes skills@latest add https://smalldocs.org/agent-skills/cloud --global --yes
+sdoc cloud login
 sdoc cloud status --json
 ```
 
@@ -62,7 +62,9 @@ New documents use `--account`, then `SDOCS_LIBRARY`, then folder configuration, 
 
 Names resolve only against libraries you can access. An exact name takes priority over a unique case-insensitive match. Duplicate names, invalid configuration and unavailable libraries return an error rather than choosing another library. A folder setting does not change your Cloud server or sign-in, and does not enable Cloud-first mode.
 
-The prompt in [Install settings](/cloud/admin?panel=install) connects your computer, selects your library and asks your agent to create one tagged getting-started document. It covers finding documents, working with comments and managing members and billing through chat. Ask for a document in ordinary language, such as "Write a document about our launch plan", or say "Make a SmallDoc". Your agent can open subscription or billing settings for you to complete payment or cancellation.
+The setup prompt on the homepage and in [Install](/cloud/install) connects your agent and asks it to create one tagged [getting-started document](/getting-started). The document introduces the tagged knowledge base, private Personal and shared Team libraries, Mermaid diagrams, a computed spreadsheet, slides, a chart and an interactive HTML and JavaScript tool. It also covers finding documents, working with comments and managing members and billing through chat. Ask for a document in ordinary language, such as "Write a document about our launch plan", or say "Make a SmallDoc". Your agent can open subscription or billing settings for you to complete payment or cancellation.
+
+A referred setup prompt uses `sdoc cloud login --referral-code CODE` to carry the referral into Google or email signup. It uses the existing sign-in transaction and does not set a referral tracking cookie. You can also sign up through the referral link on the homepage before connecting your agent.
 
 The Cloud CLI also handles billing status, invitations and member removal. Run `sdoc cloud billing --help` for the reference. Document saves return subscription notices during the seven days after a free trial ends. After that extra week, Cloud access requires a subscription. `sdoc cloud subscribe` opens the payment page for you to complete. `sdoc cloud settings billing` opens subscription management. `sdoc cloud settings account` opens sign-in methods and browser logout. `sdoc cloud settings preferences` lets you show the previous local-library navigation.
 
@@ -801,3 +803,5 @@ You can get in touch at:
 ```
 hi@sdocs.dev
 ```
+
+After signup, Install focuses on one action: copy the setup prompt into a coding agent. The agent installs the CLI and Cloud skill, connects to the chosen library and creates a tagged tour document. Install yourself shows two commands followed by a short agent prompt for connection and setup. Already installed opens the library.

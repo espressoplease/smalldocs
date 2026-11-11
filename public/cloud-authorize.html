@@ -19,15 +19,16 @@
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15.5 7.5 2.3 2.3a1 1 0 0 0 1.4 0l2.1-2.1a1 1 0 0 0 0-1.4L19 4"/><path d="m21 2-9.6 9.6"/><circle cx="7.5" cy="15.5" r="5.5"/></svg>
         </div>
         <div>
-          <h1 id="authorize-title">Authorize this CLI</h1>
-          <p>Confirm the code shown by the machine running <code>sdoc cloud login</code>.</p>
+          <h1 id="authorize-title">Connect your agent</h1>
+          <p>Confirm this code matches the one shown by your agent or terminal.</p>
+          <p>Your agent can read documents you can access, change documents where you have editing permission, and manage libraries where your role allows it.</p>
         </div>
       </div>
       <form id="authorize-form" class="authorize-form">
         <label for="user-code">Authorization code</label>
         <input class="text-input authorize-code-input" id="user-code" name="user_code" type="text" inputmode="text" autocomplete="one-time-code" autocapitalize="characters" spellcheck="false" maxlength="9" placeholder="ABCD-EFGH" required>
         <div class="auth-message authorization-detail" id="authorization-detail" aria-live="polite"></div>
-        <button class="primary-button" id="authorize-button" type="submit">Authorize CLI</button>
+        <button class="primary-button" id="authorize-button" type="submit">Connect agent</button>
       </form>
       <div class="auth-message authorization-result" id="authorization-result" aria-live="polite"></div>
     </section>

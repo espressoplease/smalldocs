@@ -96,7 +96,7 @@ for (const width of [390, 1440]) {
     await page.goto(f.origin + '/cloud/invite?token=' + encodeURIComponent(invitation.token));
     await page.getByRole('button', { name: 'Accept invitation', exact: true }).click();
     await expect(page).toHaveURL(/panel=install&workspace_id=/);
-    await expect(page.locator('#install-destination')).toHaveValue(f.team.workspaceId);
+    await expect(page.locator('#install-methods')).toHaveAttribute('data-library-id', f.team.workspaceId);
     await expect(page.locator('#install-prompt')).toContainText("Joe's engineering");
     const libraries = await f.store.listWorkspaces(f.users.gmail.id);
     expect(libraries).toHaveLength(2);

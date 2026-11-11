@@ -33,7 +33,7 @@ for (const width of [390, 1440]) {
         await route.fulfill({ response: begun, headers: { ...begun.headers(), location: callback.href }, body: '' });
       });
       await page.goto(f.origin + '/home-next');
-      await page.locator('.homepage-google').nth(index).click();
+      await page.getByRole('link', { name: 'Continue with Google', exact: true }).nth(index).click();
       await expect(page).toHaveURL(/cloud\/terms/);
       await page.getByRole('checkbox').check();
       await page.getByRole('button', { name: /agree|continue/i }).click();
@@ -43,16 +43,15 @@ for (const width of [390, 1440]) {
         await page.getByLabel('Last name').fill('Walker');
         await page.getByRole('button', { name: 'Continue', exact: true }).click();
       }
-      await expect(page).toHaveURL(/cloud\/admin\?panel=install/);
-      await expect(page.locator('#account-label')).toHaveText('Robin Walker · ' + email);
+      await expect(page).toHaveURL(/cloud\/install/);
+      await expect(page.getByRole('heading', { name: 'Install SmallDocs', exact: true })).toBeVisible();
       const workspaces = await (await page.request.get(f.origin + '/api/cloud/v1/workspaces')).json();
       expect(workspaces.workspaces).toHaveLength(1);
       const id = workspaces.workspaces[0].id;
-      await expect(page.locator('#install-command')).toContainText('sdoc setup --cloud --account ' + id + ' --yes');
-      const commands = await page.locator('#install-command').innerText();
-      expect(commands.indexOf('export SDOCS_CLOUD_URL=')).toBeLessThan(commands.indexOf('sdoc cloud login'));
-      expect(commands.indexOf('sdoc cloud login')).toBeLessThan(commands.indexOf('sdoc setup --cloud'));
-      await expect(page.locator('#install-prompt')).toContainText('+subject +project');
+      await expect(page.locator('#install-prompt')).toContainText(id);
+      await page.getByText('Install yourself', { exact: true }).click();
+      await expect(page.locator('[data-install-field=connect]')).toContainText('I have installed SmallDocs');
+      await expect(page.locator('#install-prompt')).toContainText('meaningful tags');
       const saved = await page.request.post(f.origin + '/api/cloud/v1/account/documents', { headers: { Origin: f.origin }, data: {
         account_id: id, filename: 'first.md', markdown: '# First document', tags: ['onboarding'], idempotency_key: 'google-first-save',
       } });

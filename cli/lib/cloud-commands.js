@@ -33,6 +33,11 @@ and cross-device CLI and browser access. Install the Cloud skill globally:
   npx --yes skills@latest add https://smalldocs.org/agent-skills/cloud --global --yes
 Ordinary \`sdoc FILE.md\` opens then create or update the Cloud document first.
 If npx skills is unavailable, use \`sdoc setup --cloud --yes\`.
+Install before creating an account. On first use, run sdoc cloud login and
+complete Google or email sign-in and agent authorization in the browser.
+Referred setup prompts can use sdoc cloud login --referral-code CODE.
+For a first-use tour, start from /public/getting-started.md on the connected
+Cloud service, verify its cells and slides, then save with meaningful tags.
 
 BUILD A TAGGED LIBRARY OF KNOWLEDGE
 
@@ -745,6 +750,9 @@ function fail(opts, command, error) {
 function sleep(ms) { return new Promise((resolve) => setTimeout(resolve, ms)); }
 
 async function login(opts, client) {
+  if (opts.referralCode != null && !/^[A-Za-z0-9_-]{24}$/.test(opts.referralCode)) {
+    throw new CloudCommandError('invalid_request', 'Use the referral code from your SmallDocs setup prompt.');
+  }
   const installCommand = skillInstallCommand(client.origin, true);
   const setupCommand = installCommand;
   if (client.loadCredential()) {
@@ -760,7 +768,7 @@ async function login(opts, client) {
   }
   const issued = await client.raw('/api/cloud/v1/cli/device-authorizations', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ display_name: os.hostname() || 'SmallDocs CLI' }),
+    body: JSON.stringify({ display_name: os.hostname() || 'SmallDocs CLI', referral_code: opts.referralCode || undefined }),
   });
   if (!issued.response.ok) throw new CloudCommandError(issued.data.error || 'temporary_service_failure');
   if (constants.INSTALLATION_CHANNEL) constants.resolveCloudOrigin(issued.data.verification_uri_complete);

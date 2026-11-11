@@ -1693,7 +1693,7 @@ module.exports = function(harness) {
       const page = await get(BASE + '/cloud/authorize?user_code=' + authorization.user_code,
         { Cookie: cloudCookie });
       assert.strictEqual(page.status, 200);
-      assert.ok(page.body.includes('Authorize this CLI'));
+      assert.ok(page.body.includes('Connect your agent'));
 
       const lookup = await get(BASE + '/api/cloud/v1/cli/device-authorizations/lookup?user_code=' + authorization.user_code,
         { Cookie: cloudCookie });

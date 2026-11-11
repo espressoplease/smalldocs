@@ -1723,9 +1723,11 @@ async function handleCloudApi(req, res, url) {
         limit: 10, windowMs: 15 * 60 * 1000 });
       if (!rate.allowed) return sendJson(res, 429, { ok: false, error: 'rate_limited' });
       const issued = cloudAuth.issueDeviceAuthorization({ displayName: body.display_name });
+      const referral = cloudReferrals && cloudReferrals.resolve(body.referral_code);
       sendJson(res, 201, { ok: true, device_code: issued.deviceCode, user_code: issued.userCode,
         verification_uri: CLOUD_AUTH_PUBLIC_ORIGIN + '/cloud/authorize',
-        verification_uri_complete: CLOUD_AUTH_PUBLIC_ORIGIN + '/cloud/authorize?user_code=' + encodeURIComponent(issued.userCode),
+        verification_uri_complete: CLOUD_AUTH_PUBLIC_ORIGIN + '/cloud/authorize?user_code=' + encodeURIComponent(issued.userCode) +
+          (referral ? '&ref=' + encodeURIComponent(referral.code) : ''),
         expires_in: Math.max(1, Math.floor((issued.expiresAtMs - Date.now()) / 1000)), interval: 2 });
       return;
     }
@@ -3911,6 +3913,9 @@ const server = http.createServer((req, res) => {
         '__HOME_ACCOUNT_LABEL__': homepageNav.authenticated ? 'Open library' : 'Log in',
         '__HOME_GOOGLE_ENABLED__': cloudGoogleOAuth && CLOUD_DEPLOYMENT.publicEnabled ? 'true' : 'false',
         '__HOME_REFERRAL_NOTICE__': referralNotice,
+        '__HOME_REFERRAL_CODE__': referral ? referral.code : '',
+        '__HOME_INSTALL_CTA__': require('./public/sdocs-cli-setup').cloudInstallMarkup({
+          origin: CLOUD_AUTH_PUBLIC_ORIGIN, referralCode: referral && referral.code }),
       }, {
       'Cache-Control': homepageNav.authenticated || referral ? 'private, no-store' : 'no-cache',
       'Vary': 'Cookie',
@@ -3973,6 +3978,40 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  if (pathname === '/cloud/install' || SINGLE_PLAN_ENABLED && pathname === '/cloud/admin' && url.searchParams.get('panel') === 'install') {
+    const authenticated = cloudAuthSession(req);
+    const returnTo = pathname + url.search;
+    if (!authenticated.ok) {
+      res.writeHead(303, { Location: '/cloud/sign-in?return=' + encodeURIComponent(returnTo), 'Cache-Control': 'no-store' });
+      res.end(); return;
+    }
+    if (redirectForCloudTerms(res, authenticated, returnTo)) return;
+    if (!authenticated.user.firstName || !authenticated.user.lastName) {
+      res.writeHead(303, { Location: '/cloud/profile?return=' + encodeURIComponent(returnTo), 'Cache-Control': 'no-store' });
+      res.end(); return;
+    }
+    (async () => {
+      try {
+        const workspaces = await completeCloudOnboarding(authenticated.user);
+        const requested = url.searchParams.get('workspace_id');
+        const selected = requested ? workspaces.find(workspace => workspace.id === requested)
+          : workspaces.find(workspace => workspace.kind === 'personal' && workspace.role === 'owner') || workspaces[0];
+        if (!selected) { sendJson(res, 404, { ok: false, error: 'resource_unavailable' }); return; }
+        cloudStore._requireWorkspaceRole(authenticated.user.id, selected.id, ['owner', 'admin', 'member']);
+        const name = require('./public/sdocs-cloud-account-selection').label(selected);
+        const escape = value => String(value).replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
+        serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'cloud-install.html'), {
+          '__INSTALL_ORIGIN__': escape(CLOUD_AUTH_PUBLIC_ORIGIN),
+          '__INSTALL_LIBRARY_ID__': escape(selected.id), '__INSTALL_LIBRARY_NAME__': escape(name),
+          '__INSTALL_LIBRARY_URL__': '/library?scope=cloud&amp;workspace=' + encodeURIComponent(selected.id),
+          '__INSTALL_METHODS__': require('./public/sdocs-cli-setup').cloudInstallMarkup({ origin: CLOUD_AUTH_PUBLIC_ORIGIN,
+            workspaceId: selected.id, workspaceName: name, windows: /windows/i.test(req.headers['user-agent'] || ''), accountPage: true, onboarding: true }),
+        }, { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'X-Frame-Options': 'DENY', 'Referrer-Policy': 'no-referrer',
+          'Content-Security-Policy': "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; object-src 'none'" });
+      } catch (error) { serveCloudSetupError(res, error, returnTo); }
+    })(); return;
+  }
+
   if (pathname === '/cloud/start' || pathname === '/cloud/join-request') {
     const authenticated = cloudAuthSession(req);
     const returnTo = pathname + url.search;
@@ -3993,8 +4032,8 @@ const server = http.createServer((req, res) => {
           const selected = explicit || (workspaces.length === 1 ? workspaces[0] : null);
           const resume = cloudAuthHttp.safeReturnPath(url.searchParams.get('return'), '/cloud/start');
           const target = new URL(resume, CLOUD_AUTH_PUBLIC_ORIGIN).pathname !== '/cloud/start' ? resume
-            : '/cloud/admin?panel=' + (url.searchParams.get('choose') === '1' || !selected ? 'libraries' : 'install')
-            + (selected ? '&workspace_id=' + encodeURIComponent(selected.id) : '');
+            : url.searchParams.get('choose') === '1' ? '/cloud/admin?panel=libraries' + (selected ? '&workspace_id=' + encodeURIComponent(selected.id) : '')
+              : '/cloud/install' + (selected ? '?workspace_id=' + encodeURIComponent(selected.id) : '');
           res.writeHead(303, { Location: target, 'Cache-Control': 'no-store' }); res.end();
         } catch (error) { serveCloudSetupError(res, error, url.searchParams.get('return')); }
       })(); return;
@@ -4074,7 +4113,9 @@ const server = http.createServer((req, res) => {
   if (pathname === '/cloud/authorize') {
     const authenticated = cloudAuthSession(req);
     if (!authenticated.ok) {
-      res.writeHead(303, { Location: '/cloud/sign-in?return=' + encodeURIComponent(req.url), 'Cache-Control': 'no-store' });
+      const referral = cloudReferrals && cloudReferrals.resolve(url.searchParams.get('ref'));
+      res.writeHead(303, { Location: '/cloud/sign-in?return=' + encodeURIComponent(req.url) +
+        (referral ? '&ref=' + encodeURIComponent(referral.code) : ''), 'Cache-Control': 'no-store' });
       res.end();
       return;
     }
@@ -4612,7 +4653,7 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  if (pathname === '/docs' || pathname === '/new' || pathname === '/learn' || authoringSlug || policyDocuments[pathname] || pathname === '/agent-changes' || pathname === '/cloud-search' || pathname === '/cloud-updates' || pathname === '/advanced-spreadsheets' || pathname === '/runnable-html' || pathname === '/upgrade' || blogSlug || /^\/s\/[A-Za-z0-9_-]{1,32}$/.test(pathname)) {
+  if (pathname === '/docs' || pathname === '/new' || pathname === '/learn' || pathname === '/getting-started' || authoringSlug || policyDocuments[pathname] || pathname === '/agent-changes' || pathname === '/cloud-search' || pathname === '/cloud-updates' || pathname === '/advanced-spreadsheets' || pathname === '/runnable-html' || pathname === '/upgrade' || blogSlug || /^\/s\/[A-Za-z0-9_-]{1,32}$/.test(pathname)) {
     if (pathname === '/docs' && url.searchParams.has('cloud-document')) {
       const authenticated = cloudAuthSession(req);
       if (redirectForCloudTerms(res, authenticated, pathname + url.search)) return;
@@ -4623,6 +4664,8 @@ const server = http.createServer((req, res) => {
     const nonce = crypto.randomBytes(16).toString('base64');
     const defaultMdPath = authoringSlug ? '/public/authoring/' + authoringSlug + '.md' : pathname === '/learn' ? '/public/learn.md' : policyDocuments[pathname]
       ? policyDocuments[pathname]
+      : pathname === '/getting-started'
+          ? '/public/getting-started.md'
       : pathname === '/cloud-search'
           ? '/public/cloud-search.md'
       : pathname === '/cloud-updates'
