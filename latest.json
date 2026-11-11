@@ -1,6 +1,6 @@
 {
-  "commit": "9468923ed7f9c423ed314820f1ada3fe617083c9",
-  "builtAt": "2026-11-11T00:19:10Z",
+  "commit": "20e9e59fa6aba81a27106ec0020e71048275bc6a",
+  "builtAt": "2026-11-11T08:34:57Z",
   "repo": "https://github.com/espressoplease/smalldocs",
   "files": [
     {
@@ -765,8 +765,8 @@
     },
     {
       "path": "/sdocs-cloud-prototype.js",
-      "sha256": "a6fc137ed6f7ee015951c1343f8c3aadc13b9ff21e5f8fac6d85431011b85c51",
-      "bytes": 54929
+      "sha256": "64eac492042d2d4f686087b09390338af80aeeacfde513ccafa150a87db283f3",
+      "bytes": 55284
     },
     {
       "path": "/sdocs-cloud-ui-lab.js",
@@ -955,8 +955,8 @@
     },
     {
       "path": "/sdocs-library-header.js",
-      "sha256": "e6cabed239deb6cf0357a1f5dfd3c7ddac0aefbe4b5e50646b0a36ea0f0d636e",
-      "bytes": 6490
+      "sha256": "76df2fcf7aa8bcd9d2f62f414650aee744fc194cbe3108bb893551146df1ff9b",
+      "bytes": 6893
     },
     {
       "path": "/sdocs-library-tags.js",
