@@ -192,3 +192,154 @@ test('the existing full-length player uses the shared controls and chapter trans
   await page.locator('#heroVid').evaluate(video => { video.pause(); video.currentTime = 1; });
   await expect(page.locator('#heroCap')).toContainText('walk you through a demo');
 });
+
+async function startScrollingDemo(page, width) {
+  await page.setViewportSize({ width, height: 900 });
+  await page.goto('/home-next');
+  await page.evaluate(() => document.fonts.ready);
+  await page.getByRole('button', { name: 'Play the SmallDocs demo', exact: true }).click();
+  await expect.poll(() => page.locator('#intro-video').evaluate(video => !video.paused && video.currentTime > 0)).toBe(true);
+  await page.locator('.homepage-small-video').evaluate(el => Promise.all(el.getAnimations().map(animation => animation.finished)));
+  const origin = await page.locator('.homepage-small-video').evaluate(el => el.getBoundingClientRect().top + scrollY);
+  await page.evaluate(() => { window.initialDemoElement = document.querySelector('#intro-video'); });
+  return origin;
+}
+
+for (const width of [320, 390, 1440]) {
+  test('scrolling keeps the same playing video and reading position, then restores the large player at ' + width, async ({ page }) => {
+    const origin = await startScrollingDemo(page, width);
+    const headingPosition = await page.locator('h1').evaluate(el => el.getBoundingClientRect().top + scrollY);
+    const time = await page.locator('#intro-video').evaluate(video => video.currentTime);
+    await page.evaluate(top => scrollTo({ top, behavior: 'instant' }), origin + 320);
+    await expect(page.locator('#videocard')).toHaveClass(/is-scroll-docked/);
+    await expect.poll(() => page.locator('#videocard').evaluate(el => el.style.getPropertyValue('--dock-progress'))).toBe('1');
+    const screen = await page.locator('.vid-screen').boundingBox();
+    const controls = await page.locator('.vid-toolbar').boundingBox();
+    expect(screen.y).toBeCloseTo(width <= 600 ? 8 : 12, 0);
+    expect(screen.width).toBeLessThanOrEqual(240);
+    expect(controls.x).toBeGreaterThan(screen.x + screen.width);
+    expect(controls.x + controls.width).toBeLessThanOrEqual(width);
+    expect(await page.locator('h1').evaluate(el => el.getBoundingClientRect().top + scrollY)).toBeCloseTo(headingPosition, 0);
+    expect(await page.evaluate(() => window.initialDemoElement === document.querySelector('#intro-video'))).toBe(true);
+    expect(await page.locator('#intro-video').evaluate(video => video.currentTime)).toBeGreaterThanOrEqual(time);
+    expect(await page.locator('#intro-video').evaluate(video => video.paused)).toBe(false);
+    await page.evaluate(() => scrollTo({ top: 0, behavior: 'instant' }));
+    await expect(page.locator('#videocard')).not.toHaveClass(/is-scroll-docked/);
+    expect(await page.locator('.vid-screen').evaluate(el => el.getBoundingClientRect().width)).toBeGreaterThan(screen.width);
+    expect(await page.locator('#intro-video').evaluate(video => video.paused)).toBe(false);
+    expect(await page.locator('.homepage-small-video').evaluate(el => el.style.height)).toBe('');
+  });
+}
+
+test('scrolling progressively shrinks the video without moving the document', async ({ page }) => {
+  const origin = await startScrollingDemo(page, 1440);
+  const heading = await page.locator('h1').evaluate(el => el.getBoundingClientRect().top + scrollY);
+  const widths = [];
+  for (const distance of [20, 80, 160, 260]) {
+    await page.evaluate(top => scrollTo({ top, behavior: 'instant' }), origin + distance);
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    widths.push(await page.locator('.vid-screen').evaluate(el => el.getBoundingClientRect().width));
+    expect(await page.locator('h1').evaluate(el => el.getBoundingClientRect().top + scrollY)).toBeCloseTo(heading, 0);
+  }
+  for (let i = 1; i < widths.length; i++) expect(widths[i]).toBeLessThan(widths[i - 1]);
+});
+
+for (const width of [320, 390, 1440]) {
+  test('docked captions wrap beside the video and return to the screen at ' + width, async ({ page }) => {
+    const origin = await startScrollingDemo(page, width);
+    await page.getByRole('button', { name: 'Pause', exact: true }).click();
+    await page.locator('#intro-video').evaluate(video => { video.currentTime = 1; });
+    await expect(page.locator('#heroCap')).toContainText('walk you through a demo');
+    await page.evaluate(top => scrollTo({ top, behavior: 'instant' }), origin + 400);
+    const caption = page.locator('#heroCap');
+    await expect(page.locator('.vid-toolbar #heroCap')).toBeVisible();
+    await expect(page.locator('.vid-screen #heroCap')).toHaveCount(0);
+    const screen = await page.locator('.vid-screen').boundingBox();
+    const controls = await page.locator('.vid-controls').boundingBox();
+    const box = await caption.boundingBox();
+    expect(box.x).toBeGreaterThan(screen.x + screen.width);
+    expect(box.y).toBeGreaterThanOrEqual(controls.y + controls.height + 9);
+    expect(box.x + box.width).toBeLessThanOrEqual(width);
+    expect(box.x + box.width).toBeCloseTo(controls.x + controls.width, 0);
+    expect(await caption.evaluate(el => getComputedStyle(el).textAlign)).toBe('right');
+    expect(await caption.locator('span').evaluate(el => getComputedStyle(el).backgroundColor)).toBe('rgba(0, 0, 0, 0)');
+    expect(await caption.locator('span').evaluate(el => getComputedStyle(el).color)).toBe('rgb(27, 24, 21)');
+    await page.evaluate(() => {
+      window.SDocsHomepageVideoConfig.cues[0].text = 'A longer caption should wrap in the available space beside the video, with every word readable and the page below kept clear. '.repeat(3);
+      document.querySelector('#intro-video').dispatchEvent(new Event('timeupdate'));
+    });
+    await expect.poll(async () => {
+      const cap = await caption.boundingBox(), card = await page.locator('#videocard').boundingBox();
+      return card.y + card.height >= cap.y + cap.height - 1;
+    }).toBe(true);
+    expect(await caption.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+    const withCaptions = await page.locator('#videocard').evaluate(el => el.getBoundingClientRect().height);
+    const heading = await page.locator('h1').evaluate(el => el.getBoundingClientRect().top + scrollY);
+    await page.locator('#ccBtn').click();
+    await expect(caption).toBeHidden();
+    await expect.poll(() => page.locator('#videocard').evaluate(el => el.getBoundingClientRect().height)).toBeLessThan(withCaptions);
+    await page.locator('#ccBtn').click();
+    await expect(caption).toBeVisible();
+    expect(await page.locator('h1').evaluate(el => el.getBoundingClientRect().top + scrollY)).toBeCloseTo(heading, 0);
+    if (width === 1440) {
+      await page.getByRole('button', { name: 'Full screen', exact: true }).click();
+      await expect(page.locator('.vid-screen #heroCap')).toBeVisible();
+      await page.getByRole('button', { name: 'Exit full screen', exact: true }).click();
+      await expect(page.locator('.vid-toolbar #heroCap')).toBeVisible();
+    }
+    await page.evaluate(() => scrollTo({ top: 0, behavior: 'instant' }));
+    await expect(page.locator('.vid-screen #heroCap')).toBeVisible();
+    expect(await page.locator('#heroCap').count()).toBe(1);
+    expect(await caption.locator('span').evaluate(el => getComputedStyle(el).color)).toBe('rgb(255, 255, 255)');
+  });
+}
+
+test('docked controls keep pause, mute and chapters usable, and dismissal preserves the passage being read', async ({ page }) => {
+  const origin = await startScrollingDemo(page, 390);
+  await page.evaluate(top => scrollTo({ top, behavior: 'instant' }), origin + 500);
+  await expect.poll(() => page.locator('#videocard').evaluate(el => el.style.getPropertyValue('--dock-progress'))).toBe('1');
+  await page.getByRole('button', { name: 'Pause', exact: true }).click();
+  expect(await page.locator('#intro-video').evaluate(video => video.paused)).toBe(true);
+  await page.getByRole('button', { name: 'Mute', exact: true }).click();
+  expect(await page.locator('#intro-video').evaluate(video => video.muted)).toBe(true);
+  await page.getByRole('button', { name: 'Chapters', exact: true }).click();
+  const menu = await page.locator('#chapMenu').boundingBox();
+  expect(menu.y).toBeGreaterThanOrEqual(0);
+  expect(menu.x).toBeGreaterThanOrEqual(0);
+  expect(menu.x + menu.width).toBeLessThanOrEqual(390);
+  expect(menu.y + menu.height).toBeLessThanOrEqual(900);
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#chapMenu')).toBeHidden();
+  const before = await page.locator('h1').evaluate(el => el.getBoundingClientRect().top);
+  await page.getByRole('button', { name: 'Collapse video', exact: true }).click();
+  await expect.poll(() => page.locator('.homepage-small-video').evaluate(el => el.style.height)).toBe('');
+  expect(await page.locator('h1').evaluate(el => el.getBoundingClientRect().top)).toBeCloseTo(before, 0);
+  expect(await page.evaluate(() => document.documentElement.classList.contains('has-homepage-dock'))).toBe(false);
+});
+
+test('docked fullscreen and viewport changes retain playback and accessible controls', async ({ page }) => {
+  const origin = await startScrollingDemo(page, 1440);
+  await page.evaluate(top => scrollTo({ top, behavior: 'instant' }), origin + 400);
+  await expect(page.locator('#videocard')).toHaveClass(/is-scroll-docked/);
+  await page.getByRole('button', { name: 'Full screen', exact: true }).click();
+  await expect.poll(() => page.evaluate(() => Boolean(document.fullscreenElement))).toBe(true);
+  await expect(page.locator('#videocard')).not.toHaveClass(/is-scroll-docked/);
+  await page.getByRole('button', { name: 'Exit full screen', exact: true }).click();
+  await expect(page.locator('#videocard')).toHaveClass(/is-scroll-docked/);
+  await page.setViewportSize({ width: 390, height: 900 });
+  await expect.poll(() => page.locator('#videocard').evaluate(el => el.getBoundingClientRect().width)).toBeLessThanOrEqual(390);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  expect(await page.locator('#intro-video').evaluate(video => video.paused)).toBe(false);
+});
+
+test('reduced motion docks without interpolation and the muted teaser never docks', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/home-next');
+  await page.evaluate(() => scrollTo({ top: 700, behavior: 'instant' }));
+  await expect(page.locator('#videocard')).not.toHaveClass(/is-scroll-docked/);
+  await page.evaluate(() => scrollTo({ top: 0, behavior: 'instant' }));
+  const origin = await startScrollingDemo(page, 390);
+  await page.evaluate(top => scrollTo({ top, behavior: 'instant' }), origin);
+  await expect.poll(() => page.locator('#videocard').evaluate(el => el.style.getPropertyValue('--dock-progress'))).toBe('1');
+  expect(await page.locator('.vid-screen').evaluate(el => getComputedStyle(el).transitionDuration)).toBe('0s');
+});

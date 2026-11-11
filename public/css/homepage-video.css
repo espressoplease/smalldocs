@@ -273,6 +273,62 @@
   border-radius: 50%;
 }
 .vid-toolbar .vid-chapmenu { top: auto; right: 0; bottom: calc(100% + 8px); max-height: min(264px, 60vh); }
+/* Scroll progress moves the existing screen and controls into a compact row. */
+html.has-homepage-dock { scroll-padding-top: var(--homepage-dock-height); }
+.videocard.is-scroll-docked {
+  position: fixed;
+  z-index: 50;
+  left: var(--dock-left);
+  top: var(--dock-top);
+  width: var(--dock-width);
+  height: var(--dock-height);
+  isolation: isolate;
+}
+.videocard.is-scroll-docked::before {
+  content: '';
+  position: absolute;
+  inset: -12px;
+  z-index: -1;
+  border-radius: var(--r);
+  background: var(--paper);
+  box-shadow: 0 6px 20px rgb(27 24 21 / 10%);
+  opacity: var(--dock-progress);
+}
+.videocard.is-scroll-docked .vid-screen { width: var(--dock-video-width); }
+.videocard.is-scroll-docked .vid-toolbar {
+  position: absolute;
+  left: var(--dock-toolbar-left);
+  top: var(--dock-toolbar-top);
+  width: var(--dock-toolbar-width);
+  margin-top: 0;
+  opacity: var(--dock-toolbar-opacity);
+  transition: none;
+}
+.videocard.is-scroll-docked .vid-caption { max-width: calc(100% - 12px); font-size: 12px; bottom: 8px; }
+.videocard.is-scroll-docked .vid-toolbar .vid-caption {
+  position: static;
+  transform: none;
+  width: auto;
+  max-width: none;
+  margin-top: 10px;
+  color: var(--ink);
+  text-align: right;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+.videocard.is-scroll-docked .vid-toolbar .vid-caption span {
+  color: inherit;
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+}
+.videocard.is-scroll-docked .vid-toolbar .vid-chapmenu {
+  top: calc(100% + 8px);
+  bottom: auto;
+  width: min(260px, calc(100vw - 32px));
+  max-height: min(264px, calc(100dvh - var(--dock-top) - var(--dock-toolbar-top) - var(--dock-toolbar-height) - 24px));
+}
+.videocard.is-scroll-docked.chapters-open #chapBtn { background: var(--line); border-color: var(--line-2); }
 .videocard:is(:fullscreen, :-webkit-full-screen) .vid-controls .vid-btn { color: #fff; border-color: rgba(255,255,255,.25); background: rgba(255,255,255,.08); }
 .videocard:is(:fullscreen, :-webkit-full-screen) .vid-controls .vid-btn:hover { background: rgba(255,255,255,.2); }
 .videocard:is(:fullscreen, :-webkit-full-screen) .vid-controls .vid-btn:focus-visible { outline-color: #fff; }

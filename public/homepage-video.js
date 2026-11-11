@@ -153,15 +153,21 @@
     compact(quiet);
   }
   function compact(quiet) {
+    const readingHeight = !quiet && docked ? dockHome.height : 0;
+    if (readingHeight) compactHold = readingHeight;
+    dockHasPlayed = false;
+    releaseScrollDock(Boolean(readingHeight));
     expanded = false; video.pause(); closeMenu();
     previewHome.classList.remove('is-expanded');
     card.classList.add('teaser'); card.classList.remove('needs-play');
     controls.inert = true; collapse.hidden = true;
     play.setAttribute('aria-expanded', 'false');
     if (!quiet) { play.focus({ preventScroll: true }); resumePreview(); }
+    if (readingHeight) compactTimer = setTimeout(finishCompactHold, reducedMotion.matches ? 0 : 320);
   }
   function expand() {
     if (!card.hasAttribute('data-expand-on-play') || expanded) return;
+    finishCompactHold();
     expanded = true; previewHome.classList.add('is-expanded');
     collapse.hidden = false; play.setAttribute('aria-expanded', 'true');
   }
@@ -175,19 +181,23 @@
     const status = card.querySelector('[data-video-status]');
     if (status && !card.classList.contains('video-error')) status.textContent = 'Loading';
     syncMute();
-    tryPlay(video, () => { card.classList.add('needs-play'); syncPause(); });
+    tryPlay(video, () => { card.classList.add('needs-play'); syncPause(); scheduleScrollDock(); });
   }
   play.addEventListener('click', startDemo);
   pause.addEventListener('click', () => { if (video.paused) tryPlay(video); else video.pause(); });
   video.addEventListener('click', () => { if (!card.classList.contains('teaser')) pause.click(); });
   video.addEventListener('play', syncPause);
   video.addEventListener('pause', syncPause);
-  video.addEventListener('playing', () => { card.classList.add('ready'); card.classList.remove('video-error', 'needs-play'); });
+  video.addEventListener('playing', () => {
+    card.classList.add('ready'); card.classList.remove('video-error', 'needs-play');
+    dockHasPlayed = true; scheduleScrollDock(true);
+  });
   video.addEventListener('waiting', () => card.classList.remove('ready'));
   function showLoadError() {
     card.classList.add('video-error', 'needs-play'); card.classList.remove('ready');
     const status = card.querySelector('[data-video-status]');
     if (status) status.textContent = 'The video could not be loaded. Try again.';
+    scheduleScrollDock();
   }
   video.addEventListener('error', showLoadError);
   video.addEventListener('ended', () => {
@@ -219,9 +229,100 @@
     const active = document.fullscreenElement === card || document.webkitFullscreenElement === card || video.webkitDisplayingFullscreen;
     const label = active ? 'Exit full screen' : 'Full screen';
     fullscreen.title = label; fullscreen.setAttribute('aria-label', label); fullscreen.querySelector('.lbl').textContent = label;
+    scheduleScrollDock(true);
   }
   document.addEventListener('fullscreenchange', syncFullscreen);
   document.addEventListener('webkitfullscreenchange', syncFullscreen);
+
+  // Keep the same media element in place. Its home holds the inline height
+  // while the card follows the viewport, so reading content never jumps.
+  const scrollDockEnabled = previewHome.classList.contains('homepage-small-video');
+  const dockProperties = ['left', 'top', 'width', 'height', 'video-width', 'toolbar-left',
+    'toolbar-top', 'toolbar-width', 'toolbar-opacity', 'toolbar-height', 'progress'];
+  let dockHasPlayed = false, docked = false, dockFrame = 0, dockNeedsMeasure = true;
+  let dockHome = null, compactHold = 0, compactTimer = 0;
+  const clamp = value => Math.max(0, Math.min(1, value));
+  const mix = (from, to, amount) => from + (to - from) * amount;
+  function placeDockCaption(beside) {
+    const host = beside ? toolbarClip : screen;
+    if (caption.parentElement !== host) host.appendChild(caption);
+  }
+  function releaseScrollDock(holdHome) {
+    if (!scrollDockEnabled) return;
+    if (!docked && !previewHome.style.height) return;
+    docked = false; card.classList.remove('is-scroll-docked');
+    placeDockCaption(false);
+    dockProperties.forEach(name => card.style.removeProperty('--dock-' + name));
+    if (!holdHome && !compactHold) previewHome.style.removeProperty('height');
+    document.documentElement.classList.remove('has-homepage-dock');
+    document.documentElement.style.removeProperty('--homepage-dock-height');
+  }
+  function finishCompactHold() {
+    if (!compactHold) return;
+    clearTimeout(compactTimer);
+    const delta = card.getBoundingClientRect().height - compactHold;
+    compactHold = 0; previewHome.style.removeProperty('height');
+    // Dismissing a docked video should not move the paragraph being read.
+    if (scrollY > 0) window.scrollBy({ top: delta, behavior: 'instant' });
+  }
+  function scheduleScrollDock(measure) {
+    if (!scrollDockEnabled) return;
+    if (measure === true) dockNeedsMeasure = true;
+    if (!dockFrame) dockFrame = requestAnimationFrame(renderScrollDock);
+  }
+  function renderScrollDock() {
+    dockFrame = 0;
+    const inFullscreen = document.fullscreenElement || document.webkitFullscreenElement || video.webkitDisplayingFullscreen;
+    if (!expanded || !dockHasPlayed || inFullscreen || card.classList.contains('needs-play') || card.classList.contains('video-error')) {
+      releaseScrollDock(Boolean(inFullscreen)); return;
+    }
+    const pinTop = innerWidth <= 600 ? 8 : 12;
+    let home = previewHome.getBoundingClientRect();
+    if (home.top > pinTop) { releaseScrollDock(); return; }
+    if (!docked || dockNeedsMeasure) {
+      card.classList.remove('is-scroll-docked');
+      placeDockCaption(false);
+      previewHome.style.removeProperty('height');
+      home = previewHome.getBoundingClientRect();
+      dockHome = { width: home.width, height: card.getBoundingClientRect().height };
+      previewHome.style.height = dockHome.height + 'px';
+      card.classList.add('is-scroll-docked'); docked = true; dockNeedsMeasure = false;
+    }
+    const progress = reducedMotion.matches ? 1 : clamp((pinTop - home.top) / Math.min(240, dockHome.width * .45));
+    const smallWidth = Math.min(240, Math.max(104, dockHome.width * .34));
+    const screenWidth = mix(dockHome.width, smallWidth, progress);
+    const gap = innerWidth <= 600 ? 12 : 20;
+    const sideAt = Math.min(.82, Math.max(.45, (gap + (innerWidth <= 600 ? 128 : 240)) / (dockHome.width - smallWidth)));
+    const beside = progress >= sideAt;
+    placeDockCaption(beside);
+    const sideProgress = clamp((progress - sideAt) / Math.max(.01, 1 - sideAt));
+    const toolbarLeft = beside ? screenWidth + gap + 12 * (1 - sideProgress) : 0;
+    const opacity = beside ? sideProgress : 1 - clamp((progress - sideAt + .16) / .16);
+    const set = (name, value) => card.style.setProperty('--dock-' + name, value + 'px');
+    set('left', home.left); set('top', pinTop); set('width', dockHome.width);
+    set('video-width', screenWidth); set('toolbar-left', toolbarLeft);
+    set('toolbar-width', dockHome.width - toolbarLeft);
+    card.style.setProperty('--dock-toolbar-opacity', opacity);
+    card.style.setProperty('--dock-progress', progress);
+    const toolbarTop = beside ? 12 * (1 - sideProgress) : screen.getBoundingClientRect().height + 10;
+    set('toolbar-top', toolbarTop);
+    const toolbarHeight = toolbar.getBoundingClientRect().height;
+    set('toolbar-height', toolbarHeight);
+    const height = Math.max(screen.getBoundingClientRect().height, toolbarTop + toolbarHeight);
+    set('height', height);
+    document.documentElement.classList.add('has-homepage-dock');
+    document.documentElement.style.setProperty('--homepage-dock-height', Math.ceil(pinTop + height + 24) + 'px');
+  }
+  if (scrollDockEnabled) {
+    window.addEventListener('scroll', () => scheduleScrollDock(), { passive: true });
+    window.addEventListener('resize', () => scheduleScrollDock(true), { passive: true });
+    previewHome.addEventListener('transitionend', event => {
+      if (event.propertyName === 'max-width') scheduleScrollDock(true);
+    });
+    new ResizeObserver(() => scheduleScrollDock(true)).observe(previewHome);
+    new ResizeObserver(() => scheduleScrollDock()).observe(toolbar);
+    reducedMotion.addEventListener('change', () => scheduleScrollDock(true));
+  }
 
   const format = seconds => Math.floor(seconds / 60) + ':' + String(Math.floor(seconds % 60)).padStart(2, '0');
   const chapterAt = time => { let index = 0; chapters.forEach((chapter, i) => { if (time >= chapter.t) index = i; }); return index; };
@@ -291,6 +392,7 @@
   });
   video.addEventListener('webkitendfullscreen', () => { if (video.textTracks[0]) video.textTracks[0].mode = 'hidden'; syncFullscreen(); });
   window.addEventListener('pagehide', () => {
+    finishCompactHold();
     video.pause(); if (teaser) { teaser.autoplay = false; teaser.pause(); }
     closeExpanded(true);
   });
