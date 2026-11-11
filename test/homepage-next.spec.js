@@ -125,7 +125,7 @@ test('homepage experiment preserves the supplied copy and vertical order', async
   await page.goto('/home-next');
   const expected = [
     'You use it when you want to escape the limits of your chat interface or save an agent’s thinking at a given point in time. Your agents can use it on their own: a remote agent can write a SmallDoc and notify you.',
-    'A single SmallDoc can include slides, a multi-tab spreadsheet, charts, code, an HTML widget and text to link it all together.',
+    "SmallDocs brings your agent's work together, whether you're building, researching or presenting. One document can combine text, slides, multi-tab spreadsheets with live calculations, charts, diagrams, code and interactive HTML and JavaScript components.",
     'After installation, ask your agent: “write me a sdoc about (topic)”. Open it in your browser, including on mobile, or share it with other people.',
     'SmallDocs are built for human-agent feedback loops. Speed up your iteration with targeted features: easy ways to copy precise chunks of text, tables, code and charts, and the ability to leave comments on a document for your agent to pick up.',
     'SmallDocs are automatically saved to an encrypted cloud library. This library is accessible to humans (on the web, including mobile) and agents (via the SmallDocs command line tool).',
