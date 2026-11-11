@@ -1,6 +1,6 @@
 {
-  "commit": "8489eaf755251b247e6e810662794988ec19e403",
-  "builtAt": "2026-11-11T16:35:14Z",
+  "commit": "df021066f670ccc53b4aaa6fb4376966d641a71c",
+  "builtAt": "2026-11-11T17:20:48Z",
   "repo": "https://github.com/espressoplease/smalldocs",
   "files": [
     {
@@ -360,8 +360,8 @@
     },
     {
       "path": "/css/homepage-next.css",
-      "sha256": "14575b947a747022514879060e663034429ccb77b0690c50bec42a04af8e427b",
-      "bytes": 10164
+      "sha256": "7c60e55b4a3e901ece8ef95161187a4e6c0c76d84528c0f9e0bf6386db2b079f",
+      "bytes": 10343
     },
     {
       "path": "/css/homepage-video.css",
@@ -570,8 +570,8 @@
     },
     {
       "path": "/homepage-next.html",
-      "sha256": "c605ffa39ccad0d53b0f502e1bfd31adfb2f8ca16e1c25742e28a3051d78c0cf",
-      "bytes": 79223
+      "sha256": "0b82bef55d3a59d8a1b9577129a6d2fd941d19006d9b26e45f49ec86b751d9c1",
+      "bytes": 79178
     },
     {
       "path": "/homepage-next.js",
@@ -615,8 +615,8 @@
     },
     {
       "path": "/index.html",
-      "sha256": "bf46d0cdc5b1ba6d8b1a5aee6b24c495896eb12e8a47e8775063dec4ed44bcac",
-      "bytes": 82247
+      "sha256": "e126e386d3336c51eaec9e95154f31eaec19a0d9f907523673e7812d23743b34",
+      "bytes": 82355
     },
     {
       "path": "/learn.md",
@@ -660,8 +660,8 @@
     },
     {
       "path": "/library/library.html",
-      "sha256": "85a5b5fba7e7e9de189e47468a69bf25921fd7bf785b1018f0dbc7502d695c8f",
-      "bytes": 12341
+      "sha256": "42dd5c420c270fe0788caadde94d79639ec238eb39e58f2b29a86a1ffe019815",
+      "bytes": 12345
     },
     {
       "path": "/library/library.js",
@@ -1070,8 +1070,8 @@
     },
     {
       "path": "/sdocs-sidebar-shared.js",
-      "sha256": "b3008649780a9989d469c68ce999d29154fd94242e88602464caa0b7dfe41dad",
-      "bytes": 49085
+      "sha256": "9fd154374ee6b259b4c911f2c4031fcdc6c36753722831b7f11ec5763797e404",
+      "bytes": 49734
     },
     {
       "path": "/sdocs-sidebar.js",
@@ -1080,8 +1080,8 @@
     },
     {
       "path": "/sdocs-site-sidebar.js",
-      "sha256": "e0a23857969d38fe503205d13db4d63b160d8610624b5016d224958711600f1f",
-      "bytes": 3431
+      "sha256": "e00b65af9efc75e76134a2f46a308cae0a6f83c745e3d3dad3220d23433bbaac",
+      "bytes": 3525
     },
     {
       "path": "/sdocs-slide-comments.js",
