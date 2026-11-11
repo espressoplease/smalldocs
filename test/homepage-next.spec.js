@@ -133,7 +133,7 @@ test('homepage experiment preserves the supplied copy and vertical order', async
     'SmallDocs is free for a month, then £4/user/month.',
   ];
   expect(await page.locator('.homepage-copy').allTextContents()).toEqual(expected);
-  await expect(page.locator('h1')).toHaveText('SmallDocs are the flexible document format for the agentic era.');
+  await expect(page.locator('h1')).toHaveText('SmallDocs are the hyper flexible document format for the agentic era.');
   expect(await page.locator('[data-install-form] button').allTextContents())
     .toEqual(Array(3).fill('Continue with email'));
   const positions = await page.evaluate(() => ['.homepage-small-video','h1','.homepage-copy','#start','#samples','#praise']

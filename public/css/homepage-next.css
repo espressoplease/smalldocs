@@ -90,10 +90,10 @@
 .homepage-small-video .vid-play { border: 0; width: 100%; font-family: var(--font); }
 .homepage-small-video .vid-play em { font-size: var(--t-sm); }
 .homepage-small-video .intro-play[hidden] { display: none; }
-.home-next .hero-display { max-width: 100%; font-size: 25px; }
+.home-next .hero-display { max-width: 100%; font-size: 33px; }
 .home-next .lead { font-size: 16px; }
 .home-next .homepage-copy { margin-top: 9px; font-size: 18px; }
-.home-next .homepage-subheading { margin: 14px 0 18px; font-size: 22px; font-weight: 600; line-height: 1.4; letter-spacing: -.022em; color: var(--ink); }
+.home-next .homepage-subheading { margin: 14px 0 18px; font-size: 20px; font-weight: 550; letter-spacing: 0; color: var(--ink); }
 .homepage-start { margin-top: 13px; margin-bottom: 12px; width: 100%; }
 .homepage-direct { margin-top: 0; }
 .homepage-direct > summary { list-style: none; }
