@@ -142,67 +142,34 @@ test('table PNG copy writes a rendered image and uses tick feedback', async ({ p
   await expect(copy.locator('polyline')).toHaveCount(0);
 });
 
-test('table copy controls do not change cell padding', async ({ page }) => {
+test('combined in-cell copy controls highlight without moving the table', async ({ page }) => {
   await loadTable(page);
-  const paddings = await page.locator('#_sd_rendered table :is(th, td)').evaluateAll((cells) =>
-    cells.map((cell) => ({ left: getComputedStyle(cell).paddingLeft, right: getComputedStyle(cell).paddingRight }))
-  );
-  expect(paddings.every((padding) => padding.left === '12px' && padding.right === '12px')).toBeTruthy();
-});
-
-test('column controls expand upward on header hover without reserving a blank strip or covering preceding text', async ({ page }) => {
-  await loadTable(page);
-  await page.evaluate(markdown => SDocs.loadText('Before the table.\n\n' + markdown + '\n\nAfter the table.'), TABLE);
   const wrapper = page.locator('#_sd_rendered .md-table-scroll');
-  const toolbar = wrapper.locator('.md-table-toolbar');
-  const header = wrapper.locator('thead');
-  const after = page.locator('#_sd_rendered p').filter({ hasText: 'After the table.' });
-  const before = page.locator('#_sd_rendered p').filter({ hasText: 'Before the table.' });
-  await expect(toolbar).toHaveCSS('height', '35px');
-  const initial = { wrapper: await wrapper.boundingBox(), header: await header.boundingBox(), after: await after.boundingBox() };
-  // The whole-table buttons remain stationary until a header is visited.
-  await toolbar.locator('.table-copy-csv-btn').hover();
-  await expect(toolbar).toHaveCSS('height', '35px');
-  await header.locator('th').last().hover();
-  await expect(toolbar).toHaveCSS('height', '63px');
-  expect((await wrapper.boundingBox()).y).toBeLessThan(initial.wrapper.y);
-  const previous = await before.boundingBox();
-  expect((await wrapper.boundingBox()).y).toBeGreaterThanOrEqual(previous.y + previous.height);
-  const shift = (await header.boundingBox()).y - initial.header.y;
-  expect(shift).toBeGreaterThanOrEqual(0);
-  expect(shift).toBeLessThan(28);
-  expect((await after.boundingBox()).y).toBeCloseTo(initial.after.y + shift, 0);
-  const column = header.getByRole('button', { name: 'Copy column', exact: true }).last();
+  const table = wrapper.locator('table');
+  const before = await wrapper.boundingBox();
+  const header = table.locator('th').last();
+  await header.hover();
+  const column = header.getByRole('button', { name: 'Copy column', exact: true });
+  await column.hover();
+  await expect(column.locator('svg')).toHaveAttribute('viewBox', '0 0 40 24');
+  await expect(column.locator('path').last()).toHaveAttribute('d', 'M31 6v12m5-5-5 5-5-5');
+  await expect(table.locator('.sdoc-table-copy-preview')).toHaveCount(3);
+  expect(await wrapper.boundingBox()).toEqual(before);
   await column.click();
   await expect.poll(() => copiedText(page)).toBe('Notes\n"Hello, world"\n"Said ""yes"""');
-  await after.hover();
-  await expect(toolbar).toHaveCSS('height', '35px');
-  await expect(wrapper.locator('.sdoc-table-copy-preview')).toHaveCount(0);
-  await header.locator('th').last().hover();
-  await expect(toolbar).toHaveCSS('height', '63px');
-  // Crossing to CSV must not collapse the strip and move the target away.
-  await toolbar.locator('.table-copy-csv-btn').click();
-  await expect(toolbar).toHaveCSS('height', '63px');
-  await expect.poll(() => copiedText(page)).toBe('Name,Notes\nAda,"Hello, world"\nGrace,"Said ""yes"""');
-  await after.hover();
-  await expect(toolbar).toHaveCSS('height', '35px');
-  expect((await header.boundingBox()).y).toBeCloseTo(initial.header.y, 0);
-});
-
-test('keyboard focus reveals the column strip and leaving the table collapses it', async ({ page }) => {
-  await loadTable(page);
-  const toolbar = page.locator('#_sd_rendered .md-table-toolbar');
-  const column = page.locator('thead th').first().getByRole('button', { name: 'Copy column', exact: true });
-  await expect(toolbar).toHaveCSS('height', '35px');
-  await column.focus();
-  await expect(toolbar).toHaveCSS('height', '63px');
-  await page.keyboard.press('Enter');
-  await expect.poll(() => copiedText(page)).toBe('Name\nAda\nGrace');
-  await page.mouse.move(1, 1);
-  await expect(toolbar).toHaveCSS('height', '63px');
-  await expect(column).toBeFocused();
-  await page.locator('#_sd_btn-theme').focus();
-  await expect(toolbar).toHaveCSS('height', '35px');
+  await expect(column.locator('svg')).toHaveAttribute('viewBox', '0 0 40 24', { timeout: 3000 });
+  await table.locator('td').first().hover();
+  const row = table.locator('tbody tr').first().getByRole('button', { name: 'Copy row', exact: true });
+  await row.focus();
+  await expect(table.locator('.sdoc-table-copy-preview')).toHaveCount(2);
+  await expect(row.locator('svg')).toHaveAttribute('viewBox', '0 0 40 24');
+  expect(await wrapper.boundingBox()).toEqual(before);
+  const inside = await table.locator('.table-part-copy-btn').evaluateAll(buttons => buttons.every(button => {
+    const cell = button.closest('th, td').getBoundingClientRect();
+    const rect = button.getBoundingClientRect();
+    return rect.left >= cell.left && rect.right <= cell.right && rect.top >= cell.top && rect.bottom <= cell.bottom;
+  }));
+  expect(inside).toBe(true);
 });
 
 test('table copy controls yield to table comment controls in comment mode', async ({ page }) => {
@@ -228,7 +195,7 @@ test('hover and keyboard copy a cell, row or column without changing source or i
   await expect.poll(() => copiedText(page)).toBe('"Hello, world"');
   await expect(copyCell.locator('polyline')).toHaveCount(1);
   const row = page.locator('tbody tr').first();
-  await row.hover();
+  await row.locator('td').first().hover();
   const copyRow = row.getByRole('button', { name: 'Copy row', exact: true });
   await copyRow.hover();
   await expect(row.locator('.sdoc-table-copy-preview')).toHaveCount(2);
@@ -282,13 +249,13 @@ test('failed part copies report failure without a success tick or source mutatio
 
 test.describe('touch table copies', () => {
   test.use({ hasTouch: true, viewport: { width: 390, height: 844 } });
-  test('a header tap exposes its column copy control', async ({ page }) => {
+  test('a header tap reaches its in-cell column copy control', async ({ page }) => {
     await loadTable(page);
     await page.evaluate(markdown => SDocs.loadText(markdown + '\n\nAfter the table.'), TABLE);
     const toolbar = page.locator('#_sd_rendered .md-table-toolbar');
     await expect(toolbar).toHaveCSS('height', '35px');
     await page.locator('thead th').last().tap();
-    await expect(toolbar).toHaveCSS('height', '63px');
+    await expect(toolbar).toHaveCSS('height', '35px');
     await page.locator('thead th').last().getByRole('button', { name: 'Copy column', exact: true }).tap();
     await expect.poll(() => copiedText(page)).toBe('Notes\n"Hello, world"\n"Said ""yes"""');
     await page.locator('#_sd_rendered p').filter({ hasText: 'After the table.' }).tap();

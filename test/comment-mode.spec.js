@@ -887,36 +887,40 @@ test.describe('edge-case content', () => {
     await expect(page.locator('#_sd_rendered .sdoc-table-host > .md-table-scroll')).toHaveCount(1);
 
     const geometry = await page.evaluate(() => {
-      const table = document.querySelector('#_sd_rendered table').getBoundingClientRect();
-      const firstHeader = document.querySelector('#_sd_rendered th').getBoundingClientRect();
-      const firstCell = document.querySelector('#_sd_rendered td').getBoundingClientRect();
-      const row = document.querySelector('.sdoc-table-row-add').getBoundingClientRect();
-      const column = document.querySelector('.sdoc-table-column-add').getBoundingClientRect();
-      const tableButton = document.querySelector('.sdoc-table-table-add').getBoundingClientRect();
-      const cell = document.querySelector('.sdoc-table-cell-add').getBoundingClientRect();
+      const scroll = document.querySelector('.sdoc-table-host > .md-table-scroll');
+      const buttons = Array.from(document.querySelectorAll('.sdoc-table-add'));
       return {
-        rowRight: row.right,
-        tableLeft: table.left,
-        rowTopDelta: Math.abs(row.top - firstCell.top),
-        rowBottomDelta: Math.abs(row.bottom - firstCell.bottom),
-        rowWidth: row.width,
-        columnBottom: column.bottom,
-        headerTop: firstHeader.top,
-        columnLeftDelta: Math.abs(column.left - firstHeader.left),
-        columnRightDelta: Math.abs(column.right - firstHeader.right),
-        tableButtonWidth: tableButton.width,
-        cellInside: cell.left >= firstCell.left && cell.right <= firstCell.right,
+        padding: getComputedStyle(scroll).padding,
+        allInside: buttons.every(button => {
+          const cell = button.closest('th, td').getBoundingClientRect();
+          const rect = button.getBoundingClientRect();
+          return rect.left >= cell.left && rect.right <= cell.right &&
+            rect.top >= cell.top && rect.bottom <= cell.bottom;
+        }),
+        compact: buttons.every(button => {
+          const rect = button.getBoundingClientRect();
+          return rect.width === (button.matches('.sdoc-table-control-row, .sdoc-table-control-column') ? 32 : 20) && rect.height === 20;
+        }),
+        noTextOverlap: buttons.every(button => {
+          const cell = button.closest('th, td');
+          const range = document.createRange();
+          range.selectNodeContents(cell.firstChild);
+          return range.getBoundingClientRect().right <= button.getBoundingClientRect().left;
+        }),
       };
     });
-    expect(geometry.rowRight).toBeLessThanOrEqual(geometry.tableLeft + 1);
-    expect(geometry.rowTopDelta).toBeLessThanOrEqual(1);
-    expect(geometry.rowBottomDelta).toBeLessThanOrEqual(1);
-    expect(geometry.rowWidth).toBe(32);
-    expect(geometry.columnBottom).toBeLessThanOrEqual(geometry.headerTop + 4);
-    expect(geometry.columnLeftDelta).toBeLessThanOrEqual(1);
-    expect(geometry.columnRightDelta).toBeLessThanOrEqual(1);
-    expect(geometry.tableButtonWidth).toBe(32);
-    expect(geometry.cellInside).toBe(true);
+    expect(geometry).toEqual({ padding: '0px', allInside: true, compact: true, noTextOverlap: true });
+    await expect(page.locator('.sdoc-table-column-add').first().locator('path').last())
+      .toHaveAttribute('d', 'M31 6v12m5-5-5 5-5-5');
+    await expect(page.locator('.sdoc-table-row-add').first().locator('path').last())
+      .toHaveAttribute('d', 'M25 12h12m-5-5 5 5-5 5');
+    const tableBox = await page.locator('#_sd_rendered table').boundingBox();
+    await page.locator('#_sd_rendered th').nth(1).hover();
+    await page.locator('.sdoc-table-column-add').nth(1).hover();
+    expect(await page.locator('#_sd_rendered table').boundingBox()).toEqual(tableBox);
+    await page.locator('.sdoc-table-row-add').first().focus();
+    await expect(page.locator('.sdoc-table-target-preview')).toHaveCount(3);
+    await expect(page.locator('.sdoc-table-row-add').first()).toHaveCSS('opacity', '1');
   });
 
   test('table controls preview the complete target before commenting', async ({ page }) => {
@@ -930,10 +934,11 @@ test.describe('edge-case content', () => {
     const cellButton = page.locator('tbody tr').nth(0).locator('td').nth(2)
       .locator('.sdoc-table-cell-add');
 
+    await page.locator('th').first().hover();
     await tableButton.hover();
     expect(await previewCount()).toBe(9);
     await expect(tableButton).toHaveCSS('opacity', '1');
-    await expect(page.locator('.sdoc-table-column-add').nth(0)).toHaveCSS('opacity', '0');
+    await expect(page.locator('.sdoc-table-column-add').nth(0)).toHaveCSS('opacity', '1');
 
     await page.locator('th').nth(1).hover();
     await columnButton.hover();
@@ -960,6 +965,7 @@ test.describe('edge-case content', () => {
     await page.mouse.move(1, 1);
     await expect.poll(previewCount).toBe(0);
 
+    await page.locator('th').first().hover();
     await tableButton.click();
     await expect(page.locator('.sdoc-table-card.sdoc-card-edit .sdoc-table-target-label'))
       .toHaveText('Table');

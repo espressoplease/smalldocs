@@ -4,6 +4,12 @@
 
   var LINK_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>';
   var COPY_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+  function tablePartIcon(scope) {
+    if (scope !== 'row' && scope !== 'column') return COPY_SVG;
+    var arrow = scope === 'column' ? '<path d="M31 6v12m5-5-5 5-5-5"/>'
+      : '<path d="M25 12h12m-5-5 5 5-5 5"/>';
+    return COPY_SVG.replace('width="14"', 'width="24"').replace('0 0 24 24', '0 0 40 24').replace('</svg>', arrow + '</svg>');
+  }
   var CHECK_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
   var CHEVRON_SVG = '<span class="section-toggle"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3 2l4 3-4 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>';
   var COPY_FEEDBACK_MS = 1500;
@@ -456,7 +462,8 @@
       var button = doc.createElement('button'); button.type = 'button';
       button.className = 'sdoc-table-target-control sdoc-table-control-' + scope + ' table-part-copy-btn table-copy-' + scope + '-btn';
       var label = 'Copy ' + scope;
-      button.title = label; button.setAttribute('aria-label', label); setHTML(button, COPY_SVG);
+      var icon = tablePartIcon(scope);
+      button.title = label; button.setAttribute('aria-label', label); setHTML(button, icon);
       function targets() {
         if (scope === 'row') return Array.prototype.slice.call(row.cells);
         if (scope === 'column') return Array.prototype.map.call(table.rows, function (item) { return item.cells[cell.cellIndex]; }).filter(Boolean);
@@ -472,7 +479,7 @@
         event.preventDefault(); event.stopPropagation();
         var values = targets().map(tableCellCopyText);
         var text = serializeTableCsv(scope === 'column' ? values.map(function (value) { return [value]; }) : [values]);
-        copyText(text, button, '').then(function (ok) {
+        copyText(text, button, '', icon).then(function (ok) {
           if (ok || !active(button)) return;
           var clipboard = options.clipboard || (win.navigator && win.navigator.clipboard);
           button.title = clipboard && clipboard.writeText ? 'Copy failed. Try again.' : 'Not supported';
@@ -508,26 +515,7 @@
             if (!index) cell.appendChild(tablePartButton('column', table, row, cell));
           });
         });
-        var header = table.rows[0];
-        header.tabIndex = -1;
-        function revealColumns() { wrapper.classList.add('sdoc-table-columns-open'); }
-        function collapseWhenIdle(event) {
-          var touch = event && event.pointerType === 'touch';
-          win.requestAnimationFrame(function () {
-            var focused = doc.activeElement;
-            var keepFocus = wrapper.contains(focused) && (touch || focused.matches(':focus-visible'));
-            if (active(wrapper) && !wrapper.matches(':hover') && !keepFocus) {
-              wrapper.classList.remove('sdoc-table-columns-open');
-            }
-          });
-        }
-        header.addEventListener('pointerenter', revealColumns);
-        header.addEventListener('focusin', revealColumns);
-        header.addEventListener('pointerdown', function (event) {
-          if (event.pointerType === 'touch' && !event.target.closest('button')) header.focus({ preventScroll: true });
-        });
-        wrapper.addEventListener('pointerleave', collapseWhenIdle);
-        wrapper.addEventListener('focusout', collapseWhenIdle);
+
       });
     }
 

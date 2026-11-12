@@ -378,112 +378,63 @@ body.comment-mode #_sd_rendered .table-copy-btn {
   pointer-events: none;
 }
 
-/* Table targets share their shape and dimensions with comment controls. */
+/* Copy and comment actions share the same in-cell controls. */
 .sdoc-table-target-control {
   position: absolute;
   z-index: 2;
-  display: flex;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0;
+  padding: 2px;
   color: var(--text-2, var(--md-color));
-  background: var(--bg-surface, var(--md-table-header-bg));
-  border: none;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
   cursor: pointer;
   opacity: 0;
   pointer-events: none;
-  transition: background .2s ease,
-              color .2s ease,
-              opacity .2s cubic-bezier(.4,0,.2,1),
-              box-shadow .15s ease;
+  transition: background .12s, color .2s, opacity .15s, box-shadow .15s;
 }
-.sdoc-table-target-control svg { display: block; width: 13px; height: 13px; }
-.sdoc-table-control-table {
-  left: -32px;
-  top: -28px;
-  width: 32px;
-  height: 28px;
-  border-radius: 8px 0 0 0;
+.sdoc-table-target-control svg { display: block; width: 14px; height: 14px; }
+:is(.sdoc-table-control-row, .sdoc-table-control-column) { width: 32px; }
+:is(.sdoc-table-control-row, .sdoc-table-control-column) svg { width: 24px; }
+.sdoc-table-control-row { right: 32px; }
+:is(#_sd_rendered, .sdoc-reader) :is(.sdoc-table-copy-targets, .sdoc-table-commentable) :is(th, td) {
+  position: relative;
+  height: 36px;
+  padding-right: 38px;
 }
-.sdoc-table-control-column {
-  z-index: 4;
-  left: 0;
-  top: -28px;
-  width: 100%;
-  height: 28px;
-  border-radius: 8px 8px 0 0;
+:is(#_sd_rendered, .sdoc-reader) :is(th, td):has(> :is(.sdoc-table-control-row, .sdoc-table-control-column)) {
+  padding-right: 72px;
 }
-.sdoc-table-control-row {
-  left: -32px;
-  top: 0;
-  bottom: 0;
-  width: 32px;
-  border-radius: 8px 0 0 8px;
+:is(#_sd_rendered, .sdoc-reader) :is(th, td):has(> .sdoc-table-control-row):has(> .sdoc-table-control-column) {
+  padding-right: 106px;
 }
-.sdoc-table-control-cell {
-  top: 3px;
-  right: 3px;
-  width: 20px;
-  height: 20px;
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--bg-surface, var(--md-table-header-bg)) 92%, transparent);
-  box-shadow: 0 1px 3px rgba(0,0,0,.08);
-}
-
-:is(#_sd_rendered, .sdoc-reader) .md-table-scroll.sdoc-table-copyable {
-  --sdoc-table-column-space: 0px;
-  width: calc(100% + 32px);
-  max-width: none;
-  margin-top: calc(1.2em - var(--sdoc-table-column-space));
-  margin-left: -32px;
-  padding-left: 32px;
-  box-sizing: border-box;
-  transition: margin-top .3s cubic-bezier(.4,0,.2,1);
-}
-:is(#_sd_rendered, .sdoc-reader) .md-table-scroll.sdoc-table-columns-open { --sdoc-table-column-space: 28px; }
-:is(#_sd_rendered, .sdoc-reader) .sdoc-table-copyable > .md-table-toolbar {
-  height: calc(35px + var(--sdoc-table-column-space));
-  padding-bottom: calc(4px + var(--sdoc-table-column-space));
-}
-:is(#_sd_rendered, .sdoc-reader) .table-copy-column-btn {
-  top: auto;
-  bottom: 100%;
-  height: var(--sdoc-table-column-space, 0px);
-  overflow: hidden;
-  transition: height .3s cubic-bezier(.4,0,.2,1),
-    opacity .3s cubic-bezier(.4,0,.2,1), background .2s ease,
-    color .2s ease, box-shadow .15s ease;
-}
+:is(th, td):has(> :is(.sdoc-table-control-cell, .sdoc-table-control-table)) > .sdoc-table-control-column { right: 32px; }
+:is(th, td):has(> .sdoc-table-control-column) > .sdoc-table-control-row { right: 66px; }
 .table-part-copy-status { margin-right: auto; font: 500 11px/1.2 var(--font-ui); }
-:is(#_sd_rendered, .sdoc-reader) .sdoc-table-copy-targets :is(th, td) { position: relative; }
-:is(#_sd_rendered, .sdoc-reader) .sdoc-table-copy-targets :is(th, td)::before {
-  content: '';
-  position: absolute;
-  pointer-events: auto;
-}
-:is(#_sd_rendered, .sdoc-reader) .sdoc-table-copy-header > :is(th, td)::before {
-  top: -28px; left: 0; right: 0; height: 28px;
-}
-:is(#_sd_rendered, .sdoc-reader) .sdoc-table-copy-targets tr > :is(th, td):first-child::after {
-  content: ''; position: absolute; left: -32px; top: 0; bottom: 0; width: 32px;
-}
-:is(#_sd_rendered, .sdoc-reader) tr:hover > :first-child > .table-copy-row-btn,
-:is(#_sd_rendered, .sdoc-reader) :is(th, td):hover > :is(.table-copy-column-btn, .table-copy-cell-btn),
-:is(#_sd_rendered, .sdoc-reader) .table-part-copy-btn:is(:hover, :focus-visible) {
+:is(#_sd_rendered, .sdoc-reader) :is(th, td):hover > .table-part-copy-btn,
+:is(#_sd_rendered, .sdoc-reader) :is(th, td):focus-within > .table-part-copy-btn {
   opacity: 1;
   pointer-events: auto;
 }
 :is(#_sd_rendered, .sdoc-reader) .table-part-copy-btn:is(:hover, :focus-visible) {
   color: var(--text, var(--md-color));
   background: var(--bg-hover, var(--md-copy-btn-hover));
-  box-shadow: 0 1px 4px rgba(0,0,0,.12);
 }
 :is(#_sd_rendered, .sdoc-reader) .table-part-copy-btn:focus-visible {
   outline: 2px solid color-mix(in srgb, var(--md-link-color, #2563eb) 55%, transparent);
   outline-offset: 1px;
 }
 :is(#_sd_rendered, .sdoc-reader) .sdoc-table-copy-preview {
-  box-shadow: inset 0 0 0 9999px color-mix(in srgb, var(--md-link-color, #2563eb) 10%, transparent);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--md-link-color, #2563eb) 25%, transparent),
+    inset 0 0 0 9999px color-mix(in srgb, var(--md-link-color, #2563eb) 3%, transparent);
 }
 body.comment-mode #_sd_rendered .table-part-copy-btn {
   visibility: hidden; opacity: 0; pointer-events: none;

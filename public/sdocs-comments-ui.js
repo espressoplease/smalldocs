@@ -1213,8 +1213,14 @@ function tableAddButton(scope, target) {
     cell: 'Add comment on this cell',
   };
   btn.setAttribute('aria-label', labels[scope]);
-  btn.title = 'Add comment';
+  btn.title = labels[scope];
   btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M12 7v6"/><path d="M9 10h6"/></svg>';
+  if (scope === 'row' || scope === 'column') {
+    var arrow = scope === 'column' ? '<path d="M31 6v12m5-5-5 5-5-5"/>'
+      : '<path d="M25 12h12m-5-5 5 5-5 5"/>';
+    btn.innerHTML = btn.innerHTML.replace('width="16"', 'width="24"')
+      .replace('0 0 24 24', '0 0 40 24').replace('</svg>', arrow + '</svg>');
+  }
   function showPreview() {
     setTableTargetPreview(target, btn);
   }

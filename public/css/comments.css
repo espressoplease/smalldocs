@@ -437,65 +437,17 @@ body.comment-mode .sdoc-element-host::before {
   }
 }
 
-/* Table comments use spreadsheet-style target rails. The app already wraps
-   tables in .md-table-scroll, so the comment host reserves space inside that
-   scrolling plane. The table keeps its original content width while the row
-   and column controls stay aligned with their cells. */
-.sdoc-table-host {
-  position: relative;
-  margin: 1.2em 0;
-}
-#_sd_rendered .sdoc-table-host > .md-table-scroll {
-  width: calc(100% + 32px);
-  max-width: none;
-  margin: 0 0 0 -32px;
-  padding: 28px 0 0 32px;
-  box-sizing: border-box;
-}
-#_sd_rendered .sdoc-table-host > .md-table-scroll > table {
-  width: 100%;
-  margin: 0;
-}
-#_sd_rendered .sdoc-table-host th,
-#_sd_rendered .sdoc-table-host td {
-  position: relative;
-}
-
-body.comment-mode .sdoc-table-host th::before,
-body.comment-mode .sdoc-table-host tbody td:first-child::before {
-  content: '';
-  position: absolute;
-  z-index: 1;
-  pointer-events: auto;
-}
-body.comment-mode .sdoc-table-host th::before {
-  left: 0;
-  right: 0;
-  top: -28px;
-  height: 28px;
-}
-body.comment-mode .sdoc-table-host tbody td:first-child::before {
-  left: -32px;
-  top: 0;
-  bottom: 0;
-  width: 32px;
-}
-body.comment-mode .sdoc-table-host th:hover > .sdoc-table-column-add,
-body.comment-mode .sdoc-table-host tr:hover > td:first-child > .sdoc-table-row-add,
-body.comment-mode .sdoc-table-host td:hover > .sdoc-table-cell-add,
+/* Comment controls reuse the copy controls' in-cell layout. */
+.sdoc-table-host { position: relative; margin: 1.2em 0; }
+#_sd_rendered .sdoc-table-host > .md-table-scroll { margin: 0; }
+#_sd_rendered .sdoc-table-host > .md-table-scroll > table { width: 100%; margin: 0; }
+body.comment-mode .sdoc-table-host :is(th, td):hover > .sdoc-table-add,
+body.comment-mode .sdoc-table-host :is(th, td):focus-within > .sdoc-table-add,
 body.comment-mode th.sdoc-table-column-commented > .sdoc-table-column-add,
 body.comment-mode tr.sdoc-table-row-commented > td:first-child > .sdoc-table-row-add,
-body.comment-mode .sdoc-table-add:hover,
 body.comment-mode .sdoc-table-add:focus-visible {
   opacity: 1;
   pointer-events: auto;
-}
-body.comment-mode .sdoc-table-table-add {
-  pointer-events: auto;
-}
-body.comment-mode .sdoc-table-host th:first-child:has(> .sdoc-table-table-add:is(:hover, :focus)) > .sdoc-table-column-add {
-  opacity: 0;
-  pointer-events: none;
 }
 body.comment-mode .sdoc-table-add:hover,
 body.comment-mode .sdoc-table-add:focus-visible {
@@ -546,7 +498,8 @@ body.comment-mode td.sdoc-table-cell-commented {
   --sdoc-table-cell-overlay: color-mix(in srgb, var(--sdoc-table-cell-color, var(--sdoc-anchor-color)) 14%, transparent);
 }
 body.comment-mode .sdoc-table-target-preview {
-  --sdoc-table-preview-overlay: color-mix(in srgb, var(--sdoc-table-preview-color, var(--sdoc-anchor-color)) 16%, transparent);
+  --sdoc-table-preview-overlay: color-mix(in srgb, var(--sdoc-table-preview-color, var(--sdoc-anchor-color)) 3%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--sdoc-table-preview-color, var(--sdoc-anchor-color)) 25%, transparent);
 }
 
 .sdoc-table-host > .sdoc-card { margin-top: 6px; margin-bottom: 0; }
