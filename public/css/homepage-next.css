@@ -162,6 +162,7 @@
 }
 
 .home-next #learn .install-grid { display: block; }
+.home-next #learn .install-text { max-width: 100%; }
 .home-next #learn .hero-display { margin-top: 0; margin-bottom: 9px; }
 .home-next .praise-head h2 { display: flex; align-items: flex-start; gap: 10px; }
 .home-next .praise-head .hn-badge { flex-shrink: 0; width: 25px; height: 25px; margin-top: 4px; font-size: 18px; }
