@@ -551,18 +551,18 @@ To round-trip, click the **copy with comments** button next to any heading (or t
 
 ### Comments on slides, diagrams and sheets
 
-Comment on slide elements, flowchart nodes, tables, or selected sheet cells. Your agent reads their structured targets with `sdoc cloud comments DOCUMENT_ID --json`, checks the saved source and updates the document. Sheet notes refer to saved cells even after sorting or scratch edits. After verifying a correction, the agent can delete addressed feedback or resolve it to retain the discussion. Sheet comments remain in SmallDocs and are not exported as native Excel notes.
+Comment on slide elements, flowchart nodes, tables, or selected sheet cells. Your agent reads their structured targets with `sdoc cloud comments DOCUMENT_ID --json`, checks the saved source and updates the document. Sheet notes refer to saved cells even after sorting or editing values. After verifying a correction, the agent can delete addressed feedback or resolve it to retain the discussion. Sheet comments remain in SmallDocs and are not exported as native Excel notes.
 
 
 ### Interactive forms (agents asking the user)
 
-The other direction: an agent wants the user to answer something *structured*. Instead of asking in chat and parsing free text, the agent writes a fenced ` ```form ` block into a markdown file and runs `sdoc feedback file.md`. The browser renders real form controls — radio buttons, checkboxes, dropdowns, text fields, textareas, numbers, dates — with pre-filled defaults the user can edit.
+An agent can write a fenced `form` block and save it with `sdoc review.md --cloud --json +review`. The reader completes it directly in read mode using text fields, radio buttons, checkboxes, dropdowns, numbers and dates.
 
-When the user clicks a submit button, the bridge writes their answers into the same file (under `answers:` and `submissions:` inside the form block) and emits one JSON line per click on the CLI's stdout. In single-shot mode the process exits on the first click; with `--keep-open` it stays alive across many submits so the agent can keep asking follow-ups in the same browser tab.
+Changed fields autosave under `answers:` inside the form block. Submit buttons also append `submissions:` records with the submitted values and time. The reader's existing editing access applies, and responses are visible to people who can read the document. Wait for the Cloud save to finish before closing it.
 
-Each submit button can carry a `scope:` (only submit some fields), an `after:` (render inline next to a specific field), a `final:` (this click ends the session), and a `help:` (custom hint line). Auto-generated grey hint text under each button explains what it does; a green "✓ Saved to <file> · <time>" confirmation appears after each successful click; the entire form locks with a calm "Session ended" note when the bridge exits.
+The agent reads answers with `sdoc cloud read DOCUMENT_ID --json`, or a section-scoped read. See the [form authoring guide](/developers/authoring/forms) and run `sdoc feedback` with no file for the complete syntax. Cloud forms stay open after submission and do not require a local feedback process.
 
-Run `sdoc feedback` with no arguments to print the full DSL reference: every field type, every button option, the multi-round flow, and how agents on different harnesses (Claude Code, Codex, Aider, Cursor) should consume the submit events.
+For a local live session, `sdoc feedback file.md` writes answers into the file and prints one JSON line per submission. `--keep-open` receives several submissions, while `final: true` ends that local session.
 
 ### Works offline
 
@@ -608,7 +608,7 @@ Always link to that returned Cloud URL in chat, never the underlying local Markd
 
 Cloud `create`, `pull`, `push`, and `restore` return `url` in JSON. Cloud `ls` and `search` return `documents[].url` for linking existing documents. Browser sign-in and document permissions still apply; a URL does not grant access.
 
-Feedback and bridge commands remain local live sessions. A Cloud copy does not replace the live feedback connection.
+Cloud forms persist answers and submissions in the saved document. The explicit `sdoc feedback FILE.md` and `sdoc bridge FILE.md` commands remain available for local live sessions and stdout events.
 
 ## The CLI
 

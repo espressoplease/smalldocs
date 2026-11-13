@@ -122,9 +122,9 @@ function parseMapping(tokens, startIdx, baseIndent) {
     keyOrder.push(key);
     // Inline value
     if (rest !== '') {
-      if (rest === '|') {
+      if (rest === '|' || rest === '|-') {
         var bs = captureBlockScalar(tokens, i + 1, baseIndent);
-        obj[key] = bs.value;
+        obj[key] = rest === '|-' ? bs.value.replace(/\n$/, '') : bs.value;
         i = bs.nextIdx;
         continue;
       }
@@ -389,7 +389,7 @@ function emitKeyValue(lines, key, val, indent, prefix) {
   }
   if (typeof val === 'string') {
     if (val.indexOf('\n') >= 0) {
-      lines.push(pad + key + ': |');
+      lines.push(pad + key + (val.endsWith('\n') ? ': |' : ': |-'));
       var ipad = ' '.repeat(indent + 2);
       var parts = val.split('\n');
       if (parts[parts.length - 1] === '') parts.pop();

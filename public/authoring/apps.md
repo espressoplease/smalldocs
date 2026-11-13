@@ -120,11 +120,39 @@ The component starts inline and reports its document height whenever layout chan
 
 An ordinary `html` fence is always a source listing. Use `sdoc-app` only when the HTML should execute.
 
+## Saved inputs and custom state
+
+Native inputs, selects and textareas with a `name` or `id` save their values in the document. Use distinct names or IDs for independent fields. Radio and checkbox groups can share a name. Password and file controls are not captured automatically.
+
+Custom controls can use the state API available before the component's scripts run:
+
+```html
+<button id="increment">Add one</button>
+<p id="status" role="status"></p>
+<script>
+const status = document.getElementById('status');
+document.getElementById('increment').onclick = async () => {
+  const count = Number(SmallDocs.state.count || 0);
+  SmallDocs.setState({ count: count + 1 });
+  try {
+    await SmallDocs.save();
+    status.textContent = 'Saved';
+  } catch (error) {
+    status.textContent = 'Changes have not been saved. Try again.';
+  }
+};
+</script>
+```
+
+`setState` merges top-level properties and queues the document save. `SmallDocs.state.inputs` holds the named native controls. In a Cloud document, `save()` resolves after an acknowledged save and rejects on failure. Use it when a button needs to confirm that its result was saved. Native controls restore on document load and dispatch input and change events so calculations can refresh.
+
+State is stored as JSON in a `<script type="application/json" id="sdoc-state">` element inside this component's source. An agent reads it with `sdoc cloud read DOCUMENT_ID --json`. An initial state script can provide defaults. JSON values must be serializable. State shares the document's access and revision history. Independent state properties combine during concurrent saves; for the same property, the later save supplies the current value. Other JavaScript variables remain temporary.
+
 ## Browser boundary
 
 The component frame can run scripts and use forms, modals, downloads, and popups. It cannot read or modify the SmallDocs page, host application DOM, account controls, cookies, or storage. Network requests are permitted. They remain subject to the destination's CORS rules and any Content Security Policy declared by the component itself.
 
-Keep the result usable without access to the parent document. Do not depend on parent DOM selectors, SmallDocs globals, same-origin storage, or top-level navigation.
+Keep the result usable without access to the parent document. Use the provided `SmallDocs` state API for persistence; parent DOM selectors, account controls and same-origin storage remain outside the component.
 
 ## Authoring check
 

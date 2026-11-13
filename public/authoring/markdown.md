@@ -22,6 +22,12 @@ Short summary of the result.
 
 Use a single level-one heading for the document title. Organise substantial documents with level-two and level-three headings. Heading IDs are generated from heading text and duplicate headings receive stable suffixes.
 
+## Task lists and forms
+
+Task checkboxes work in read mode. Ticking a task updates its Markdown marker from `- [ ]` to `- [x]` and autosaves in Cloud. Agents read the same completion state from the saved document.
+
+Use [forms](/developers/authoring/forms) for structured answers such as choices, review notes, numbers and dates. Drafts and submissions stay in the Cloud document and can be read by the agent.
+
 ## Tables
 
 ```md

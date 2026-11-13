@@ -122,7 +122,8 @@ async function saveCloudRevision() {
         ? data.document.markdown : markdown;
       S.cloudDocument = Object.assign({}, S.cloudDocument, data.document);
       if (S.cloudHistory) S.cloudHistory.observe(S.cloudDocument);
-      if (current === observedMarkdown && !(S.richWrite && S.richWrite.hasActiveField() && savedMarkdown !== current)) {
+      if (current === observedMarkdown && !((S.richWrite && S.richWrite.hasActiveField() ||
+          S.hasActiveReaderInteraction && S.hasActiveReaderInteraction()) && savedMarkdown !== current)) {
         applyCloudMarkdown(savedMarkdown, data.document.filename || currentFilename());
         cloudLastSavedMarkdown = currentMarkdown();
         cloudDraftMergeBase = null;
@@ -177,10 +178,11 @@ function queueCloudSave(source) {
   cloudSaveTimer = setTimeout(function () {
     cloudSaveTimer = null;
     saveCloudRevision().catch(function () {});
-  }, source === 'comment' || source === 'remote' ? 0 : 800);
+  }, source === 'comment' || source === 'remote' ? 0 : 1500);
 }
 
 async function flushCloudSave() {
+  if (S.cellsFocus && S.cellsFocus.commitOpen) S.cellsFocus.commitOpen();
   if (S.richWrite) S.richWrite.commitCells();
   if (S.hasPendingWriteChanges && S.hasPendingWriteChanges()) S.flushWriteChanges();
   do {
@@ -332,6 +334,7 @@ async function loadCloudDocument(id) {
 async function checkCloudDocument() {
   if (!S.cloudDocument || cloudSaveBlocked || cloudSavePromise || document.hidden) return null;
   if (S.richWrite && S.richWrite.hasActiveField()) return null;
+  if (S.hasActiveReaderInteraction && S.hasActiveReaderInteraction()) return null;
   if (S.hasPendingWriteChanges && S.hasPendingWriteChanges()) { S.flushWriteChanges(); return null; }
   if (cloudDeferredRichUpdate && currentMarkdown() === cloudLastSavedMarkdown) {
     var deferred = cloudDeferredRichUpdate; cloudDeferredRichUpdate = null;

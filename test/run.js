@@ -42,6 +42,7 @@ require('./test-rich-comments')(harness);
 require('./test-rich-edit')(harness);
 require('./test-slide-comments')(harness);
 require('./test-forms')(harness);
+require('./test-reader-interactions')(harness);
 require('./test-cells')(harness);
 require('./test-cells-formula')(harness);
 require('./test-cells-groups')(harness);

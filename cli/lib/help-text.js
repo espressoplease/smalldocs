@@ -1215,6 +1215,21 @@ VIEWING
   JavaScript state remain in place. When a document has several components,
   Previous and Next move between them.
 
+SAVED STATE
+  Native input, select and textarea controls with a name or id save their
+  current values in read mode. Password and file inputs are not captured.
+  Use distinct names or ids; radio and checkbox groups can share a name.
+
+  Custom controls can read SmallDocs.state, call SmallDocs.setState({count: 1})
+  to update state, and await SmallDocs.save() for an acknowledged save.
+  setState merges top-level properties. The inputs property holds native fields.
+  SmallDocs saves JSON in <script type="application/json" id="sdoc-state">
+  inside this component's source. This travels with the Cloud document and is
+  readable by agents using sdoc cloud read DOCUMENT_ID --json. State is shared
+  document content, with the document's existing permissions and history.
+  Browser-only values are temporary until they enter this saved state. Save
+  errors reject SmallDocs.save(); display the failure rather than claiming success.
+
 BROWSER BOUNDARY
   Component code runs in a sandboxed frame. It cannot read the SmallDocs page,
   browser storage for smalldocs.org, or account controls. Scripts can use forms,
@@ -1534,11 +1549,13 @@ FULLSCREEN & EDITING
     - Formula view: when a sheet has formulas, an =fx button in the top bar
       switches every formula cell to show its source ("=B2*C2") instead of
       its value, editable in place. Click again for values.
-  Editing is client-side and ephemeral: changes show in the inline grid when
-  you close, but nothing is written back to the document or to any file.
+  Committed edits update the Markdown source and autosave in Cloud. Raw formulas
+  and format directives are retained. A local live connection saves to its file;
+  snapshot documents retain changes in their document URL.
 
   After a fullscreen edit, the inline toolbar shows a "showing edited" pill:
-  the grid displays your edits, the document is unchanged. Click the pill to
+  the grid displays your edits. The original/edited switch is a viewing control;
+  committed edits still save to the document. Click the pill to
   flip to the document's original data ("showing original") and back.
   Expanding again always resumes from the edits.
 

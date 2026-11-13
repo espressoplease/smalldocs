@@ -5,7 +5,7 @@ file: runnable-html.md
 
 # Runnable HTML
 
-A SmallDoc can contain a working browser tool alongside its prose, charts, tables, and diagrams. Try the controls in these examples. Each one runs inside the page and can expand to fill the window without losing its state.
+A SmallDoc can contain a working browser tool alongside its prose, charts, tables, and diagrams. Try the controls in these examples. Each one runs inside the page and can expand to fill the window without losing its state. Named inputs save in the document; custom controls can use the [saved-state API](/developers/authoring/apps).
 
 **1. Rotate a valuation surface**
 

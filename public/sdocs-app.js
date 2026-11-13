@@ -429,6 +429,18 @@ var htmlComponents = window.SDocHtmlComponents && window.SDocHtmlComponents.crea
       window: window,
       document: document,
       runnerUrl: '/sdoc-app-runner/runner.html',
+      stateForSource: function (source) { return window.SDocInteractions ? window.SDocInteractions.appState(source) : {}; },
+      onStateChange: function (entry, state) {
+        var source = window.SDocInteractions.setAppState(entry.source, state);
+        if (!S.replaceInteractiveBlock('sdoc-app', entry.index, entry.source, source)) throw new Error('Source changed');
+        entry.source = source;
+      },
+      onSave: async function () {
+        if (S.cloudDocument && S.saveCloudNow) {
+          await S.saveCloudNow();
+          if (S.cloudPublicationSource && !S.cloudPublicationSource().saved) throw new Error('Not saved');
+        }
+      },
       isActive: function () { return !!S.renderedEl; },
     })
   : null;
@@ -452,6 +464,13 @@ function render() {
     window.SDocShapeRender.destroyWithin(S.renderedEl);
   }
   S.renderedEl.innerHTML = S.renderMarkdownSafe(S.currentBody);
+  if (window.SDocTasks) window.SDocTasks.attach(S.renderedEl, {
+    marked: marked,
+    getMarkdown: function () { return S.currentBody; },
+    setMarkdown: function (markdown) { S.currentBody = markdown; },
+    canEdit: function () { return !(S.bridge && S.bridge._staticReadOnly); },
+    onChange: function () { S.syncAll('interaction'); }
+  });
 
   if (proseReaderControls) proseReaderControls.attach(S.renderedEl);
   attachCodeCopyButtons(S.renderedEl);
@@ -1240,7 +1259,7 @@ function syncAll(source) {
       render();
       if (parsed.meta.styles) S.applyStylesFromMeta(parsed.meta.styles);
       updateHash();
-    } else if (source === 'write') {
+    } else if (source === 'write' || source === 'interaction') {
       S._isDefaultState = false;
       S.currentMeta = Object.assign({}, S.currentMeta, { styles: S.collectStyles() });
       S.rawEl.value = SDocYaml.serializeFrontMatter(S.currentMeta) + '\n' + S.currentBody;
@@ -1647,7 +1666,8 @@ S.sanitizeMarkdownHtml = function (html) {
 
 S.renderMarkdownSafe = function (text) {
   try {
-    return S.sanitizeMarkdownHtml(marked.parse(String(text == null ? '' : text)));
+    var source = String(text == null ? '' : text);
+    return S.sanitizeMarkdownHtml(window.SDocTasks ? window.SDocTasks.render(source, marked) : marked.parse(source));
   } catch (e) { return ''; }
 };
 

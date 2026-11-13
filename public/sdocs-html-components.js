@@ -340,8 +340,27 @@
           type: 'sdocs-app-load',
           token: record.token,
           source: record.entry.source,
+          state: options.stateForSource ? options.stateForSource(record.entry.source) : {},
           design: currentDesign(),
         }, '*');
+        return;
+      }
+      if (message.type === 'sdocs-app-state' && options.onStateChange) {
+        if (!message.state || typeof message.state !== 'object' || Array.isArray(message.state)) return;
+        try { options.onStateChange(record.entry, JSON.parse(JSON.stringify(message.state))); record.entry.stateError = false; }
+        catch (_) { record.entry.stateError = true; if (record.entry.status) { record.entry.status.hidden = false; record.entry.status.textContent = 'Changes were not saved.'; } }
+        return;
+      }
+      if (message.type === 'sdocs-app-save') {
+        Promise.resolve().then(function () {
+          if (!options.onSave) throw new Error('Saving is unavailable');
+          if (record.entry.stateError) throw new Error('Source changed');
+          return options.onSave(record.entry);
+        }).then(function () { reply(true); }, function () { reply(false); });
+        function reply(ok) {
+          if (!isActive() || !framesByToken.has(record.token)) return;
+          record.frame.contentWindow.postMessage({ type: 'sdocs-app-save-result', token: record.token, requestId: message.requestId, ok: ok }, '*');
+        }
         return;
       }
       if (message.type === 'sdocs-app-size' && record.mode === 'inline') {

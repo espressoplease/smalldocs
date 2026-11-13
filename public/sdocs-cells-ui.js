@@ -1194,6 +1194,9 @@
       else if (item.kind === 'sheet') {
         item.target = target;
         item.rawSrc = item.source;
+        var originalBlock = window.SDocInteractions && typeof S.currentBody === 'string'
+          ? window.SDocInteractions.fences(S.currentBody, 'cells')[item.index] : null;
+        if (originalBlock) item.model.__sdocReadSource = { index: item.index, source: originalBlock.content };
       }
     }
     S.cellsWorkbook = plan.entries;
@@ -1360,6 +1363,12 @@
   // toggle on the inline grid's bar (sdocs-cells-focus.js calls this hook).
   S.onCellsEdited = function (model, wrapper) {
     if (wrapper && wrapper._cellsMarkEdited) wrapper._cellsMarkEdited();
+  };
+  S.persistReaderCells = function (model) {
+    var record = model.__sdocReadSource;
+    if (!record || !S.replaceInteractiveBlock || !window.SDocRichEdit) return;
+    var source = window.SDocRichEdit.cellsSource(record.source, model, CELLS);
+    if (S.replaceInteractiveBlock('cells', record.index, record.source, source)) record.source = source;
   };
 
   S.processCells = processCells;

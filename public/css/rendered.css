@@ -1025,3 +1025,11 @@ html[data-theme="dark"] :is(#_sd_rendered, .sdoc-code-focus) {
   color: #b22;
   margin-bottom: 4px;
 }
+.sdoc-reader input[data-sdoc-task]:enabled {
+  cursor: pointer;
+  accent-color: var(--md-link-color);
+}
+.sdoc-reader input[data-sdoc-task]:focus-visible {
+  outline: 2px solid var(--md-link-color);
+  outline-offset: 2px;
+}

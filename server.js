@@ -4612,7 +4612,7 @@ const server = http.createServer((req, res) => {
   const authoringMatch = /^\/developers\/authoring\/([a-z-]+)(\.md)?\/?$/.exec(pathname);
   const authoringNames = new Set([
     'markdown', 'code', 'math', 'diagrams', 'charts', 'cells',
-    'slides', 'slide-shapes', 'apps', 'walkthroughs', 'video', 'styles',
+    'slides', 'slide-shapes', 'apps', 'forms', 'walkthroughs', 'video', 'styles',
   ]);
   const authoringSlug = authoringMatch && authoringNames.has(authoringMatch[1]) ? authoringMatch[1] : null;
   if (authoringSlug && authoringMatch[2]) {

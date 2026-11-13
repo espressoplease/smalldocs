@@ -1154,7 +1154,7 @@
     S.currentMeta = Object.assign({}, S.currentMeta, { styles: S.collectStyles() });
     S.rawEl.value = window.SDocYaml.serializeFrontMatter(S.currentMeta) + '\n' + S.currentBody;
     S._isDefaultState = false;
-    S.syncAll('load');
+    S.syncAll('interaction');
   }
 
   function copyChartAction(entry, item) {

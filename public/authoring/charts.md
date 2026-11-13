@@ -53,3 +53,7 @@ Common top-level properties:
 For `mixed`, give each dataset its own `type` of `bar` or `line`. Scatter datasets use `{x, y}` points and bubble datasets use `{x, y, r}` points.
 
 Use charts only for quantitative patterns. State the relevant conclusion in nearby prose so the result remains understandable if the visual cannot finish loading.
+
+## Reader controls
+
+Chart titles, subtitles, legends and data-label settings update the chart source and autosave in a Cloud document. These changes can be read by an agent through the saved Markdown.

@@ -1,5 +1,5 @@
 'use strict';
-(function (exports, SDocYaml, threadData, textDiff) {
+(function (exports, SDocYaml, threadData, textDiff, interactions, forms) {
 const { splitLines, diffEdits } = textDiff;
 
 function arraysEqual(left, right) {
@@ -241,6 +241,61 @@ function mergeComments(baseComments, currentComments, proposedComments) {
   return { comments, combined, remaps, conflicts };
 }
 
+function interactionMerge(markdowns) {
+  if (!interactions || !forms) return null;
+  const plans = [];
+  const conflicts = [];
+  for (const language of ['form', 'sdoc-app']) {
+    const blocks = markdowns.map(markdown => interactions.fences(markdown, language));
+    if (blocks.some(list => list.length !== blocks[0].length)) continue;
+    blocks[0].forEach((block, index) => {
+      const sources = blocks.map(list => list[index].content);
+      let definitions, states, restore;
+      if (language === 'form') {
+        const parsed = sources.map(source => forms.parseFormBlock(source));
+        if (parsed.some(item => item.error)) return;
+        const values = parsed.map(item => item.value);
+        definitions = values.map(value => forms.serializeFormBlock({ id:value.id, fields:value.fields, buttons:value.buttons }));
+        states = values.map(value => ({ answers:value.answers || {}, submissions:value.submissions || [] }));
+        restore = state => forms.serializeFormBlock({ ...values[0], ...state });
+      } else {
+        definitions = sources.map(interactions.appDefinition);
+        states = sources.map(interactions.appState);
+        restore = state => interactions.setAppState(definitions[0], state);
+      }
+      if (definitions.some(value => value !== definitions[0])) return;
+      if (JSON.stringify(states[1]) === JSON.stringify(states[0]) ||
+          JSON.stringify(states[2]) === JSON.stringify(states[0]) || JSON.stringify(states[1]) === JSON.stringify(states[2])) return;
+      const state = language === 'form'
+        ? { answers:interactions.mergeState(states[0].answers, states[1].answers, states[2].answers, conflicts, 'form:' + index) }
+        : interactions.mergeState(states[0], states[1], states[2], conflicts, 'sdoc-app:' + index);
+      if (language === 'form') {
+        const seen = new Set();
+        state.submissions = states[1].submissions.concat(states[2].submissions).filter(item => {
+          const key = JSON.stringify(item); if (seen.has(key)) return false; seen.add(key); return true;
+        });
+      }
+      plans.push({ language, index, definition:definitions[0], source:restore(state) });
+    });
+  }
+  if (!plans.length) return null;
+  const stripped = markdowns.map(markdown => {
+    plans.forEach(plan => {
+      const block = interactions.fences(markdown, plan.language)[plan.index];
+      markdown = interactions.replaceFence(markdown, plan.language, plan.index, block.content, plan.definition);
+    });
+    return markdown;
+  });
+  const merged = mergeTargetRevision(...stripped);
+  plans.forEach(plan => {
+    const block = interactions.fences(merged.markdown, plan.language)[plan.index];
+    if (block) merged.markdown = interactions.replaceFence(merged.markdown, plan.language, plan.index, block.content, plan.source);
+  });
+  merged.combined = true; merged.classification = 'combined';
+  merged.conflicts = merged.conflicts.concat(conflicts);
+  return merged;
+}
+
 function mergeTargetRevision(baseMarkdown, currentMarkdown, proposedMarkdown) {
   if (currentMarkdown === baseMarkdown) {
     return { markdown: proposedMarkdown, classification: 'clean', combined: false,
@@ -250,6 +305,8 @@ function mergeTargetRevision(baseMarkdown, currentMarkdown, proposedMarkdown) {
     return { markdown: currentMarkdown, classification: 'noop', combined: false,
       comment_id_remaps: [], conflicts: [] };
   }
+  const interactive = interactionMerge([baseMarkdown, currentMarkdown, proposedMarkdown]);
+  if (interactive) return interactive;
   // A body-only merge should not reformat unchanged YAML, including comments.
   const prefixes = [baseMarkdown, currentMarkdown, proposedMarkdown]
     .map(markdown => markdown.slice(0, markdown.length - SDocYaml.parseFrontMatter(markdown).body.length));
@@ -279,4 +336,6 @@ exports.mergeTargetRevision = mergeTargetRevision;
 })(typeof module !== 'undefined' && module.exports ? module.exports : (window.SDocsMerge = {}),
   typeof module !== 'undefined' && module.exports ? require('./sdocs-yaml') : window.SDocYaml,
   typeof module !== 'undefined' && module.exports ? require('./sdocs-comment-data') : window.SDocsCommentData,
-  typeof module !== 'undefined' && module.exports ? require('./sdocs-text-diff') : window.SDocsTextDiff);
+  typeof module !== 'undefined' && module.exports ? require('./sdocs-text-diff') : window.SDocsTextDiff,
+  typeof module !== 'undefined' && module.exports ? require('./sdocs-interactions') : window.SDocInteractions,
+  typeof module !== 'undefined' && module.exports ? require('./sdocs-form-block') : window.SDocFormBlock);

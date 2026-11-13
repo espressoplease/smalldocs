@@ -35,7 +35,7 @@ function renderForms(root) {
   var codeBlocks = scope.querySelectorAll('pre > code.language-form');
   var mounted = 0;
   for (var i = 0; i < codeBlocks.length; i++) {
-    mountForm(codeBlocks[i]);
+    mountForm(codeBlocks[i], i);
     mounted++;
   }
   // Tests + bridge-driven UX hooks listen for this. Fired even when
@@ -50,7 +50,7 @@ function renderForms(root) {
   } catch (_) {}
 }
 
-function mountForm(codeEl) {
+function mountForm(codeEl, index) {
   var pre = codeEl.parentNode;
   if (!pre || pre.tagName !== 'PRE') return;
   // attachCodeCopyButtons() in sdocs-app.js wraps every <pre> in
@@ -66,7 +66,7 @@ function mountForm(codeEl) {
     target.replaceWith(host);
     return;
   }
-  renderForm(host, parsed.value);
+  renderForm(host, parsed.value, index, src);
   target.replaceWith(host);
 }
 
@@ -88,7 +88,7 @@ function renderError(host, message, src) {
 
 // ─── Real form rendering ──────────────────────────────────────
 
-function renderForm(host, block) {
+function renderForm(host, block, index, source) {
   var token = FB.formRevisionToken(block.fields, block.buttons);
   var form = document.createElement('form');
   form.className = 'sdoc-form';
@@ -96,6 +96,29 @@ function renderForm(host, block) {
   form.setAttribute('data-form-token', token);
   form.setAttribute('novalidate', 'true');
   form.addEventListener('submit', function (e) { e.preventDefault(); });
+  form._sdocPersist = function (values, submission) {
+    var next = Object.assign({}, block, { answers: Object.assign({}, block.answers, values),
+      submissions: (block.submissions || []).concat(submission && !(block.submissions || []).some(function (item) {
+        return JSON.stringify(item) === JSON.stringify(submission);
+      }) ? [submission] : []) });
+    var text = FB.serializeFormBlock(next);
+    var parsed = FB.parseFormBlock(text);
+    if (parsed.error) { if (S.setStatus) S.setStatus(parsed.error); return false; }
+    if (!S.replaceInteractiveBlock || !S.replaceInteractiveBlock('form', index, source, text)) return false;
+    block = next; source = text;
+    return true;
+  };
+  function persistInput(event) {
+    if (!S.cloudDocument) return;
+    var name = event.target.getAttribute && event.target.getAttribute('data-field-name');
+    var field = block.fields.find(function (item) { return item.name === name; });
+    if (!field) return;
+    var values = {};
+    values[field.name] = readField(form, field);
+    form._sdocPersist(values);
+  }
+  form.addEventListener('input', persistInput);
+  form.addEventListener('change', persistInput);
 
   // Group buttons by their inline-anchor field (if any). Bottom-row
   // buttons are those without `after`.
@@ -137,6 +160,11 @@ function renderForm(host, block) {
   }
 
   host.appendChild(form);
+  if (S.cloudDocument && block.submissions && block.submissions.length) {
+    var last = block.submissions[block.submissions.length - 1];
+    var savedButton = form.querySelector('[data-button-name="' + cssAttr(last.by) + '"]');
+    if (savedButton) recordSavedLine(savedButton, 'Cloud', last.at);
+  }
 }
 
 function renderField(field, initialValue) {
@@ -322,6 +350,7 @@ function buttonHintText(buttonSpec, block) {
   if (buttonSpec.help && typeof buttonSpec.help === 'string') {
     return buttonSpec.help;
   }
+  if (S.cloudDocument) return 'Answers autosave to the document. Submit records this response.';
   if (buttonSpec.final) {
     return 'Submitting hands off to the agent and ends this session.';
   }
@@ -378,6 +407,34 @@ function handleSubmit(form, block, buttonSpec, token) {
     var fSel = '[data-field="' + cssAttr(firstInvalid) + '"]';
     var first = form.querySelector(fSel + ' input, ' + fSel + ' textarea, ' + fSel + ' select');
     if (first) first.focus();
+    var invalidButton = form.querySelector('[data-button-name="' + cssAttr(buttonSpec.name) + '"]');
+    if (invalidButton) setButtonState(invalidButton, 'idle');
+    return;
+  }
+
+  if (S.cloudDocument) {
+    var button = form.querySelector('[data-button-name="' + cssAttr(buttonSpec.name) + '"]');
+    var requestKey = JSON.stringify({ by: buttonSpec.name, values: values });
+    if (!form._sdocPendingSubmission || form._sdocPendingSubmission.key !== requestKey) {
+      form._sdocPendingSubmission = { key: requestKey,
+        value: { by: buttonSpec.name, at: new Date().toISOString(), scope: scope, values: values } };
+    }
+    var submission = form._sdocPendingSubmission.value;
+    if (!form._sdocPersist(values, submission)) { setButtonState(button, 'idle'); return; }
+    S.saveCloudNow().then(function () {
+      if (S.cloudPublicationSource && !S.cloudPublicationSource().saved) throw new Error('Not saved');
+      form._sdocPendingSubmission = null;
+      if (!button.isConnected) return;
+      setButtonState(button, 'sent'); recordSavedLine(button, 'Cloud');
+      setTimeout(function () { if (button.isConnected) setButtonState(button, 'idle'); }, 1200);
+    }).catch(function () {
+      if (!button.isConnected) return;
+      setButtonState(button, 'idle');
+      var cell = button.closest('.sdoc-form-button-cell');
+      var line = cell.querySelector('.sdoc-form-button-saved') || document.createElement('div');
+      line.className = 'sdoc-form-button-saved'; line.textContent = 'Answers have not been saved to Cloud. Try again.';
+      cell.appendChild(line);
+    });
     return;
   }
 
@@ -507,7 +564,7 @@ document.addEventListener('sdocs-form-submitted', function (e) {
   }, 1200);
 });
 
-function recordSavedLine(btn, file) {
+function recordSavedLine(btn, file, at) {
   var cell = btn.closest('.sdoc-form-button-cell');
   if (!cell) return;
   var line = cell.querySelector('.sdoc-form-button-saved');
@@ -516,7 +573,7 @@ function recordSavedLine(btn, file) {
     line.className = 'sdoc-form-button-saved';
     cell.appendChild(line);
   }
-  var time = new Date();
+  var time = at && Number.isFinite(Date.parse(at)) ? new Date(at) : new Date();
   var hh = String(time.getHours()).padStart(2, '0');
   var mm = String(time.getMinutes()).padStart(2, '0');
   var ss = String(time.getSeconds()).padStart(2, '0');
