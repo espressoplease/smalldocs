@@ -1,6 +1,6 @@
 {
-  "commit": "a908533f537e80b913a8dc5bf40b2c3340575fdd",
-  "builtAt": "2026-11-13T12:10:38Z",
+  "commit": "09c8d1d2a313ab24b6c7aef49db287900c818734",
+  "builtAt": "2026-11-13T13:18:36Z",
   "repo": "https://github.com/espressoplease/smalldocs",
   "files": [
     {
@@ -15,23 +15,23 @@
     },
     {
       "path": "/agent-changes.md",
-      "sha256": "d9625396cc911f3be78fe4ec37a8d6a46173afdb537dadd524ac70bb3a8eba88",
-      "bytes": 1187977
+      "sha256": "a4683dc41d81947492ebfa6f6fa1a62d4e74e204398c4a6dea2d97fa3fe3066d",
+      "bytes": 1239617
     },
     {
       "path": "/authoring/apps.md",
-      "sha256": "1368b5619118b7f45ce6a3446d5b0a7079af5f173c17ed6981ee5ee6847fb3b1",
-      "bytes": 6953
+      "sha256": "f164a9c67a8a1513aa3125d529bb7ca665be3a94256fc783cfb539563db06eb4",
+      "bytes": 8725
     },
     {
       "path": "/authoring/cells.md",
-      "sha256": "0aa55800db49bd374456e7cfef554441ce59aa88a5209a9e58cb6c160f854b2c",
-      "bytes": 1489
+      "sha256": "a52aa57b5018710da04eaa563e591d591e51a0ea8fc06149e7486e9e95e35115",
+      "bytes": 2053
     },
     {
       "path": "/authoring/charts.md",
-      "sha256": "dd0082dd31997fe1c5a4791ea218b125284c4d0921cacfcccd7910b380ddd8dc",
-      "bytes": 1513
+      "sha256": "3386cdea3fad2f5de4c55863feeaabfdee4eb6660c4f0b18ed5e1b741311e526",
+      "bytes": 1715
     },
     {
       "path": "/authoring/code.md",
@@ -44,9 +44,14 @@
       "bytes": 1337
     },
     {
+      "path": "/authoring/forms.md",
+      "sha256": "8f0e43151cfa77d138816ad98229e50c479f0705604d3e143cd7674a20aa6fd4",
+      "bytes": 2729
+    },
+    {
       "path": "/authoring/markdown.md",
-      "sha256": "f0944c42b309b39488708853ad97eac75558b53162ce50cd257b1ecd4da347f1",
-      "bytes": 1448
+      "sha256": "99f80e05776a1530763adcf0d3071d825b7a5e466c1a336148d4b6e0fe31039e",
+      "bytes": 1858
     },
     {
       "path": "/authoring/math.md",
@@ -415,8 +420,8 @@
     },
     {
       "path": "/css/rendered.css",
-      "sha256": "fcc46ac22a634e1fbe8ee80216e6e0f3eb2be7c2f63f3dfc423733b24353ec91",
-      "bytes": 35070
+      "sha256": "390b0f488114cfca5512fae4d1a286389930ee58487739cf12df8156bf25cc3a",
+      "bytes": 35293
     },
     {
       "path": "/css/sidebar-shared.css",
@@ -620,8 +625,8 @@
     },
     {
       "path": "/index.html",
-      "sha256": "e126e386d3336c51eaec9e95154f31eaec19a0d9f907523673e7812d23743b34",
-      "bytes": 82355
+      "sha256": "c44d538bc0e59cc00a0a8abdd5c44c9343f1c41936681c9eb0d137eec7ffe17e",
+      "bytes": 82456
     },
     {
       "path": "/learn.md",
@@ -700,13 +705,13 @@
     },
     {
       "path": "/runnable-html.md",
-      "sha256": "d2541e54035171beeab93fdeec39eae29bf2d9497db565e31b642380a3a4adc9",
-      "bytes": 28326
+      "sha256": "816c47129257e044bfe6ebcf2d2fa0c311cc6676973ff0e5cc02498947a88474",
+      "bytes": 28436
     },
     {
       "path": "/sdoc.md",
-      "sha256": "e4545739391f6763df5a9017bf1c4c3d3732723012983d37f4cff4024275f3e3",
-      "bytes": 78149
+      "sha256": "987c9b44e47cbf1a7b9d852902a24cfa9e245466fdb92cd753708b8749aef96f",
+      "bytes": 77821
     },
     {
       "path": "/sdocs-app-runner.html",
@@ -715,13 +720,13 @@
     },
     {
       "path": "/sdocs-app-runner.js",
-      "sha256": "c722310e09e7d0acd22e1a7bd7894ce14505ed3be6e7bbab5db05b52d6f015da",
-      "bytes": 7537
+      "sha256": "5cfc608a44d210db573047e77c30d97591b23b6ac25092b4955f2ceb5a2ede75",
+      "bytes": 11560
     },
     {
       "path": "/sdocs-app.js",
-      "sha256": "09131787e362a0d84f00f266005ffa4a3a551dd352474fac3e239c26f82e3af0",
-      "bytes": 92869
+      "sha256": "3880ec4926caa6ff5f1dfe7e494c7f97e55585fe20830f5d09a67a5d463a5f12",
+      "bytes": 93987
     },
     {
       "path": "/sdocs-bridge.js",
@@ -745,8 +750,8 @@
     },
     {
       "path": "/sdocs-cells-focus.js",
-      "sha256": "6609ca7de52b93764c752a789ff5960648e66cdb453ba4245f96e2ec87df52c6",
-      "bytes": 23022
+      "sha256": "80e09559e5376f60ead609f7c3f6707484ef3d0c4d71fde46e9de564bc112112",
+      "bytes": 23115
     },
     {
       "path": "/sdocs-cells-formula.js",
@@ -760,8 +765,8 @@
     },
     {
       "path": "/sdocs-cells-ui.js",
-      "sha256": "cf39835f7b9783a06c0dbab123652f71ec67dd5b92b352189e4b10418acf45e9",
-      "bytes": 66304
+      "sha256": "f6097c13113f6c6641b44d6dd1d90e8e76eec9625b5aebcc22e9a654135ac1c5",
+      "bytes": 66944
     },
     {
       "path": "/sdocs-cells-xlsx.js",
@@ -775,8 +780,8 @@
     },
     {
       "path": "/sdocs-charts.js",
-      "sha256": "8d7a8954b7cd6870e28a077b535b2a5f9450da9e72917c206727d2bcdf03c4be",
-      "bytes": 56565
+      "sha256": "6b77ceddd7256540cce2de4f7ce9f422f8a79d931bb8b025292266a03ebfe827",
+      "bytes": 56572
     },
     {
       "path": "/sdocs-chrome.js",
@@ -795,8 +800,8 @@
     },
     {
       "path": "/sdocs-cloud-prototype.js",
-      "sha256": "64eac492042d2d4f686087b09390338af80aeeacfde513ccafa150a87db283f3",
-      "bytes": 55284
+      "sha256": "e2536395dbfbb0d04ac1ecacadf79cc15310499073634416906ab7f89a86f510",
+      "bytes": 55520
     },
     {
       "path": "/sdocs-cloud-ui-lab.js",
@@ -930,13 +935,13 @@
     },
     {
       "path": "/sdocs-form-block.js",
-      "sha256": "a72d2da23b23c0826e5a627b09dd7b201a8d245e02bf28594a95344d23a00275",
-      "bytes": 22921
+      "sha256": "f65155750adc65e000940790ee1caa046b771fc7a0ac9704d190ff83ea73af21",
+      "bytes": 23016
     },
     {
       "path": "/sdocs-forms.js",
-      "sha256": "9ddd893b6f500cf4cf71018f432a300da9e8a868d8acc183e42d4c79438d1adf",
-      "bytes": 21563
+      "sha256": "c17ca606a5b53ef0f0182d2444664265475ddea25af1365aae1fbc5e9f15c32c",
+      "bytes": 24812
     },
     {
       "path": "/sdocs-highlight-core.js",
@@ -965,8 +970,8 @@
     },
     {
       "path": "/sdocs-html-components.js",
-      "sha256": "f54e0a0ce6cb6b0bb2a36119bd79dbfa56b345c2ff79cb9df42be7c55c339e22",
-      "bytes": 25087
+      "sha256": "9391d96ec72d1b3cdabecf939439266171a1ada6bad3fff52f7c7b4165a7426f",
+      "bytes": 26337
     },
     {
       "path": "/sdocs-icons-data.js",
@@ -982,6 +987,11 @@
       "path": "/sdocs-info.js",
       "sha256": "a0bcdf595632a9919b5b3131e12f77e592322dddafbe9d59fdfe27bb7eb93227",
       "bytes": 10795
+    },
+    {
+      "path": "/sdocs-interactions.js",
+      "sha256": "342a106ca6b156721747e92318ae767d0f13c9ed1f098888bf1a69fc25a2f231",
+      "bytes": 5429
     },
     {
       "path": "/sdocs-library-header.js",
@@ -1015,8 +1025,8 @@
     },
     {
       "path": "/sdocs-merge.js",
-      "sha256": "4b63b2fee6539254e4433ba5e5967770f1705353e615cf2c3c67aab414de60c0",
-      "bytes": 10259
+      "sha256": "5e15e93d3d30f6b2fe26d24502764489afc1c52c9637bb7da76ee28edf183494",
+      "bytes": 13566
     },
     {
       "path": "/sdocs-mermaid-focus.js",
@@ -1147,6 +1157,11 @@
       "path": "/sdocs-styles.js",
       "sha256": "e319c5df475cef63148f5fcbba6989f9509bec8f4025a9dc3df0e73f50ae32f9",
       "bytes": 31724
+    },
+    {
+      "path": "/sdocs-tasks.js",
+      "sha256": "07c5f7dc90efe451914cb148cdb6101423ba3b5a3affd751693a475ee6ced77b",
+      "bytes": 4472
     },
     {
       "path": "/sdocs-text-diff.js",
