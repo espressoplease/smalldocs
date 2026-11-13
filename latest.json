@@ -1,6 +1,6 @@
 {
-  "commit": "7987a088759820ca93fe4f51f4fa04093f3bb7c5",
-  "builtAt": "2026-11-12T08:10:12Z",
+  "commit": "a908533f537e80b913a8dc5bf40b2c3340575fdd",
+  "builtAt": "2026-11-13T12:10:38Z",
   "repo": "https://github.com/espressoplease/smalldocs",
   "files": [
     {
@@ -340,8 +340,8 @@
     },
     {
       "path": "/css/comments.css",
-      "sha256": "9f3f22c3808d324717c23f552ffe055bc27b32c383c2a8507c3e81113ee7ad09",
-      "bytes": 36453
+      "sha256": "3b85d1ccd7f76f980018eb987765fe21fe9810fbcbdd8505a169248253d4587b",
+      "bytes": 35380
     },
     {
       "path": "/css/diagram-comments.css",
@@ -405,8 +405,8 @@
     },
     {
       "path": "/css/prose-reader.css",
-      "sha256": "d4f2899b9b857507b29b735ec646ad1b1f8881182d7ae867439812031e88d394",
-      "bytes": 17993
+      "sha256": "e61729536b094719630b0e9c80d762d4089caefe9dddcf68e3d3d95b726938e8",
+      "bytes": 16682
     },
     {
       "path": "/css/published.css",
@@ -885,8 +885,8 @@
     },
     {
       "path": "/sdocs-comments-ui.js",
-      "sha256": "efd8322623d6ca7f966107c82c0b24db753719f6f7c4ffbdf5f25f4e68b9c640",
-      "bytes": 107394
+      "sha256": "82377968c63400a2281d167cb2a8ce5fe6b4b29db39a919000bf71523536af68",
+      "bytes": 107711
     },
     {
       "path": "/sdocs-comments.js",
@@ -1040,8 +1040,8 @@
     },
     {
       "path": "/sdocs-prose-reader.js",
-      "sha256": "71113b28d3ec193212eb09e29a8c9401a83e6cc58feba7adbdeca5bc65f0b3b9",
-      "bytes": 26210
+      "sha256": "52f61337521932810ed3e8b9d63a9217d78b048bb107f69aec6966b8e8da3e2d",
+      "bytes": 25507
     },
     {
       "path": "/sdocs-publication-source.js",
