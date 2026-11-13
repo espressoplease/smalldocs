@@ -29,34 +29,39 @@ exports.FORM_DSL_REFERENCE = `\
 sdoc feedback — interactive form DSL
 ====================================
 
-Ask the user something structured. Write a fenced \`\`\`form block into a
-markdown file, then run:
+Create a form in a Markdown document for the reader to complete.
 
-  sdoc feedback file.md                # opens the file, exits on first submit
+CLOUD FORMS
+  Run sdoc feedback with no file to read this reference. Write a fenced form
+  block, then save the document:
 
-That is the simplest, recommended shape: ONE submit button, single
-process invocation. The user clicks, the file gets the answers, the
-process prints one JSON line on stdout, and exits. You just spawn the
-command, wait for it to finish, and read its stdout.
+    sdoc review.md --cloud --json +review
 
-You only need the other modes when you genuinely want multiple submits
-in one session:
+  Open the returned Cloud URL. The reader can fill in the form in read mode.
+  Draft fields autosave to answers: inside the form block. A submit button
+  also appends a record to submissions: with its button, time, scope and values.
+  Wait for the Cloud save to finish. Answers and submissions survive reloads
+  and are readable by the agent with:
 
-  sdoc feedback file.md --keep-open    # bridge stays alive across many
-                                       # submits; you tail stdout to
-                                       # react per click
-  sdoc feedback file.md --keep-open \\
-       --log-file /tmp/sdoc.jsonl      # also mirror events to a file
-                                       # (fallback for harnesses that
-                                       #  can't tail a background process)
-  sdoc feedback file.md --message "Q"  # show "Q" above the document
+    sdoc cloud read DOCUMENT_ID --section 'Review' --json
 
-Strong default: write forms with ONE button. Reach for --keep-open + a
-multi-button form only when "the user submits several things during one
-session" is the actual goal.
+  Responses are shared document content and use existing editing permissions.
+  Independent field changes merge; when two people change the same field, the
+  later save supplies its current value. Earlier values remain in revision
+  history, and both submitted records are kept. A Cloud form is shared state,
+  not a separate private response per participant. final: true does not end a
+  Cloud session.
 
-A form block has four sections: id, fields, buttons, and (added by the
-bridge on submit) answers + submissions. You author id, fields, buttons.
+LOCAL LIVE FEEDBACK
+  sdoc feedback file.md                # exits on first submit, emits JSON
+  sdoc feedback file.md --keep-open    # emits each submission while running
+  sdoc feedback file.md --keep-open --log-file /tmp/sdoc.jsonl
+
+  Local submissions write answers and submission history into the file.
+  Keep the command running when consuming its stdout events. In this local
+  session, final: true ends the connection.
+
+Author id, fields and buttons. SmallDocs maintains answers and submissions.
 
 Full example
 ------------

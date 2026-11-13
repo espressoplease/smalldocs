@@ -367,7 +367,8 @@ module.exports = function (harness) {
     assert.ok(cli.CLOUD_SKILL_BODY.includes('Never link to the underlying local Markdown file'));
     assert.ok(cli.CLOUD_SKILL_BODY.includes('local_changed_after_upload'));
     assert.ok(cli.CLOUD_SKILL_BODY.includes('documents[].url'));
-    assert.ok(cli.CLOUD_SKILL_BODY.includes('does not create a live feedback session'));
+    assert.ok(cli.CLOUD_SKILL_BODY.includes('Draft fields autosave into `answers:`'));
+    assert.ok(cli.CLOUD_SKILL_BODY.includes('Cloud forms do not require that process to stay open'));
   });
 
   test('both skill descriptions are YAML-safe', () => {

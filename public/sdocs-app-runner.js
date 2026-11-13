@@ -45,7 +45,78 @@
     ].join('');
   }
 
-  function bridgeSource(design) {
+  function installStateBridge(token, initial) {
+    var state = initial || {}, restoring = false, requests = new Map(), next = 0;
+    var api = { state: state };
+    api.setState = function (patch) {
+      if (!patch || typeof patch !== 'object' || Array.isArray(patch)) throw new TypeError('State must be an object');
+      state = JSON.parse(JSON.stringify(Object.assign({}, state, patch)));
+      api.state = state;
+      parent.postMessage({ type: 'sdocs-app-state', token: token, state: state }, '*');
+      return state;
+    };
+    api.save = function () {
+      var requestId = ++next;
+      return new Promise(function (resolve, reject) {
+        requests.set(requestId, { resolve: resolve, reject: reject });
+        parent.postMessage({ type: 'sdocs-app-save', token: token, requestId: requestId }, '*');
+      });
+    };
+    window.SmallDocs = api;
+    window.addEventListener('message', function (event) {
+      var message = event.data;
+      if (event.source !== parent || !message || message.token !== token || message.type !== 'sdocs-app-save-result') return;
+      var pending = requests.get(message.requestId);
+      if (!pending) return;
+      requests.delete(message.requestId);
+      if (message.ok) pending.resolve(); else pending.reject(new Error('Changes were not saved.'));
+    });
+    function controls() { return Array.from(document.querySelectorAll('input,select,textarea')).filter(function (input) {
+      return (input.name || input.id) && !/^(?:password|file|button|submit|reset)$/i.test(input.type || '');
+    }); }
+    function key(input) { return input.name || input.id; }
+    function collect(event) {
+      if (restoring) return;
+      var changed = event.target;
+      if (!controls().includes(changed)) return;
+      var inputs = Object.assign({}, state.inputs || {});
+      var group = controls().filter(function (input) { return key(input) === key(changed); });
+      if (changed.type === 'checkbox' && group.length > 1) {
+        Object.defineProperty(inputs, key(changed), { value: group.filter(function (input) { return input.checked; }).map(function (input) { return input.value; }), enumerable: true, configurable: true });
+        api.setState({ inputs: inputs }); return;
+      }
+      group.forEach(function (input) {
+        var name = key(input), value;
+        if (input.type === 'radio') { if (!input.checked) return; value = input.value; }
+        else if (input.type === 'checkbox') value = input.checked;
+        else if (input.multiple) value = Array.from(input.selectedOptions).map(function (option) { return option.value; });
+        else value = input.value;
+        Object.defineProperty(inputs, name, { value: value, enumerable: true, configurable: true });
+      });
+      api.setState({ inputs: inputs });
+    }
+    function restore() {
+      restoring = true;
+      var inputs = state.inputs || {};
+      controls().forEach(function (input) {
+        var name = key(input);
+        if (!Object.prototype.hasOwnProperty.call(inputs, name)) return;
+        var value = inputs[name];
+        if (input.type === 'radio') input.checked = input.value === value;
+        else if (input.type === 'checkbox') input.checked = Array.isArray(value) ? value.indexOf(input.value) >= 0 : value === true;
+        else if (input.multiple && Array.isArray(value)) Array.from(input.options).forEach(function (option) { option.selected = value.indexOf(option.value) >= 0; });
+        else input.value = String(value == null ? '' : value);
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+      restoring = false;
+      document.addEventListener('input', collect);
+      document.addEventListener('change', collect);
+    }
+    document.addEventListener('DOMContentLoaded', restore, { once: true });
+  }
+
+  function bridgeSource(design, state) {
     var encodedDesign = JSON.stringify(design || {}).replace(/</g, '\\u003c');
     return [
       '(function(){',
@@ -53,6 +124,7 @@
       'var design=' + encodedDesign + ';',
       'var defaultCss=' + JSON.stringify(componentDefaults()) + ';',
       'var lastHeight=0;',
+      '(' + installStateBridge.toString() + ')(' + JSON.stringify(token) + ',' + JSON.stringify(state || {}).replace(/</g, '\\u003c') + ');',
       'function send(type,extra){var message=Object.assign({type:type,token:token},extra||{});parent.postMessage(message,"*");}',
       'function installDesign(){var style=document.createElement("style");style.id="sdocs-component-defaults";style.textContent=defaultCss;(document.head||document.documentElement).appendChild(style);var rule;var applied=[];try{var rules=style.sheet.cssRules[0].cssRules;for(var i=0;i<rules.length;i+=1){if(rules[i].selectorText===":root"){rule=rules[i];break;}}}catch(_){}if(!rule)return function(){};return function(next){next=next||{};applied.forEach(function(name){if(!Object.prototype.hasOwnProperty.call(next,name))rule.style.removeProperty(name);});applied=Object.keys(next).filter(function(name){return /^--sdoc-app-[a-z0-9-]+$/.test(name);});applied.forEach(function(name){rule.style.setProperty(name,String(next[name]));});};}',
       'var applyDesign=installDesign();applyDesign(design);',
@@ -68,8 +140,8 @@
     ].join('');
   }
 
-  function injectBridge(source, design) {
-    var script = '<script>' + bridgeSource(design) + '</scr' + 'ipt>';
+  function injectBridge(source, design, state) {
+    var script = '<script>' + bridgeSource(design, state) + '</scr' + 'ipt>';
     var html = String(source == null ? '' : source);
     if (/<head\b[^>]*>/i.test(html)) return html.replace(/<head\b[^>]*>/i, '$&' + script);
     if (/<html\b[^>]*>/i.test(html)) return html.replace(/<html\b[^>]*>/i, '$&<head>' + script + '</head>');
@@ -82,7 +154,7 @@
     if (message.token !== token || typeof message.source !== 'string') return;
     window.removeEventListener('message', receive);
     document.open();
-    document.write(injectBridge(message.source, message.design));
+    document.write(injectBridge(message.source, message.design, message.state));
     document.close();
   }
 

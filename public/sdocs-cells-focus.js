@@ -499,6 +499,7 @@
       themeSource: function () { return root.document.getElementById('_sd_rendered'); },
       isEmbedMode: function () { return !!S.embedMode; },
       syncEmbedFocus: function () { if (S.syncEmbedFocus) S.syncEmbedFocus(); },
+      onChange: function (model) { if (S.persistReaderCells) S.persistReaderCells(model); },
       onEdited: function (model, wrapper) {
         if (S.onCellsEdited) S.onCellsEdited(model, wrapper);
       },
