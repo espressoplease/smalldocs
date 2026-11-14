@@ -29,6 +29,22 @@ var composerEl = null;
 var composerCleanup = null;
 var tablePreviewElements = [];
 var tablePreviewOwner = null;
+var dictationLoading = null;
+var commentAssetQuery = document.currentScript ? new URL(document.currentScript.src).search : '';
+
+// Keep speech code out of the reading path and service-worker precache.
+function loadCommentDictation() {
+  if (S.commentDictation) { S.commentDictation.enter(); return; }
+  if (dictationLoading) return;
+  dictationLoading = document.createElement('script');
+  dictationLoading.src = '/public/sdocs-comment-dictation.js' + commentAssetQuery;
+  dictationLoading.onload = function () {
+    if (document.body.classList.contains('comment-mode') || document.querySelector('.sdoc-cc-on, .sdoc-present-commenting')) S.commentDictation.enter();
+  };
+  dictationLoading.onerror = function () { dictationLoading.remove(); dictationLoading = null; };
+  document.head.appendChild(dictationLoading);
+}
+S.loadCommentDictation = loadCommentDictation;
 
 // ── Prefs ───────────────────────────────────────────────────────────────
 
@@ -705,6 +721,7 @@ function makeCardElement(c, opts) {
   }
 
   if (mode === 'view') {
+    card.classList.add('sdoc-card-view');
     var who = document.createElement('span');
     who.className = 'sdoc-card-author';
     who.textContent = c.author || 'user';
@@ -732,32 +749,32 @@ function makeCardElement(c, opts) {
     if (opts.readonly) {
       card.classList.add('sdoc-card-foreign');
     } else {
+      card.dataset.dictationComment = c.id;
+      var viewActions = document.createElement('span');
+      viewActions.className = 'sdoc-comment-editor-actions sdoc-comment-view-actions';
       var del = iconBtn(TRASH_SVG, 'Delete comment', function (e) {
         e.stopPropagation();
         deleteComment(c.id);
       });
-      del.classList.add('sdoc-card-delete');
-      card.appendChild(del);
+      del.classList.add('sdoc-card-delete', 'sdoc-view-action');
+      viewActions.appendChild(del);
+      card.appendChild(viewActions);
 
       card.addEventListener('click', function (e) {
-        if (e.target.closest('.sdoc-icon-btn')) return;
+        if (card.classList.contains('sdoc-card-edit') || e.target.closest('.sdoc-icon-btn')) return;
         focusComment(c.id);
         replaceWithEdit(card, c, shape);
       });
     }
   } else {
-    var inputEl;
-    if (shape === 'pill') {
-      inputEl = document.createElement('input');
-      inputEl.type = 'text';
-    } else {
-      inputEl = document.createElement('textarea');
-      inputEl.rows = 1;
-    }
+    var inputEl = document.createElement('textarea');
+    inputEl.rows = 3;
     inputEl.className = 'sdoc-card-input';
-    inputEl.placeholder = 'Add a comment...';
+    inputEl.placeholder = 'Type a comment...';
+    inputEl.setAttribute('aria-label', 'Comment');
     if (c && c.text) inputEl.value = c.text;
     inputEl.addEventListener('click', function (e) { e.stopPropagation(); });
+    inputEl.addEventListener('input', function () { growCommentInput(inputEl); });
 
     var save = iconBtn(TICK_SVG, 'Save', function (e) {
       e.stopPropagation();
@@ -775,30 +792,40 @@ function makeCardElement(c, opts) {
 
     inputEl.addEventListener('keydown', function (e) {
       if (e.key === 'Escape') { e.preventDefault(); opts.onCancel(); }
-      if (e.key === 'Enter') {
-        // Pill = single-line input → Enter saves.
-        // Sidecar = textarea → Cmd/Ctrl+Enter saves; bare Enter inserts newline.
-        if (shape === 'pill' || e.metaKey || e.ctrlKey) {
-          e.preventDefault();
-          save.click();
-        }
+      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        save.click();
       }
     });
 
+    var actions = document.createElement('span');
+    actions.className = 'sdoc-comment-editor-actions';
+    actions.appendChild(save);
+    actions.appendChild(cancel);
     card.appendChild(inputEl);
-    card.appendChild(save);
-    card.appendChild(cancel);
-    setTimeout(function () { inputEl.focus(); if (c && c.text) inputEl.select(); }, 0);
+    card.appendChild(actions);
+    setTimeout(function () {
+      growCommentInput(inputEl);
+      inputEl.focus();
+      inputEl.setSelectionRange(inputEl.value.length, inputEl.value.length);
+    }, 0);
   }
 
-  if (mode === 'view') appendThreadDetails(card, c);
+  if (mode === 'view') appendThreadDetails(card, c, { actions: viewActions, readonly: opts.readonly });
 
   return card;
+}
+
+function growCommentInput(input) {
+  if (window.CSS && CSS.supports('field-sizing', 'content')) { input.style.height = ''; return; }
+  input.style.height = 'auto';
+  input.style.height = input.scrollHeight + 'px';
 }
 
 function appendThreadDetails(card, c, options) {
   options = options || {};
   if (!card || !c) return;
+  card.classList.toggle('sdoc-single-author', !hasMultipleCommentAuthors(SDC.getComments(S.currentMeta)));
   card.classList.toggle('sdoc-thread-resolved', !!c.resolved);
   var details = document.createElement('span');
   details.className = 'sdoc-thread-details';
@@ -819,7 +846,8 @@ function appendThreadDetails(card, c, options) {
   });
   var helper = window.SDocsCommentData;
   if (helper && helper.updateThread && options.readonly !== true) {
-    var actions = document.createElement('span'); actions.className = 'sdoc-thread-actions';
+    var actions = options.actions || document.createElement('span');
+    if (!options.actions) actions.className = 'sdoc-thread-actions';
     function change(action, text) {
       var author = S.cloudCommentIdentity && S.cloudCommentIdentity() || options.author || readPrefs().author;
       S.currentMeta = helper.updateThread(S.currentMeta || {}, c.id, {
@@ -831,13 +859,18 @@ function appendThreadDetails(card, c, options) {
     var reply = iconBtn('<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 10-5 5 5 5"/><path d="M4 15h11a5 5 0 0 0 0-10h-3"/></svg>', 'Reply', function () {
       if (details.querySelector('.sdoc-thread-composer')) return;
       var composer = document.createElement('span'); composer.className = 'sdoc-card sdoc-card-edit sdoc-thread-composer';
-      var input = document.createElement('textarea'); input.className = 'sdoc-card-input'; input.placeholder = 'Add a reply...'; input.rows = 2;
+      var input = document.createElement('textarea'); input.className = 'sdoc-card-input'; input.placeholder = 'Type a reply...'; input.rows = 3;
+      input.setAttribute('aria-label', 'Reply');
+      input.addEventListener('input', function () { growCommentInput(input); });
       var save = iconBtn(TICK_SVG, 'Save reply', function () {
         var text = input.value.trim(); if (!text) { input.focus(); return; }
         composer.remove(); change('reply', text);
       });
       var cancel = iconBtn(X_SVG, 'Cancel reply', function () { composer.remove(); });
-      composer.appendChild(input); composer.appendChild(save); composer.appendChild(cancel);
+      save.classList.add('sdoc-reply-save');
+      var replyActions = document.createElement('span'); replyActions.className = 'sdoc-comment-editor-actions';
+      replyActions.appendChild(save); replyActions.appendChild(cancel);
+      composer.appendChild(input); composer.appendChild(replyActions);
       details.appendChild(composer); input.focus();
       input.addEventListener('keydown', function (event) {
         if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); composer.remove(); }
@@ -848,9 +881,79 @@ function appendThreadDetails(card, c, options) {
       change(c.resolved ? 'reopen' : 'resolve');
     });
     resolve.setAttribute('aria-pressed', c.resolved ? 'true' : 'false');
-    actions.appendChild(reply); actions.appendChild(resolve); details.appendChild(actions);
+    if (options.actions) {
+      reply.classList.add('sdoc-view-action'); resolve.classList.add('sdoc-view-action');
+      var del = actions.querySelector('.sdoc-card-delete');
+      actions.insertBefore(reply, del); actions.insertBefore(resolve, del);
+    } else { actions.appendChild(reply); actions.appendChild(resolve); details.appendChild(actions); }
   }
-  card.appendChild(details);
+  if (options.actions) card.insertBefore(details, options.actions);
+  else card.appendChild(details);
+}
+
+function hasMultipleCommentAuthors(comments) {
+  var people = [];
+  var namesWithIds = new Map();
+  var threadData = window.SDocsCommentData;
+  (comments || []).forEach(function (comment) {
+    people.push(comment);
+    if (threadData && threadData.replies) people = people.concat(threadData.replies(comment.replies));
+  });
+  function name(person) { return String(person.author || 'user').trim().toLowerCase(); }
+  people.forEach(function (person) {
+    if (!person.author_user_id) return;
+    var ids = namesWithIds.get(name(person)) || new Set();
+    ids.add(person.author_user_id); namesWithIds.set(name(person), ids);
+  });
+  var authors = new Set();
+  people.forEach(function (person) {
+    var ids = namesWithIds.get(name(person));
+    var id = person.author_user_id || (ids && ids.size === 1 ? Array.from(ids)[0] : null);
+    authors.add(id ? 'id:' + id : 'name:' + name(person));
+  });
+  return authors.size > 1;
+}
+
+// Keep the saved card and its microphone in place while adding more feedback.
+// Replacing the microphone during a held pointer would end pointer capture.
+function prepareCommentAppend(card) {
+  var existing = card.querySelector(':scope > textarea.sdoc-card-input');
+  if (existing) return existing;
+  var c = SDC.getComments(S.currentMeta).find(function (note) { return note.id === card.dataset.c; });
+  if (!c || !card.matches('[data-dictation-comment]')) return null;
+  var input = document.createElement('textarea');
+  input.rows = 3; input.className = 'sdoc-card-input'; input.value = c.text || '';
+  input.setAttribute('aria-label', 'Comment');
+  input.addEventListener('click', function (e) { e.stopPropagation(); });
+  input.addEventListener('input', function () { growCommentInput(input); });
+  var actions = card.querySelector(':scope > .sdoc-comment-view-actions');
+  var body = card.querySelector(':scope > .sdoc-card-body');
+  card.insertBefore(input, body);
+  card.classList.add('sdoc-card-edit', 'sdoc-comment-appending');
+  function revert() {
+    input.remove(); save.remove(); cancel.remove();
+    card.classList.remove('sdoc-card-edit', 'sdoc-comment-appending');
+    var hint = card.querySelector(':scope > .sdoc-dictation-status');
+    if (hint) hint.textContent = '';
+  }
+  var save = iconBtn(TICK_SVG, 'Save', function (e) {
+    e.stopPropagation();
+    var value = input.value.trim();
+    if (!value) { input.focus(); return; }
+    S.currentMeta = SDC.updateComment(S.currentMeta || {}, c.id, { text: value });
+    if (S.syncAll) S.syncAll('comment');
+  });
+  save.classList.add('sdoc-card-save', 'sdoc-append-action');
+  var cancel = iconBtn(X_SVG, 'Cancel', function (e) { e.stopPropagation(); revert(); });
+  cancel.classList.add('sdoc-card-cancel', 'sdoc-append-action');
+  actions.appendChild(save); actions.appendChild(cancel);
+  input.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') { e.preventDefault(); revert(); }
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); save.click(); }
+  });
+  growCommentInput(input);
+  input.focus(); input.setSelectionRange(input.value.length, input.value.length);
+  return input;
 }
 
 function replaceWithEdit(viewCard, c, shape) {
@@ -1117,6 +1220,7 @@ function makeGutterBtn(targetBlock) {
   btn.className = 'sdoc-gutter-add';
   btn.setAttribute('aria-label', 'Add comment on this block');
   btn.title = 'Add comment';
+  btn.dataset.dictationTarget = 'block';
   btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M12 7v6"/><path d="M9 10h6"/></svg>';
   btn.addEventListener('click', function (e) {
     e.stopPropagation();
@@ -1154,6 +1258,7 @@ function makeElementBtn(targetElement) {
   btn.className = 'sdoc-element-add';
   btn.setAttribute('aria-label', 'Add comment on this list item');
   btn.title = 'Add comment';
+  btn.dataset.dictationTarget = 'element';
   btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M12 7v6"/><path d="M9 10h6"/></svg>';
   btn.addEventListener('click', function (e) {
     e.preventDefault();
@@ -2381,12 +2486,14 @@ function applyPrefColorToBody() {
 }
 
 function enter() {
+  loadCommentDictation();
   applyPrefColorToBody();
   document.addEventListener('selectionchange', handleSelectionChange);
   render();
 }
 
 function exit() {
+  if (S.commentDictation) S.commentDictation.exit();
   document.removeEventListener('selectionchange', handleSelectionChange);
   hideSelectionPopover();
   hideComposer();
@@ -2499,6 +2606,7 @@ function refreshCommentDot() {
 S.refreshCommentDot = refreshCommentDot;
 
 S.commentsUi = {
+  prepareCommentAppend: prepareCommentAppend,
   enter: enter,
   exit: exit,
   render: render,

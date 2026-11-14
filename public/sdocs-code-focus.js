@@ -2909,6 +2909,8 @@
   function setCommenting(on) {
     if (config.comments === false) on = false;
     commenting = on;
+    if (on && S.loadCommentDictation) S.loadCommentDictation();
+    if (!on && S.commentDictation && !document.body.classList.contains('comment-mode')) S.commentDictation.exit();
     if (modal) modal.classList.toggle('sdoc-cc-on', on);
     var btn = modal && modal.querySelector('[data-act="comment"]');
     if (btn) { btn.classList.toggle('active', on); btn.setAttribute('aria-pressed', on ? 'true' : 'false'); }

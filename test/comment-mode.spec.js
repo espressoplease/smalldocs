@@ -518,11 +518,11 @@ test.describe('comments on links', () => {
       return !!(input && input.closest('a'));
     });
     expect(composerInAnchor).toBe(false);
-    // Type a comment and press Enter (pill input -> Enter saves).
+    // The multiline editor saves with Cmd/Ctrl+Enter.
     await page.evaluate(() => {
       var input = document.querySelector('.sdoc-card-input');
       input.value = 'a note on the link';
-      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', ctrlKey: true, bubbles: true }));
     });
     await page.waitForTimeout(50);
     const state = await page.evaluate(() => ({

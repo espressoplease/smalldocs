@@ -200,6 +200,21 @@
 }
 .sdoc-icon-btn svg { display: block; }
 
+/* Voice preparation stays in the existing comment context row. */
+.sdoc-comment-voice-state {
+  color: var(--text-2);
+  font: 11.5px/1.5 var(--font-ui);
+}
+.sdoc-comment-voice-state:empty { display: none; }
+.sdoc-dictation-status {
+  display: block;
+  font-family: inherit;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-3);
+}
+.sdoc-dictation-status:empty { display: none; }
+
 /* ── Anchor highlight ───────────────────────────────────────────
    Translucent tint of the per-comment colour over whatever document
    background is in scope, so a dark theme + yellow comment yields a
@@ -358,6 +373,122 @@
 }
 .sdoc-card-sidecar .sdoc-card-input::placeholder {
   color: color-mix(in srgb, var(--text) 35%, transparent);
+}
+
+/* Drafts keep the same card surface as saved notes, with a growing writing
+   area and the existing actions on their own row. Inline anchors stay precise
+   while their editor can use the paragraph's width. */
+.sdoc-card.sdoc-card-edit,
+.sdoc-card.sdoc-card-view,
+.sdoc-cc-card-edit.sdoc-comment-editor {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  margin: 8px 0 14px;
+  padding: 12px;
+  font-size: .9em;
+  line-height: 1.55;
+  cursor: text;
+  vertical-align: top;
+  transition: padding .3s cubic-bezier(.4,0,.2,1), border-color .3s cubic-bezier(.4,0,.2,1), background .3s cubic-bezier(.4,0,.2,1);
+}
+.sdoc-card-view > .sdoc-card-author {
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--text-2);
+}
+.sdoc-card-view > .sdoc-card-author::after { content: none; }
+.sdoc-single-author .sdoc-card-author,
+.sdoc-single-author > .sdoc-cc-card-author { display: none; }
+.sdoc-card-view > .sdoc-card-body {
+  display: block;
+  font: inherit;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.sdoc-card-view > .sdoc-thread-details:empty { display: none; }
+.sdoc-comment-appending > .sdoc-card-body,
+.sdoc-comment-appending > .sdoc-thread-details,
+.sdoc-comment-appending .sdoc-view-action { display: none !important; }
+.sdoc-comment-view-actions > .sdoc-view-action:first-of-type { margin-left: auto; }
+.sdoc-comment-view-actions > .sdoc-dictation-btn { margin-right: auto; }
+.sdoc-comment-view-actions:has(.sdoc-append-action) > .sdoc-dictation-btn { margin-right: 0; }
+.sdoc-card.sdoc-card-edit > .sdoc-card-input,
+.sdoc-cc-card-edit.sdoc-comment-editor > .sdoc-cc-input {
+  display: block;
+  flex: none;
+  width: 100%;
+  min-width: 0;
+  min-height: 4.65em;
+  padding: 0;
+  box-sizing: border-box;
+  field-sizing: content;
+  font: inherit;
+  line-height: 1.55;
+  color: inherit;
+  background: transparent;
+  border: none;
+  outline: none;
+  resize: none;
+  overflow: hidden;
+}
+.sdoc-card.sdoc-card-edit > .sdoc-card-input::placeholder {
+  color: color-mix(in srgb, var(--md-color, var(--text)) 50%, transparent);
+}
+.sdoc-comment-editor-actions,
+.sdoc-cc-card-edit.sdoc-comment-editor .sdoc-cc-card-edit-actions {
+  position: static;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+.sdoc-card .sdoc-comment-editor-actions .sdoc-icon-btn,
+.sdoc-cc-card-edit.sdoc-comment-editor .sdoc-cc-iconbtn {
+  position: static;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+}
+.sdoc-comment-editor-actions .sdoc-card-save,
+.sdoc-comment-editor-actions .sdoc-reply-save,
+.sdoc-cc-card-edit.sdoc-comment-editor [data-cc="save"] { margin-left: auto; }
+.sdoc-card .sdoc-comment-editor-actions .sdoc-dictation-btn,
+.sdoc-cc-card-edit.sdoc-comment-editor .sdoc-dictation-btn {
+  width: auto;
+  gap: 6px;
+  padding: 0 6px;
+  font: 12px var(--font-ui);
+  cursor: pointer;
+}
+.sdoc-comment-editor.is-recording {
+  border-color: var(--sdoc-card-color, var(--sdoc-cc-color));
+}
+.sdoc-comment-editor.is-recording .sdoc-dictation-btn,
+.sdoc-gutter-add.is-holding,
+.sdoc-element-add.is-holding {
+  background: color-mix(in srgb, var(--sdoc-card-color, var(--sdoc-anchor-color)) 42%, var(--md-bg, var(--bg-input)));
+}
+.sdoc-gutter-add.is-holding,
+.sdoc-element-add.is-holding { opacity: 1; pointer-events: auto; }
+.sdoc-dictation-btn,
+[data-dictation-target] { touch-action: none; user-select: none; }
+.sdoc-card-sidecar:not(.sdoc-card-edit):not(.sdoc-card-view) { padding: 8px 34px 8px 12px; font-size: .9em; line-height: 1.55; }
+.sdoc-card-sidecar:not(.sdoc-card-edit):not(.sdoc-card-view) > .sdoc-card-delete { top: 6px; right: 6px; }
+@media (max-width: 640px) {
+  .sdoc-card.sdoc-card-edit > .sdoc-card-input,
+  .sdoc-card-view > .sdoc-card-body,
+  .sdoc-cc-card-edit.sdoc-comment-editor > .sdoc-cc-input { font-size: max(16px, 1em); }
 }
 
 /* List-item comments reuse the block gutter tab. The host contains only the

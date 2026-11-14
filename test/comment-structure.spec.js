@@ -183,6 +183,7 @@ test('a late renderer from the previous document cannot replace current comment 
     S.currentBody = '| Name | Status |\n|---|---|\n| Alpha | Ready |\n';
     S.render(); S.setMode('comment');
   });
+  await page.locator('thead th').first().hover();
   await page.locator('.sdoc-table-table-add').hover();
   await expect(page.locator('.sdoc-table-target-preview')).toHaveCount(4);
   await page.locator('.sdoc-table-table-add').evaluate(button => { window.currentTableControl = button; });

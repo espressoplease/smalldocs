@@ -316,8 +316,8 @@ function makeComposerCard(opts) {
 
   var input = document.createElement('textarea');
   input.className = 'sdoc-card-input';
-  input.rows = 1;
-  input.placeholder = 'Feedback for the model…';
+  input.rows = 3;
+  input.placeholder = 'Type a comment...';
   if (opts.text) input.value = opts.text;
   input.addEventListener('click', function (e) { e.stopPropagation(); });
 
@@ -338,8 +338,10 @@ function makeComposerCard(opts) {
   });
 
   card.appendChild(input);
-  card.appendChild(save);
-  card.appendChild(cancel);
+  var actions = document.createElement('span');
+  actions.className = 'sdoc-comment-editor-actions';
+  actions.appendChild(save); actions.appendChild(cancel);
+  card.appendChild(actions);
   setTimeout(function () { input.focus(); if (opts.text) input.select(); }, 0);
   return card;
 }
@@ -846,6 +848,8 @@ function presentToggle(btn) {
   // overlays. Skipping the refit leaves the hit-layer sized to the stale
   // pre-panel height (the overlays sit too low / too tall until a slide flip).
   ensurePresentPanel();
+  if (presentState.commenting && S().loadCommentDictation) S().loadCommentDictation();
+  if (!presentState.commenting && S().commentDictation && !document.body.classList.contains('comment-mode')) S().commentDictation.exit();
   var raf = (typeof requestAnimationFrame !== 'undefined') ? requestAnimationFrame : function (f) { setTimeout(f, 16); };
   function redraw() {
     if (window.SDocPresent && window.SDocPresent.refit) window.SDocPresent.refit();
@@ -881,6 +885,7 @@ function clearPresentOverlay() {
 }
 
 function presentTeardown() {
+  if (S().commentDictation && !document.body.classList.contains('comment-mode')) S().commentDictation.exit();
   presentState.commenting = false;
   if (presentState.panel && presentState.panel.parentNode) {
     presentState.panel.parentNode.removeChild(presentState.panel);
