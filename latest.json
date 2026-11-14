@@ -1,6 +1,6 @@
 {
-  "commit": "09c8d1d2a313ab24b6c7aef49db287900c818734",
-  "builtAt": "2026-11-13T13:18:36Z",
+  "commit": "c4bf091473d006f23ec190d5c40a6b124e912206",
+  "builtAt": "2026-11-14T13:43:58Z",
   "repo": "https://github.com/espressoplease/smalldocs",
   "files": [
     {
@@ -345,8 +345,8 @@
     },
     {
       "path": "/css/comments.css",
-      "sha256": "3b85d1ccd7f76f980018eb987765fe21fe9810fbcbdd8505a169248253d4587b",
-      "bytes": 35380
+      "sha256": "f9e53011a9339ac8faed44c41505f7612130119c66cf32ae3daf285237ee7dea",
+      "bytes": 39750
     },
     {
       "path": "/css/diagram-comments.css",
@@ -815,8 +815,8 @@
     },
     {
       "path": "/sdocs-code-focus.js",
-      "sha256": "0775194761793558435190542114f134e3ec0932203c3a8f62c69743bb77affb",
-      "bytes": 154370
+      "sha256": "3ceca85edcf723d69dbf85083a6aad3ba7544c5d09d22346b16c3daf205ac661",
+      "bytes": 154549
     },
     {
       "path": "/sdocs-code-lang/csharp.js",
@@ -889,9 +889,19 @@
       "bytes": 6123
     },
     {
+      "path": "/sdocs-comment-dictation.js",
+      "sha256": "b79e8b4fd236df454cd0ff1c61485a101b2bce9ded0e877cf3696bb19ca63d73",
+      "bytes": 15927
+    },
+    {
+      "path": "/sdocs-comment-speech-worker.js",
+      "sha256": "392764314f3277755fab47234fd3ae94d57e4febdf4e8366920ef9d4f6600c0b",
+      "bytes": 2181
+    },
+    {
       "path": "/sdocs-comments-ui.js",
-      "sha256": "82377968c63400a2281d167cb2a8ce5fe6b4b29db39a919000bf71523536af68",
-      "bytes": 107711
+      "sha256": "5296d0978f9a182f9098d260055217bfe2fd596ad1b959eea22ce32eb2f3a377",
+      "bytes": 113382
     },
     {
       "path": "/sdocs-comments.js",
@@ -1105,8 +1115,8 @@
     },
     {
       "path": "/sdocs-slide-comments.js",
-      "sha256": "828cc47d2ca00cfd36ca0a3832b27d173fd85a8031a8960419945b3eaf895750",
-      "bytes": 39197
+      "sha256": "91f561a18fd220920f4428b47b1bfc6f6cb28ff03448f6da929e963fbcebe88a",
+      "bytes": 39658
     },
     {
       "path": "/sdocs-slide-pdf.js",
@@ -1242,6 +1252,21 @@
       "path": "/upgrade.md",
       "sha256": "c85fbfdf1e336910a9d4792bdbb6553a50c25b5b22bb7228a2dd1183187b7565",
       "bytes": 3190
+    },
+    {
+      "path": "/vendor/comment-speech/LICENSE",
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "bytes": 11358
+    },
+    {
+      "path": "/vendor/comment-speech/ONNX-LICENSE",
+      "sha256": "2f07c72751aed99790b8a4869cf2311df85a860b22ded05fa22803587a48922c",
+      "bytes": 1073
+    },
+    {
+      "path": "/vendor/comment-speech/transformers.js",
+      "sha256": "b69fd125f942f75b0252a36b01c513bf8836fff9371e17bbd171282a74bfdee7",
+      "bytes": 898373
     },
     {
       "path": "/vendor/marked.min.js",
