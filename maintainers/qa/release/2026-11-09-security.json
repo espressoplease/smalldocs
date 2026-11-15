@@ -41,8 +41,7 @@
   "production_configuration_read": {
     "trust_proxy": true,
     "loopback_binding": true,
-    "no_credentials_in_report": true,
-    "live_stripe_application_key_subscription_read": true
+    "no_credentials_in_report": true
   },
   "coordinated_backup": {
     "archive": "smalldocs-20261109T202136Z-c6eaac514b70ebacb069c788f6a2998a70dd7996.tar.gz",
