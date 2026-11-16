@@ -60,12 +60,14 @@
   chapterButton.before(chapterToggle); chapterToggle.appendChild(chapterButton);
   const previewHome = card.parentElement;
   const screen = document.createElement('div'); screen.className = 'vid-screen';
+  const picture = document.createElement('div'); picture.className = 'vid-picture';
   Array.from(card.children).forEach(element => {
-    if (element !== controls && element !== menu) screen.appendChild(element);
+    if (element !== controls && element !== menu && element !== caption) picture.appendChild(element);
   });
+  screen.append(picture, caption);
   const toolbar = document.createElement('div'); toolbar.className = 'vid-toolbar';
   const toolbarClip = document.createElement('div'); toolbarClip.className = 'vid-toolbar-clip';
-  toolbarClip.append(controls, caption); toolbar.append(toolbarClip, menu); card.append(screen, toolbar);
+  toolbarClip.appendChild(controls); toolbar.append(toolbarClip, menu); card.append(screen, toolbar);
   const chapterNav = document.createElement('nav');
   chapterNav.className = 'vid-chapters'; chapterNav.setAttribute('aria-label', 'Video chapters');
   const chapterClip = document.createElement('div'); chapterClip.className = 'vid-chapters-clip';
@@ -267,17 +269,22 @@
   // while the card follows the viewport, so reading content never jumps.
   const scrollDockEnabled = previewHome.classList.contains('homepage-small-video');
   const dockProperties = ['left', 'top', 'width', 'height', 'video-width', 'toolbar-left',
-    'toolbar-top', 'toolbar-width', 'toolbar-opacity', 'toolbar-height', 'progress'];
+    'toolbar-top', 'toolbar-width', 'toolbar-opacity', 'toolbar-height', 'progress', 'caption-progress'];
   let dockHasPlayed = false, docked = false, dockFrame = 0, dockNeedsMeasure = true;
   let dockHome = null, compactHold = 0, compactTimer = 0;
   const clamp = value => Math.max(0, Math.min(1, value));
   const mix = (from, to, amount) => from + (to - from) * amount;
+  function placeDockCaption(beside) {
+    const host = beside ? toolbarClip : screen;
+    if (caption.parentElement !== host) host.appendChild(caption);
+  }
   function releaseScrollDock(holdHome) {
     if (!scrollDockEnabled) return;
     if (!docked && !previewHome.style.height) return;
     docked = false; card.classList.remove('is-scroll-docked');
     previewHome.classList.remove('has-docked-video');
     syncChapterNavigation();
+    placeDockCaption(false);
     dockProperties.forEach(name => card.style.removeProperty('--dock-' + name));
     if (!holdHome && !compactHold) previewHome.style.removeProperty('height');
     document.documentElement.classList.remove('has-homepage-dock');
@@ -310,6 +317,7 @@
       card.classList.remove('is-scroll-docked');
       previewHome.classList.remove('has-docked-video');
       syncChapterNavigation();
+      placeDockCaption(false);
       previewHome.style.removeProperty('height');
       home = previewHome.getBoundingClientRect();
       dockHome = { width: home.width, height: home.height };
@@ -326,6 +334,8 @@
     const gap = innerWidth <= 600 ? 12 : 20;
     const sideAt = Math.min(.82, Math.max(.45, (gap + (innerWidth <= 600 ? 128 : 240)) / (dockHome.width - smallWidth)));
     const beside = progress >= sideAt;
+    card.style.setProperty('--dock-caption-progress', String(clamp(progress / sideAt)));
+    placeDockCaption(beside);
     const sideProgress = clamp((progress - sideAt) / Math.max(.01, 1 - sideAt));
     const toolbarLeft = beside ? screenWidth + gap + 12 * (1 - sideProgress) : 0;
     const opacity = beside ? sideProgress : 1 - clamp((progress - sideAt + .16) / .16);
