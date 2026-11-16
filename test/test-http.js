@@ -32,6 +32,7 @@ module.exports = function(harness) {
     const testCloudBillingDbPath = path.join(os.tmpdir(), 'sdocs-test-cloud-billing-' + process.pid + '.db');
     const testCloudJobsDbPath = path.join(os.tmpdir(), 'sdocs-test-cloud-jobs-' + process.pid + '.db');
     try { fs.unlinkSync(testDbPath); } catch (_) {}
+    try { fs.unlinkSync(testDbPath + '.homepage-stats.json'); } catch (_) {}
     try { fs.unlinkSync(testShortLinksDbPath); } catch (_) {}
     try { fs.unlinkSync(testCloudAuthDbPath); } catch (_) {}
     try { fs.unlinkSync(testCloudDbPath); } catch (_) {}
@@ -193,6 +194,25 @@ module.exports = function(harness) {
         return_to: returnTo || '/cloud/admin',
       }, { Origin: BASE, Cookie: cookie });
     }
+
+    await testAsync('Homepage stats exposes only cached public counts with an hourly cache lifetime', async () => {
+      const r = await get(BASE + '/api/homepage-stats');
+      assert.strictEqual(r.status, 200);
+      assert.ok(r.headers['content-type'].includes('application/json'));
+      assert.strictEqual(r.headers['cache-control'], 'public, max-age=3600');
+      const stats = JSON.parse(r.body);
+      assert.deepStrictEqual(Object.keys(stats).sort(),
+        ['npmDownloads', 'githubStars', 'npmUpdatedAt', 'githubUpdatedAt', 'npmPeriod'].sort());
+      assert.ok(Number.isSafeInteger(stats.npmDownloads) && stats.npmDownloads >= 0);
+      assert.ok(Number.isSafeInteger(stats.githubStars) && stats.githubStars >= 0);
+      assert.strictEqual(stats.npmPeriod, 'last-year');
+      const homepage = await get(BASE + '/home-next');
+      assert.strictEqual(homepage.status, 200);
+      assert.ok(homepage.body.includes('<strong>' + stats.npmDownloads.toLocaleString('en-US') + '</strong> npm downloads<br>in the past year'));
+      assert.ok(homepage.body.includes('<strong>' + stats.githubStars.toLocaleString('en-US') + '</strong> stars on'));
+      assert.ok(!homepage.body.includes('__HOME_NPM_DOWNLOADS__'));
+      assert.ok(!homepage.body.includes('__HOME_GITHUB_STARS__'));
+    });
 
     await testAsync('GET /llms.txt serves the product-wide discovery index', async () => {
       const r = await get(BASE + '/llms.txt');
@@ -2326,6 +2346,7 @@ module.exports = function(harness) {
     try { fs.unlinkSync(testDbPath); } catch (_) {}
     try { fs.unlinkSync(testDbPath + '-wal'); } catch (_) {}
     try { fs.unlinkSync(testDbPath + '-shm'); } catch (_) {}
+    try { fs.unlinkSync(testDbPath + '.homepage-stats.json'); } catch (_) {}
     try { fs.unlinkSync(testShortLinksDbPath); } catch (_) {}
     try { fs.unlinkSync(testShortLinksDbPath + '-wal'); } catch (_) {}
     try { fs.unlinkSync(testShortLinksDbPath + '-shm'); } catch (_) {}

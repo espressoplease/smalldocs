@@ -55,6 +55,12 @@ const CLOUD_UI_LAB_ENABLED = CLOUD_DEPLOYMENT.publicEnabled &&
   CLOUD_DEPLOYMENT.mode !== 'production';
 const ANALYTICS_ENABLED = process.env.ANALYTICS_ENABLED === '1';
 const analytics = ANALYTICS_ENABLED ? require('./analytics/db') : null;
+const homepageStats = require('./analytics/homepage-stats').createHomepageStats();
+if (ANALYTICS_ENABLED) {
+  homepageStats.refresh();
+  const homepageStatsTimer = setInterval(() => homepageStats.refresh(), 60 * 60 * 1000);
+  homepageStatsTimer.unref();
+}
 const cloudCollaborationMetrics = require('./lib/cloud-collaboration-metrics')
   .createCloudCollaborationMetrics();
 const cloudCollaborationMetricsTimer = setInterval(() => {
@@ -3933,6 +3939,7 @@ const server = http.createServer((req, res) => {
   // the shared entry script forwards them client-side.
   if (pathname === '/' || pathname === '/home' || pathname === '/home-next') {
     const homepageNav = homepageNavigation(req);
+    const publicStats = homepageStats.getSnapshot();
     const referral = cloudReferrals && cloudReferrals.resolve(url.searchParams.get('ref'));
     const referralName = referral && referral.name.replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
     const referralNotice = referral ? '<aside class="homepage-referral"><p><strong>' + referralName +
@@ -3942,6 +3949,8 @@ const server = http.createServer((req, res) => {
       pathname === '/home-next' || SINGLE_PLAN_ENABLED ? 'homepage-next.html' : 'homepage.html'),
       {
         ...homepageNav.substitutions,
+        '__HOME_NPM_DOWNLOADS__': publicStats.npmDownloads.toLocaleString('en-US'),
+        '__HOME_GITHUB_STARS__': publicStats.githubStars.toLocaleString('en-US'),
         '__HOME_CLOUD_AUTHENTICATED__': homepageNav.authenticated ? 'true' : 'false',
         '__HOME_ACCOUNT_HREF__': homepageNav.authenticated ? '/library?scope=cloud' : '/cloud/sign-in?return=%2Flibrary%3Fscope%3Dcloud',
         '__HOME_ACCOUNT_LABEL__': homepageNav.authenticated ? 'Open library' : 'Log in',
@@ -4579,6 +4588,12 @@ const server = http.createServer((req, res) => {
       res.writeHead(500, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: e.message }));
     }
+    return;
+  }
+
+  if (pathname === '/api/homepage-stats') {
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=3600' });
+    res.end(JSON.stringify(homepageStats.getSnapshot()));
     return;
   }
 

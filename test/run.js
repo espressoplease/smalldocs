@@ -148,6 +148,7 @@ const runStagingCliPackage = require('./test-staging-cli-package')(harness);
 
 // ── HTTP tests (async, starts server) ──────────────
 const runHttp = require('./test-http')(harness);
+const runHomepageStats = require('./test-homepage-stats')(harness);
 const runHttpInvalidUrl = require('./test-http-invalid-url')(harness);
 const runCacheBust = require('./test-cache-bust')(harness);
 const runLibraryServer = require('./test-library-server')(harness);
@@ -215,6 +216,7 @@ const runLibraryServer = require('./test-library-server')(harness);
   await runTeams();
   await runEmail();
   await runCloudAuthHttp();
+  await runHomepageStats();
   await runHttp();
   await runHttpInvalidUrl();
   await runCacheBust();

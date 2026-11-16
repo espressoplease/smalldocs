@@ -14,11 +14,13 @@ const https = require('https');
 const { getISOWeek } = require('./week');
 
 const PKG = 'sdocs-dev';
-const CACHE_MS = 6 * 60 * 60 * 1000;
+const CACHE_MS = 60 * 60 * 1000;
 const REQUEST_TIMEOUT_MS = 10 * 1000;
 const MAX_BYTES = 2 * 1024 * 1024;
 
 var cache = { weekly: [], fetchedAt: 0, fetching: false };
+var attemptedAt = 0;
+var inflight = null;
 
 function fetchDownloads(done) {
   var opts = {
@@ -48,12 +50,13 @@ function fetchDownloads(done) {
 }
 
 function refresh() {
-  if (cache.fetching) return;
-  if (Date.now() - cache.fetchedAt < CACHE_MS) return;
+  if (inflight) return inflight;
+  if (Date.now() - attemptedAt < CACHE_MS) return Promise.resolve(cache.fetchedAt ? cache : null);
+  attemptedAt = Date.now();
   cache.fetching = true;
-  fetchDownloads(function (err, days) {
+  inflight = new Promise(function (resolve) { fetchDownloads(function (err, days) {
     cache.fetching = false;
-    if (err) { cache.fetchedAt = Date.now() - CACHE_MS + 60 * 1000; return; }
+    if (err) { resolve(null); return; }
     var weekly = {};
     days.forEach(function (r) {
       if (!r || !r.day) return;
@@ -70,7 +73,9 @@ function refresh() {
     var firstReal = series.findIndex(function (r) { return r.downloads > 0; });
     cache.weekly = firstReal === -1 ? [] : series.slice(firstReal);
     cache.fetchedAt = Date.now();
-  });
+    resolve(cache);
+  }); }).finally(function () { inflight = null; });
+  return inflight;
 }
 
 function getWeeklyDownloads() {
@@ -78,4 +83,4 @@ function getWeeklyDownloads() {
   return cache.weekly;
 }
 
-module.exports = { getWeeklyDownloads };
+module.exports = { getWeeklyDownloads, refresh };

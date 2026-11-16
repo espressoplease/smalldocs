@@ -15,10 +15,12 @@ const { getISOWeek } = require('./week');
 
 const REPO = 'espressoplease/smalldocs';
 const TOKEN = process.env.GITHUB_TOKEN || process.env.GH_TOKEN || '';
-const CACHE_MS = 6 * 60 * 60 * 1000;
+const CACHE_MS = 60 * 60 * 1000;
 const REQUEST_TIMEOUT_MS = 10 * 1000;
 
 var cache = { weekly: [], total: 0, fetchedAt: 0, fetching: false };
+var attemptedAt = 0;
+var inflight = null;
 
 function fetchPage(page, acc, done) {
   var headers = {
@@ -53,13 +55,14 @@ function fetchPage(page, acc, done) {
 }
 
 function refresh() {
-  if (!TOKEN) return; // stargazer listing needs auth; nothing to fetch without a token
-  if (cache.fetching) return;
-  if (Date.now() - cache.fetchedAt < CACHE_MS) return;
+  if (!TOKEN) return Promise.resolve(null);
+  if (inflight) return inflight;
+  if (Date.now() - attemptedAt < CACHE_MS) return Promise.resolve(cache.fetchedAt ? cache : null);
+  attemptedAt = Date.now();
   cache.fetching = true;
-  fetchPage(1, [], function (err, starredAts) {
+  inflight = new Promise(function (resolve) { fetchPage(1, [], function (err, starredAts) {
     cache.fetching = false;
-    if (err) { cache.fetchedAt = Date.now() - CACHE_MS + 60 * 1000; return; }
+    if (err) { resolve(null); return; }
     starredAts.sort();
     var weekly = {};
     var running = 0;
@@ -73,7 +76,9 @@ function refresh() {
     cache.weekly = order.map(function (w) { return { week: w, stars: weekly[w] }; });
     cache.total = running;
     cache.fetchedAt = Date.now();
-  });
+    resolve(cache);
+  }); }).finally(function () { inflight = null; });
+  return inflight;
 }
 
 function getWeeklyStars() {
@@ -81,4 +86,4 @@ function getWeeklyStars() {
   return cache.weekly;
 }
 
-module.exports = { getWeeklyStars };
+module.exports = { getWeeklyStars, refresh };
