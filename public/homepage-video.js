@@ -65,7 +65,7 @@
   });
   const toolbar = document.createElement('div'); toolbar.className = 'vid-toolbar';
   const toolbarClip = document.createElement('div'); toolbarClip.className = 'vid-toolbar-clip';
-  toolbarClip.appendChild(controls); toolbar.append(toolbarClip, menu); card.append(screen, toolbar);
+  toolbarClip.append(controls, caption); toolbar.append(toolbarClip, menu); card.append(screen, toolbar);
   const chapterNav = document.createElement('nav');
   chapterNav.className = 'vid-chapters'; chapterNav.setAttribute('aria-label', 'Video chapters');
   const chapterClip = document.createElement('div'); chapterClip.className = 'vid-chapters-clip';
@@ -272,17 +272,12 @@
   let dockHome = null, compactHold = 0, compactTimer = 0;
   const clamp = value => Math.max(0, Math.min(1, value));
   const mix = (from, to, amount) => from + (to - from) * amount;
-  function placeDockCaption(beside) {
-    const host = beside ? toolbarClip : screen;
-    if (caption.parentElement !== host) host.appendChild(caption);
-  }
   function releaseScrollDock(holdHome) {
     if (!scrollDockEnabled) return;
     if (!docked && !previewHome.style.height) return;
     docked = false; card.classList.remove('is-scroll-docked');
     previewHome.classList.remove('has-docked-video');
     syncChapterNavigation();
-    placeDockCaption(false);
     dockProperties.forEach(name => card.style.removeProperty('--dock-' + name));
     if (!holdHome && !compactHold) previewHome.style.removeProperty('height');
     document.documentElement.classList.remove('has-homepage-dock');
@@ -315,7 +310,6 @@
       card.classList.remove('is-scroll-docked');
       previewHome.classList.remove('has-docked-video');
       syncChapterNavigation();
-      placeDockCaption(false);
       previewHome.style.removeProperty('height');
       home = previewHome.getBoundingClientRect();
       dockHome = { width: home.width, height: home.height };
@@ -332,7 +326,6 @@
     const gap = innerWidth <= 600 ? 12 : 20;
     const sideAt = Math.min(.82, Math.max(.45, (gap + (innerWidth <= 600 ? 128 : 240)) / (dockHome.width - smallWidth)));
     const beside = progress >= sideAt;
-    placeDockCaption(beside);
     const sideProgress = clamp((progress - sideAt) / Math.max(.01, 1 - sideAt));
     const toolbarLeft = beside ? screenWidth + gap + 12 * (1 - sideProgress) : 0;
     const opacity = beside ? sideProgress : 1 - clamp((progress - sideAt + .16) / .16);

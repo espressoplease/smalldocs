@@ -242,27 +242,30 @@
 }
 
 .vid-caption {
-  position: absolute;
-  left: 50%;
-  bottom: 14px;
-  transform: translateX(-50%);
-  max-width: 78%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: none;
+  height: 2.9em;
+  margin-top: 10px;
+  color: var(--ink);
   text-align: center;
   font-size: 15px;
   font-weight: 450;
   line-height: 1.45;
+  overflow-wrap: anywhere;
   pointer-events: none;
+  opacity: 1;
+  visibility: visible;
+  transition: opacity .3s cubic-bezier(.4,0,.2,1), visibility .3s cubic-bezier(.4,0,.2,1);
 }
 .vid-caption span {
-  color: #fff;
-  background: rgba(20,18,16,.74);
-  -webkit-box-decoration-break: clone;
-  box-decoration-break: clone;
-  padding: 4px 9px;
-  border-radius: 5px;
+  display: block;
+  width: 100%;
+  color: inherit;
 }
-.vid-caption:empty,
-.vid-caption.cc-hidden { display: none; }
+.vid-caption.cc-hidden { opacity: 0; visibility: hidden; }
 
 .vid-play {
   position: absolute;
@@ -349,23 +352,11 @@ html.has-homepage-dock { scroll-padding-top: var(--homepage-dock-height); }
   opacity: var(--dock-toolbar-opacity);
   transition: none;
 }
-.videocard.is-scroll-docked .vid-caption { max-width: calc(100% - 12px); font-size: 12px; bottom: 8px; }
-.videocard.is-scroll-docked .vid-toolbar .vid-caption {
-  position: static;
-  transform: none;
-  width: auto;
-  max-width: none;
-  margin-top: 10px;
-  color: var(--ink);
+.videocard.is-scroll-docked .vid-caption {
+  height: 4.35em;
+  justify-content: flex-start;
   text-align: left;
   font-size: 14px;
-  overflow-wrap: anywhere;
-}
-.videocard.is-scroll-docked .vid-toolbar .vid-caption span {
-  color: inherit;
-  background: transparent;
-  padding: 0;
-  border-radius: 0;
 }
 .videocard.is-scroll-docked .vid-toolbar .vid-chapmenu {
   top: calc(100% + 8px);
@@ -377,6 +368,7 @@ html.has-homepage-dock { scroll-padding-top: var(--homepage-dock-height); }
 .videocard:is(:fullscreen, :-webkit-full-screen) .vid-controls .vid-btn { color: #fff; border-color: rgba(255,255,255,.25); background: rgba(255,255,255,.08); }
 .videocard:is(:fullscreen, :-webkit-full-screen) .vid-controls .vid-btn:hover { background: rgba(255,255,255,.2); }
 .videocard:is(:fullscreen, :-webkit-full-screen) .vid-controls .vid-btn:focus-visible { outline-color: #fff; }
+.videocard:is(:fullscreen, :-webkit-full-screen) .vid-caption { color: #fff; }
 .videocard:is(:fullscreen, :-webkit-full-screen) .vid-chapters-label { color: rgba(255,255,255,.65); }
 .videocard:is(:fullscreen, :-webkit-full-screen) .vid-chapter-pills .vid-btn { color: color-mix(in srgb, var(--accent) 30%, white); border-color: color-mix(in srgb, var(--accent) 40%, transparent); background: color-mix(in srgb, var(--accent) 18%, transparent); }
 .videocard:is(:fullscreen, :-webkit-full-screen) .vid-chapter-pills .vid-btn:hover,
@@ -386,14 +378,15 @@ html.has-homepage-dock { scroll-padding-top: var(--homepage-dock-height); }
   .homepage-small-video .vid-controls { gap: 3px; }
   .homepage-small-video .vid-btn { padding: 8px 9px; min-height: 40px; }
   .homepage-small-video .vid-collapse { width: 40px; height: 40px; padding: 0; }
-  .homepage-small-video .vid-caption { width: max-content; max-width: calc(100% - 24px); font-size: 12px; }
+  .vid-caption { height: 5.8em; font-size: 14px; }
+  .videocard.is-scroll-docked .vid-caption { height: 8.7em; }
   .chapter-pills-visible .vid-chapter-toggle { margin-inline: -1.5px; }
   .vid-chapter-pills { gap: 6px; }
   .homepage-small-video .vid-chapter-pill { min-height: 32px; padding: 5px 9px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .videocard.teaser .vid-teaser { visibility: hidden; }
-  .vid-teaser, .vid-loading, .vid-play span, .vid-controls, .vid-toolbar, .vid-chapters, .vid-chapter-toggle, .home-next .homepage-small-video { transition: none; }
+  .vid-teaser, .vid-loading, .vid-play span, .vid-controls, .vid-toolbar, .vid-chapters, .vid-chapter-toggle, .vid-caption, .home-next .homepage-small-video { transition: none; }
   .spinner { animation: none; }
 }
 
