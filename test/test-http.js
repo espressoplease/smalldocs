@@ -208,7 +208,7 @@ module.exports = function(harness) {
       assert.strictEqual(stats.npmPeriod, 'last-year');
       const homepage = await get(BASE + '/home-next');
       assert.strictEqual(homepage.status, 200);
-      assert.ok(homepage.body.includes('<strong>' + stats.npmDownloads.toLocaleString('en-US') + '</strong> npm downloads<br>in the past year'));
+      assert.ok(homepage.body.includes('Installed <strong>' + stats.npmDownloads.toLocaleString('en-US') + '</strong> times by<br>developers,<br>financiers and<br>scientists'));
       assert.ok(homepage.body.includes('<strong>' + stats.githubStars.toLocaleString('en-US') + '</strong> stars on'));
       assert.ok(!homepage.body.includes('__HOME_NPM_DOWNLOADS__'));
       assert.ok(!homepage.body.includes('__HOME_GITHUB_STARS__'));
