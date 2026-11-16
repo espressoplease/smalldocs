@@ -16,6 +16,7 @@
   aspect-ratio: 16 / 9;
   object-fit: cover;
 }
+.videocard:not(.teaser) .vid { object-fit: contain; }
 .vid-loading {
   position: absolute;
   left: 14px;
@@ -60,7 +61,8 @@
   gap: 8px;
   transition: opacity .3s cubic-bezier(.4,0,.2,1);
 }
-.vid-controls .vid-btn {
+.vid-controls .vid-btn,
+.vid-chapter-pills .vid-btn {
   height: 36px;
   min-height: 36px;
   color: var(--ink);
@@ -69,8 +71,37 @@
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
 }
-.vid-controls .vid-btn:hover { background: var(--line); }
-.vid-controls .vid-btn:focus-visible { outline-color: var(--ink); }
+.vid-controls .vid-btn:hover, .vid-chapter-pills .vid-btn:hover { background: var(--line); }
+.vid-controls .vid-btn:focus-visible, .vid-chapter-pills .vid-btn:focus-visible { outline-color: var(--ink); }
+.vid-chapter-toggle {
+  display: flex;
+  max-width: 110px;
+  overflow: hidden;
+  margin-inline: 0;
+  opacity: 1;
+  visibility: visible;
+  transition: max-width .3s cubic-bezier(.4,0,.2,1), margin .3s cubic-bezier(.4,0,.2,1), opacity .3s cubic-bezier(.4,0,.2,1), visibility .3s cubic-bezier(.4,0,.2,1);
+}
+.vid-chapter-toggle .vid-btn { flex-shrink: 0; }
+.chapter-pills-visible .vid-chapter-toggle { max-width: 0; margin-inline: -4px; opacity: 0; visibility: hidden; pointer-events: none; }
+.vid-chapters {
+  display: grid;
+  grid-template-rows: 0fr;
+  margin-top: 0;
+  opacity: 0;
+  visibility: hidden;
+  transition: grid-template-rows .3s cubic-bezier(.4,0,.2,1), margin-top .3s cubic-bezier(.4,0,.2,1), opacity .3s cubic-bezier(.4,0,.2,1), visibility .3s cubic-bezier(.4,0,.2,1);
+}
+.vid-chapters-clip { min-height: 0; overflow: hidden; }
+.vid-chapter-pills { display: flex; flex-wrap: wrap; gap: 8px; }
+.has-video-chapters > .vid-chapters,
+.chapter-pills-visible > .vid-chapters { grid-template-rows: 1fr; margin-top: 12px; opacity: 1; visibility: visible; }
+.has-docked-video { position: relative; }
+.has-docked-video > .vid-chapters { position: absolute; left: 0; right: 0; bottom: 0; }
+.vid-chapter-pill { text-align: left; line-height: 1.25; }
+.vid-chapter-pill svg { flex-shrink: 0; }
+.vid-chapter-pill[aria-current] { background: var(--line); border-color: var(--ink); }
+.vid-measuring-inline .vid-chapters, .vid-measuring-inline .vid-chapter-toggle { transition: none; }
 .vid-btn[hidden] { display: none; }
 .vid-btn {
   display: inline-flex;
@@ -332,15 +363,21 @@ html.has-homepage-dock { scroll-padding-top: var(--homepage-dock-height); }
 .videocard:is(:fullscreen, :-webkit-full-screen) .vid-controls .vid-btn { color: #fff; border-color: rgba(255,255,255,.25); background: rgba(255,255,255,.08); }
 .videocard:is(:fullscreen, :-webkit-full-screen) .vid-controls .vid-btn:hover { background: rgba(255,255,255,.2); }
 .videocard:is(:fullscreen, :-webkit-full-screen) .vid-controls .vid-btn:focus-visible { outline-color: #fff; }
+.videocard:is(:fullscreen, :-webkit-full-screen) .vid-chapter-pills .vid-btn { color: #fff; border-color: rgba(255,255,255,.25); background: rgba(255,255,255,.08); }
+.videocard:is(:fullscreen, :-webkit-full-screen) .vid-chapter-pills .vid-btn:hover,
+.videocard:is(:fullscreen, :-webkit-full-screen) .vid-chapter-pill[aria-current] { background: rgba(255,255,255,.2); border-color: #fff; }
+.videocard:is(:fullscreen, :-webkit-full-screen) .vid-chapter-pills .vid-btn:focus-visible { outline-color: #fff; }
 @media (max-width: 560px) {
   .homepage-small-video .vid-controls { gap: 3px; }
   .homepage-small-video .vid-btn { padding: 8px 9px; min-height: 40px; }
   .homepage-small-video .vid-collapse { width: 40px; height: 40px; padding: 0; }
   .homepage-small-video .vid-caption { width: max-content; max-width: calc(100% - 24px); font-size: 12px; }
+  .chapter-pills-visible .vid-chapter-toggle { margin-inline: -1.5px; }
+  .vid-chapter-pills { gap: 6px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .videocard.teaser .vid-teaser { visibility: hidden; }
-  .vid-teaser, .vid-loading, .vid-play span, .vid-controls, .vid-toolbar, .home-next .homepage-small-video { transition: none; }
+  .vid-teaser, .vid-loading, .vid-play span, .vid-controls, .vid-toolbar, .vid-chapters, .vid-chapter-toggle, .home-next .homepage-small-video { transition: none; }
   .spinner { animation: none; }
 }
 

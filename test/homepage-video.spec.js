@@ -59,6 +59,16 @@ for (const width of [320, 390, 768, 1440]) {
     for (const row of rows.values()) {
       expect(Math.max(...row.map(box => box.x + box.width))).toBeCloseTo(screen.x + screen.width, 0);
     }
+    const chapters = preview.getByRole('navigation', { name: 'Video chapters' });
+    await expect(chapters).toBeVisible();
+    await expect(chapters.getByRole('button')).toHaveCount(9);
+    await expect(chapters.locator('button svg[aria-hidden="true"]')).toHaveCount(9);
+    await expect(page.locator('#chapBtn')).toBeHidden();
+    for (const pill of await chapters.getByRole('button').all()) {
+      const box = await pill.boundingBox();
+      expect(box.x).toBeGreaterThanOrEqual(expanded.x);
+      expect(box.x + box.width).toBeLessThanOrEqual(expanded.x + expanded.width);
+    }
     await page.getByRole('button', { name: 'Collapse video', exact: true }).click();
     await expect(preview).not.toHaveClass(/is-expanded/);
     await preview.evaluate(element => Promise.all(element.getAnimations().map(animation => animation.finished)));
@@ -81,6 +91,7 @@ test('expanded player retains captions, mute, pause and bounded seeking', async 
   await expect.poll(() => video.evaluate(video => video.paused)).toBe(true);
   await video.evaluate(video => { video.currentTime = 1; });
   await expect(page.locator('#heroCap')).toContainText('SmallDocs is a tool');
+  await expect(page.locator('#videocard')).toHaveClass(/ready/);
   expect(await video.evaluate(video => video.textTracks[0].mode)).toBe('hidden');
   await page.locator('#ccBtn').click(); await expect(page.locator('#heroCap')).toBeHidden();
   await page.locator('#ccBtn').click(); await expect(page.locator('#heroCap')).toBeVisible();
@@ -90,10 +101,10 @@ test('expanded player retains captions, mute, pause and bounded seeking', async 
   expect(await video.evaluate(video => video.currentTime)).toBeLessThan(1);
   await page.getByRole('button', { name: 'Forward 10 seconds', exact: true }).click();
   await expect.poll(() => video.evaluate(video => video.currentTime)).toBeGreaterThanOrEqual(10);
-  await expect(page.locator('#chapBtn')).toBeVisible();
-  await page.locator('#chapBtn').click();
-  await expect(page.locator('#chapMenu [role="menuitem"]')).toHaveCount(9);
-  await page.keyboard.press('Escape');
+  await page.evaluate(() => scrollTo({ top: 0, behavior: 'instant' }));
+  await expect(page.locator('#videocard')).not.toHaveClass(/is-scroll-docked/);
+  await expect(page.locator('#chapBtn')).toBeHidden();
+  await expect(page.getByRole('navigation', { name: 'Video chapters' }).getByRole('button')).toHaveCount(9);
   await page.getByRole('button', { name: 'Collapse video', exact: true }).click();
   expect(errors).toEqual([]);
 });
@@ -186,11 +197,31 @@ test('the existing full-length player uses the shared controls and chapter trans
   await page.goto('/home');
   await page.getByRole('button', { name: 'Play the SmallDocs demo', exact: true }).click();
   await expect.poll(() => page.locator('#heroVid').evaluate(video => !video.paused)).toBe(true);
-  await page.locator('#chapBtn').click(); await expect(page.locator('#chapMenu')).toBeVisible();
-  await expect(page.locator('#chapMenu [role="menuitem"]')).toHaveCount(9);
-  await page.keyboard.press('Escape'); await expect(page.locator('#chapMenu')).toBeHidden();
+  await expect(page.getByRole('navigation', { name: 'Video chapters' }).getByRole('button')).toHaveCount(9);
+  await expect(page.locator('#chapBtn')).toBeHidden();
   await page.locator('#heroVid').evaluate(video => { video.pause(); video.currentTime = 1; });
   await expect(page.locator('#heroCap')).toContainText('SmallDocs is a tool');
+});
+
+test('chapter pills support keyboard seeking and follow the playing chapter', async ({ page }) => {
+  // Keep the chapter inside the thirty-second media fixture.
+  await page.route('**/public/homepage-video-demo.js*', async route => {
+    const response = await route.fetch();
+    await route.fulfill({ response, body: (await response.text()).replace('"t": 50.8', '"t": 10') });
+  });
+  await page.goto('/home-next');
+  const nav = page.getByRole('navigation', { name: 'Video chapters' });
+  await expect(nav).toBeHidden();
+  await page.getByRole('button', { name: 'Play the SmallDocs demo', exact: true }).click();
+  const why = nav.getByRole('button', { name: 'Why SmallDocs', exact: true });
+  await why.focus(); await page.keyboard.press('Enter');
+  await expect.poll(() => page.locator('#intro-video').evaluate(v => v.currentTime)).toBeGreaterThanOrEqual(10);
+  await expect(why).toHaveAttribute('aria-current', 'step');
+  expect(await page.locator('#intro-video').evaluate(v => v.paused)).toBe(false);
+  await nav.getByRole('button', { name: 'Creating a SmallDoc', exact: true }).click();
+  await expect.poll(() => page.locator('#intro-video').evaluate(v => v.currentTime)).toBeLessThan(2);
+  await expect(why).not.toHaveAttribute('aria-current');
+  await expect(nav.getByRole('button', { name: 'Creating a SmallDoc', exact: true })).toHaveAttribute('aria-current', 'step');
 });
 
 async function startScrollingDemo(page, width) {
@@ -298,6 +329,7 @@ test('docked controls keep pause, mute and chapters usable, and dismissal preser
   const origin = await startScrollingDemo(page, 390);
   await page.evaluate(top => scrollTo({ top, behavior: 'instant' }), origin + 500);
   await expect.poll(() => page.locator('#videocard').evaluate(el => el.style.getPropertyValue('--dock-progress'))).toBe('1');
+  await expect(page.locator('#videocard .vid-chapters')).toHaveCount(0);
   await page.getByRole('button', { name: 'Pause', exact: true }).click();
   expect(await page.locator('#intro-video').evaluate(video => video.paused)).toBe(true);
   await page.getByRole('button', { name: 'Mute', exact: true }).click();

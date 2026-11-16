@@ -56,6 +56,8 @@
   const fullscreen = document.getElementById('fsBtn');
   const chapterButton = document.getElementById('chapBtn');
   const menu = document.getElementById('chapMenu');
+  const chapterToggle = document.createElement('span'); chapterToggle.className = 'vid-chapter-toggle';
+  chapterButton.before(chapterToggle); chapterToggle.appendChild(chapterButton);
   const previewHome = card.parentElement;
   const screen = document.createElement('div'); screen.className = 'vid-screen';
   Array.from(card.children).forEach(element => {
@@ -64,6 +66,11 @@
   const toolbar = document.createElement('div'); toolbar.className = 'vid-toolbar';
   const toolbarClip = document.createElement('div'); toolbarClip.className = 'vid-toolbar-clip';
   toolbarClip.appendChild(controls); toolbar.append(toolbarClip, menu); card.append(screen, toolbar);
+  const chapterNav = document.createElement('nav');
+  chapterNav.className = 'vid-chapters'; chapterNav.setAttribute('aria-label', 'Video chapters');
+  const chapterClip = document.createElement('div'); chapterClip.className = 'vid-chapters-clip';
+  const chapterPills = document.createElement('div'); chapterPills.className = 'vid-chapter-pills';
+  chapterClip.appendChild(chapterPills); chapterNav.appendChild(chapterClip); previewHome.appendChild(chapterNav);
   let previewLoops = 0, expanded = false;
   const collapse = document.createElement('button');
   collapse.type = 'button'; collapse.className = 'vid-btn vid-collapse';
@@ -126,6 +133,17 @@
     card.classList.remove('chapters-open');
     chapterButton.setAttribute('aria-expanded', 'false'); menu.inert = true;
   }
+  function syncChapterNavigation() {
+    const available = chapters.length > 0 && !card.classList.contains('teaser');
+    const inFullscreen = document.fullscreenElement === card || document.webkitFullscreenElement === card;
+    const visible = available && (!card.classList.contains('is-scroll-docked') || inFullscreen);
+    card.classList.toggle('chapter-pills-visible', visible);
+    previewHome.classList.toggle('has-video-chapters', available);
+    chapterNav.inert = !available; chapterNav.setAttribute('aria-hidden', String(!available));
+    chapterToggle.inert = visible || controls.inert;
+    chapterToggle.setAttribute('aria-hidden', String(visible));
+    if (visible) closeMenu();
+  }
   function syncMute() {
     card.classList.toggle('sound-on', !video.muted);
     const label = video.muted ? 'Unmute' : 'Mute';
@@ -137,6 +155,7 @@
     const label = video.paused ? 'Play' : 'Pause';
     pause.querySelector('.lbl').textContent = label; pause.title = label;
     pause.setAttribute('aria-label', label);
+    if (video.paused && !video.seeking && video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) card.classList.add('ready');
   }
   function closeExpanded(quiet) {
     if (!expanded) return;
@@ -161,6 +180,7 @@
     previewHome.classList.remove('is-expanded');
     card.classList.add('teaser'); card.classList.remove('needs-play');
     controls.inert = true; collapse.hidden = true;
+    syncChapterNavigation();
     play.setAttribute('aria-expanded', 'false');
     if (!quiet) { play.focus({ preventScroll: true }); resumePreview(); }
     if (readingHeight) compactTimer = setTimeout(finishCompactHold, reducedMotion.matches ? 0 : 320);
@@ -176,6 +196,7 @@
     card.classList.remove('teaser');
     if (teaser) { teaser.autoplay = false; teaser.pause(); }
     controls.inert = false; video.muted = false; video.loop = false;
+    syncChapterNavigation();
     if (video.ended) video.currentTime = 0;
     if (video.error || video.networkState === HTMLMediaElement.NETWORK_NO_SOURCE) video.load();
     const status = card.querySelector('[data-video-status]');
@@ -188,6 +209,7 @@
   video.addEventListener('click', () => { if (!card.classList.contains('teaser')) pause.click(); });
   video.addEventListener('play', syncPause);
   video.addEventListener('pause', syncPause);
+  video.addEventListener('seeked', syncPause);
   video.addEventListener('playing', () => {
     card.classList.add('ready'); card.classList.remove('video-error', 'needs-play');
     dockHasPlayed = true; scheduleScrollDock(true);
@@ -205,6 +227,7 @@
     if (expanded) closeExpanded();
     else {
       card.classList.add('teaser'); controls.inert = true; previewLoops = 0;
+      syncChapterNavigation();
       if (teaser) { teaser.currentTime = 0; resumePreview(); }
     }
   });
@@ -229,6 +252,9 @@
     const active = document.fullscreenElement === card || document.webkitFullscreenElement === card || video.webkitDisplayingFullscreen;
     const label = active ? 'Exit full screen' : 'Full screen';
     fullscreen.title = label; fullscreen.setAttribute('aria-label', label); fullscreen.querySelector('.lbl').textContent = label;
+    const chapterHost = document.fullscreenElement === card || document.webkitFullscreenElement === card ? card : previewHome;
+    if (chapterNav.parentElement !== chapterHost) chapterHost.appendChild(chapterNav);
+    syncChapterNavigation();
     scheduleScrollDock(true);
   }
   document.addEventListener('fullscreenchange', syncFullscreen);
@@ -251,6 +277,8 @@
     if (!scrollDockEnabled) return;
     if (!docked && !previewHome.style.height) return;
     docked = false; card.classList.remove('is-scroll-docked');
+    previewHome.classList.remove('has-docked-video');
+    syncChapterNavigation();
     placeDockCaption(false);
     dockProperties.forEach(name => card.style.removeProperty('--dock-' + name));
     if (!holdHome && !compactHold) previewHome.style.removeProperty('height');
@@ -280,13 +308,20 @@
     let home = previewHome.getBoundingClientRect();
     if (home.top > pinTop) { releaseScrollDock(); return; }
     if (!docked || dockNeedsMeasure) {
+      card.classList.add('vid-measuring-inline');
       card.classList.remove('is-scroll-docked');
+      previewHome.classList.remove('has-docked-video');
+      syncChapterNavigation();
       placeDockCaption(false);
       previewHome.style.removeProperty('height');
       home = previewHome.getBoundingClientRect();
-      dockHome = { width: home.width, height: card.getBoundingClientRect().height };
+      dockHome = { width: home.width, height: home.height };
       previewHome.style.height = dockHome.height + 'px';
+      previewHome.classList.add('has-docked-video');
       card.classList.add('is-scroll-docked'); docked = true; dockNeedsMeasure = false;
+      syncChapterNavigation();
+      void chapterNav.offsetHeight;
+      card.classList.remove('vid-measuring-inline');
     }
     const progress = reducedMotion.matches ? 1 : clamp((pinTop - home.top) / Math.min(240, dockHome.width * .45));
     const smallWidth = Math.min(240, Math.max(104, dockHome.width * .34));
@@ -321,6 +356,7 @@
     });
     new ResizeObserver(() => scheduleScrollDock(true)).observe(previewHome);
     new ResizeObserver(() => scheduleScrollDock()).observe(toolbar);
+    new ResizeObserver(() => scheduleScrollDock(true)).observe(chapterNav);
     reducedMotion.addEventListener('change', () => scheduleScrollDock(true));
   }
 
@@ -329,14 +365,38 @@
   function seek(time) {
     const end = Number.isFinite(video.duration) ? Math.max(0, video.duration - 0.05) : Math.max(0, time);
     video.currentTime = Math.min(Math.max(0, time), end);
+    updateCaption();
     if (video.paused) tryPlay(video);
   }
-  chapters.forEach(chapter => {
+  // Reuse the same Lucide paths as the document reader's icon collection.
+  const chapterIcons = {
+    'file-text': '<path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M10 9H8M16 13H8M16 17H8"/>',
+    lightbulb: '<path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5M9 18h6M10 22h4"/>',
+    'book-open': '<path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/>',
+    'chart-column': '<path d="M3 3v16a2 2 0 0 0 2 2h16M18 17V9M13 17V5M8 17v-3"/>',
+    presentation: '<path d="M2 3h20M21 3v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V3M7 21l5-5 5 5"/>',
+    library: '<path d="m16 6 4 14M12 6v14M8 8v12M4 4v16"/>',
+    'share-2': '<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.59 13.51 6.83 3.98m-.01-10.98-6.82 3.98"/>',
+    'message-square': '<path d="M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z"/>',
+    history: '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8M3 3v5h5M12 7v5l4 2"/>'
+  };
+  chapters.forEach((chapter, index) => {
     const row = document.createElement('button'); row.type = 'button'; row.className = 'vid-chap'; row.setAttribute('role', 'menuitem');
     const time = document.createElement('span'); time.className = 't'; time.textContent = format(chapter.t);
     const label = document.createElement('span'); label.className = 'l'; label.textContent = chapter.title;
     row.append(time, label); row.addEventListener('click', () => { seek(chapter.t + 0.01); closeMenu(); chapterButton.focus(); });
     menu.appendChild(row);
+    const pill = document.createElement('button'); pill.type = 'button'; pill.className = 'vid-btn vid-chapter-pill';
+    pill.title = format(chapter.t) + ' - ' + chapter.title;
+    const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    icon.setAttribute('viewBox', '0 0 24 24'); icon.setAttribute('width', '15'); icon.setAttribute('height', '15');
+    icon.setAttribute('fill', 'none'); icon.setAttribute('stroke', 'currentColor'); icon.setAttribute('stroke-width', '1.7');
+    icon.setAttribute('stroke-linecap', 'round'); icon.setAttribute('stroke-linejoin', 'round'); icon.setAttribute('aria-hidden', 'true');
+    icon.innerHTML = chapterIcons[chapter.icon] || chapterIcons['file-text'];
+    const pillLabel = document.createElement('span'); pillLabel.textContent = chapter.title;
+    pill.append(icon, pillLabel); pill.addEventListener('click', () => seek(chapter.t + 0.01));
+    if (index === 0) pill.setAttribute('aria-current', 'step');
+    chapterPills.appendChild(pill);
   });
   chapterButton.addEventListener('click', event => {
     event.stopPropagation();
@@ -374,6 +434,10 @@
       if (text) { const span = document.createElement('span'); span.textContent = text; caption.appendChild(span); }
     }
     Array.from(menu.children).forEach((row, index) => row.classList.toggle('active', index === chapterAt(video.currentTime)));
+    Array.from(chapterPills.children).forEach((pill, index) => {
+      if (index === chapterAt(video.currentTime)) pill.setAttribute('aria-current', 'step');
+      else pill.removeAttribute('aria-current');
+    });
   }
   const boundTracks = new Set();
   function bindCaptionTrack(track) {
@@ -397,5 +461,5 @@
     closeExpanded(true);
   });
   window.addEventListener('pageshow', () => { if (card.classList.contains('teaser')) resumePreview(); });
-  syncMute(); syncPause();
+  syncMute(); syncPause(); syncChapterNavigation();
 })();

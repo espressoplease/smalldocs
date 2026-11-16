@@ -3,39 +3,48 @@ window.SDocsHomepageVideoConfig = {
   "chapters": [
     {
       "t": 0,
-      "title": "Creating a SmallDoc"
+      "title": "Creating a SmallDoc",
+      "icon": "file-text"
     },
     {
       "t": 50.8,
-      "title": "Why SmallDocs"
+      "title": "Why SmallDocs",
+      "icon": "lightbulb"
     },
     {
       "t": 92.3,
-      "title": "Reading and diagrams"
+      "title": "Reading and diagrams",
+      "icon": "book-open"
     },
     {
       "t": 153.2,
-      "title": "Charts, math and spreadsheets"
+      "title": "Charts, math and spreadsheets",
+      "icon": "chart-column"
     },
     {
       "t": 194.8,
-      "title": "Slides"
+      "title": "Slides",
+      "icon": "presentation"
     },
     {
       "t": 238.3,
-      "title": "Libraries and search"
+      "title": "Libraries and search",
+      "icon": "library"
     },
     {
       "t": 305.1,
-      "title": "Sharing documents"
+      "title": "Sharing documents",
+      "icon": "share-2"
     },
     {
       "t": 314.6,
-      "title": "Comments and agent feedback"
+      "title": "Comments and agent feedback",
+      "icon": "message-square"
     },
     {
       "t": 399.9,
-      "title": "Agent updates and history"
+      "title": "Agent updates and history",
+      "icon": "history"
     }
   ],
   "cues": [
@@ -100,7 +109,7 @@ window.SDocsHomepageVideoConfig = {
       "text": "but they're also saved in our cloud as well, which I'll get on to in a moment."
     },
     {
-      "t0": 51.0,
+      "t0": 51,
       "t1": 56.46,
       "text": "The thinking behind SmallDocs is that these chat areas where we do all of our work"
     },
@@ -191,11 +200,11 @@ window.SDocsHomepageVideoConfig = {
     },
     {
       "t0": 120.42,
-      "t1": 122.0,
+      "t1": 122,
       "text": "is agent-to-human feedback loops."
     },
     {
-      "t0": 122.0,
+      "t0": 122,
       "t1": 125.46,
       "text": "So all the little features come with things that make your life easier to either"
     },
@@ -236,11 +245,11 @@ window.SDocsHomepageVideoConfig = {
     },
     {
       "t0": 154.6,
-      "t1": 156.0,
+      "t1": 156,
       "text": "You can see another Mermaid diagram."
     },
     {
-      "t0": 156.0,
+      "t0": 156,
       "t1": 159.36,
       "text": "They render charts. They render math. They render multi-tab spreadsheets."
     },
@@ -380,7 +389,7 @@ window.SDocsHomepageVideoConfig = {
       "text": "And you can search for documents in the library, for example, penguins."
     },
     {
-      "t0": 256.0,
+      "t0": 256,
       "t1": 259.2,
       "text": "And you can do things like filter for starred documents, this kind of stuff."
     },
@@ -571,7 +580,7 @@ window.SDocsHomepageVideoConfig = {
     },
     {
       "t0": 396.52,
-      "t1": 399.0,
+      "t1": 399,
       "text": "So let's see, I'm sure the agent is working away."
     },
     {
