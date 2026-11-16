@@ -468,7 +468,7 @@ module.exports = function(harness) {
     });
 
     await testAsync('GET homepage captions serves WebVTT', async () => {
-      const r = await get(BASE + '/public/homepage/demo-2026-11-17.vtt');
+      const r = await get(BASE + '/public/homepage/demo-2026-11-17-prompting.vtt');
       assert.strictEqual(r.status, 200);
       assert.ok(r.headers['content-type'].startsWith('text/vtt'));
       assert.ok(r.body.startsWith('WEBVTT\n'));

@@ -61,8 +61,8 @@ for (const width of [320, 390, 768, 1440]) {
     }
     const chapters = preview.getByRole('navigation', { name: 'Video chapters' });
     await expect(chapters).toBeVisible();
-    await expect(chapters.getByRole('button')).toHaveCount(9);
-    await expect(chapters.locator('button svg[aria-hidden="true"]')).toHaveCount(9);
+    await expect(chapters.getByRole('button')).toHaveCount(10);
+    await expect(chapters.locator('button svg[aria-hidden="true"]')).toHaveCount(10);
     await expect(page.locator('#chapBtn')).toBeHidden();
     for (const pill of await chapters.getByRole('button').all()) {
       const box = await pill.boundingBox();
@@ -104,7 +104,7 @@ test('expanded player retains captions, mute, pause and bounded seeking', async 
   await page.evaluate(() => scrollTo({ top: 0, behavior: 'instant' }));
   await expect(page.locator('#videocard')).not.toHaveClass(/is-scroll-docked/);
   await expect(page.locator('#chapBtn')).toBeHidden();
-  await expect(page.getByRole('navigation', { name: 'Video chapters' }).getByRole('button')).toHaveCount(9);
+  await expect(page.getByRole('navigation', { name: 'Video chapters' }).getByRole('button')).toHaveCount(10);
   await page.getByRole('button', { name: 'Collapse video', exact: true }).click();
   expect(errors).toEqual([]);
 });
@@ -197,7 +197,7 @@ test('the existing full-length player uses the shared controls and chapter trans
   await page.goto('/home');
   await page.getByRole('button', { name: 'Play the SmallDocs demo', exact: true }).click();
   await expect.poll(() => page.locator('#heroVid').evaluate(video => !video.paused)).toBe(true);
-  await expect(page.getByRole('navigation', { name: 'Video chapters' }).getByRole('button')).toHaveCount(9);
+  await expect(page.getByRole('navigation', { name: 'Video chapters' }).getByRole('button')).toHaveCount(10);
   await expect(page.locator('#chapBtn')).toBeHidden();
   await page.locator('#heroVid').evaluate(video => { video.pause(); video.currentTime = 1; });
   await expect(page.locator('#heroCap')).toContainText('SmallDocs is a tool');
@@ -207,7 +207,7 @@ test('chapter pills support keyboard seeking and follow the playing chapter', as
   // Keep the chapter inside the thirty-second media fixture.
   await page.route('**/public/homepage-video-demo.js*', async route => {
     const response = await route.fetch();
-    await route.fulfill({ response, body: (await response.text()).replace('"t": 50.8', '"t": 10') });
+    await route.fulfill({ response, body: (await response.text()).replace('"t": 73.867', '"t": 10') });
   });
   await page.goto('/home-next');
   const nav = page.getByRole('navigation', { name: 'Video chapters' });
