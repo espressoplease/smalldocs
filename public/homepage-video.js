@@ -77,7 +77,9 @@
   collapse.type = 'button'; collapse.className = 'vid-btn vid-collapse';
   collapse.title = 'Collapse video'; collapse.setAttribute('aria-label', 'Collapse video');
   collapse.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7"/></svg>';
-  collapse.hidden = true; controls.appendChild(collapse);
+  collapse.hidden = true;
+  const viewControls = document.createElement('div'); viewControls.className = 'vid-view-controls';
+  viewControls.append(fullscreen, collapse); controls.appendChild(viewControls);
   collapse.addEventListener('click', () => closeExpanded());
   controls.querySelectorAll('button').forEach(button => {
     if (button.title) button.setAttribute('aria-label', button.title);

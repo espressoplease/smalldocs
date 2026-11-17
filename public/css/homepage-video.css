@@ -61,6 +61,7 @@
   gap: 8px;
   transition: opacity .3s cubic-bezier(.4,0,.2,1);
 }
+.vid-view-controls { display: flex; flex: 0 0 auto; gap: inherit; margin-inline-start: auto; }
 .vid-controls .vid-btn,
 .vid-chapter-pills .vid-btn {
   height: 36px;

@@ -51,7 +51,8 @@ for (const width of [320, 390, 768, 1440]) {
     expect(Math.min(...buttons.map(box => box.x))).toBeCloseTo(screen.x, 0);
     expect(Math.max(...buttons.map(box => box.height)) - Math.min(...buttons.map(box => box.height))).toBeLessThan(0.5);
     const rows = new Map();
-    for (const box of buttons) {
+    for (const button of await preview.locator('.vid-controls > button:visible').all()) {
+      const box = await button.boundingBox();
       const key = Math.round(box.y);
       if (!rows.has(key)) rows.set(key, []);
       rows.get(key).push(box);
@@ -59,6 +60,13 @@ for (const width of [320, 390, 768, 1440]) {
     for (const row of rows.values()) {
       expect(Math.min(...row.map(box => box.x))).toBeCloseTo(screen.x, 0);
     }
+    const viewControls = await preview.locator('.vid-view-controls').boundingBox();
+    const fullscreen = await page.getByRole('button', { name: 'Full screen', exact: true }).boundingBox();
+    const collapse = await page.getByRole('button', { name: 'Collapse video', exact: true }).boundingBox();
+    expect(viewControls.x + viewControls.width).toBeCloseTo(screen.x + screen.width, 0);
+    expect(fullscreen.y).toBeCloseTo(collapse.y, 0);
+    expect(fullscreen.x + fullscreen.width).toBeLessThan(collapse.x);
+    expect(collapse.x + collapse.width).toBeCloseTo(viewControls.x + viewControls.width, 0);
     const chapters = preview.getByRole('navigation', { name: 'Video chapters' });
     await expect(chapters).toBeVisible();
     await expect(chapters.getByRole('button')).toHaveCount(10);
