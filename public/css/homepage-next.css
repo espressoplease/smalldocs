@@ -70,7 +70,9 @@
   color: var(--ink);
   font-size: clamp(11px, 1.2vw, 13px);
 }
-.homepage-sticker-github .homepage-sticker-copy { width: 100%; padding: 12% 10%; }
+.homepage-sticker-github .homepage-sticker-copy { width: 100%; padding: 12% 10%; line-height: 1.15; }
+.homepage-sticker-github strong { margin: 0; line-height: 1; }
+.homepage-sticker-github-label { display: block; font-size: 1.12em; line-height: 1.15; }
 .homepage-sticker-github a { text-decoration: underline; text-underline-offset: .15em; }
 .homepage-sticker-github a:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
 .homepage-intro:has(.is-expanded) .homepage-stickers { pointer-events: none; }

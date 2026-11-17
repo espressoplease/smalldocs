@@ -209,7 +209,7 @@ module.exports = function(harness) {
       const homepage = await get(BASE + '/home-next');
       assert.strictEqual(homepage.status, 200);
       assert.ok(homepage.body.includes('Installed by <strong>' + stats.npmDownloads.toLocaleString('en-US') + '</strong> developers,<br>financiers and<br>scientists'));
-      assert.ok(homepage.body.includes('<strong>' + stats.githubStars.toLocaleString('en-US') + '</strong> stars on'));
+      assert.ok(homepage.body.includes('<strong>' + stats.githubStars.toLocaleString('en-US') + '</strong><span class="homepage-sticker-github-label">stars on</span>'));
       assert.ok(!homepage.body.includes('__HOME_NPM_DOWNLOADS__'));
       assert.ok(!homepage.body.includes('__HOME_GITHUB_STARS__'));
     });
