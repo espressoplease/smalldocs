@@ -1,0 +1,459 @@
+WEBVTT
+
+00:00:00.000 --> 00:00:04.680
+SmallDocs is a tool which lets any coding
+agent create a document and open it in the
+browser.
+
+00:00:05.020 --> 00:00:07.760
+So, for example, here I've been working on
+an application,
+
+00:00:07.760 --> 00:00:10.480
+I'm thinking of installing OpenID Connect
+for users,
+
+00:00:10.840 --> 00:00:13.420
+and I've got my agent to write a document
+for me.
+
+00:00:17.200 --> 00:00:19.140
+And it opens in the browser.
+
+00:00:19.780 --> 00:00:24.140
+Or I'm on a coding agent, for example, one
+of the more UI ones,
+
+00:00:24.560 --> 00:00:26.040
+and I'm working with an agent on something,
+
+00:00:26.680 --> 00:00:30.100
+and I want to read about it in a cleaner
+environment,
+
+00:00:31.140 --> 00:00:33.120
+and the agent can open a document here.
+
+00:00:37.320 --> 00:00:41.200
+So, underneath these documents they are...
+
+00:00:44.120 --> 00:00:47.140
+They're markdown files, so they can be
+saved in your repository or wherever they
+are,
+
+00:00:47.140 --> 00:00:50.200
+but they're also saved in our cloud as
+well, which I'll get on to in a moment.
+
+00:00:51.000 --> 00:00:56.460
+The thinking behind SmallDocs is that these
+chat areas where we do all of our work
+
+00:00:56.460 --> 00:01:00.440
+today, they become very busy, very filled,
+and very cluttered.
+
+00:01:00.860 --> 00:01:03.160
+They're rushing along, and you come up with
+another question you want to ask,
+
+00:01:03.160 --> 00:01:05.280
+and you ask your agent, and the chat moves
+on.
+
+00:01:05.780 --> 00:01:09.660
+But sometimes your understanding isn't
+moving along at the same pace as the chat.
+
+00:01:09.720 --> 00:01:12.560
+So there's a separation for me of the work
+which is happening in these chats,
+
+00:01:12.580 --> 00:01:14.700
+and the understanding which I do in
+SmallDocs.
+
+00:01:14.700 --> 00:01:18.760
+And SmallDocs are designed to be a calm,
+clean, fast,
+
+00:01:19.900 --> 00:01:22.500
+lightweight, and spacious place to read and
+gather thoughts,
+
+00:01:22.940 --> 00:01:26.580
+but as well as be extremely flexible
+documents with very, very deep
+functionality.
+
+00:01:27.820 --> 00:01:31.680
+So I'll just give you some examples of the
+kind of functionality that's available in
+SmallDocs.
+
+00:01:32.340 --> 00:01:36.220
+So, first of all, the documents, they are
+originally rendered collapsed,
+
+00:01:36.220 --> 00:01:40.200
+so you can get an idea of what do I need to
+look at now, and you can expand them all,
+
+00:01:40.400 --> 00:01:44.900
+all the areas there, or expand the areas
+one by one,
+
+00:01:45.620 --> 00:01:47.340
+or hit the H1 and expand everything.
+
+00:01:48.600 --> 00:01:53.800
+They allow the agent to render very nice
+diagrams, for example a Mermaid diagram,
+
+00:01:53.800 --> 00:01:56.940
+and you can get everything in its own nice
+interface.
+
+00:01:56.940 --> 00:02:00.420
+And one of the things that is also really
+important about SmallDocs
+
+00:02:00.420 --> 00:02:02.000
+is agent-to-human feedback loops.
+
+00:02:02.000 --> 00:02:05.460
+So all the little features come with things
+that make your life easier to either
+
+00:02:05.460 --> 00:02:09.360
+communicate ideas to humans or communicate
+ideas to other agents or to the agent that
+you're working with.
+
+00:02:09.360 --> 00:02:12.780
+So, for example, on a diagram, you can copy
+the source and then discuss it with an
+agent.
+
+00:02:12.780 --> 00:02:17.800
+For example, I could paste that in there,
+or I can copy the diagram and I can send
+that into a chat.
+
+00:02:18.360 --> 00:02:22.760
+It can be a small little thing. So, for
+example, when an agent's made a table and I
+want to copy a column
+
+00:02:22.900 --> 00:02:26.200
+or I want to copy the whole table as a CSV
+or copy the whole table as a PNG, I can do
+that too.
+
+00:02:28.120 --> 00:02:32.140
+So they're filled with little useful things
+to make your life easier, basically.
+
+00:02:33.360 --> 00:02:34.600
+Here's another example of a SmallDoc.
+
+00:02:34.600 --> 00:02:36.000
+You can see another Mermaid diagram.
+
+00:02:36.000 --> 00:02:39.360
+They render charts. They render math. They
+render multi-tab spreadsheets.
+
+00:02:39.500 --> 00:02:41.700
+So an agent can actually do a bit of work
+for you
+
+00:02:41.700 --> 00:02:45.580
+and you can treat that as an actual
+spreadsheet and interact with it
+
+00:02:45.720 --> 00:02:48.620
+and do what you need with it.
+
+00:02:48.640 --> 00:02:53.920
+The idea is that we keep tackling super
+kind of, we tackle
+
+00:02:53.920 --> 00:02:57.180
+so many different tasks with our agents.
+And the document format that we work with,
+I think,
+
+00:02:57.180 --> 00:02:59.220
+should be as flexible as this vast range of
+tasks
+
+00:02:59.220 --> 00:03:03.220
+and not siloed into this is a spreadsheet,
+this is some slides, this is some code.
+
+00:03:03.300 --> 00:03:04.560
+I think everything lives together.
+
+00:03:04.560 --> 00:03:05.960
+And in SmallDocs, that's how it works.
+
+00:03:06.180 --> 00:03:09.580
+And I found that that really allows me to
+get the agent to communicate to me
+
+00:03:09.580 --> 00:03:13.360
+in an effective way that I can understand
+better. And of course, we render code.
+
+00:03:14.880 --> 00:03:20.180
+The agent can make extremely visually
+appealing slides and it has really good
+defaults built in.
+
+00:03:20.180 --> 00:03:25.260
+So if you just ask for a deck, it can
+generate nice looking presentations, which
+are,
+
+00:03:25.260 --> 00:03:29.120
+I think, very human readable. And you can
+even use presentations not to present to
+someone.
+
+00:03:29.120 --> 00:03:30.740
+I use presentations a lot to understand
+things.
+
+00:03:30.740 --> 00:03:34.360
+So I'll say to the agent, okay, make one
+slide for me for this idea,
+
+00:03:34.860 --> 00:03:37.540
+all the different parts of this idea, and I
+can ingest it one by one.
+
+00:03:37.540 --> 00:03:42.220
+So it's kind of a creative tool to allow
+your agent to communicate to you in a way
+that
+
+00:03:42.220 --> 00:03:44.220
+maximizes your rate of understanding
+because we all have
+
+00:03:44.220 --> 00:03:47.900
+so much to understand these days with
+different work tasks that are very
+complicated
+
+00:03:47.900 --> 00:03:53.820
+with the agent who is extremely clever
+doing work beyond our kind of where we're
+at at that moment.
+
+00:03:53.840 --> 00:03:57.520
+So they're deep, they're flexible, they're
+fast, and they're lightweight.
+
+00:03:58.300 --> 00:03:59.920
+SmallDocs also comes with a library.
+
+00:04:00.860 --> 00:04:04.340
+And every library has a personal, every
+user has a personal library, which you
+can't add anyone to.
+
+00:04:04.340 --> 00:04:05.720
+So this is just for your personal
+documents.
+
+00:04:05.860 --> 00:04:08.880
+And there's also, you can create as many as
+you want, team libraries.
+
+00:04:09.640 --> 00:04:15.360
+And you can search for documents in the
+library, for example, penguins.
+
+00:04:16.000 --> 00:04:19.200
+And you can do things like filter for
+starred documents, this kind of stuff.
+
+00:04:19.200 --> 00:04:20.740
+So it's a nice place where as you're
+working with an agent,
+
+00:04:20.740 --> 00:04:23.700
+you're creating all these documents, you're
+creating these kind of isolated blocks of
+thinking
+
+00:04:23.700 --> 00:04:25.860
+which you might share with other people or
+just just for yourself.
+
+00:04:25.920 --> 00:04:28.940
+And you know that everything you've created
+is saved and you can go back to it.
+
+00:04:30.480 --> 00:04:34.680
+You can, from this page, choose the library
+that you want the document to be associated
+with.
+
+00:04:34.840 --> 00:04:37.060
+You can choose who you want to share it
+with.
+
+00:04:37.460 --> 00:04:40.300
+And you can update the tags of the document
+to match what you want.
+
+00:04:40.300 --> 00:04:44.580
+But the agent is instructed to build a
+tagged knowledge base for you.
+
+00:04:44.580 --> 00:04:48.620
+So you won't have to do anything. But just
+by doing all your different bits of
+thinking, creating documents,
+
+00:04:49.440 --> 00:04:53.660
+you will start to build a knowledge base
+that you can query and also the agent can
+query.
+
+00:04:53.660 --> 00:04:55.340
+So the agent with your permissions,
+
+00:04:55.360 --> 00:04:58.320
+as in it can't read things that other
+people have created that haven't shared
+with you,
+
+00:04:58.320 --> 00:05:04.420
+can use the tool to go to your library and
+find what's available to you so you can get
+things going.
+
+00:05:05.080 --> 00:05:06.800
+And so that's where sharing documents
+within your library.
+
+00:05:06.800 --> 00:05:08.740
+And you can also share them outside of your
+library,
+
+00:05:08.740 --> 00:05:10.380
+either a page that can be indexed by Google
+
+00:05:10.380 --> 00:05:13.200
+or a private link that you can just share
+with someone that Google can't pick up.
+
+00:05:14.960 --> 00:05:19.400
+It's also possible to work with an agent
+
+00:05:19.940 --> 00:05:24.420
+to get feedback going on. So let's use this
+document.
+
+00:05:25.220 --> 00:05:31.320
+And so I could say something like to the
+agent.
+
+00:05:33.720 --> 00:05:35.440
+This area isn't clear.
+
+00:05:36.820 --> 00:05:38.680
+Instead, use two slides.
+
+00:05:38.680 --> 00:05:40.540
+And you can use voice to speak if you want
+to.
+
+00:05:42.460 --> 00:05:44.640
+So now I've left a comment for the agent.
+
+00:05:44.640 --> 00:05:46.660
+And I can either if I want just copy with
+comments and the agent
+
+00:05:46.660 --> 00:05:50.500
+and paste it into the agent chat box, or if
+you want, the agent can also pick up on
+comments.
+
+00:05:50.500 --> 00:05:54.440
+So I could say clear this text box.
+
+00:06:03.180 --> 00:06:06.480
+And the agent can interact with this cloud
+document.
+
+00:06:06.620 --> 00:06:08.140
+And it can find the comment.
+
+00:06:08.380 --> 00:06:12.700
+And then it can update it. And as the agent
+updates it, you'll get a...
+
+00:06:12.860 --> 00:06:14.540
+it'll change the document we're working on
+together.
+
+00:06:15.260 --> 00:06:16.960
+And you'll get a change log.
+
+00:06:16.960 --> 00:06:20.600
+And the agent will also leave a reason as
+to why it's changed things.
+
+00:06:21.700 --> 00:06:24.740
+While we're waiting for that, it's also
+just worth pointing out little small things
+like
+
+00:06:24.740 --> 00:06:28.620
+the ability to copy things and that with
+comments, you can leave them in a very
+detailed way.
+
+00:06:28.620 --> 00:06:32.520
+So I could leave comment on a specific part
+of this diagram, for example,
+
+00:06:32.520 --> 00:06:34.260
+if I wanted more information on it.
+
+00:06:36.520 --> 00:06:39.000
+So let's see, I'm sure the agent is working
+away.
+
+00:06:40.020 --> 00:06:42.620
+And now it's editing the document with our
+updated request.
+
+00:06:44.500 --> 00:06:49.240
+The document's updated. And now we can see
+it's made those slides there.
+
+00:06:49.960 --> 00:06:52.650
+And we have a change log where the agent
+has
+
+00:06:54.600 --> 00:06:56.420
+updated things with two inline slides.
+
+00:06:56.420 --> 00:06:58.020
+So you can check how things have changed.
+
+00:07:00.900 --> 00:07:04.220
+One other little thing is here you can see
+shared tags from your library and recent.
+
+00:07:06.260 --> 00:07:10.820
+The project is also open source. So the
+code is on GitHub. Thanks very much.

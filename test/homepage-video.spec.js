@@ -80,7 +80,7 @@ test('expanded player retains captions, mute, pause and bounded seeking', async 
   await page.getByRole('button', { name: 'Pause', exact: true }).click();
   await expect.poll(() => video.evaluate(video => video.paused)).toBe(true);
   await video.evaluate(video => { video.currentTime = 1; });
-  await expect(page.locator('#heroCap')).toContainText('walk you through a demo');
+  await expect(page.locator('#heroCap')).toContainText('SmallDocs is a tool');
   expect(await video.evaluate(video => video.textTracks[0].mode)).toBe('hidden');
   await page.locator('#ccBtn').click(); await expect(page.locator('#heroCap')).toBeHidden();
   await page.locator('#ccBtn').click(); await expect(page.locator('#heroCap')).toBeVisible();
@@ -92,7 +92,7 @@ test('expanded player retains captions, mute, pause and bounded seeking', async 
   await expect.poll(() => video.evaluate(video => video.currentTime)).toBeGreaterThanOrEqual(10);
   await expect(page.locator('#chapBtn')).toBeVisible();
   await page.locator('#chapBtn').click();
-  await expect(page.locator('#chapMenu [role="menuitem"]')).toHaveCount(6);
+  await expect(page.locator('#chapMenu [role="menuitem"]')).toHaveCount(9);
   await page.keyboard.press('Escape');
   await page.getByRole('button', { name: 'Collapse video', exact: true }).click();
   expect(errors).toEqual([]);
@@ -187,10 +187,10 @@ test('the existing full-length player uses the shared controls and chapter trans
   await page.getByRole('button', { name: 'Play the SmallDocs demo', exact: true }).click();
   await expect.poll(() => page.locator('#heroVid').evaluate(video => !video.paused)).toBe(true);
   await page.locator('#chapBtn').click(); await expect(page.locator('#chapMenu')).toBeVisible();
-  await expect(page.locator('#chapMenu [role="menuitem"]')).toHaveCount(6);
+  await expect(page.locator('#chapMenu [role="menuitem"]')).toHaveCount(9);
   await page.keyboard.press('Escape'); await expect(page.locator('#chapMenu')).toBeHidden();
   await page.locator('#heroVid').evaluate(video => { video.pause(); video.currentTime = 1; });
-  await expect(page.locator('#heroCap')).toContainText('walk you through a demo');
+  await expect(page.locator('#heroCap')).toContainText('SmallDocs is a tool');
 });
 
 async function startScrollingDemo(page, width) {
@@ -249,7 +249,7 @@ for (const width of [320, 390, 1440]) {
     const origin = await startScrollingDemo(page, width);
     await page.getByRole('button', { name: 'Pause', exact: true }).click();
     await page.locator('#intro-video').evaluate(video => { video.currentTime = 1; });
-    await expect(page.locator('#heroCap')).toContainText('walk you through a demo');
+    await expect(page.locator('#heroCap')).toContainText('SmallDocs is a tool');
     await page.evaluate(top => scrollTo({ top, behavior: 'instant' }), origin + 400);
     const caption = page.locator('#heroCap');
     await expect(page.locator('.vid-toolbar #heroCap')).toBeVisible();
