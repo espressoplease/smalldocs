@@ -1,6 +1,6 @@
 {
-  "commit": "21e1a6d78005bc50c26a710c7efeed2611b93d2b",
-  "builtAt": "2026-11-17T16:27:33Z",
+  "commit": "cb866498851f469c1fa99b9b3fe147bbe8ce8cb3",
+  "builtAt": "2026-11-17T16:30:01Z",
   "repo": "https://github.com/espressoplease/smalldocs",
   "files": [
     {
@@ -479,6 +479,11 @@
       "bytes": 60317
     },
     {
+      "path": "/homepage/demo-2026-11-17-prompting.vtt",
+      "sha256": "565a199bb026d6cc85b1c99480bb1079987de537293facb2115d2dd6ad97a3f9",
+      "bytes": 11686
+    },
+    {
       "path": "/homepage/demo-2026-11-17.vtt",
       "sha256": "d6286af185178f0ec83662f510408e7ec27e51e4e0e2ebbb189e8ef041617fff",
       "bytes": 11026
@@ -590,8 +595,8 @@
     },
     {
       "path": "/homepage-next.html",
-      "sha256": "adb4b21a557e7d6cab2c3497d79ada0b6bbcf093968874346cc8a03861241ade",
-      "bytes": 79596
+      "sha256": "c6b2d9e460efb756f68a614d98af7f4b4388f65c0054bf73ccb3891bda58c839",
+      "bytes": 79616
     },
     {
       "path": "/homepage-next.js",
@@ -600,8 +605,8 @@
     },
     {
       "path": "/homepage-video-demo.js",
-      "sha256": "4906cd9d1b2794132114c15b2e3da905788593ab0e838f09a3b27faac9fb81a3",
-      "bytes": 16236
+      "sha256": "0fa0e98f45caa2c750080022777f4426233225825856b21fb3b95c8b151e79f5",
+      "bytes": 17539
     },
     {
       "path": "/homepage-video-legacy.js",
@@ -615,8 +620,8 @@
     },
     {
       "path": "/homepage.html",
-      "sha256": "1bb5f8531616e89aec9d4b3f5fff5acd883465eb121eb5708d912564e764a82f",
-      "bytes": 90073
+      "sha256": "9fa4d557031db8991e056e4d6c2e0e27bacc2645d083a6c864c225e008bdd516",
+      "bytes": 90083
     },
     {
       "path": "/images/example_sdoc_pdf.webp",
