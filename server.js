@@ -646,6 +646,7 @@ const MIME = {
   '.svg':  'image/svg+xml',
   '.ico':  'image/x-icon',
   '.mp4':  'video/mp4',
+  '.vtt':  'text/vtt; charset=utf-8',
 };
 
 const IMAGE_EXTS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif', '.svg', '.ico']);

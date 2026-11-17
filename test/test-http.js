@@ -447,6 +447,13 @@ module.exports = function(harness) {
         'expected image/jpeg, got ' + r.headers['content-type']);
     });
 
+    await testAsync('GET homepage captions serves WebVTT', async () => {
+      const r = await get(BASE + '/public/homepage/demo-2026-11-17.vtt');
+      assert.strictEqual(r.status, 200);
+      assert.ok(r.headers['content-type'].startsWith('text/vtt'));
+      assert.ok(r.body.startsWith('WEBVTT\n'));
+    });
+
     // Range support: without this the homepage hero video falls back to
     // "buffer the whole 32MB before playing", which surfaces as a never-
     // ending tab spinner. The browser sends Range: bytes=0- on the first
