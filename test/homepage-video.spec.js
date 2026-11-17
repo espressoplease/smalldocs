@@ -316,6 +316,10 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }
     const inlineSize = await fontSize();
     await page.getByRole('button', { name: 'Full screen', exact: true }).click();
     await expect.poll(() => page.evaluate(() => Boolean(document.fullscreenElement))).toBe(true);
+    const chapters = page.getByRole('navigation', { name: 'Video chapters', includeHidden: true });
+    await expect(chapters).toBeHidden();
+    await expect(chapters).toHaveAttribute('aria-hidden', 'true');
+    await expect.poll(() => chapters.evaluate(el => el.getBoundingClientRect().height)).toBe(0);
     await expect.poll(fontSize).toBeGreaterThan(inlineSize);
     await caption.evaluate(el => Promise.all(el.getAnimations().map(a => a.finished)));
     await checkCaptionStability(page);
@@ -336,6 +340,9 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }
     await page.evaluate(() => scrollTo({ top: 0, behavior: 'instant' }));
     await expect(page.locator('#videocard')).not.toHaveClass(/is-scroll-docked/);
     await expect.poll(fontSize).toBe(inlineSize);
+    await expect(chapters).toBeVisible();
+    await expect(chapters).toHaveAttribute('aria-hidden', 'false');
+    await expect(chapters.getByRole('button')).toHaveCount(10);
   });
 }
 

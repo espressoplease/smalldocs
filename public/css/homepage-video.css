@@ -388,11 +388,7 @@ html.has-homepage-dock { scroll-padding-top: var(--homepage-dock-height); }
 .videocard:is(:fullscreen, :-webkit-full-screen) .vid-controls .vid-btn:hover { background: rgba(255,255,255,.2); }
 .videocard:is(:fullscreen, :-webkit-full-screen) .vid-controls .vid-btn:focus-visible { outline-color: #fff; }
 .videocard:is(:fullscreen, :-webkit-full-screen) .vid-caption { font-size: clamp(18px, min(2.5vw, 3.5vh), 44px); }
-.videocard:is(:fullscreen, :-webkit-full-screen) .vid-chapters-label { color: rgba(255,255,255,.65); }
-.videocard:is(:fullscreen, :-webkit-full-screen) .vid-chapter-pills .vid-btn { color: color-mix(in srgb, var(--accent) 30%, white); border-color: color-mix(in srgb, var(--accent) 40%, transparent); background: color-mix(in srgb, var(--accent) 18%, transparent); }
-.videocard:is(:fullscreen, :-webkit-full-screen) .vid-chapter-pills .vid-btn:hover,
-.videocard:is(:fullscreen, :-webkit-full-screen) .vid-chapter-pill[aria-current] { background: color-mix(in srgb, var(--accent) 35%, transparent); border-color: color-mix(in srgb, var(--accent) 65%, white); }
-.videocard:is(:fullscreen, :-webkit-full-screen) .vid-chapter-pills .vid-btn:focus-visible { outline-color: #fff; }
+.videocard:is(:fullscreen, :-webkit-full-screen) .vid-chapters { grid-template-rows: 0fr; margin-top: 0; opacity: 0; visibility: hidden; }
 @media (max-width: 560px) {
   .homepage-small-video .vid-controls { gap: 3px; }
   .homepage-small-video .vid-btn { padding: 8px 9px; min-height: 40px; }

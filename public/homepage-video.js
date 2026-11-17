@@ -144,7 +144,8 @@
     const visible = available && (!card.classList.contains('is-scroll-docked') || inFullscreen);
     card.classList.toggle('chapter-pills-visible', visible);
     previewHome.classList.toggle('has-video-chapters', available);
-    chapterNav.inert = !available; chapterNav.setAttribute('aria-hidden', String(!available));
+    chapterNav.inert = !available || inFullscreen;
+    chapterNav.setAttribute('aria-hidden', String(chapterNav.inert));
     chapterToggle.inert = visible || controls.inert;
     chapterToggle.setAttribute('aria-hidden', String(visible));
     if (visible) closeMenu();
