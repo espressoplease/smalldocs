@@ -287,7 +287,10 @@ for (const width of [320, 390, 768, 1440]) {
     expect(controls.y).toBeGreaterThanOrEqual(screen.y + screen.height + 9);
     expect(box.x + box.width / 2).toBeCloseTo(screen.x + screen.width / 2, 0);
     expect(await caption.evaluate(el => getComputedStyle(el).textAlign)).toBe('center');
-    expect(await caption.evaluate(el => getComputedStyle(el).backgroundColor)).toBe('rgb(28, 25, 22)');
+    expect(await caption.evaluate(el => getComputedStyle(el).backgroundColor)).toBe(
+      await page.locator('.vid-chapter-pill[aria-current]').evaluate(el => getComputedStyle(el).backgroundColor));
+    expect(await caption.evaluate(el => getComputedStyle(el).paddingTop)).toBe('0px');
+    expect(await caption.evaluate(el => getComputedStyle(el).paddingBottom)).toBe('0px');
     await checkCaptionStability(page);
     const heading = await page.locator('h1').evaluate(el => el.getBoundingClientRect().top + scrollY);
     await page.locator('#ccBtn').click();
@@ -295,6 +298,44 @@ for (const width of [320, 390, 768, 1440]) {
     expect(await page.locator('h1').evaluate(el => el.getBoundingClientRect().top + scrollY)).toBeCloseTo(heading, 0);
     await page.locator('#ccBtn').click();
     await expect(caption).toBeVisible();
+  });
+}
+
+for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 },
+  { width: 844, height: 390 }, { width: 1280, height: 720 }, { width: 1920, height: 1080 }]) {
+  test('fullscreen captions grow and keep every cue readable at ' + viewport.width + 'x' + viewport.height, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    await page.goto('/home-next');
+    await page.evaluate(() => document.fonts.ready);
+    await page.getByRole('button', { name: 'Play the SmallDocs demo', exact: true }).click();
+    await expect.poll(() => page.locator('#intro-video').evaluate(v => v.currentTime)).toBeGreaterThan(0);
+    await page.locator('#intro-video').evaluate(v => { v.pause(); v.currentTime = 1; });
+    const caption = page.locator('#heroCap');
+    await expect(caption).toContainText('SmallDocs is a tool');
+    const fontSize = () => caption.evaluate(el => parseFloat(getComputedStyle(el).fontSize));
+    const inlineSize = await fontSize();
+    await page.getByRole('button', { name: 'Full screen', exact: true }).click();
+    await expect.poll(() => page.evaluate(() => Boolean(document.fullscreenElement))).toBe(true);
+    await expect.poll(fontSize).toBeGreaterThan(inlineSize);
+    await caption.evaluate(el => Promise.all(el.getAnimations().map(a => a.finished)));
+    await checkCaptionStability(page);
+    if (viewport.width === 1280) {
+      const firstSize = await fontSize();
+      await page.getByRole('button', { name: 'Exit full screen', exact: true }).click();
+      await expect.poll(() => page.evaluate(() => Boolean(document.fullscreenElement))).toBe(false);
+      await page.setViewportSize({ width: 1920, height: 1080 });
+      await page.evaluate(() => scrollTo({ top: 0, behavior: 'instant' }));
+      await page.getByRole('button', { name: 'Full screen', exact: true }).click();
+      await expect.poll(() => page.evaluate(() => Boolean(document.fullscreenElement))).toBe(true);
+      await expect.poll(fontSize).toBeGreaterThan(firstSize);
+      await caption.evaluate(el => Promise.all(el.getAnimations().map(a => a.finished)));
+      await checkCaptionStability(page);
+    }
+    await page.getByRole('button', { name: 'Exit full screen', exact: true }).click();
+    await expect.poll(() => page.evaluate(() => Boolean(document.fullscreenElement))).toBe(false);
+    await page.evaluate(() => scrollTo({ top: 0, behavior: 'instant' }));
+    await expect(page.locator('#videocard')).not.toHaveClass(/is-scroll-docked/);
+    await expect.poll(fontSize).toBe(inlineSize);
   });
 }
 
@@ -376,6 +417,7 @@ for (const width of [320, 390, 1440]) {
       await expect.poll(() => page.evaluate(() => Boolean(document.fullscreenElement))).toBe(true);
       await expect(page.locator('#videocard')).not.toHaveClass(/is-scroll-docked/);
       await expect(page.locator('.vid-screen #heroCap')).toBeVisible();
+      await caption.evaluate(el => Promise.all(el.getAnimations().map(a => a.finished)));
       const picture = await page.locator('.vid-picture').boundingBox();
       expect((await caption.boundingBox()).y).toBeCloseTo(picture.y + picture.height, 0);
       await page.getByRole('button', { name: 'Exit full screen', exact: true }).click();
@@ -384,7 +426,7 @@ for (const width of [320, 390, 1440]) {
     await page.evaluate(() => scrollTo({ top: 0, behavior: 'instant' }));
     await expect(page.locator('.vid-screen #heroCap')).toBeVisible();
     expect(await page.locator('#heroCap').count()).toBe(1);
-    expect(await caption.locator('span').evaluate(el => getComputedStyle(el).color)).toBe('rgb(255, 255, 255)');
+    expect(await caption.locator('span').evaluate(el => getComputedStyle(el).color)).toBe('rgb(27, 24, 21)');
   });
 }
 

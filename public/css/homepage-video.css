@@ -5,7 +5,7 @@
 }
 .vid-screen {
   position: relative;
-  background: var(--terminal);
+  background: color-mix(in srgb, var(--accent) 13%, var(--paper));
   border: 1px solid var(--line);
   border-radius: var(--r);
   overflow: hidden;
@@ -14,10 +14,11 @@
 .videocard .vid {
   display: block;
   width: 100%;
+  height: auto;
   aspect-ratio: 16 / 9;
   object-fit: cover;
 }
-.videocard:not(.teaser) .vid { object-fit: contain; }
+.videocard:not(.teaser) .vid { aspect-ratio: auto; object-fit: contain; }
 .vid-loading {
   position: absolute;
   left: 14px;
@@ -251,12 +252,12 @@
   justify-content: center;
   width: 100%;
   max-width: none;
-  height: calc(var(--vid-caption-height) + 24px);
-  padding: 12px 16px;
+  height: var(--vid-caption-height);
+  padding: 0 16px;
   overflow: hidden;
-  color: #fff;
-  background: var(--terminal);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.12);
+  color: var(--ink);
+  background: color-mix(in srgb, var(--accent) 13%, var(--paper));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--accent) 18%, var(--line));
   text-align: center;
   font-size: 15px;
   font-weight: 450;
@@ -265,7 +266,7 @@
   pointer-events: none;
   opacity: 1;
   visibility: visible;
-  transition: height .3s cubic-bezier(.4,0,.2,1), padding .3s cubic-bezier(.4,0,.2,1), opacity .3s cubic-bezier(.4,0,.2,1), visibility .3s cubic-bezier(.4,0,.2,1);
+  transition: height .3s cubic-bezier(.4,0,.2,1), font-size .3s cubic-bezier(.4,0,.2,1), padding .3s cubic-bezier(.4,0,.2,1), opacity .3s cubic-bezier(.4,0,.2,1), visibility .3s cubic-bezier(.4,0,.2,1);
 }
 .videocard.teaser .vid-caption { height: 0; padding-block: 0; visibility: hidden; }
 .vid-caption span {
@@ -361,8 +362,7 @@ html.has-homepage-dock { scroll-padding-top: var(--homepage-dock-height); }
   transition: none;
 }
 .videocard.is-scroll-docked .vid-screen > .vid-caption {
-  height: calc((var(--vid-caption-height) + 24px) * (1 - var(--dock-caption-progress, 0)));
-  padding-block: calc(12px * (1 - var(--dock-caption-progress, 0)));
+  height: calc(var(--vid-caption-height) * (1 - var(--dock-caption-progress, 0)));
   opacity: calc(1 - var(--dock-caption-progress, 0));
   transition: none;
 }
@@ -387,7 +387,7 @@ html.has-homepage-dock { scroll-padding-top: var(--homepage-dock-height); }
 .videocard:is(:fullscreen, :-webkit-full-screen) .vid-controls .vid-btn { color: #fff; border-color: rgba(255,255,255,.25); background: rgba(255,255,255,.08); }
 .videocard:is(:fullscreen, :-webkit-full-screen) .vid-controls .vid-btn:hover { background: rgba(255,255,255,.2); }
 .videocard:is(:fullscreen, :-webkit-full-screen) .vid-controls .vid-btn:focus-visible { outline-color: #fff; }
-.videocard:is(:fullscreen, :-webkit-full-screen) .vid-caption { color: #fff; }
+.videocard:is(:fullscreen, :-webkit-full-screen) .vid-caption { font-size: clamp(18px, min(2.5vw, 3.5vh), 44px); }
 .videocard:is(:fullscreen, :-webkit-full-screen) .vid-chapters-label { color: rgba(255,255,255,.65); }
 .videocard:is(:fullscreen, :-webkit-full-screen) .vid-chapter-pills .vid-btn { color: color-mix(in srgb, var(--accent) 30%, white); border-color: color-mix(in srgb, var(--accent) 40%, transparent); background: color-mix(in srgb, var(--accent) 18%, transparent); }
 .videocard:is(:fullscreen, :-webkit-full-screen) .vid-chapter-pills .vid-btn:hover,
