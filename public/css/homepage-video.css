@@ -56,7 +56,7 @@
 .vid-toolbar-clip { min-height: 0; overflow: hidden; }
 .vid-controls {
   display: flex;
-  justify-content: flex-end;
+  justify-content: flex-start;
   flex-wrap: wrap;
   gap: 8px;
   transition: opacity .3s cubic-bezier(.4,0,.2,1);
@@ -93,14 +93,27 @@
   transition: grid-template-rows .3s cubic-bezier(.4,0,.2,1), margin-top .3s cubic-bezier(.4,0,.2,1), opacity .3s cubic-bezier(.4,0,.2,1), visibility .3s cubic-bezier(.4,0,.2,1);
 }
 .vid-chapters-clip { min-height: 0; overflow: hidden; }
-.vid-chapter-pills { display: flex; flex-wrap: wrap; gap: 8px; }
+.vid-chapters-label { margin: 0 0 8px; color: var(--ink-2); font-size: 11px; font-weight: 600; line-height: 1.4; letter-spacing: .08em; text-transform: uppercase; }
+.vid-chapter-pills { display: flex; flex-wrap: wrap; gap: 6px; }
 .has-video-chapters > .vid-chapters,
-.chapter-pills-visible > .vid-chapters { grid-template-rows: 1fr; margin-top: 12px; opacity: 1; visibility: visible; }
+.chapter-pills-visible > .vid-chapters { grid-template-rows: 1fr; margin-top: 22px; opacity: 1; visibility: visible; }
 .has-docked-video { position: relative; }
 .has-docked-video > .vid-chapters { position: absolute; left: 0; right: 0; bottom: 0; }
-.vid-chapter-pill { text-align: left; line-height: 1.25; }
+.vid-chapter-pills .vid-chapter-pill {
+  height: 28px;
+  min-height: 28px;
+  padding: 5px 9px;
+  gap: 5px;
+  font-size: 11.5px;
+  text-align: left;
+  line-height: 1.25;
+  color: color-mix(in srgb, var(--accent) 78%, var(--ink));
+  border-color: color-mix(in srgb, var(--accent) 18%, var(--line));
+  background: color-mix(in srgb, var(--accent) 5%, var(--paper));
+}
+.vid-chapter-pills .vid-chapter-pill:hover { background: color-mix(in srgb, var(--accent) 10%, var(--paper)); }
 .vid-chapter-pill svg { flex-shrink: 0; }
-.vid-chapter-pill[aria-current] { background: var(--line); border-color: var(--ink); }
+.vid-chapter-pills .vid-chapter-pill[aria-current] { background: color-mix(in srgb, var(--accent) 13%, var(--paper)); border-color: color-mix(in srgb, var(--accent) 60%, var(--line)); }
 .vid-measuring-inline .vid-chapters, .vid-measuring-inline .vid-chapter-toggle { transition: none; }
 .vid-btn[hidden] { display: none; }
 .vid-btn {
@@ -343,7 +356,7 @@ html.has-homepage-dock { scroll-padding-top: var(--homepage-dock-height); }
   max-width: none;
   margin-top: 10px;
   color: var(--ink);
-  text-align: right;
+  text-align: left;
   font-size: 14px;
   overflow-wrap: anywhere;
 }
@@ -363,9 +376,10 @@ html.has-homepage-dock { scroll-padding-top: var(--homepage-dock-height); }
 .videocard:is(:fullscreen, :-webkit-full-screen) .vid-controls .vid-btn { color: #fff; border-color: rgba(255,255,255,.25); background: rgba(255,255,255,.08); }
 .videocard:is(:fullscreen, :-webkit-full-screen) .vid-controls .vid-btn:hover { background: rgba(255,255,255,.2); }
 .videocard:is(:fullscreen, :-webkit-full-screen) .vid-controls .vid-btn:focus-visible { outline-color: #fff; }
-.videocard:is(:fullscreen, :-webkit-full-screen) .vid-chapter-pills .vid-btn { color: #fff; border-color: rgba(255,255,255,.25); background: rgba(255,255,255,.08); }
+.videocard:is(:fullscreen, :-webkit-full-screen) .vid-chapters-label { color: rgba(255,255,255,.65); }
+.videocard:is(:fullscreen, :-webkit-full-screen) .vid-chapter-pills .vid-btn { color: color-mix(in srgb, var(--accent) 30%, white); border-color: color-mix(in srgb, var(--accent) 40%, transparent); background: color-mix(in srgb, var(--accent) 18%, transparent); }
 .videocard:is(:fullscreen, :-webkit-full-screen) .vid-chapter-pills .vid-btn:hover,
-.videocard:is(:fullscreen, :-webkit-full-screen) .vid-chapter-pill[aria-current] { background: rgba(255,255,255,.2); border-color: #fff; }
+.videocard:is(:fullscreen, :-webkit-full-screen) .vid-chapter-pill[aria-current] { background: color-mix(in srgb, var(--accent) 35%, transparent); border-color: color-mix(in srgb, var(--accent) 65%, white); }
 .videocard:is(:fullscreen, :-webkit-full-screen) .vid-chapter-pills .vid-btn:focus-visible { outline-color: #fff; }
 @media (max-width: 560px) {
   .homepage-small-video .vid-controls { gap: 3px; }
@@ -374,6 +388,7 @@ html.has-homepage-dock { scroll-padding-top: var(--homepage-dock-height); }
   .homepage-small-video .vid-caption { width: max-content; max-width: calc(100% - 24px); font-size: 12px; }
   .chapter-pills-visible .vid-chapter-toggle { margin-inline: -1.5px; }
   .vid-chapter-pills { gap: 6px; }
+  .homepage-small-video .vid-chapter-pill { min-height: 32px; padding: 5px 9px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .videocard.teaser .vid-teaser { visibility: hidden; }

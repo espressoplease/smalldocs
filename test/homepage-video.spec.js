@@ -48,7 +48,7 @@ for (const width of [320, 390, 768, 1440]) {
       expect(box.y).toBeGreaterThanOrEqual(screen.y + screen.height + 9);
       buttons.push(box);
     }
-    expect(Math.max(...buttons.map(box => box.x + box.width))).toBeCloseTo(screen.x + screen.width, 0);
+    expect(Math.min(...buttons.map(box => box.x))).toBeCloseTo(screen.x, 0);
     expect(Math.max(...buttons.map(box => box.height)) - Math.min(...buttons.map(box => box.height))).toBeLessThan(0.5);
     const rows = new Map();
     for (const box of buttons) {
@@ -57,7 +57,7 @@ for (const width of [320, 390, 768, 1440]) {
       rows.get(key).push(box);
     }
     for (const row of rows.values()) {
-      expect(Math.max(...row.map(box => box.x + box.width))).toBeCloseTo(screen.x + screen.width, 0);
+      expect(Math.min(...row.map(box => box.x))).toBeCloseTo(screen.x, 0);
     }
     const chapters = preview.getByRole('navigation', { name: 'Video chapters' });
     await expect(chapters).toBeVisible();
@@ -292,7 +292,7 @@ for (const width of [320, 390, 1440]) {
     expect(box.y).toBeGreaterThanOrEqual(controls.y + controls.height + 9);
     expect(box.x + box.width).toBeLessThanOrEqual(width);
     expect(box.x + box.width).toBeCloseTo(controls.x + controls.width, 0);
-    expect(await caption.evaluate(el => getComputedStyle(el).textAlign)).toBe('right');
+    expect(await caption.evaluate(el => getComputedStyle(el).textAlign)).toBe('left');
     expect(await caption.locator('span').evaluate(el => getComputedStyle(el).backgroundColor)).toBe('rgba(0, 0, 0, 0)');
     expect(await caption.locator('span').evaluate(el => getComputedStyle(el).color)).toBe('rgb(27, 24, 21)');
     await page.evaluate(() => {

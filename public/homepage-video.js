@@ -69,8 +69,9 @@
   const chapterNav = document.createElement('nav');
   chapterNav.className = 'vid-chapters'; chapterNav.setAttribute('aria-label', 'Video chapters');
   const chapterClip = document.createElement('div'); chapterClip.className = 'vid-chapters-clip';
+  const chapterLabel = document.createElement('p'); chapterLabel.className = 'vid-chapters-label'; chapterLabel.textContent = 'Chapters';
   const chapterPills = document.createElement('div'); chapterPills.className = 'vid-chapter-pills';
-  chapterClip.appendChild(chapterPills); chapterNav.appendChild(chapterClip); previewHome.appendChild(chapterNav);
+  chapterClip.append(chapterLabel, chapterPills); chapterNav.appendChild(chapterClip); previewHome.appendChild(chapterNav);
   let previewLoops = 0, expanded = false;
   const collapse = document.createElement('button');
   collapse.type = 'button'; collapse.className = 'vid-btn vid-collapse';
@@ -389,7 +390,7 @@
     const pill = document.createElement('button'); pill.type = 'button'; pill.className = 'vid-btn vid-chapter-pill';
     pill.title = format(chapter.t) + ' - ' + chapter.title;
     const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    icon.setAttribute('viewBox', '0 0 24 24'); icon.setAttribute('width', '15'); icon.setAttribute('height', '15');
+    icon.setAttribute('viewBox', '0 0 24 24'); icon.setAttribute('width', '12'); icon.setAttribute('height', '12');
     icon.setAttribute('fill', 'none'); icon.setAttribute('stroke', 'currentColor'); icon.setAttribute('stroke-width', '1.7');
     icon.setAttribute('stroke-linecap', 'round'); icon.setAttribute('stroke-linejoin', 'round'); icon.setAttribute('aria-hidden', 'true');
     icon.innerHTML = chapterIcons[chapter.icon] || chapterIcons['file-text'];
