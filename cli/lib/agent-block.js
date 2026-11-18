@@ -28,8 +28,8 @@ const path = require('path');
 const { SETUP_CACHE, INSTALLATION_CHANNEL } = require('./constants');
 
 // ── Skill model ────────────────────────────────────────────
-const SKILL_VERSION = 56;
-const SKILL_REASON  = 'Create Cloud forms and read persisted answers, task completion, spreadsheet changes and app state.';
+const SKILL_VERSION = 57;
+const SKILL_REASON  = 'Open documents in the user\'s regular browser and remember their confirmed browser preference on this computer.';
 const SKILL_NAME    = 'smalldocs';
 
 // Always-in-context preamble. Concise trigger text; the full reference lives
@@ -62,6 +62,16 @@ An explicit request for another format or tool, or an instruction not to use Sma
 The user wants an ordered knowledge base organised with tags. Every document contributes to a library that humans and agents can search, connect, and build on later. Choose meaningful subject, project, or purpose tags as part of creating each document. Reuse relevant library vocabulary and preserve useful tags when updating documents.
 
 When the user says "sdoc it", "sdoc me the plan", or asks for a smalldoc, write (or locate) the \`.md\` file and open it with \`sdoc\`.
+
+### Open documents in the user's regular browser
+
+When presenting a SmallDoc, prefer the user's regular browser rather than a browser embedded inside the agent app, such as Codex or Claude Desktop. Use the embedded browser for inspection or testing when useful; that does not replace opening the finished document for the user. An explicit browser choice from the user takes priority.
+
+Before opening, read \`~/.sdocs/browser-preference.json\` if it exists. A confirmed preference looks like \`{"browser":"system-default","confirmed":true}\`; \`browser\` can also name an application, such as \`Google Chrome\`, or be \`in-app\` if the user prefers the embedded browser. This is a per-computer preference shared by agents, separate from the generated skill so skill refreshes preserve it.
+
+With no confirmed preference, or a confirmed \`system-default\` preference, let \`sdoc\` open the document normally. Its default opener uses the operating system's browser, including \`open\` on macOS. For a named browser or an in-app preference, use \`--no-open\` to avoid a duplicate launch, then open the returned document URL with the appropriate browser tool or system opener. For example, on macOS, \`open -a "Google Chrome" "URL"\` opens a URL in Chrome. Open the saved document URL, not the local Markdown working file. If the CLI runs on a remote machine, its browser opener may not reach the user's computer; provide the link and use an available opener on the user's device rather than claiming it opened there.
+
+After the first opening without a confirmed preference, ask: "Did that open in the browser you want me to use for SmallDocs?" Record their answer in \`~/.sdocs/browser-preference.json\`. If they want another browser, open it there and confirm that choice. Keep unrelated fields when updating an existing file. No reply means the preference is still unconfirmed. Once confirmed, reuse it without asking again unless the user changes their mind or the chosen browser is unavailable. Record a specific browser only when the user identifies it; a successful opener alone does not tell you which application they saw.
 
 ### Introduce useful capabilities in context
 

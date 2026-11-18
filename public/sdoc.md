@@ -50,6 +50,8 @@ When the browser opens, sign in and approve this computer. First-time authorizat
 
 Installing the Cloud skill replaces any previously installed standard `smalldocs` skill and makes `sdoc FILE.md` create or update the Cloud document before opening it. List your libraries with `sdoc cloud libraries --json`. Use `sdoc cloud library-default LIBRARY_UUID --json` to select the default for new documents from this connected computer. An explicit `--account UUID` takes priority; existing documents keep their bindings.
 
+Your agent opens finished documents in your regular browser. The first time, it asks whether the document opened where you wanted and remembers your answer on this computer. You can ask it to use a different browser, including an in-app browser, later.
+
 For a project-specific destination, put a `.sdocs.json` file in its folder:
 
 ```json
