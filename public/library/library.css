@@ -737,3 +737,5 @@ html[data-theme="dark"] .agent-banner-copy.copied { color: #6FCF7A; }
   .brand-short { display: none; }
   .brand-tiny { display: inline; }
 }
+
+.cloud-pricing-grid > .cloud-standard-plan { grid-column: 1 / -1; }

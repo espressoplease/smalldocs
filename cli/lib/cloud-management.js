@@ -24,6 +24,9 @@ Afterwards, trial_payment_required blocks Cloud content until payment is confirm
 Use the returned subscribe_url for the human to complete Stripe Checkout.
 The command opens a subscription page; it does not charge the user.
 Settings billing opens invoice, payment-method and cancellation management.
+The default plan is $2.99 USD per user per month, billed annually at $35.88 per
+user, with two calendar months free for new trials. Billing returns default_plan
+pricing and the actual trial deadline. Existing trial dates are not restarted.
 Settings account opens sign-in methods and browser logout. Preferences controls
 library navigation. Billing, preferences and connected machines belong to your account. Libraries,
 people and overview open library management; --account selects that library.
@@ -32,9 +35,11 @@ Browser sign-in is independent of CLI authorization. Never collect card details.
 Referrals returns your shareable homepage link, available person-month credits,
 and referral progress. New referred users get an extra trial month. Earn one month
 when they connect an agent and create their first tagged Cloud document, plus two
-more after their first nonzero monthly payment on their own subscription.
+more after their first nonzero subscription payment on their own subscription.
 That subscription may cover them alone or a team. Unpaid users receive personal free access;
 subscribers receive one-person-month billing credits that carry forward.
+On an annual subscription, each credit discounts $2.99, with up to twelve
+person-month credits per paid user per year. Unused credit carries forward.
 People covered by another paid account keep credit for their own future bill.
 Rewards never extend a whole team's trial. --cursor paginates
 referral history. This command does not invite people or change document access.

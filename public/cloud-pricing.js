@@ -1,6 +1,8 @@
 (function (exports) {
+  var STANDARD_PLAN = { currency: 'usd', monthlyAmount: 299, annualAmount: 3588,
+    billingInterval: 'year', trialMonths: 2 };
   var PRICES = {
-    standard: { GBP: '£4', USD: '$5', EUR: '€5' },
+    standard: { USD: '$2.99' },
     personal: { GBP: '£4', USD: '$5', EUR: '€5' },
     team: { GBP: '£7', USD: '$9', EUR: '€8' },
   };
@@ -44,18 +46,20 @@
 
   function primaryAmount(plan, currency) {
     var prices = PRICES[plan] || PRICES.personal;
-    return prices[currency] || prices.GBP;
+    return prices[currency] || prices.USD || prices.GBP;
   }
 
   function alternativesText(plan, currency) {
+    if (plan === 'standard') return '';
     var prices = PRICES[plan] || PRICES.personal;
     return ['GBP', 'USD', 'EUR']
-      .filter(function (code) { return code !== currency; })
+      .filter(function (code) { return code !== currency && prices[code]; })
       .map(function (code) { return prices[code] + ' ' + code; })
       .join(' or ');
   }
 
   function planSentence(plan, currency) {
+    if (plan === 'standard') return '$2.99 per user per month, billed annually at $35.88 per user. Two months free.';
     var selectedCurrency = currency || currentCurrency();
     if (plan === 'team') {
       return primaryAmount('team', selectedCurrency) +
@@ -73,11 +77,14 @@
       var primary = planElement.querySelector('[data-cloud-price-primary]');
       var alternatives = planElement.querySelector('[data-cloud-price-alternatives]');
       if (primary) primary.textContent = primaryAmount(plan, selectedCurrency);
+      var annual = planElement.querySelector('[data-cloud-price-annual]');
+      if (annual && plan === 'standard') annual.textContent = '$35.88';
       if (alternatives) alternatives.textContent = alternativesText(plan, selectedCurrency);
     });
     return selectedCurrency;
   }
 
+  exports.STANDARD_PLAN = STANDARD_PLAN;
   exports.PRICES = PRICES;
   exports.regionFromLocale = regionFromLocale;
   exports.currencyForLocales = currencyForLocales;

@@ -383,7 +383,7 @@
     byId('subscribe-link').href = state.singlePlan ? '/cloud/subscribe' : '/cloud/checkout?plan=' + (isTeam() ? 'team' : 'personal');
     if (state.singlePlan) {
       byId('billing-plan').textContent = 'SmallDocs, all features';
-      byId('billing-price').textContent = window.SDocsCloudPricing.primaryAmount('standard', window.SDocsCloudPricing.currentCurrency()) + ' / person / month';
+      byId('billing-price').textContent = window.SDocsCloudPricing.primaryAmount('standard', window.SDocsCloudPricing.currentCurrency()) + ' / user / month, billed annually ($35.88 per user per year)';
       if (billing && billing.legacy_price) byId('billing-price').textContent = 'Your existing subscription rate is unchanged. View your current price in Stripe.';
       if (billing && !billing.trialEndsAtMs) byId('billing-status').textContent = billing.covered ? 'Your subscription is covered.' : 'Subscribe, or ask a library administrator to cover your subscription.';
       if (billing && billing.effectiveStatus === 'past_due_grace') byId('billing-status').textContent = 'Payment needs attention. You can keep saving until ' + formatDateTime(billing.graceEndsAtMs) + '. Update your payment details in Billing.';
@@ -836,7 +836,7 @@
   function renderAccountBilling(data) {
     byId('billing-plan').textContent = 'SmallDocs, all features';
     byId('billing-price').textContent = data.legacy_price ? 'View your current price in Stripe.'
-      : window.SDocsCloudPricing.primaryAmount('standard', window.SDocsCloudPricing.currentCurrency()) + ' / person / month';
+      : window.SDocsCloudPricing.primaryAmount('standard', window.SDocsCloudPricing.currentCurrency()) + ' / user / month, billed annually ($35.88 per user per year)';
     var status = data.phase;
     byId('billing-status').textContent = data.covered_elsewhere ? 'Your subscription is covered by another billing account.'
       : status === 'trial' ? 'Your free trial ends on ' + formatDateTime(data.trial_ends_at_ms) + '.'

@@ -274,10 +274,10 @@ module.exports = function (harness) {
       assert.strictEqual(billing.processWebhookEvent(input, () => 'retried').processed, true);
     });
 
-    test('personal trial lasts one calendar month, clamps month end and survives retries', () => {
+    test('personal trial lasts two calendar months and survives retries', () => {
       clock = Date.UTC(2026, 0, 31, 12);
       const trial = billing.ensurePersonalTrial({ userId: 'trial-user', workspaceId: 'trial-workspace' });
-      assert.strictEqual(trial.endsAtMs, Date.UTC(2026, 1, 28, 12));
+      assert.strictEqual(trial.endsAtMs, Date.UTC(2026, 2, 31, 12));
       assert.strictEqual(billing.computeEntitlements('trial-workspace').effectiveStatus, 'trial');
       assert.strictEqual(billing.computeEntitlements('trial-workspace').access.write, true);
       clock += 2 * 86400000;
@@ -287,6 +287,15 @@ module.exports = function (harness) {
       assert.strictEqual(expired.access.write, false);
       assert.strictEqual(expired.access.read, true);
       assert.strictEqual(expired.effectiveStatus, 'trial_ended');
+    });
+    test('two-month trials clamp February and existing one-month trials keep their original deadline', () => {
+      clock = Date.UTC(2026, 11, 31, 12);
+      const fresh = billing.ensurePersonalTrial({ userId: 'two-month-clamp', workspaceId: 'two-month-clamp' });
+      assert.strictEqual(fresh.endsAtMs, Date.UTC(2027, 1, 28, 12));
+      const previousEnd = Date.UTC(2027, 0, 31, 12);
+      billing.db.prepare('INSERT INTO cloud_billing_personal_trials(user_id,workspace_id,starts_at_ms,ends_at_ms) VALUES(?,?,?,?)')
+        .run('existing-month', 'existing-month', clock, previousEnd);
+      assert.strictEqual(billing.ensurePersonalTrial({ userId: 'existing-month', workspaceId: 'existing-month' }).endsAtMs, previousEnd);
     });
     test('paid subscription takes priority over a personal trial', () => {
       billing.upsertSubscription({ workspaceId: 'trial-workspace', plan: 'personal', status: 'active', provider: 'testpay' });

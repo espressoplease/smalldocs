@@ -42,6 +42,6 @@ A SmallDoc can combine text, charts, diagrams, code, spreadsheets, slides, and i
 
 ## Share SmallDocs
 
-Open Refer in the left menu to copy your referral link. People who join through it appear in your referral history. Once they connect their agent and make their first monthly payment, you earn credit for one person for one month.
+Open Refer in the left menu to copy your referral link. People who join through it appear in your referral history. Once they connect their agent and make their first payment, you earn credit for one person for one month.
 
 Credits add up across the people you pay for. Five credits can cover five people for one month, or one person for five months. Unused credit carries forward. Ask your agent for your referral link or credit balance with `sdoc cloud referrals --json`.

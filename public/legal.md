@@ -5,7 +5,7 @@ description: The terms that apply to SmallDocs, encrypted short links, and Small
 
 # Terms of Service
 
-**Last updated: 26 October 2026**
+**Last updated: 22 November 2026**
 
 These terms are an agreement between you and **Odd Solutions Ltd**, a private limited company registered in England and Wales under company number 16186575. Odd Solutions Ltd operates SmallDocs. In these terms, "SmallDocs", "we", "us", and "our" mean Odd Solutions Ltd.
 
@@ -41,9 +41,9 @@ You are responsible for your content and for having the rights and permissions n
 
 ## 4. Subscriptions, prices, and tax
 
-SmallDocs Cloud subscriptions are billed monthly in advance and renew automatically until cancelled. The price, currency, included storage, billing unit, and applicable tax are shown before payment. One paid subscription covers a person across their libraries. You pay for yourself and people you sponsor. A person already covered by an active paid subscription elsewhere is not added to your bill. Connected machines and agents acting under a human account are not separate paid seats.
+The default SmallDocs Cloud subscription costs $2.99 USD per user per month, billed annually at $35.88 USD per user in advance, and renews yearly until cancelled. Tax may be added at checkout. Existing subscriptions retain the billing terms agreed at purchase. The price, currency, included storage, billing unit, and applicable tax are shown before payment. One paid subscription covers a person across their libraries. You pay for yourself and people you sponsor. A person already covered by an active paid subscription elsewhere is not added to your bill. Connected machines and agents acting under a human account are not separate paid seats.
 
-The free trial lasts one calendar month and does not require payment details. After the trial ends, access continues for seven days with a subscription reminder. After that extra week, a subscription is required to open, create, update, or search Cloud documents. Creating additional libraries does not restart the trial.
+New free trials last two calendar months and do not require payment details. Trials already in progress keep their existing end dates. After the trial ends, access continues for seven days with a subscription reminder. After that extra week, a subscription is required to open, create, update, or search Cloud documents. Creating additional libraries does not restart the trial.
 
 Stripe processes payment details. We do not receive or store full card numbers. You authorise us and Stripe to collect each recurring payment until cancellation.
 

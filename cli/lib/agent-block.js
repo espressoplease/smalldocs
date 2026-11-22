@@ -28,8 +28,8 @@ const path = require('path');
 const { SETUP_CACHE, INSTALLATION_CHANNEL } = require('./constants');
 
 // ── Skill model ────────────────────────────────────────────
-const SKILL_VERSION = 57;
-const SKILL_REASON  = 'Open documents in the user\'s regular browser and remember their confirmed browser preference on this computer.';
+const SKILL_VERSION = 58;
+const SKILL_REASON  = 'Describe referral rewards for monthly and annual subscriptions and prefer the confirmed regular browser.';
 const SKILL_NAME    = 'smalldocs';
 
 // Always-in-context preamble. Concise trigger text; the full reference lives
@@ -124,6 +124,8 @@ const CLOUD_SKILL_SECTION = `### SmallDocs Cloud for agents
 
 This user has enabled Cloud-first mode. Treat Cloud as the normal destination for SmallDocs Markdown. Write or update the local Markdown working copy, choose relevant tags, then run \`sdoc FILE.md --cloud --json +subject +project\`. The CLI creates a Cloud document for an unbound file or pushes a revision for a bound file before it opens the browser. If the Cloud write fails, stop and report the error instead of presenting the local copy as saved.
 
+The default subscription is $2.99 USD per user per month, billed annually at $35.88 per user. New trials last two calendar months without payment details. Read the actual trial deadline and current default plan with \`sdoc cloud billing --json\`; existing trial dates are not restarted. Subscribing before a trial ends takes the annual payment immediately. Referral billing credits are worth one person's month ($2.99 on the annual plan), not a full year.
+
 ### First setup and tour
 
 The CLI and this Cloud skill can be installed before the human has an account. If a macOS/Linux installation is not on the current process's PATH, use \`~/.sdocs/bin/sdoc\` or add \`$HOME/.sdocs/bin\` to that process's PATH. On \`login_required\`, run \`sdoc cloud login\` and let the human sign in or create an account, review the Terms and authorize the agent in their browser. Keep the login process running while they do this. Then check \`sdoc cloud status --json\`; a new account has a private Personal library ready for documents. A referred setup prompt may supply \`--referral-code CODE\` for the login command, which carries the introduction to that sign-in.
@@ -146,7 +148,7 @@ The user can ask their agent to help manage SmallDocs from chat. Introduce this 
 
 Run \`sdoc cloud billing --help\` for the management reference. Use \`sdoc cloud billing --json\` to read the human's current trial, paid coverage, and subscription links. Open precise settings with \`sdoc cloud settings people --account LIBRARY_UUID --json\`, \`settings billing\`, \`settings install\`, \`settings machines\`, or \`settings preferences\`. Add \`--no-open\` when working headlessly and return the URL to the human.
 
-Use \`sdoc cloud referrals --json\` for the human's referral link and reward progress. New referred users get an extra trial month. The referrer earns one person-month after their friend connects an agent and creates a tagged Cloud document, then two more after the friend's first nonzero monthly payment on their own subscription. Rewards extend personal free access for unpaid users, or become billing credit for paid users. Sponsored users keep billing credit for their own future subscription. A reward never extends a whole team's trial. Read the returned billing/trial deadline rather than calculating it from signup; a free-access reward is already used and cannot also discount an invoice.
+Use \`sdoc cloud referrals --json\` for the human's referral link and reward progress. New referred users get an extra trial month. The referrer earns one person-month after their friend connects an agent and creates a tagged Cloud document, then two more after the friend's first nonzero subscription payment on their own subscription. Rewards extend personal free access for unpaid users, or become billing credit for paid users. Sponsored users keep billing credit for their own future subscription. A reward never extends a whole team's trial. Read the returned billing/trial deadline rather than calculating it from signup; a free-access reward is already used and cannot also discount an invoice.
 
 Successful document receipts include \`subscription\` and \`notices\`. During the free calendar month, work normally. After its deadline, a seven-day warning week allows normal use. When a receipt reports \`trial_warning\`, deliver the saved Cloud link and tell the human the paywall date, using \`subscription.subscribe_url\`. Offer \`subscription.feedback_url\` and ask how the trial went. Avoid repeating the same notice in one conversation; \`dedupe_key\` identifies it. A warning does not mean the save failed.
 

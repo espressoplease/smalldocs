@@ -1,11 +1,12 @@
 const http = require('http');
 const crypto = require('crypto');
 
-async function startStripe() {
+async function startStripe(options = {}) {
   const sessions = new Map(), coupons = new Map(), subscriptions = new Map(), invoices = new Map(), keys = new Map(), calls = [];
   const price = { id: 'price_standard', product: 'prod_standard', currency: 'usd', unit_amount: 500,
     recurring: { interval: 'month', interval_count: 1 }, billing_scheme: 'per_unit',
     currency_options: { usd: { unit_amount: 500 }, gbp: { unit_amount: 400 }, eur: { unit_amount: 500 } } };
+  if (options.annual) { price.unit_amount=3588; price.recurring.interval='year'; price.currency_options={usd:{unit_amount:3588}}; }
   let loseInvoiceReply = false, serial = 0;
   function calculate(invoice) {
     let remaining = invoice.subtotal;
@@ -77,12 +78,12 @@ async function startStripe() {
   function subscription(session) {
     session.status='complete';
     const object = {id:'sub_referral_'+(++serial),customer:'cus_referral_'+serial,status:'active',created:Math.floor(Date.now()/1000),
-      current_period_end:Math.floor(Date.now()/1000)+2592000,metadata:{...session.metadata},
+      current_period_end:Math.floor(Date.now()/1000)+(options.annual ? 31536000 : 2592000),metadata:{...session.metadata},
       items:{data:[{id:'si_referral_'+serial,quantity:session.quantity,price}]}};
     subscriptions.set(object.id,object); return object;
   }
   function invoice(subscription,{quantity=subscription.items.data[0].quantity,currency='usd',reason='subscription_cycle',coupon, tax=0}={}) {
-    const unit=currency === 'usd' ? 500 : price.currency_options[currency].unit_amount;
+    const unit=currency === 'usd' ? price.unit_amount : price.currency_options[currency].unit_amount;
     const object={id:'in_referral_'+(++serial),customer:subscription.customer,status:'draft',created:Math.floor(Date.now()/1000),currency,
       parent:{subscription_details:{subscription:subscription.id,metadata:{...subscription.metadata}}},billing_reason:reason,
       subtotal:quantity*unit,amount_paid:0,discounts:coupon ? [{id:'di_referral_'+(++serial),source:{coupon:{id:coupon}}}] : [],

@@ -69,7 +69,7 @@
       } else if (data.trial_active) {
         byId('subscription-state').textContent = 'Your free trial ends on ' + new Date(data.trial_ends_at_ms).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' }) + '.';
       } else {
-        byId('subscription-state').textContent = data.trial_ends_at_ms ? 'Subscribe to continue saving documents. You can still read your existing documents.' : 'Your library includes a month free. Open your library to get started.';
+        byId('subscription-state').textContent = data.trial_ends_at_ms ? 'Subscribe to continue saving documents. You can still read your existing documents.' : 'Your library includes two months free. Open your library to get started.';
         if (!data.trial_ends_at_ms && data.subscription_status !== 'canceled') return;
       }
       byId('subscription-quantity').hidden = false;

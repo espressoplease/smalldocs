@@ -118,7 +118,7 @@ module.exports = function(harness) {
         termsUrl: 'https://smalldocs.org/legal',
         cancellationUrl: 'https://smalldocs.org/cancellation' });
       assert.strictEqual(started.subject, 'SmallDocs Cloud is active for SmallDocs Demo');
-      assert.ok(started.text.includes('renews monthly'));
+      assert.ok(started.text.includes('renewal'));
       assert.ok(started.text.includes('https://smalldocs.org/legal'));
       assert.ok(started.html.includes('Cancellation and refunds'));
 

@@ -132,13 +132,20 @@
       + '<div class="sdoc-install-prompt">' + (onboarding ? '' : '<div class="sdoc-install-prompt-head"><span>Copy setup prompt</span>' + copyButton('prompt', 'Copy setup prompt') + '</div>')
       + '<pre data-install-field="prompt" data-home-prompt' + (accountPage ? ' id="install-prompt"' : '') + '>' + escape(instructions.prompt) + '</pre></div>'
       + (onboarding ? '' : '<p class="sdoc-install-note">Paste into your coding agent.</p>') + '</div>';
-    var manual = '<details class="sdoc-install-method" data-install-method="manual"><summary>Install yourself' + DISCLOSURE_ICON + '</summary>'
+    var overview = onboarding ? '<div class="sdoc-install-overview"><ol>'
+      + '<li><div class="sdoc-install-part"><strong>CLI</strong>' + (options.windows ? '' : '<details class="sdoc-install-info"><summary aria-label="Why use this installer?" title="Why use this installer?"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 11v6m0-10v1"/></svg></summary><p>The installer uses a folder you own, <code>~/.sdocs</code>, so it avoids npm global-folder permission errors and needs no administrator access. Node.js must already be installed. You can also use <code>npm i -g sdocs-dev</code>.</p></details>') + '</div><p>Creates, opens and updates your documents.</p>'
+      + command('cli', 'Copy CLI command', instructions.install_command) + '</li>'
+      + '<li><strong>Agent skill</strong><p>Teaches your coding agent how to use SmallDocs.</p>'
+      + command('skill', 'Copy skill command', instructions.skill_command) + '</li></ol>'
+      + '<h2>Or let your agent install both</h2><p>Copy this prompt into your coding agent. It will install SmallDocs and create your first document.</p></div>' : '';
+    var manual = '<details class="sdoc-install-method" data-install-method="manual"><summary>' + (onboarding ? 'Connect after installing yourself' : 'Install yourself') + DISCLOSURE_ICON + '</summary>'
       + '<div class="sdoc-install-content"' + (accountPage ? ' id="install-command"' : '') + '>'
-      + command('cli', 'Copy CLI command', instructions.install_command)
-      + command('skill', 'Copy skill command', instructions.skill_command)
+      + (onboarding ? '' : command('cli', 'Copy CLI command', instructions.install_command)
+        + command('skill', 'Copy skill command', instructions.skill_command))
       + '<div class="sdoc-install-prompt"><div class="sdoc-install-prompt-head"><span>Then paste this into your agent</span>' + copyButton('connect', 'Copy connection prompt') + '</div><pre data-install-field="connect">' + escape(instructions.connection_prompt) + '</pre></div>'
       + '</div></details>';
     return '<div class="sdoc-install' + (onboarding ? ' sdoc-install-onboarding' : '') + '"' + (accountPage ? '' : ' data-home-install') + '>'
+      + overview
       + (onboarding ? prompt : '<details class="sdoc-install-method" data-install-method="prompt"><summary>Use install prompt' + DISCLOSURE_ICON + '</summary>' + prompt + '</details>')
       + manual
       + '<p class="sdoc-install-status" data-install-copy-status' + (accountPage ? ' id="install-copy-status"' : '') + ' role="status" aria-live="polite"></p></div>';

@@ -305,8 +305,8 @@ module.exports = function(h) {
         const billing = createBillingStore({dbPath:':memory:',now:() => now});
         billing.ensurePersonalTrial({userId:'calendar',workspaceId:'calendar'});
         billing.grantPersonalMonths({userId:'calendar',key:'signup',months:1});
-        assert.strictEqual(billing.personalTrialAccess('calendar').originalEndsAtMs,Date.UTC(2027,1,28,12));
-        assert.strictEqual(billing.personalTrialAccess('calendar').endsAtMs,Date.UTC(2027,2,28,12));
+        assert.strictEqual(billing.personalTrialAccess('calendar').originalEndsAtMs,Date.UTC(2027,2,31,12));
+        assert.strictEqual(billing.personalTrialAccess('calendar').endsAtMs,Date.UTC(2027,3,30,12));
         now=Date.UTC(2028,0,31,12);
         billing.grantPersonalMonths({userId:'calendar',key:'late',months:1});
         assert.strictEqual(billing.personalTrialAccess('calendar').endsAtMs,Date.UTC(2028,1,29,12));

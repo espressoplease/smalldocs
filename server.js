@@ -3798,6 +3798,8 @@ const server = http.createServer((req, res) => {
     const subscription = account && cloudBilling.getSubscription(account.id);
     const subscriptionState = cloudSubscriptionState(userId);
     sendJson(res, 200, { ok: true, ...subscriptionState, email: verifiedCloudEmail(userId),
+      default_plan: { currency: 'usd', monthly_amount_minor: 299, annual_amount_minor: 3588,
+        interval: 'year', trial_months: require('./public/cloud-pricing').STANDARD_PLAN.trialMonths },
       trial_active: subscriptionState.phase === 'trial',
       subscription_status: subscription ? subscription.status : null,
       payment_pending: Boolean(subscription && subscription.initialPaymentPending && subscription.status !== 'canceled'),

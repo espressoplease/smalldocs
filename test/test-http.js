@@ -842,13 +842,13 @@ module.exports = function(harness) {
       assert.strictEqual(r.status, 200);
       assert.ok(/text\/html/.test(r.headers['content-type']));
       assert.ok(r.body.includes('SmallDocs Cloud'));
-      assert.ok(r.body.includes('£4'));
-      assert.ok(r.body.includes('$5 USD'));
+      assert.ok(r.body.includes('$2.99'));
+      assert.ok(r.body.includes('$35.88'));
       assert.ok(r.body.includes('data-cloud-plan="standard"'));
       assert.ok(!r.body.includes('Subscribe to Team'));
-      assert.ok(r.body.includes('€5 EUR'));
+      assert.ok(r.body.includes('billed annually'));
       assert.ok(r.body.includes('not end-to-end encrypted'));
-      assert.ok(r.body.includes('one free calendar month'));
+      assert.ok(r.body.includes('two free calendar months'));
       assert.ok(r.body.includes('/cloud/subscribe'));
       assert.ok(!r.body.includes('/cloud/checkout?plan='));
       assert.ok(r.body.includes('data-cloud-authenticated="false"'));
