@@ -76,7 +76,7 @@ for (const width of [390, 1440]) {
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
     await page.goto('/home-next');
-    await expect(page.getByRole('heading', { level: 1 })).toContainText('the hyper flexible document format for the agentic era.');
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('a tool for people who perform complex work with AI agents.');
     await expect(page.locator('#learn .learn-item')).toHaveCount(10);
     await expect(page.locator('#learn [data-sample]')).toHaveCount(10);
     expect(await page.locator('.sample-group-heading').allTextContents()).toEqual(['For engineers:', 'For scientists:', 'For financiers:', 'For mathematicians:']);
@@ -124,16 +124,14 @@ test('the introduction retains the production recording with captions and chapte
 test('homepage experiment preserves the supplied copy and vertical order', async ({ page }) => {
   await page.goto('/home-next');
   const expected = [
-    "Use them when you want to escape the limits of your chat interface or save an agent’s thinking at a given point in time. Simply ask your agent: “write me a doc about (topic)”.",
     "Agents handle all your tasks, but the document formats you're familiar with are siloed. SmallDocs are uniquely flexible. One SmallDoc can combine text, code, slides, spreadsheets, charts, diagrams, and interactive HTML and JavaScript components.",
-    'SmallDocs are built for human-agent feedback loops. Speed up your iteration with targeted features: easy ways to copy precise chunks of text, tables, code and charts, and the ability to leave comments on a document for your agent to pick up. SmallDocs have version history built in.',
     "Using SmallDocs automatically builds an agent-friendly knowledge base. SmallDocs are saved to an encrypted cloud library. Your agent smartly tags every document. This library is accessible to humans (on the web, including mobile) and agents (via the SmallDocs command line tool).",
-    "SmallDocs are agent agnostic, meaning teams using AI from a range of providers can all create and save documents in a standardized way. Agents can use it on their own: a remote agent can write a SmallDoc and notify you.",
-    'Sign up:',
-    'SmallDocs is free for a month, then £4/user/month.',
+    "SmallDocs are agent agnostic, meaning teams using AI from a range of providers can all create and save documents in a standardized way.",
+    'Try SmallDocs for yourself:',
+    'Two months free, then $2.99 per user per month, billed annually.',
   ];
   expect(await page.locator('.homepage-copy').allTextContents()).toEqual(expected);
-  await expect(page.locator('h1')).toHaveText('SmallDocs are the hyper flexible document format for the agentic era.');
+  await expect(page.locator('h1')).toHaveText('SmallDocs are a tool for people who perform complex work with AI agents.');
   expect(await page.locator('[data-install-form] button').allTextContents())
     .toEqual(Array(3).fill('Continue with email'));
   const positions = await page.evaluate(() => ['.homepage-small-video','h1','.homepage-copy','#start','#samples','#praise']
@@ -211,13 +209,13 @@ test('sales form asks for name and email while keeping extra information optiona
   expect(submitted.message).toBe('');
 });
 
-for (const [locale, personal, team] of [['en-GB', '£4', '£7'], ['en-US', '$5', '$9'], ['de-DE', '€5', '€8']]) {
+for (const locale of ['en-GB', 'en-US', 'de-DE']) {
   test.describe('homepage prices for ' + locale, () => {
     test.use({ locale });
-    test('uses the existing Cloud prices in the introductory sentence', async ({ page }) => {
+    test('shows annual per-user USD pricing in the introductory sentence', async ({ page }) => {
       await page.goto('/home-next');
-      await expect(page.locator('.homepage-price')).toHaveText('SmallDocs is free for a month, then ' + personal + '/user/month.');
-      await expect(page.locator('.homepage-price [data-cloud-plan="standard"] [data-cloud-price-primary]')).toHaveText(personal);
+      await expect(page.locator('.homepage-price')).toHaveText('Two months free, then $2.99 per user per month, billed annually.');
+      await expect(page.locator('.homepage-price [data-cloud-plan="standard"] [data-cloud-price-primary]')).toHaveText('$2.99');
     });
   });
 }
