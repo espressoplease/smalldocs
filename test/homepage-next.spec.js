@@ -55,19 +55,19 @@ for (const width of [320, 390, 600, 601, 1440]) {
     }
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     const spacing = await page.evaluate(() => {
-      const form = document.querySelector('#start-samples .homepage-google').getBoundingClientRect();
+      const sales = document.querySelector('#talk-to-sales .install-panel').getBoundingClientRect();
       const samples = document.querySelector('#learn .install-panel').getBoundingClientRect();
       const praise = document.querySelector('#praise .install-panel').getBoundingClientRect();
       return {
-        above: form.top - samples.bottom,
-        below: praise.top - document.querySelector('#start-samples .homepage-sales-link').getBoundingClientRect().bottom,
+        above: praise.top - samples.bottom,
+        below: sales.top - praise.bottom,
         topMargin: getComputedStyle(document.querySelector('#start')).marginTop,
         buttons: Array.from(document.querySelectorAll('[data-install-form] button'), el => getComputedStyle(el).backgroundColor),
       };
     });
     expect(spacing.above).toBeCloseTo(spacing.below, 0);
     expect(spacing.topMargin).toBe('13px');
-    expect(spacing.buttons).toEqual(Array(3).fill('rgb(0, 0, 0)'));
+    expect(spacing.buttons).toEqual(Array(2).fill('rgb(0, 0, 0)'));
   });
 }
 for (const width of [390, 1440]) {
@@ -81,9 +81,9 @@ for (const width of [390, 1440]) {
     await expect(page.locator('#learn [data-sample]')).toHaveCount(10);
     expect(await page.locator('.sample-group-heading').allTextContents()).toEqual(['For engineers:', 'For scientists:', 'For financiers:', 'For mathematicians:']);
     await expect(page.locator('.sample-preview')).toHaveCount(0);
-    await expect(page.locator('[data-install-form]')).toHaveCount(3);
-    await expect(page.locator('.homepage-sales-link a[href="/cloud/sign-in?return=%2Flibrary%3Fscope%3Dcloud"]')).toHaveCount(3);
-    expect(await page.locator('.homepage-sales-link').allTextContents()).toEqual(Array(3).fill('or talk to sales (or log in)'));
+    await expect(page.locator('[data-install-form]')).toHaveCount(2);
+    await expect(page.locator('.homepage-sales-link a[href="/cloud/sign-in?return=%2Flibrary%3Fscope%3Dcloud"]')).toHaveCount(2);
+    expect(await page.locator('.homepage-sales-link').allTextContents()).toEqual(Array(2).fill('or talk to sales (or log in)'));
     await expect(page.locator('#praise h2')).toHaveText('YPraise for SmallDocs on Hacker News');
     await expect(page.locator('#praise .hn-badge')).toBeVisible();
     await expect(page.locator('#praise .praise-card')).toHaveCount(6);
@@ -95,7 +95,7 @@ for (const width of [390, 1440]) {
     expect(errors).toEqual([]);
   });
 }
-for (let index = 0; index < 3; index++) {
+for (let index = 0; index < 2; index++) {
   test('email signup ' + index + ' verifies the entered email before profile setup', async ({ page }) => {
     await page.route('**/api/cloud/auth/email/request', route => route.fulfill({ status: 202, json: { ok: true, challenge_id: 'signup-code' } }));
     await page.route('**/cloud/sign-in?**', route => route.fulfill({ path: require('path').join(__dirname, '../public/cloud-sign-in.html') }));
@@ -132,7 +132,7 @@ test('homepage experiment preserves the supplied copy and vertical order', async
   expect(await page.locator('.homepage-copy').allTextContents()).toEqual(expected);
   await expect(page.locator('h1')).toHaveText('SmallDocs are a tool for people who perform complex work with AI agents.');
   expect(await page.locator('[data-install-form] button').allTextContents())
-    .toEqual(Array(3).fill('Continue with email'));
+    .toEqual(Array(2).fill('Continue with email'));
   const positions = await page.evaluate(() => ['.homepage-small-video','h1','.homepage-copy','#start','#samples','#praise']
     .map(selector => document.querySelector(selector).getBoundingClientRect().top));
   expect(positions).toEqual([...positions].sort((a,b) => a-b));
@@ -143,7 +143,7 @@ for (const width of [390, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto('/home-next');
     const links = page.locator('.homepage-sales-link a[href="#talk-to-sales"]');
-    await expect(links).toHaveCount(3);
+    await expect(links).toHaveCount(2);
     for (const link of await links.all()) {
       await link.click();
       await expect(page).toHaveURL(/#talk-to-sales$/);
@@ -152,10 +152,9 @@ for (const width of [390, 1440]) {
     }
     const gaps = await page.evaluate(() => {
       const praise = document.querySelector('#praise .install-panel').getBoundingClientRect();
-      const form = document.querySelector('#start-praise .homepage-google').getBoundingClientRect();
-      const link = document.querySelector('#start-praise .homepage-sales-link').getBoundingClientRect();
+      const form = document.querySelector('#start-footer .homepage-google').getBoundingClientRect();
       const sales = document.querySelector('#talk-to-sales .install-panel').getBoundingClientRect();
-      return [form.top - praise.bottom, sales.top - link.bottom];
+      return [sales.top - praise.bottom, form.top - sales.bottom];
     });
     expect(gaps[0]).toBeCloseTo(gaps[1], 0);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -220,10 +219,10 @@ for (const locale of ['en-GB', 'en-US', 'de-DE']) {
 }
 
 for (const width of [390, 1440]) {
-  test('Google-first signup layout precedes all three email forms at width ' + width, async ({ page }) => {
+  test('Google-first signup layout precedes both email forms at width ' + width, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     await page.goto('/home-next');
-    await expect(page.getByRole('link', { name: 'Continue with Google', exact: true })).toHaveCount(3);
+    await expect(page.getByRole('link', { name: 'Continue with Google', exact: true })).toHaveCount(2);
     for (const start of await page.locator('.homepage-start').all()) {
       const positions = await start.evaluate(el => {
         const google = el.querySelector('.homepage-google').getBoundingClientRect();

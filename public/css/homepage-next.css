@@ -122,8 +122,8 @@
 .homepage-email .btn-primary, #talk-to-sales .btn-primary { background: #000; color: #fff; }
 .homepage-email .btn-primary:hover, #talk-to-sales .btn-primary:hover { background: var(--ink); }
 .homepage-email button:disabled { opacity: .6; }
-#start-samples, #start-praise { margin: 0; padding: 40px 0; }
-.home-next #praise, .home-next #talk-to-sales { padding-top: 0; }
+#start-footer { margin: 0; padding: 64px 0 0; }
+.home-next :is(#learn, #praise, #talk-to-sales) { padding-top: 64px; }
 .homepage-sales-link { margin-top: 8px; font-size: var(--t-label); color: var(--ink-2); }
 .home-next .tf-status, .home-next .sdoc-install-note, .home-next .sdoc-install-status { font-size: var(--t-label); }
 .homepage-sales-link a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
@@ -150,7 +150,8 @@
 .homepage-footer-company { margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--line); color: var(--ink-3); font-size: var(--t-label); line-height: 1.6; }
 @media (max-width: 600px) {
   .homepage-footer-links { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px 24px; }
-  #start-samples, #start-praise { padding: 24px 0; }
+  #start-footer { padding-top: 40px; }
+  .home-next :is(#learn, #praise, #talk-to-sales) { padding-top: 40px; }
   .homepage-google, .homepage-direct > summary { min-height: 48px; }
   .homepage-email { flex-direction: column; }
   .homepage-email input, .homepage-email button { min-height: 48px; }

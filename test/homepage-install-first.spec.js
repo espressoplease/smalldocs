@@ -12,8 +12,8 @@ for (const width of [390, 1440]) {
       const authRequests = [];
       page.on('request', request => { if (request.url().includes('/api/cloud/auth/')) authRequests.push(request.url()); });
       await page.goto('/home-next');
-      await expect(page.locator('.homepage-google')).toHaveCount(3);
-      await expect(page.locator('[data-install-form]')).toHaveCount(3);
+      await expect(page.locator('.homepage-google')).toHaveCount(2);
+      await expect(page.locator('[data-install-form]')).toHaveCount(2);
       for (const area of await page.locator('.homepage-start').all()) {
         await expect(area.locator('.homepage-google')).toBeVisible();
         await expect(area.locator('[data-install-form]')).toBeVisible();
@@ -87,7 +87,7 @@ test('commands remain readable when JavaScript is unavailable', async ({ browser
   const context = await browser.newContext({ javaScriptEnabled: false, baseURL });
   try {
     const page = await context.newPage(); await page.goto('/home-next');
-    await expect(page.locator('[data-home-cli]')).toHaveCount(3);
+    await expect(page.locator('[data-home-cli]')).toHaveCount(2);
     await page.getByText('Install directly', { exact: true }).first().click();
     await expect(page.locator('[data-home-install]').first().locator('details[open]')).toHaveCount(0);
     await page.getByText('Install yourself', { exact: true }).first().click();
