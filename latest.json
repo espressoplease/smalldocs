@@ -1,6 +1,6 @@
 {
-  "commit": "f4c9aec582ac613357c83ace52fec86309cb4109",
-  "builtAt": "2026-11-17T17:17:26Z",
+  "commit": "bd83ba0253a0f0e8543cbbfa1a18697c6c1ef60d",
+  "builtAt": "2026-11-22T11:29:51Z",
   "repo": "https://github.com/espressoplease/smalldocs",
   "files": [
     {
@@ -15,8 +15,8 @@
     },
     {
       "path": "/agent-changes.md",
-      "sha256": "a4683dc41d81947492ebfa6f6fa1a62d4e74e204398c4a6dea2d97fa3fe3066d",
-      "bytes": 1239617
+      "sha256": "e5910ffda46630e03f3163da2eae6b4a929bce69bd88dee0a7b2fe43723905c1",
+      "bytes": 1351840
     },
     {
       "path": "/authoring/apps.md",
@@ -120,13 +120,13 @@
     },
     {
       "path": "/cloud-admin.html",
-      "sha256": "e6842b4d91403f770aba63e321d50a7c1cdd6d178aab0c6ab3a2a70cdbf006b3",
-      "bytes": 14708
+      "sha256": "9cb571d15189409eeb55817f5f453f08ba497878737e18ed5f6ea22771086eea",
+      "bytes": 14707
     },
     {
       "path": "/cloud-admin.js",
-      "sha256": "7ce88b83a336b0088daad0016a9c81ae51877b85b828aadbf11c4d983f2e3dee",
-      "bytes": 54050
+      "sha256": "6249dec6355afbece7f840f0984fa8d88a8c35fc4945f90a46ccad53d8d1957a",
+      "bytes": 54134
     },
     {
       "path": "/cloud-authorize.html",
@@ -145,8 +145,8 @@
     },
     {
       "path": "/cloud-install.html",
-      "sha256": "c00f6ded453820178da7f354e2bb1778a7759e26716eafcebe3c2a401fd29b7a",
-      "bytes": 1340
+      "sha256": "5a4173b2019148d4880af2be0bbb6c6ac4b286dfcc11ae4054b0046b3e1106dd",
+      "bytes": 1305
     },
     {
       "path": "/cloud-install.js",
@@ -185,8 +185,8 @@
     },
     {
       "path": "/cloud-pricing.js",
-      "sha256": "7763b9e6b0d6dd6d441cfce12565bc0687a525f51d64c92b90ed137a9a990e30",
-      "bytes": 3578
+      "sha256": "316694efd0c1a508e13d38c3d3e9be74253faab1cb3a2b8c25cc0a57bc91c32c",
+      "bytes": 4060
     },
     {
       "path": "/cloud-product-analytics.js",
@@ -225,13 +225,13 @@
     },
     {
       "path": "/cloud-subscribe.html",
-      "sha256": "125895fb81d242b2b8ee2babc781701a89e9d264beb593b1e04841d8ec3b2d19",
-      "bytes": 2282
+      "sha256": "d429768edda8481b18c98b12440709436d7c22c0f555f283514bd80e9818de83",
+      "bytes": 2481
     },
     {
       "path": "/cloud-subscribe.js",
-      "sha256": "b908b245c688b82e979ced218a65bbb8647ccee949be9196aa8246ee1a6eec1c",
-      "bytes": 7142
+      "sha256": "669208e59570a89f9de50cc532c6c0bc9a51b353c0266716344b2bf3d7d53fc3",
+      "bytes": 7145
     },
     {
       "path": "/cloud-terms.html",
@@ -270,8 +270,8 @@
     },
     {
       "path": "/cloud.html",
-      "sha256": "053ee1e79012e78672037b2b9c03b1344f0aaade260047cb60b0fb3fb7d5b3fa",
-      "bytes": 18946
+      "sha256": "2fd411d5a2c06a5d1cde08eb0344e35761d22ecc0e6299b8b93af2cc2106beb9",
+      "bytes": 18918
     },
     {
       "path": "/connect.html",
@@ -295,8 +295,8 @@
     },
     {
       "path": "/css/cli-setup.css",
-      "sha256": "d3caf2c0655417a2b4650c1306cf1562b5387c5b57bb22787a7553a7154994f8",
-      "bytes": 4165
+      "sha256": "5ce3ad46eed49952d0845ab06119e74cebbfe477d9ef33612edeb719cf845fb5",
+      "bytes": 5118
     },
     {
       "path": "/css/cloud-admin.css",
@@ -595,8 +595,8 @@
     },
     {
       "path": "/homepage-next.html",
-      "sha256": "7a91b96e76a10bba65f7385a27e6c4c8bf4dba329b597967fded4ea7403e3ddd",
-      "bytes": 79680
+      "sha256": "4bf572cc98ea4d7d62b9cc4ea87496bed05a88f95a74d44286e85858f4f2652f",
+      "bytes": 79693
     },
     {
       "path": "/homepage-next.js",
@@ -650,13 +650,13 @@
     },
     {
       "path": "/learn.md",
-      "sha256": "1f740c37f367b5ee6c3a0a17ebf03a0fd35f6ae2552ab26c5673d5bdb6023e3d",
-      "bytes": 3081
+      "sha256": "ba0001a6e67c0006e150ef37c98486f459934788116c3ce0572584442decf1ce",
+      "bytes": 3073
     },
     {
       "path": "/legal.md",
-      "sha256": "6f8cb1fabd773ac06b65665951494a980398ecbd33fc8e29a8741b9be5f6ff5b",
-      "bytes": 9440
+      "sha256": "97214f0ceae08c2c186a24cc8facb750a59d18419623ab31058aba128a51ff11",
+      "bytes": 9658
     },
     {
       "path": "/library/cloud-library-prototype.css",
@@ -685,13 +685,13 @@
     },
     {
       "path": "/library/library.css",
-      "sha256": "0ad1d35b0ae81b1d5757196976ecd844fc772aed9f810cc6a0e2ae6736d63d14",
-      "bytes": 23907
+      "sha256": "d2dc6acf5da61865ad820fcc5cec48d64f4af2f534d552478e583052053b11bf",
+      "bytes": 23976
     },
     {
       "path": "/library/library.html",
-      "sha256": "42dd5c420c270fe0788caadde94d79639ec238eb39e58f2b29a86a1ffe019815",
-      "bytes": 12345
+      "sha256": "a9483c07734758b8d6badbf7d51e37530e5b78573887c4ee08f9140abe65ccbf",
+      "bytes": 11949
     },
     {
       "path": "/library/library.js",
@@ -715,8 +715,8 @@
     },
     {
       "path": "/privacy.md",
-      "sha256": "feb7789d07bab881467d723d1e189ac56e8196fe6f6f8d620205ace46c784fa0",
-      "bytes": 17783
+      "sha256": "4e7c1e571a7ab09f27198b1aa1f8676c13be9d686c415df4104282759d2f6231",
+      "bytes": 17775
     },
     {
       "path": "/published.html",
@@ -730,8 +730,8 @@
     },
     {
       "path": "/sdoc.md",
-      "sha256": "987c9b44e47cbf1a7b9d852902a24cfa9e245466fdb92cd753708b8749aef96f",
-      "bytes": 77821
+      "sha256": "7f0ceaa671c09ab01f5bbfba8c89a5ea0e6eadfe7ce128090dde2d6ae7a7c007",
+      "bytes": 78080
     },
     {
       "path": "/sdocs-app-runner.html",
@@ -810,8 +810,8 @@
     },
     {
       "path": "/sdocs-cli-setup.js",
-      "sha256": "9ce717429e35420c609fe5622fa13390c75f84654f9b8729981bd99fd8c9b1c2",
-      "bytes": 20065
+      "sha256": "219c63cc71e66797d88d8876771cd804865705e7ea15789e6749b7011337f3fc",
+      "bytes": 21382
     },
     {
       "path": "/sdocs-cloud-account-selection.js",
