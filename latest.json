@@ -1,6 +1,6 @@
 {
-  "commit": "941c57a1cc16356481ece3d764e296dd89581853",
-  "builtAt": "2026-11-22T16:46:21Z",
+  "commit": "6da59bd69066a16522951d8e26970cdf28d55267",
+  "builtAt": "2026-11-22T20:01:19Z",
   "repo": "https://github.com/espressoplease/smalldocs",
   "files": [
     {
@@ -365,8 +365,8 @@
     },
     {
       "path": "/css/homepage-next.css",
-      "sha256": "0517d3604e5d2a4d4a1edcbddf31409a5a372c1d116d285051bc3bcf233b3cf3",
-      "bytes": 10929
+      "sha256": "22ee666f3a2e507fa21b2fa097cfcfe554e7ac6c2eac1a3485d571c18bf5d0d6",
+      "bytes": 11053
     },
     {
       "path": "/css/homepage-video.css",
@@ -595,8 +595,8 @@
     },
     {
       "path": "/homepage-next.html",
-      "sha256": "af612dca29354fbbc9a4d82f167eb5efee19cfb68645db40c32a631990513442",
-      "bytes": 79061
+      "sha256": "f473a07663ab1fbfe19a4cbffa36eeb33b3181d352a6a7b07b041b5013ae011e",
+      "bytes": 79047
     },
     {
       "path": "/homepage-next.js",
