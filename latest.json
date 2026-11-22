@@ -1,6 +1,6 @@
 {
-  "commit": "bf31155fd77aaf219cce0e1e32302e51b05cd1f4",
-  "builtAt": "2026-11-22T20:44:22Z",
+  "commit": "d2ffb569c14d8634befa24da0665699191de06b0",
+  "builtAt": "2026-11-22T22:21:26Z",
   "repo": "https://github.com/espressoplease/smalldocs",
   "files": [
     {
@@ -385,8 +385,8 @@
     },
     {
       "path": "/css/layout.css",
-      "sha256": "97d1372b63279fd889b254dfa08e6bdcf40c77fd5333659fa4969990e618042e",
-      "bytes": 20186
+      "sha256": "e81a8b22ba22d3bf1ed2afc9462f04fbe98783750a8cdf27b8a956f198c0769e",
+      "bytes": 20482
     },
     {
       "path": "/css/math-reader.css",
@@ -400,8 +400,8 @@
     },
     {
       "path": "/css/mobile.css",
-      "sha256": "589255de46897c113682207d13ce498ea56e3a9ac3648b8a7b0d412d80d9ff4d",
-      "bytes": 12887
+      "sha256": "654f2f134038ba11a519da021848746c1e0fe1af3a266f01c4759d6ffe606bc3",
+      "bytes": 12972
     },
     {
       "path": "/css/panel.css",
@@ -645,8 +645,8 @@
     },
     {
       "path": "/index.html",
-      "sha256": "c44d538bc0e59cc00a0a8abdd5c44c9343f1c41936681c9eb0d137eec7ffe17e",
-      "bytes": 82456
+      "sha256": "971e330ecdcd2137de032c0ba19756757701aaaab8014e182afd66791f600100",
+      "bytes": 82880
     },
     {
       "path": "/learn.md",
