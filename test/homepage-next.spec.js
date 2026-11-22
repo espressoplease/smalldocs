@@ -124,8 +124,7 @@ test('the introduction retains the production recording with captions and chapte
 test('homepage experiment preserves the supplied copy and vertical order', async ({ page }) => {
   await page.goto('/home-next');
   const expected = [
-    "Agents handle all your tasks, but the document formats you're familiar with are siloed. SmallDocs are uniquely flexible. One SmallDoc can combine text, code, slides, spreadsheets, charts, diagrams, and interactive HTML and JavaScript components.",
-    "Using SmallDocs automatically builds an agent-friendly knowledge base. SmallDocs are saved to an encrypted cloud library. Your agent smartly tags every document. This library is accessible to humans (on the web, including mobile) and agents (via the SmallDocs command line tool).",
+    "Additionally, using SmallDocs automatically builds an agent-friendly knowledge base. SmallDocs are saved to an encrypted cloud library. Your agent intelligently tags every document. This library is accessible to humans (on the web, including mobile) and agents (via the SmallDocs command line tool).",
     "SmallDocs are agent agnostic, meaning teams using AI from a range of providers can all create and save documents in a standardized way.",
     'Try SmallDocs for yourself:',
     'Two months free, then $2.99 per user per month, billed annually.',
