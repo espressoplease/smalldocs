@@ -118,6 +118,64 @@
   overflow-wrap: anywhere;
 }
 
+:is(#_sd_rendered, .sdoc-reader) details:not(.sdoc-app-failure-source):has(> summary) {
+  margin-block: var(--md-block-gap);
+  padding-inline: 14px;
+  border: 1px solid var(--md-hr-border);
+  border-radius: var(--radius-lg, 10px);
+  background: var(--md-code-bg);
+}
+:is(#_sd_rendered, .sdoc-reader) details:not(.sdoc-app-failure-source)[open] {
+  padding-block-end: 12px;
+}
+:is(#_sd_rendered, .sdoc-reader) details:not(.sdoc-app-failure-source) > summary {
+  position: relative;
+  display: block;
+  margin-inline: -14px;
+  padding: 12px 14px;
+  padding-inline-end: 40px;
+  border-radius: inherit;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+  list-style: none;
+  transition: background-color .12s;
+}
+:is(#_sd_rendered, .sdoc-reader) details:not(.sdoc-app-failure-source) > summary::-webkit-details-marker {
+  display: none;
+}
+:is(#_sd_rendered, .sdoc-reader) details:not(.sdoc-app-failure-source) > summary:hover {
+  background-color: color-mix(in srgb, var(--md-color) 5%, transparent);
+}
+:is(#_sd_rendered, .sdoc-reader) details:not(.sdoc-app-failure-source) > summary:focus-visible {
+  outline: 2px solid var(--md-link-color);
+  outline-offset: 3px;
+}
+:is(#_sd_rendered, .sdoc-reader) details:not(.sdoc-app-failure-source) > summary::after {
+  content: "";
+  position: absolute;
+  inset-block-start: calc(50% - 3px);
+  inset-inline-end: 17px;
+  width: 6px;
+  height: 6px;
+  border: solid currentColor;
+  border-width: 1.5px 1.5px 0 0;
+  transform: rotate(45deg);
+  transition: transform .18s cubic-bezier(.4,0,.2,1);
+}
+:is(#_sd_rendered, .sdoc-reader) details:not(.sdoc-app-failure-source)[open] > summary::after {
+  transform: rotate(135deg);
+}
+:is(#_sd_rendered, .sdoc-reader) details:not(.sdoc-app-failure-source) > :last-child:not(summary) {
+  margin-block-end: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  :is(#_sd_rendered, .sdoc-reader) details:not(.sdoc-app-failure-source) > summary,
+  :is(#_sd_rendered, .sdoc-reader) details:not(.sdoc-app-failure-source) > summary::after {
+    transition: none;
+  }
+}
+
 :is(#_sd_rendered, .sdoc-reader) .md-section > h2,
 :is(#_sd_rendered, .sdoc-reader) .md-section > h3,
 :is(#_sd_rendered, .sdoc-reader) .md-section > h4,
