@@ -64,13 +64,34 @@ test('published page counts survive reader hydration and directory layout fits m
   await page.goto(f.origin + publicPath);
   await expect(page.locator('#_sd_rendered h1')).toHaveText('A public guide');
   await expect(page.locator('.sdocs-publication-stats')).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Browse published pages' })).toHaveAttribute('href', '/published');
+  await expect(page.locator('.sdocs-shared-footer')).toHaveCount(1);
+  await expect(page.locator('.sdocs-shared-footer')).toContainText('increase your rate of understanding');
+  await expect(page.locator('.sdocs-shared-footer').getByRole('link', { name: 'Learn more about SmallDocs.' })).toHaveAttribute('href', '/home');
+  await expect(page.locator('#_sd_sidebar_about_panel')).toContainText('complex work with AI agents');
+  expect(await page.evaluate(() => window.SDocs.currentBody)).not.toContain('increase your rate of understanding');
   await page.waitForFunction(() => window.SDocs && window.SDocs.currentBody.includes('published introduction'));
   await expect(page.locator('.sdocs-publication-stats')).toBeVisible();
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 });
     for (const theme of ['light', 'dark']) {
       await page.addInitScript(theme => localStorage.setItem('sdocs-theme', theme), theme);
+      await page.goto(f.origin + publicPath);
+      await expect(page.locator('.sdocs-publication-stats')).toContainText(/page view/);
+      const framing = await page.evaluate(() => {
+        const reader = document.querySelector('#_sd_rendered'), footer = document.querySelector('.sdocs-shared-footer');
+        const r = reader.getBoundingClientRect(), f = footer.getBoundingClientRect();
+        return { textLeft: r.left + parseFloat(getComputedStyle(reader).paddingLeft),
+          footerLeft: f.left + parseFloat(getComputedStyle(footer).paddingLeft),
+          readerWidth: r.width, footerWidth: f.width, border: getComputedStyle(footer).borderTopWidth,
+          separatorBorder: getComputedStyle(footer, '::before').borderTopWidth,
+          separatorWidth: parseFloat(getComputedStyle(footer, '::before').width),
+          textWidth: r.width - parseFloat(getComputedStyle(reader).paddingLeft) - parseFloat(getComputedStyle(reader).paddingRight) };
+      });
+      expect(framing.footerLeft).toBeCloseTo(framing.textLeft, 0);
+      expect(framing.footerWidth).toBeCloseTo(framing.readerWidth, 0);
+      expect(framing.border).toBe('0px');
+      expect(framing.separatorBorder).toBe('1px');
+      expect(framing.separatorWidth).toBeCloseTo(framing.textWidth, 0);
       await page.goto(f.origin + '/published');
       await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
       await expect(page.getByRole('link', { name: /A public guide/ })).toBeVisible();
@@ -80,4 +101,26 @@ test('published page counts survive reader hydration and directory layout fits m
       if (theme === 'dark') expect(metrics.background).toBe('rgb(44, 42, 38)');
     }
   }
+});
+
+
+test('private links share the About copy and footer without adding them to the document', async ({ page }) => {
+  await page.goto(f.origin + '/docs');
+  await page.waitForFunction(() => window.SDocs && window.SDocs.shortLink);
+  const link = await page.evaluate(async () => {
+    window.SDocs.loadText('# Private shared guide\n\nOnly the shared document content.');
+    window.SDocs._isDefaultState = false;
+    return window.SDocs.shortLink.create();
+  });
+  await page.goto(link.url);
+  await page.waitForFunction(() => window.SDocs && window.SDocs.shortLinkId);
+  await expect(page.locator('.sdocs-shared-footer')).toHaveCount(1);
+  await expect(page.locator('.sdocs-shared-footer')).toBeVisible();
+  await expect(page.locator('.sdocs-shared-footer')).toContainText('increase your rate of understanding');
+  await expect(page.locator('.sdocs-publication-stats')).not.toContainText('page view');
+  await expect(page.locator('#_sd_sidebar_about_panel')).toContainText('Use SmallDocs to understand that work.');
+  await expect(page.locator('.sdocs-shared-footer a')).toHaveAttribute('href', '/home');
+  expect(await page.evaluate(() => window.SDocs.serializeCurrentDocument())).not.toContain('increase your rate of understanding');
+  await page.goto(f.origin + '/docs');
+  await expect(page.locator('.sdocs-shared-footer')).not.toBeVisible();
 });

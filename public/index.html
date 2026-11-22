@@ -75,7 +75,7 @@ __CLOUD_UI_STYLES__
 
   <template id="_sd_sidebar_primary">
         <div class="sdocs-sidebar-section sdocs-short-link-only" data-sidebar-section="about">
-          <button class="sdocs-sidebar-top-row doc-site-action" type="button" data-sidebar-href="/#learn" aria-controls="_sd_sidebar_about_panel" aria-expanded="false">
+          <button class="sdocs-sidebar-top-row doc-site-action" type="button" data-sidebar-href="/home" aria-controls="_sd_sidebar_about_panel" aria-expanded="false">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
             <span>About SmallDocs</span>
             <svg class="sdocs-sidebar-row-chevron" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
@@ -83,10 +83,10 @@ __CLOUD_UI_STYLES__
           <div class="sdocs-sidebar-expander" id="_sd_sidebar_about_panel">
             <div class="sdocs-sidebar-expander-clip">
               <div class="sdocs-sidebar-preview">
-                <p class="sdocs-sidebar-explainer">SmallDocs is a tool your agents use to produce rich and flexible documents.</p>
-                <p class="sdocs-sidebar-explainer">SmallDoc documents provide deep support for text, code, charts, diagrams, spreadsheets and slides. All formats can be combined. Slides can be exported to PPT and PDF; spreadsheets can be exported to Excel.</p>
-                <p class="sdocs-sidebar-explainer">SmallDocs are written in Markdown and are token-efficient to produce.</p>
-                <a class="sdocs-sidebar-cta" href="/" target="_blank" rel="noopener">Learn more</a>
+                <p class="sdocs-sidebar-explainer">SmallDocs are a tool for people who perform complex work with AI agents.</p>
+                <p class="sdocs-sidebar-explainer">They are a new type of document which lets agents explain themselves better: feature rich, flexible, but lightweight.</p>
+                <p class="sdocs-sidebar-explainer">Ask your agent: 'Explain this to me in a sdoc' and escape the limits and rush of the chat interface. Use the chat interface to get work done. Use SmallDocs to understand that work.</p>
+                <a class="sdocs-sidebar-cta" href="/home" target="_blank" rel="noopener">Learn more</a>
               </div>
             </div>
           </div>
@@ -364,6 +364,10 @@ __CLOUD_UI_STYLES__
       </div>
       </div>
       <div id="_sd_rendered" class="sdoc-reader"></div>
+      <footer class="sdocs-shared-footer">
+        <div class="sdocs-publication-stats"><!--__SDOCS_PUBLICATION_COUNT__--></div>
+        <p>SmallDocs are a tool for people who perform complex work with AI agents. They expand the range of communication your agent can have with you and help you to increase your rate of understanding. <a href="/home">Learn more about SmallDocs.</a></p>
+      </footer>
       <div id="_sd_write" contenteditable="true" spellcheck="true"></div>
       <textarea id="_sd_raw" spellcheck="false"></textarea>
     </div>
