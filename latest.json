@@ -1,6 +1,6 @@
 {
-  "commit": "75d05a18ba53dc68828f4b84c6f1639ecc908a4f",
-  "builtAt": "2026-11-22T20:27:03Z",
+  "commit": "bf31155fd77aaf219cce0e1e32302e51b05cd1f4",
+  "builtAt": "2026-11-22T20:44:22Z",
   "repo": "https://github.com/espressoplease/smalldocs",
   "files": [
     {
@@ -410,8 +410,8 @@
     },
     {
       "path": "/css/prose-reader.css",
-      "sha256": "e61729536b094719630b0e9c80d762d4089caefe9dddcf68e3d3d95b726938e8",
-      "bytes": 16682
+      "sha256": "db1d566e8a2d83b3800e0404eddd499bd82058a006e1e241a5f0bf37481c546d",
+      "bytes": 18725
     },
     {
       "path": "/css/published.css",
