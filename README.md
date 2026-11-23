@@ -130,7 +130,7 @@ node cli/bin/sdocs-dev.js README.md
 - Test everything that's testable without a browser in `test/run.js`. Use Playwright for browser-specific behavior.
 - No em or en dashes anywhere; use plain hyphens.
 
-`CLAUDE.md` in the repo root carries the detailed architecture notes (module map, shared-module pattern, release checklists) and is kept current.
+`AGENTS.md` in the repo root indexes the project guidelines and links to area-specific notes (`cli/AGENTS.md`, `test/AGENTS.md`, and `maintainers/`).
 
 ## License
 

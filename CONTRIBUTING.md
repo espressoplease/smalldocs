@@ -80,7 +80,7 @@ For CLI install/setup changes, the harness in `test/cli-harness.js` lets you run
 
 ### Adding a new markdown render feature
 
-This involves more surfaces than a typical change. The full checklist is in `CLAUDE.md` under "Adding a new markdown feature" - read it before starting. Key points:
+This involves more surfaces than a typical change. The full checklist is in `maintainers/adding-markdown-feature.md` - read it before starting. Key points:
 
 1. Lazy-load any CDN renderer on first use, not on page load.
 2. Post-sanitize renderer output (strip `<script>`, `<iframe>`, `on*` handlers, `javascript:` URLs).
@@ -90,7 +90,7 @@ This involves more surfaces than a typical change. The full checklist is in `CLA
 
 ## Code style
 
-- **No build step.** All browser JS as plain `<script>` tags. No ES modules (`import`/`export`). Shared modules use the UMD IIFE pattern documented in `CLAUDE.md`.
+- **No build step.** All browser JS as plain `<script>` tags. No ES modules (`import`/`export`). Shared modules use the UMD IIFE pattern documented in `maintainers/frontend.md`.
 - **No em or en dashes** anywhere - source, comments, commit messages, docs. Use a plain hyphen.
 - **No comments** unless the why is non-obvious. Do not describe what the code does; well-named identifiers do that.
 - **No error handling for impossible cases.** Only validate at real boundaries (user input, external API responses).
@@ -102,7 +102,7 @@ This involves more surfaces than a typical change. The full checklist is in `CLA
 - No "simply", "just", "seamless", "blazing". No exclamation marks in technical copy.
 - Write to the reader's question, not your design rationale.
 
-See the "Writing style" section of `CLAUDE.md` for the full guide.
+See `maintainers/public-copy.md` for the full guide.
 
 ## Commit messages
 
@@ -121,8 +121,8 @@ No period at the end. Keep the subject line under 72 characters. If more context
 - One logical change per PR. Split unrelated fixes into separate PRs.
 - Link the issue the PR closes (`Closes #N` in the description).
 - All tests must pass: `node test/run.js` and any relevant Playwright specs.
-- If the change touches the frontend, run the service-worker refresh check described in `CLAUDE.md` under "Pre-deploy check: service-worker refresh".
-- If the change modifies the agent skill (`cli/lib/agent-block.js`), follow the release checklist in `CLAUDE.md` under "Agent skill".
+- If the change touches the frontend, run the service-worker refresh check described in `maintainers/server-and-deploy.md`.
+- If the change modifies the agent skill (`cli/lib/agent-block.js`), follow the release checklist in `cli/AGENTS.md`.
 
 ## License
 
