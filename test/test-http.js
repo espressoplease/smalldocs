@@ -284,6 +284,8 @@ module.exports = function(harness) {
       assert.strictEqual(document.status, 200);
       assert.ok(document.headers['content-security-policy'].includes(
         "frame-src 'self' https://www.youtube-nocookie.com"));
+      assert.ok(document.headers['content-security-policy'].includes(
+        "media-src 'self' https://pub-2f643f8894234288bc4ec244aec40c51.r2.dev"));
 
       const frame = await get(BASE + '/sdoc-app-runner/runner.html');
       assert.strictEqual(frame.status, 200);

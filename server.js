@@ -1184,6 +1184,7 @@ function documentCsp(nonce) {
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net",
     "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net",
     "img-src 'self' data: https:",
+    "media-src 'self' https://pub-2f643f8894234288bc4ec244aec40c51.r2.dev",
     // These loopback origins support the local Bridge and Library agents.
     "connect-src 'self' https://cdn.jsdelivr.net https://raw.githubusercontent.com ws://127.0.0.1:* ws://localhost:* http://127.0.0.1:* http://localhost:*",
     "frame-src 'self' https://www.youtube-nocookie.com",
@@ -1192,7 +1193,7 @@ function documentCsp(nonce) {
   return policy.join('; ');
 }
 
-function documentShellSubstitutions(req, nonce, defaultMdPath, compile = false) {
+function documentShellSubstitutions(req, nonce, defaultMdPath, compile = false, { sharedFooterVideo = false } = {}) {
   return {
     '__APP_VERSION__': APP_VERSION, '__SDOCS_DEV__': DEV_MODE ? '1' : '0',
     '__DEFAULT_MD_PATH__': defaultMdPath, '__CSP_NONCE__': nonce,
@@ -1201,6 +1202,7 @@ function documentShellSubstitutions(req, nonce, defaultMdPath, compile = false) 
     '__CLOUD_UI_SCRIPT__': CLOUD_DEPLOYMENT.publicEnabled && !compile
       ? '<script src="/public/sdocs-cloud-account-selection.js"></script><script src="/public/sdocs-text-diff.js"></script><script src="/public/sdocs-merge.js"></script><script src="/public/sdocs-cloud-prototype.js"></script><script src="/public/sdocs-history.js"></script>' +
         (CLOUD_UI_LAB_ENABLED ? '<script src="/public/sdocs-cloud-ui-lab.js"></script>' : '') : '',
+    ...require('./lib/publication-shell').sharedFooterVideoSubstitutions(!compile && sharedFooterVideo),
     ...(compile ? {} : documentNavigation(req).substitutions)
   };
 }
@@ -3619,7 +3621,7 @@ function servePublicPublication(req, res, slug) {
     } catch (_) { /* Counting must not prevent reading a published page. */ }
   }
   const body = shell.renderPublicationShell({source, viewCount,
-    rootHtml:shell.documentRoot(publication),renderedStyles,substitutions:documentShellSubstitutions(req,nonce,'/public/sdoc.md')});
+    rootHtml:shell.documentRoot(publication),renderedStyles,substitutions:documentShellSubstitutions(req,nonce,'/public/sdoc.md',false,{sharedFooterVideo:true})});
   res.writeHead(200, { ...headers, 'Content-Type': 'text/html; charset=utf-8',
     'Content-Security-Policy': documentCsp(nonce), 'Vary':'Cookie',
     'X-Frame-Options':'DENY', 'Referrer-Policy': 'strict-origin-when-cross-origin' });
@@ -4732,8 +4734,9 @@ const server = http.createServer((req, res) => {
                 : blogSlug
                   ? '/public/blogs/' + blogSlug + '.md'
                   : '/public/sdoc.md';
+    const isShortLink = /^\/s\/[A-Za-z0-9_-]{1,32}$/.test(pathname);
     const csp = documentCsp(nonce);
-    serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'index.html'), documentShellSubstitutions(req,nonce,defaultMdPath), {
+    serveHtmlWithRewrite(res, path.join(__dirname, 'public', 'index.html'), documentShellSubstitutions(req,nonce,defaultMdPath,false,{sharedFooterVideo:isShortLink}), {
       'Cache-Control': documentNav.authenticated ? 'private, no-store' : 'no-cache',
       'Vary': 'Cookie',
       'Content-Security-Policy': csp,

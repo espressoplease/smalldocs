@@ -105,8 +105,10 @@
   function previewAllowed() {
     return !reducedMotion.matches && !(navigator.connection && navigator.connection.saveData);
   }
+  const deferTeaser = card.hasAttribute('data-defer-teaser') && 'IntersectionObserver' in window;
+  let teaserVisible = !deferTeaser;
   function resumePreview() {
-    if (teaser && previewAllowed() && (previewLoops < 2 || matchMedia('(max-width: 620px)').matches)) {
+    if (teaser && teaserVisible && previewAllowed() && (previewLoops < 2 || matchMedia('(max-width: 620px)').matches)) {
       teaser.muted = true; teaser.autoplay = true;
       tryPlay(teaser, error => { if (error.name === 'NotAllowedError') teaser.dataset.previewBlocked = 'true'; });
     }
@@ -127,7 +129,15 @@
     });
     // A missing preview leaves the poster and Play button available.
     teaser.addEventListener('error', () => { teaser.hidden = true; });
-    resumePreview();
+    if (deferTeaser) {
+      new IntersectionObserver(entries => {
+        const entry = entries[entries.length - 1];
+        teaserVisible = Boolean(entry && entry.isIntersecting);
+        if (!card.classList.contains('teaser')) return;
+        if (teaserVisible) resumePreview();
+        else { teaser.autoplay = false; teaser.pause(); }
+      }, { threshold: 0.1 }).observe(card);
+    } else resumePreview();
   }
   reducedMotion.addEventListener('change', () => {
     if (reducedMotion.matches && teaser) { teaser.autoplay = false; teaser.pause(); }
@@ -268,7 +278,7 @@
 
   // Keep the same media element in place. Its home holds the inline height
   // while the card follows the viewport, so reading content never jumps.
-  const scrollDockEnabled = previewHome.classList.contains('homepage-small-video');
+  const scrollDockEnabled = previewHome.classList.contains('homepage-small-video') && !card.hasAttribute('data-no-scroll-dock');
   const dockProperties = ['left', 'top', 'width', 'height', 'video-width', 'toolbar-left',
     'toolbar-top', 'toolbar-width', 'toolbar-opacity', 'toolbar-height', 'progress', 'caption-progress'];
   let dockHasPlayed = false, docked = false, dockFrame = 0, dockNeedsMeasure = true;
