@@ -1,6 +1,6 @@
 {
-  "commit": "ab570a065514f40f6bbcc21ff1c005077ab339d3",
-  "builtAt": "2026-11-24T17:28:36Z",
+  "commit": "f5bda73ac4b77669aaa3e98caaf491a1084ada4a",
+  "builtAt": "2026-11-24T21:40:15Z",
   "repo": "https://github.com/espressoplease/smalldocs",
   "files": [
     {
@@ -385,8 +385,8 @@
     },
     {
       "path": "/css/layout.css",
-      "sha256": "e81a8b22ba22d3bf1ed2afc9462f04fbe98783750a8cdf27b8a956f198c0769e",
-      "bytes": 20482
+      "sha256": "9159180f355cd4c98cb955be466884160f0fa0244bf393027cddd5d937a7c104",
+      "bytes": 21041
     },
     {
       "path": "/css/math-reader.css",
@@ -615,8 +615,8 @@
     },
     {
       "path": "/homepage-video.js",
-      "sha256": "78d9dfa7f8d48d0363f9addb7097f33de03e57925df5190a265e52b2b3ad1949",
-      "bytes": 29152
+      "sha256": "50bea129bd525d29056e9cafe5f473b3f47ca600b11ce30621ee0d8234bd393a",
+      "bytes": 29739
     },
     {
       "path": "/homepage.html",
@@ -645,8 +645,8 @@
     },
     {
       "path": "/index.html",
-      "sha256": "971e330ecdcd2137de032c0ba19756757701aaaab8014e182afd66791f600100",
-      "bytes": 82880
+      "sha256": "74361f61b3f0917a5f08aeac3fb38702b2059c4af6bd4cdc4c28e3b18df614cf",
+      "bytes": 82981
     },
     {
       "path": "/learn.md",
