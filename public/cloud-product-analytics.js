@@ -10,6 +10,7 @@
   var data = null, generation = 0, controller = null;
   var userRows = root.querySelector('[data-product-users]');
   var userStatus = root.querySelector('[data-product-users-status]');
+  var userDocumentDays = root.querySelector('[data-product-document-days]');
   var userPrevious = root.querySelector('[data-product-users-previous]');
   var userNext = root.querySelector('[data-product-users-next]');
   var userCursors = [null], userPage = 0, userNextCursor = null, userGeneration = 0, userController = null, usersLoading = false;
@@ -76,12 +77,49 @@
     renderDays(); results.hidden = false;
     status.textContent = 'Updated ' + new Date(data.generated_at).toLocaleString() + '. Figures are cached for up to one minute.';
   }
+  function formatUtcShortDate(isoDay) {
+    return new Date(isoDay + 'T00:00:00Z').toLocaleDateString(undefined, { timeZone: 'UTC', month: 'short', day: 'numeric' });
+  }
+  function activityLevel(count) {
+    if (count <= 0) return '0';
+    if (count === 1) return '1';
+    if (count <= 3) return '2';
+    if (count <= 7) return '3';
+    return '4';
+  }
+  function renderDocumentActivity(item, documentDays) {
+    var cell = node('td');
+    if (!Array.isArray(item.documents_daily) || !Array.isArray(documentDays)) {
+      cell.textContent = 'Not available';
+      return cell;
+    }
+    var wrap = node('div', null, 'doc-activity');
+    var strip = node('div', null, 'doc-activity-strip');
+    strip.setAttribute('role', 'group');
+    var recentTotal = item.documents_last_14_days || 0;
+    strip.setAttribute('aria-label', recentTotal.toLocaleString() + (recentTotal === 1 ? ' SmallDoc' : ' SmallDocs') + ' in the last ' + documentDays.length + ' days');
+    documentDays.forEach(function (isoDay, index) {
+      var count = item.documents_daily[index] || 0;
+      var dayNode = node('span', count > 99 ? '99+' : count > 0 ? String(count) : '', 'doc-day');
+      dayNode.dataset.level = activityLevel(count);
+      var label = isoDay + ' (UTC): ' + count.toLocaleString() + (count === 1 ? ' SmallDoc' : ' SmallDocs');
+      dayNode.title = label;
+      dayNode.setAttribute('aria-label', label);
+      strip.append(dayNode);
+    });
+    var subtotal = node('span', recentTotal.toLocaleString(), recentTotal > 0 ? 'doc-activity-total' : 'doc-activity-total is-zero');
+    subtotal.title = recentTotal.toLocaleString() + (recentTotal === 1 ? ' SmallDoc' : ' SmallDocs') + ' created in the last ' + documentDays.length + ' UTC days';
+    wrap.append(strip, subtotal);
+    cell.append(wrap);
+    return cell;
+  }
   function clear() {
     data = null; results.hidden = true;
     if (privateView) root.querySelectorAll('[data-signup-summary], [data-product-progress], [data-product-billing], [data-product-libraries], [data-product-days-body]').forEach(function (element) { element.replaceChildren(); });
     if (privateView) {
       userGeneration++; if (userController) userController.abort();
       userRows.replaceChildren(); userStatus.textContent = 'Loading accounts...';
+      if (userDocumentDays) userDocumentDays.textContent = '';
       userCursors = [null]; userPage = 0; userNextCursor = null; usersLoading = false;
       userPrevious.disabled = userNext.disabled = true;
     }
@@ -102,6 +140,12 @@
       if (!response.ok) throw new Error('unavailable');
       var value = await response.json();
       if (current !== userGeneration) return;
+      var documentDays = Array.isArray(value.document_days) ? value.document_days : [];
+      if (userDocumentDays) {
+        userDocumentDays.textContent = documentDays.length
+          ? formatUtcShortDate(documentDays[0]) + ' to ' + formatUtcShortDate(documentDays[documentDays.length - 1])
+          : '';
+      }
       value.items.forEach(function (item) {
         var row = node('tr'); var email = node('td');
         if (item.emails.length) item.emails.forEach(function (address) { email.append(node('span', address)); });
@@ -109,10 +153,16 @@
         var date = node('time', new Date(item.created_at).toLocaleString(undefined, { timeZone: 'UTC', dateStyle: 'medium', timeStyle: 'short' }));
         date.dateTime = item.created_at;
         var created = node('td'); created.append(date);
+        var docsCell = node('td', item.documents_total == null ? 'Not available' : item.documents_total.toLocaleString(),
+          item.documents_total === 0 ? 'doc-count is-zero' : 'doc-count');
+        if (item.documents_total === 0 && item.document_created) {
+          docsCell.title = 'Previously created a document that was later permanently deleted.';
+        }
+        var activityCell = renderDocumentActivity(item, documentDays);
         var subscription = item.subscribed == null ? 'Not available' : item.subscribed ? 'Subscribed'
           : item.paid_coverage ? 'Sponsored' : item.manual_access ? 'Free access' : 'Not paid';
         row.append(email, created, node('td', item.disabled ? 'Disabled' : 'Enabled'), node('td', item.profile_complete ? 'Complete' : 'Incomplete'),
-          node('td', item.agent_connected ? 'Yes' : 'No'), node('td', item.document_created ? 'Yes' : 'No'), node('td', subscription));
+          node('td', item.agent_connected ? 'Yes' : 'No'), docsCell, activityCell, node('td', subscription));
         userRows.append(row);
       });
       userPage = index; userNextCursor = value.next_cursor;

@@ -3,7 +3,7 @@
 module.exports = function ({ test, assert }) {
   const fs = require('fs'), os = require('os'), path = require('path');
   const Database = require('better-sqlite3');
-  const { CloudProductAnalytics, DAY_MS, CACHE_MS } = require('../lib/cloud-product-analytics');
+  const { CloudProductAnalytics, DAY_MS, RECENT_DOCUMENT_DAYS, CACHE_MS } = require('../lib/cloud-product-analytics');
   const { CURRENT_TERMS_VERSION } = require('../lib/cloud-terms');
   function fixture(run) {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sdocs-product-metrics-'));
@@ -18,7 +18,7 @@ module.exports = function ({ test, assert }) {
       CREATE TABLE cloud_workspace_memberships(workspace_id TEXT,user_id TEXT,status TEXT);
       CREATE TABLE cloud_projects(id TEXT,workspace_id TEXT,deleted_at_ms INTEGER);
       CREATE TABLE cloud_document_activation_events(user_id TEXT);
-      CREATE TABLE cloud_documents(created_by_user_id TEXT);`);
+      CREATE TABLE cloud_documents(created_by_user_id TEXT,created_at_ms INTEGER);`);
     billing.db.exec(`CREATE TABLE cloud_single_accounts(id TEXT,owner_user_id TEXT);
       CREATE TABLE cloud_single_libraries(workspace_id TEXT,account_id TEXT);
       CREATE TABLE cloud_single_sponsors(user_id TEXT,account_id TEXT);
@@ -77,7 +77,7 @@ module.exports = function ({ test, assert }) {
     f.store.exec(`INSERT INTO cloud_workspaces VALUES ('personal','personal',NULL),('team','team',NULL),('deleted','team',1);
       INSERT INTO cloud_projects VALUES ('a','personal',NULL),('b','team',NULL),('c','deleted',NULL);
       INSERT INTO cloud_workspace_memberships VALUES ('personal','alice','active'),('team','alice','active'),('team','bob','active'),('deleted','disabled','active');
-      INSERT INTO cloud_documents VALUES ('alice'),('alice'); INSERT INTO cloud_document_activation_events VALUES ('alice'),('bob')`);
+      INSERT INTO cloud_documents VALUES ('alice',1),('alice',2); INSERT INTO cloud_document_activation_events VALUES ('alice'),('bob')`);
     const result = f.analytics.overview('admin');
     assert.deepStrictEqual(result.totals, { accounts: 3, enabled: 2, profile_complete: 3, ready: 1, agent_connected: 1, document_created: 2, paid_people: 0 });
     assert.deepStrictEqual(result.libraries, { personal: 1, team: 1 });
@@ -118,7 +118,10 @@ module.exports = function ({ test, assert }) {
     assert.strictEqual(new Set([...one.items, ...two.items].map(item => item.id)).size, 55);
     assert.deepStrictEqual(one.items[0].emails, ['alias@example.test', 'primary@example.test']);
     assert.strictEqual(two.next_cursor, null);
-    assert.deepStrictEqual(Object.keys(one.items[0]).sort(), ['agent_connected', 'created_at', 'disabled', 'document_created', 'emails', 'id', 'manual_access', 'paid_coverage', 'profile_complete', 'subscribed']);
+    assert.strictEqual(one.document_days.length, RECENT_DOCUMENT_DAYS);
+    assert.strictEqual(one.document_days[0], '2026-10-28');
+    assert.strictEqual(one.document_days.at(-1), '2026-11-10');
+    assert.deepStrictEqual(Object.keys(one.items[0]).sort(), ['agent_connected', 'created_at', 'disabled', 'document_created', 'documents_daily', 'documents_last_14_days', 'documents_total', 'emails', 'id', 'manual_access', 'paid_coverage', 'profile_complete', 'subscribed']);
     for (const cursor of ['', 'missing', 'x'.repeat(129), {}, "' OR 1=1 --"]) {
       assert.throws(() => f.analytics.users('admin', cursor), error => error.code === 'invalid_request');
     }
@@ -133,7 +136,7 @@ module.exports = function ({ test, assert }) {
       f.analytics.users('admin'); const single = queries;
       for (let i = 0; i < 55; i++) f.add('extra-' + i);
       queries = 0; f.analytics.users('admin');
-      assert.strictEqual(queries, single); assert.strictEqual(queries, 3);
+      assert.strictEqual(queries, single); assert.strictEqual(queries, 4);
       queries = 0;
       assert.throws(() => f.analytics.users('not-admin'), error => error.code === 'resource_unavailable');
       assert.strictEqual(queries, 0);
@@ -173,6 +176,47 @@ module.exports = function ({ test, assert }) {
     assert.strictEqual([...rows.values()].filter(row => row.paid_coverage).length, f.analytics.overview('admin').totals.paid_people);
   }));
 
+  test('account document counts track lifetime totals and trailing 14-day UTC daily creations', () => fixture(f => {
+    f.add('engaged', f.now - 30 * DAY_MS);
+    f.add('quiet', f.now - 20 * DAY_MS);
+    f.add('none', f.now);
+    const insertDoc = f.store.prepare('INSERT INTO cloud_documents VALUES (?,?)');
+    // Older than 14-day window (included in total, excluded from 14-day daily strip)
+    insertDoc.run('engaged', f.now - 20 * DAY_MS);
+    insertDoc.run('engaged', f.now - 14 * DAY_MS);
+    // Boundary: first day of the 14-day window (13 days ago)
+    insertDoc.run('engaged', f.now - 13 * DAY_MS);
+    // Two docs 3 days ago, three docs today
+    insertDoc.run('engaged', f.now - 3 * DAY_MS);
+    insertDoc.run('engaged', f.now - 3 * DAY_MS + 1000);
+    insertDoc.run('engaged', f.now - 3600000);
+    insertDoc.run('engaged', f.now - 1000);
+    insertDoc.run('engaged', f.now);
+    // Future document excluded
+    insertDoc.run('engaged', f.now + DAY_MS);
+    // Quiet user only has old docs
+    insertDoc.run('quiet', f.now - 19 * DAY_MS);
+    insertDoc.run('quiet', f.now - 18 * DAY_MS);
+
+    const res = f.analytics.users('admin');
+    assert.strictEqual(res.document_days.length, 14);
+    assert.strictEqual(res.document_days[0], '2026-10-28');
+    assert.strictEqual(res.document_days[13], '2026-11-10');
+    const byId = new Map(res.items.map(item => [item.id, item]));
+
+    assert.strictEqual(byId.get('engaged').documents_total, 8);
+    assert.strictEqual(byId.get('engaged').documents_last_14_days, 6);
+    assert.deepStrictEqual(byId.get('engaged').documents_daily, [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 3]);
+
+    assert.strictEqual(byId.get('quiet').documents_total, 2);
+    assert.strictEqual(byId.get('quiet').documents_last_14_days, 0);
+    assert.deepStrictEqual(byId.get('quiet').documents_daily, new Array(14).fill(0));
+
+    assert.strictEqual(byId.get('none').documents_total, 0);
+    assert.strictEqual(byId.get('none').documents_last_14_days, 0);
+    assert.deepStrictEqual(byId.get('none').documents_daily, new Array(14).fill(0));
+  }));
+
   test('empty deployments return zero totals without fabricating billing or content availability', () => fixture(f => {
     const empty = new CloudProductAnalytics({ auth: { db: f.auth }, adminUserIds: 'admin', now: () => f.now });
     try {
@@ -180,14 +224,19 @@ module.exports = function ({ test, assert }) {
       const result = empty.overview('admin');
       assert.strictEqual(result.billing, null); assert.strictEqual(result.libraries, null);
       assert.ok(result.cohorts.every(day => day.accounts === 0));
+      f.add('one');
+      const users = empty.users('admin');
+      assert.strictEqual(users.items[0].documents_total, null);
+      assert.strictEqual(users.items[0].documents_last_14_days, null);
+      assert.strictEqual(users.items[0].documents_daily, null);
     } finally { empty.close(); }
   }));
 
   test('a hundred thousand document metadata rows produce bounded aggregates and reusable caches', () => fixture(f => {
     f.auth.prepare(`WITH RECURSIVE numbers(n) AS (SELECT 1 UNION ALL SELECT n+1 FROM numbers WHERE n<5000)
       INSERT INTO cloud_auth_users SELECT 'user-'||n,'First','Last',?,NULL FROM numbers`).run(f.now);
-    f.store.exec(`WITH RECURSIVE numbers(n) AS (SELECT 1 UNION ALL SELECT n+1 FROM numbers WHERE n<100000)
-      INSERT INTO cloud_documents SELECT 'user-'||((n%5000)+1) FROM numbers`);
+    f.store.prepare(`WITH RECURSIVE numbers(n) AS (SELECT 1 UNION ALL SELECT n+1 FROM numbers WHERE n<100000)
+      INSERT INTO cloud_documents SELECT 'user-'||((n%5000)+1),? FROM numbers`).run(f.now);
     const result = f.analytics.overview('admin');
     assert.strictEqual(result.totals.accounts, 5000);
     assert.strictEqual(result.totals.document_created, 5000);

@@ -93,20 +93,40 @@ test('the account list has stable pagination and rejects invalid cursors', async
   expect((await f.api('bob', '/api/cloud/v1/admin/users?after=missing')).status).toBe(400);
 });
 
-test('account columns show agent and document progress and distinguish subscriptions from free access', async ({ page }) => {
+test('account columns show agent progress, SmallDocs totals, 14-day daily activity and subscription coverage', async ({ page }) => {
   await f.api('bob', '/api/cloud/v1/onboarding/complete', 'POST', {});
   const setup = await f.api('josh', '/api/cloud/v1/onboarding/complete', 'POST', {});
   const account = setup.data.workspaces[0].id;
   f.billing.upsertSubscription({ workspaceId: account, plan: 'team', provider: 'stripe', status: 'active', providerSubscriptionId: 'sub_account_columns' });
   f.auth._createCliCredential(f.users.josh.id, 'Connected agent', Date.now());
-  expect((await f.api('josh', '/api/cloud/v1/account/documents', 'POST', { account_id: account, filename: 'progress.md',
-    markdown: '---\ntags: [planning]\n---\n# Progress', idempotency_key: 'progress-columns' })).status).toBe(201);
+  const first = await f.api('josh', '/api/cloud/v1/account/documents', 'POST', { account_id: account, filename: 'progress.md',
+    markdown: '---\ntags: [planning]\n---\n# Progress', idempotency_key: 'progress-columns-1' });
+  expect(first.status).toBe(201);
+  const second = await f.api('josh', '/api/cloud/v1/account/documents', 'POST', { account_id: account, filename: 'follow-up.md',
+    markdown: '---\ntags: [planning]\n---\n# Follow-up', idempotency_key: 'progress-columns-2' });
+  expect(second.status).toBe(201);
+  const older = await f.api('josh', '/api/cloud/v1/account/documents', 'POST', { account_id: account, filename: 'archive.md',
+    markdown: '---\ntags: [planning]\n---\n# Archive', idempotency_key: 'progress-columns-3' });
+  expect(older.status).toBe(201);
+  // Move one doc 3 days back and one doc 20 days back (outside the 14-day strip).
+  const dayMs = 86400000;
+  f.store.db.prepare('UPDATE cloud_documents SET created_at_ms=? WHERE id=?').run(Date.now() - 3 * dayMs, second.data.document.id);
+  f.store.db.prepare('UPDATE cloud_documents SET created_at_ms=? WHERE id=?').run(Date.now() - 20 * dayMs, older.data.document.id);
+
   await signIn(page, 'bob'); await page.goto(f.origin + '/cloud/overview');
+  await expect(page.locator('[data-product-document-days]')).toContainText(' to ');
   const payer = page.locator('[data-product-users] tr').filter({ hasText: f.users.josh.email });
   await expect(payer.locator('td').nth(4)).toHaveText('Yes');
-  await expect(payer.locator('td').nth(5)).toHaveText('Yes');
-  await expect(payer.locator('td').nth(6)).toHaveText('Subscribed');
-  await expect(page.locator('[data-product-users] tr').filter({ hasText: f.users.bob.email }).locator('td').nth(6)).toHaveText('Free access');
+  await expect(payer.locator('td').nth(5)).toHaveText('3');
+  await expect(payer.locator('.doc-day')).toHaveCount(14);
+  await expect(payer.locator('.doc-day').nth(10)).toHaveText('1');
+  await expect(payer.locator('.doc-day').nth(13)).toHaveText('1');
+  await expect(payer.locator('.doc-activity-total')).toHaveText('2');
+  await expect(payer.locator('td').nth(7)).toHaveText('Subscribed');
+  const bobRow = page.locator('[data-product-users] tr').filter({ hasText: f.users.bob.email });
+  await expect(bobRow.locator('td').nth(5)).toHaveText('0');
+  await expect(bobRow.locator('.doc-activity-total')).toHaveText('0');
+  await expect(bobRow.locator('td').nth(7)).toHaveText('Free access');
 });
 
 test('account rows render email text safely, handle removed addresses and paginate in the browser', async ({ page }) => {
