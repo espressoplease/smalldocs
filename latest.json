@@ -1,12 +1,12 @@
 {
-  "commit": "f5bda73ac4b77669aaa3e98caaf491a1084ada4a",
-  "builtAt": "2026-11-24T21:40:15Z",
+  "commit": "7a8a2e1099ab8bc93e0fcaf40868ae0787f1e077",
+  "builtAt": "2026-11-25T22:30:16Z",
   "repo": "https://github.com/espressoplease/smalldocs",
   "files": [
     {
       "path": "/acceptable-use.md",
-      "sha256": "8067c4d645874b899e44f1669c9245f76c5bec4e2488c7b10b8ba5205aa819b8",
-      "bytes": 2400
+      "sha256": "46b54b2678fa991d043869e037b634d3c7a8d5793a79d6f89ab19b5ba57fccc9",
+      "bytes": 2416
     },
     {
       "path": "/advanced-spreadsheets.md",
@@ -115,8 +115,8 @@
     },
     {
       "path": "/cancellation.md",
-      "sha256": "1434d59dc25773c2751e0e6bdd87b985b2f2218dba292708cb353836cfed1542",
-      "bytes": 2425
+      "sha256": "9fa4c8325cb9c3c9761aca86f8cca9fb05f95ad50333740b037e987e9ab84c33",
+      "bytes": 3170
     },
     {
       "path": "/cloud-admin.html",
@@ -655,8 +655,8 @@
     },
     {
       "path": "/legal.md",
-      "sha256": "97214f0ceae08c2c186a24cc8facb750a59d18419623ab31058aba128a51ff11",
-      "bytes": 9658
+      "sha256": "028e4681706825cc292067d90ee44d0c3f55ae81181c53f6075ae002a957d462",
+      "bytes": 14353
     },
     {
       "path": "/library/cloud-library-prototype.css",
@@ -715,8 +715,8 @@
     },
     {
       "path": "/privacy.md",
-      "sha256": "4e7c1e571a7ab09f27198b1aa1f8676c13be9d686c415df4104282759d2f6231",
-      "bytes": 17775
+      "sha256": "bba8ddadea480c4e6f6b879181a494eb595b3024e4a1a0dc80dc404e9cde0c32",
+      "bytes": 20259
     },
     {
       "path": "/published.html",
@@ -1255,8 +1255,8 @@
     },
     {
       "path": "/subprocessors.md",
-      "sha256": "a023b161a8f9b7938731a46f4155693976f7cab29a68f6ee3c3ad1d41f4c3831",
-      "bytes": 2862
+      "sha256": "28b797e26ab9588621e018881a893c35d83e5996730ce0f35d8b064dca47387e",
+      "bytes": 4258
     },
     {
       "path": "/sw.js",
