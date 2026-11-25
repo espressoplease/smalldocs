@@ -5,9 +5,9 @@ description: What SmallDocs receives, why it is processed, where it is stored, a
 
 # Privacy Notice
 
-**Last updated: 11 November 2026**
+**Last updated: 25 November 2026**
 
-This notice explains how **Odd Solutions Ltd**, company number 16186575, handles personal data when it operates SmallDocs. Odd Solutions Ltd is the controller for account, service, support, security, and billing records. For document content uploaded by a Team customer, the customer may be the controller and Odd Solutions Ltd may act as its processor.
+This notice explains how **Odd Solutions Ltd**, company number 16186575, handles personal data when it operates SmallDocs. Odd Solutions Ltd is the controller for account, service, support, security, and billing records. For document content uploaded to a team library by an organisation customer, the customer may be the controller and Odd Solutions Ltd may act as its processor.
 
 Contact: [hi@smalldocs.org](mailto:hi@smalldocs.org).
 
@@ -29,27 +29,31 @@ An encrypted short link uploads encrypted document bytes to SmallDocs. The serve
 
 ### SmallDocs Cloud
 
-Cloud stores selected documents for access across authorised people and connected machines. Document bodies, titles, filenames, tags, and revision metadata are encrypted at rest. SmallDocs manages the encryption keys and can decrypt an authorised document in application memory to render, search, edit, merge, export, and notify about it. Cloud is not end-to-end encrypted or zero knowledge.
+Cloud stores selected documents in personal and team libraries for access across authorised people and connected machines. Document bodies (including comments and replies), titles, filenames, tags, and revision metadata are encrypted at rest. SmallDocs manages the encryption keys and can decrypt an authorised document in application memory to render, search, edit, merge, export, and notify about it. Cloud is not end-to-end encrypted or zero knowledge.
 
 Access checks run before a Cloud document is decrypted. Search uses a permission-filtered index of keyed terms and positions. The database does not store plaintext search terms. Document metadata is decrypted in application memory when needed to display or filter results. Matching content may be decrypted to check matches and produce snippets. The index reveals term equality, frequency, word order, and some character relationships within a project. Access is checked again before results are returned. Search text, document text, and result snippets are excluded from application logs.
 
 ### Public pages
 
-Publishing a Cloud document creates a separate public copy. Anyone can read it without signing in, and search engines can index it. The public copy includes the document text, selected styling, public title and description, and the publisher's display name. Private comments, tags, source file paths and revision history are excluded.
+Publishing a Cloud document creates a separate public copy stored in unencrypted form so it can be served without authentication. Anyone can read it without signing in, and search engines can index it. The public copy includes the document text, selected styling, public title and description, and the publisher's display name. Private comments, tags, source file paths, and revision history are excluded.
 
 Private Cloud edits do not change the public copy until the creator updates the publication. Unpublishing or deleting the source removes public access through SmallDocs. Search engines and readers may retain copies. Public pages do not expire with the source revision's 90-day history window.
+
+### Browser voice dictation
+
+Comment mode includes optional voice dictation that runs locally in your browser using a Web Worker and WebAssembly. Microphone audio stays on your device and is not sent to SmallDocs servers. When comment mode prepares dictation, your browser downloads the speech-recognition runtime from jsDelivr and a quantized Whisper speech model (about 100 MB) from Hugging Face.
 
 ## Personal data we process
 
 | Data | Why it is used | Lawful basis |
 | --- | --- | --- |
-| Email address, first name, last name, identity-provider identifier, and sign-in history | Create and secure an account, sign a person in, display identity, and recover access | Contract and legitimate interests in service security |
+| Email address, first name, last name, identity-provider identifier, Terms acceptance records, and sign-in history | Create and secure an account, sign a person in, record Terms acceptance, display identity, and recover access | Contract and legitimate interests in service security |
 | Session and connected-machine records, hashed credentials, issue times, expiry times, and revocation state | Authenticate browsers and command line clients and allow credentials to be revoked | Contract and legitimate interests in preventing unauthorised access |
-| Account name, membership, roles, invitation address, approved email domains, permission groups, and audit events | Provide Team access controls and show administrative history | Contract and legitimate interests in account security and dispute handling |
-| Encrypted document data and operational metadata such as identifiers, sizes, revision times, and access events | Store, retrieve, search, edit, merge, back up, and recover Cloud documents | Contract. For Team content, the customer may determine the lawful basis |
-| Billing contact, Stripe customer and subscription identifiers, plan, seat quantity, invoice and payment status, tax state, and retention dates | Take payment, calculate entitlement, manage cancellation, and keep accounting records | Contract and legal obligation |
+| Library name, membership, roles, invitation address, join requests (company domain and optional note), approved email domains, permission groups, and audit events | Provide personal and team library access controls and show administrative history | Contract and legitimate interests in account security and dispute handling |
+| Encrypted document data (including comments and replies), document stars, published public copies, and operational metadata such as identifiers, sizes, revision times, and access events | Store, retrieve, search, edit, merge, publish, back up, and recover Cloud documents | Contract. For team library content, the organisation customer may determine the lawful basis |
+| Billing contact, Stripe customer and subscription identifiers, plan, seat quantity, trial status, referral credits, invoice and payment status, tax state, and retention dates | Take payment through Stripe Managed Payments, calculate entitlement, apply referral credits, manage cancellation, and keep accounting records | Contract and legal obligation |
 | Recipient address, notification choice, subject, delivery state, and optional note | Send sign-in, invitation, sharing, and billing messages | Contract and legitimate interests in delivering and securing the service |
-| Support requests, business enquiries, and correspondence | Respond to a request and keep a record of the response | Contract or steps requested before a contract, and legitimate interests in support |
+| Support requests, business and install enquiries, correspondence, in-app Cloud feedback (encrypted at rest with user ID, name, email, and message), trial feedback (user ID, comment, and optional rating), and anonymous public `/feedback` messages (message text and timestamp only) | Respond to requests, follow up enquiries, and improve the service | Contract or steps requested before a contract, and legitimate interests in support and product improvement |
 | Coarse visit information described below | Understand whether the public reader is used and detect a stale application version | Legitimate interests in operating and improving the service |
 | Security and operational events, provider request identifiers, counts, latency, disk use, job age, and failure codes | Detect abuse, diagnose incidents, reconcile providers, and recover the service | Legitimate interests in security and reliability |
 
@@ -57,7 +61,7 @@ The web server receives an IP address and user-agent as part of an HTTP connecti
 
 ## Public reader analytics and local storage
 
-The public application records a cohort week, current week, coarse device category, browser family, coarse referrer category, local hour, and load type when analytics are enabled. A cohort week is shared by everyone whose first visit occurred that week; it is not a unique identifier. A homepage or short-link URL can carry an explicit source label. A targeted social short link can also carry a public placement id. When both placement values are valid, the visit records the source, placement id, and associated short-link id. A placement id identifies where a link was published, not a person. Untagged short links do not receive placement attribution. Aggregate counts are published at [smalldocs.org/analytics](/analytics), with placement details on the short-link sources page.
+The public application records a cohort week, current week, coarse device category, browser family, coarse referrer category, local hour, local day of week, and load type when analytics are enabled. A cohort week is shared by everyone whose first visit occurred that week; it is not a unique identifier. A homepage or short-link URL can carry an explicit source label. A targeted social short link can also carry a public placement id. When both placement values are valid, the visit records the source, placement id, and associated short-link id. A placement id identifies where a link was published, not a person. Untagged short links do not receive placement attribution. Aggregate counts are published at [smalldocs.org/analytics](/analytics), with placement details on the short-link sources page.
 
 Published pages and the [published-page directory](/published) display aggregate page views. Each server load of a published page increments that page's counter. The directory displays those totals. Repeat visits and automated requests can be included. These counters do not store visitor identifiers.
 
@@ -77,11 +81,13 @@ The referrer can see your name, whether you have signed up and connected your ag
 
 ## Who receives data
 
-We use Hetzner for the production server, AWS KMS for document-key protection, Amazon S3 for encrypted backups, Stripe for billing and tax, and Resend for transactional email. Their purposes, locations, and the data involved are listed on the [Service Providers and Subprocessors](/subprocessors) page.
+We use Hetzner for the production server, AWS KMS for document-key protection, Amazon S3 for encrypted backups, Stripe (including Stripe Managed Payments as Merchant of Record) for billing, tax, and payment support, Resend for transactional email, and SmallCRM for business-interest and install-help enquiries submitted through website contact forms. Their purposes, locations, and the data involved are listed on the [Service Providers and Subprocessors](/subprocessors) page.
 
-Google or GitHub receives identity requests only if that provider is configured, shown on the sign-in page, and selected by you. The public reader may request a selected font from Google Fonts or a chart library from jsDelivr. If a document refers to an external image or other resource, your browser contacts that resource's host directly.
+Google or GitHub receives identity requests only if that provider is configured, shown on the sign-in page, and selected by you.
 
-Some providers operate internationally. Where UK personal data is transferred outside the UK, we rely on an applicable adequacy regulation, the UK International Data Transfer Agreement or UK Addendum to standard contractual clauses, or another lawful transfer mechanism. Stripe may act as an independent controller for regulated payment and fraud-prevention activity.
+Your browser may contact third-party hosts directly for client-side assets when you use the relevant page or feature: Google Fonts for selected fonts; jsDelivr for on-demand rendering, export, font, and speech-recognition libraries; Hugging Face for the local Whisper speech model when comment dictation is prepared; Cloudflare R2 for homepage and footer demo videos; GitHub (`raw.githubusercontent.com`) for the open-source verification status badge; and YouTube (`youtube-nocookie.com`) when a document embeds a supported video. If a document refers to an external image or other resource, your browser contacts that resource's host directly. None of these client-side resource hosts receive Cloud document content from our server.
+
+Some providers operate internationally. Where UK personal data is transferred outside the UK, we rely on an applicable adequacy regulation, the UK International Data Transfer Agreement or UK Addendum to standard contractual clauses, or another lawful transfer mechanism. Under Stripe Managed Payments, Stripe acts as Merchant of Record and an independent controller for regulated payment, indirect tax, dispute, and fraud-prevention activity.
 
 ## Retention
 
@@ -90,13 +96,15 @@ Some providers operate internationally. Where UK personal data is transferred ou
 - Active Cloud account and membership records are kept while needed to provide the account. A verified identity can remain after the last subscription ends so the person can sign in, export retained data, recover a subscription, or exercise data rights.
 - Cloud keeps the current revision and all previous revisions from the last 90 days. The current revision remains available after that period.
 - A deleted Cloud document can normally be restored for 30 days before permanent deletion from the active database.
+- Published public pages remain available until unpublished or until the source document or library is deleted.
+- Library join requests expire automatically if not accepted or cancelled.
 - Trial expiry, cancellation, and failed payment do not automatically delete Cloud documents. A future change to this retention policy will be communicated before it takes effect.
-- Team administrative events are kept with the account and removed when the account is permanently purged, unless a record must be retained for a legal claim or security investigation.
+- Library administrative audit events are kept with the library and removed when the library is permanently purged, unless a record must be retained for a legal claim or security investigation.
 - Encrypted production backups are created nightly. Local archives are kept for 7 days. Off-site archives are protected from early deletion for 30 days by S3 Object Lock, then removed through an asynchronous lifecycle process. An archive can remain for slightly longer than 31 days. Deleted ciphertext can remain until the applicable backup archive expires.
 - Encrypted short links expire after 365 days without a successful access.
 - Billing, invoice, tax, refund, and transaction records may be retained for 6 years after the financial year to which they relate, or longer when law or an active enquiry requires it.
 - Operational logs are normally retained for no more than 90 days, unless a specific security incident or legal claim requires a relevant record to be preserved for longer.
-- Support correspondence is normally retained for 2 years after the request closes, unless it becomes part of a transaction, security incident, or legal claim.
+- Support correspondence, business enquiries, and in-app or trial feedback are normally retained for up to 2 years after the request closes or until deleted on request, unless a record becomes part of a transaction, security incident, or legal claim. Anonymous public `/feedback` submissions contain no user identifier and may be kept as product notes.
 
 When an active database row is deleted, copies may remain as encrypted ciphertext in retained backups. Backup access requires separate credentials and encryption keys. Backup expiry is not an immediate deletion mechanism for provider records that the provider must retain independently, such as Stripe transaction records.
 
@@ -108,7 +116,7 @@ A reorganisation, sale, administration, or transfer of the service may involve p
 
 ## Security
 
-Cloud document content and protected metadata are encrypted before database storage. Backups are also encrypted. On the production service, document encryption keys are protected by AWS KMS and are not stored in plaintext beside document data. Connections use TLS. Production workload, backup, and provider credentials have separate permissions. Connected machines can be viewed and revoked.
+Cloud document content, protected metadata, and in-app Cloud feedback are encrypted before database storage. Backups are also encrypted. Published public pages are stored unencrypted because they are intentionally served to the public without sign-in. On the production service, document encryption keys are protected by AWS KMS and are not stored in plaintext beside document data. Connections use TLS. Production workload, backup, and provider credentials have separate permissions. Connected machines can be viewed and revoked.
 
 ### How document keys are protected
 
@@ -151,7 +159,7 @@ Depending on the circumstances, UK data-protection law gives you rights to:
 - receive data you provided in a portable form; and
 - withdraw consent where consent is the basis for processing.
 
-Email [hi@smalldocs.org](mailto:hi@smalldocs.org) from the address associated with the account. We may need to verify the request. If a Team controls the document content, we may refer a content request to that Team.
+Email [hi@smalldocs.org](mailto:hi@smalldocs.org) from the address associated with the account. We may need to verify the request. If an organisation or team library controls the document content, we may refer a content request to that customer.
 
 You can complain to the UK Information Commissioner's Office at [ico.org.uk](https://ico.org.uk). Please contact us first if you want us to investigate a concern.
 

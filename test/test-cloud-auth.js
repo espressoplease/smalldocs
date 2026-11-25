@@ -11,8 +11,11 @@ module.exports = function(harness) {
     const { AuthError, CURRENT_TERMS_VERSION, createAuthStore } = require('../lib/cloud-auth');
     test('the current Terms version identifies the published Terms copy', () => {
       const legal = fs.readFileSync(path.join(__dirname, '..', 'public', 'legal.md'), 'utf8');
-      assert.ok(legal.includes('**Last updated: 22 November 2026**'));
-      assert.strictEqual(CURRENT_TERMS_VERSION, '2026-11-22');
+      assert.ok(legal.includes('**Last updated: 25 November 2026**'));
+      assert.strictEqual(CURRENT_TERMS_VERSION, '2026-11-25');
+      assert.ok(legal.includes('12 months immediately before the event giving rise to the first claim'));
+      assert.ok(legal.includes('cyberattack, hack, security incident, unauthorised access, data breach'));
+      assert.ok(legal.includes('not personally against its directors, officers, employees, or contractors'));
     });
     test('schema migration leaves existing users pending one-time Terms acceptance', () => {
       const Database = require('better-sqlite3');

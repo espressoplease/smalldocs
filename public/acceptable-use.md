@@ -5,9 +5,9 @@ description: Rules for using SmallDocs and SmallDocs Cloud.
 
 # Acceptable Use Policy
 
-**Last updated: 24 August 2026**
+**Last updated: 25 November 2026**
 
-This policy forms part of the [SmallDocs Terms of Service](/legal). It applies to the hosted website, encrypted short links, SmallDocs Cloud, and automated access to those services.
+This policy forms part of the [SmallDocs Terms of Service](/legal). It applies to the hosted website, encrypted short links, published public pages, SmallDocs Cloud, and automated access to those services.
 
 ## Do not use the service to
 
@@ -25,7 +25,7 @@ This policy forms part of the [SmallDocs Terms of Service](/legal). It applies t
 
 Agents and scripts may use documented SmallDocs interfaces under an authorised human account. They must follow the same access rules as that person. Automation must not create accounts, invite people, broaden document access, or send notifications unless the authorised interface and account permissions allow it.
 
-We do not charge per agent at launch. This does not grant unlimited compute or abusive traffic. If an automated workload creates a material operational cost, we will contact the account owner before imposing a specific limit or proposing a different plan, unless immediate action is needed to protect the service.
+We do not charge per agent. This does not grant unlimited compute or abusive traffic. If an automated workload creates a material operational cost, we will contact the account owner before imposing a specific limit or proposing a different plan, unless immediate action is needed to protect the service.
 
 ## Enforcement
 

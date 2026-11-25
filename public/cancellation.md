@@ -1,17 +1,25 @@
 ---
 title: SmallDocs Cancellation and Refund Policy
-description: How to cancel Cloud, request a refund, export documents, and understand access after cancellation.
+description: How free trials work, how to cancel Cloud, request a refund, export documents, and understand access after cancellation.
 ---
 
 # Cancellation and Refund Policy
 
-**Last updated: 26 October 2026**
+**Last updated: 25 November 2026**
+
+## Free trials
+
+New SmallDocs Cloud accounts start with a two-calendar-month free trial with no payment details required. After the trial ends, access continues for seven days with a subscription reminder. After that extra week, a subscription is required to open, create, update, or search Cloud documents. Trial expiry does not automatically delete your Cloud documents.
+
+If you complete checkout before your free trial ends, the annual subscription charge is taken immediately and your paid billing period starts on that date.
 
 ## Cancel a subscription
 
 1. Sign in to SmallDocs Cloud.
 2. Open **Cloud settings** and select **Billing**.
 3. Open the Stripe billing portal and cancel the subscription.
+
+Stripe acts as Merchant of Record for SmallDocs Cloud subscriptions through Stripe Managed Payments and provides the billing portal for managing payment methods, invoices, and cancellation.
 
 Cancellation stops the next renewal. You can keep editing until the end of the period already paid for. The account then becomes read-only, so you can open and export documents but cannot add or edit Cloud content.
 
